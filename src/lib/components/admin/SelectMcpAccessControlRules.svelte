@@ -1,0 +1,245 @@
+<script lang="ts">
+	import { ADMIN_SESSION_STORAGE } from '$lib/constants';
+	import Loading from '$lib/icons/Loading.svelte';
+	import {
+		AdminService,
+		UserService,
+		type AccessControlRule,
+		type AccessControlRuleResource,
+		type MCPCatalogEntry,
+		type MCPCatalogServer,
+		type OrgUser,
+		type OrgGroup,
+		type AccessControlRuleSubject
+	} from '$lib/services';
+	import { mcpServersAndEntries, profile } from '$lib/stores';
+	import { goto } from '$lib/url';
+	import InfoTooltip from '../InfoTooltip.svelte';
+	import ResponsiveDialog from '../ResponsiveDialog.svelte';
+	import { Circle, CircleCheck } from '@lucide/svelte';
+	import { twMerge } from 'tailwind-merge';
+
+	interface Props {
+		entry?: MCPCatalogEntry | MCPCatalogServer;
+		onSubmit?: () => void;
+		entity?: 'workspace' | 'catalog';
+		id?: string;
+	}
+
+	let { entry, onSubmit, entity = 'catalog', id }: Props = $props();
+
+	let users = $state<OrgUser[]>([]);
+	let groups = $state<OrgGroup[]>([]);
+	let dialog = $state<ReturnType<typeof ResponsiveDialog>>();
+	let accessControlRules = $state<AccessControlRule[]>([]);
+	let userMap = $derived(new Map(users.map((user) => [user.id, user])));
+	let groupMap = $derived(new Map(groups.map((group) => [group.id, group])));
+
+	let selectedRules = $state<string[]>([]);
+	let savingRules = $state(false);
+	let updatingBeforeCreate = $state(false);
+
+	export async function open() {
+		accessControlRules =
+			entity === 'workspace' && id
+				? await UserService.listWorkspaceAccessControlRules(id)
+				: await AdminService.listAccessControlRules();
+		users = await UserService.listUsers();
+		// Resolve only the groups these rules actually reference; the directory may hold tens of
+		// thousands and this dialog just needs their display names.
+		try {
+			groups = await UserService.resolveGroups([
+				...new Set(
+					accessControlRules
+						.flatMap((rule) => rule.subjects ?? [])
+						.filter((subject) => subject.type === 'group' && subject.id !== '*')
+						.map((subject) => subject.id)
+				)
+			]);
+		} catch (error) {
+			console.error('Failed to resolve group names:', error);
+		}
+
+		dialog?.open();
+	}
+
+	export async function close() {
+		selectedRules = [];
+		dialog?.close();
+		onSubmit?.();
+	}
+
+	async function handleAddToRules() {
+		if (!entry) return;
+		savingRules = true;
+		const mappedRules = new Map<string, AccessControlRule>(
+			accessControlRules.map((rule) => [rule.id, rule])
+		);
+		const type = 'isCatalogEntry' in entry ? 'mcpServerCatalogEntry' : 'mcpServer';
+		for (const rule of selectedRules) {
+			const mappedRule = mappedRules.get(rule);
+			if (!mappedRule) continue;
+
+			if (entity === 'workspace' && id) {
+				await UserService.updateWorkspaceAccessControlRule(id, rule, {
+					...mappedRule,
+					resources: [
+						...(mappedRule.resources ?? []),
+						{ id: entry.id, type }
+					] as AccessControlRuleResource[]
+				});
+			} else {
+				await AdminService.updateAccessControlRule(rule, {
+					...mappedRule,
+					resources: [
+						...(mappedRule.resources ?? []),
+						{ id: entry.id, type }
+					] as AccessControlRuleResource[]
+				});
+			}
+		}
+
+		savingRules = false;
+		close();
+	}
+
+	function convertSubjectToDisplayName(subject: AccessControlRuleSubject | undefined): string {
+		if (!subject) return '';
+
+		if (subject.type === 'user') {
+			const user = userMap.get(subject.id);
+			if (!user) return subject.id;
+			return user.displayName ?? user.email ?? user.username ?? id;
+		} else if (subject.type === 'group') {
+			const group = groupMap.get(subject.id);
+			if (!group) return subject.id;
+			return group.name ?? group.id ?? subject.id;
+		}
+
+		if (subject.id === '*') return 'All Obot Users';
+		return '';
+	}
+
+	async function handleCreateNewRule() {
+		updatingBeforeCreate = true;
+		if (entry) {
+			sessionStorage.setItem(ADMIN_SESSION_STORAGE.ACCESS_CONTROL_RULE_CREATION, entry.id);
+		}
+
+		await mcpServersAndEntries.refreshEntries();
+		updatingBeforeCreate = false;
+
+		goto(
+			profile.current?.hasAdminAccess?.()
+				? '/admin/mcp-access-policies?new=true'
+				: '/mcp-access-policies?new=true'
+		);
+	}
+</script>
+
+<ResponsiveDialog
+	bind:this={dialog}
+	title="Add to Access Policies"
+	class="overflow-visible md:w-2xl"
+>
+	{#if accessControlRules.length === 0}
+		<p class="text-md mb-4 font-light">Looks like you don't have any MCP access policies yet!</p>
+		<p class="text-md mb-8 font-light">Want to go ahead & create one now?</p>
+	{:else}
+		<p class="text-md mb-8 font-light">
+			Select the access policies you want to apply to this MCP server.
+		</p>
+	{/if}
+	{#if accessControlRules.length > 0}
+		<div class="mb-8 flex flex-col">
+			<div class="grid grid-cols-2 gap-2 pb-1 text-xs font-semibold uppercase">
+				<p>Rule</p>
+				<p>User/Groups</p>
+			</div>
+			<div class="flex flex-col gap-1">
+				{#each accessControlRules as rule (rule.id)}
+					{@const hasEverything = rule.resources?.find((r) => r.id === '*') !== undefined}
+					<div class="flex items-center gap-2">
+						<button
+							class={twMerge(
+								'flex w-full items-center gap-2 rounded-md border border-transparent p-2 text-left transition-colors duration-200',
+								selectedRules.includes(rule.id) && 'border-primary',
+								!hasEverything && 'dark:hover:bg-base-200 hover:bg-base-400'
+							)}
+							onclick={() => {
+								if (hasEverything) return;
+								if (selectedRules.includes(rule.id)) {
+									selectedRules = selectedRules.filter((id) => id !== rule.id);
+								} else {
+									selectedRules.push(rule.id);
+								}
+							}}
+						>
+							<div class="grid w-full grid-cols-2 items-center gap-2">
+								<p class={twMerge('truncate', hasEverything && 'text-muted-content')}>
+									{rule.displayName}
+								</p>
+								<div class="flex grow items-center justify-between">
+									<p class={twMerge('line-clamp-2 text-xs', hasEverything && 'text-muted-content')}>
+										{#if rule.subjects && rule.subjects.length > 0}
+											{rule.subjects?.map((s) => convertSubjectToDisplayName(s)).join(', ')}
+										{:else}
+											<i class="text-muted-content">(Empty)</i>
+										{/if}
+									</p>
+									<div class="shrink-0">
+										{#if hasEverything}
+											<InfoTooltip
+												class="size-4"
+												classes={{ icon: 'size-4' }}
+												placement="top-end"
+												text="This server will be available by default to everyone in this rule."
+											/>
+										{:else if selectedRules.includes(rule.id)}
+											<CircleCheck class="text-primary size-4" />
+										{:else}
+											<Circle class="text-muted-content size-4" />
+										{/if}
+									</div>
+								</div>
+							</div>
+						</button>
+					</div>
+				{/each}
+			</div>
+		</div>
+	{/if}
+	{#if accessControlRules.length > 0}
+		<div class="mt-auto flex justify-between gap-4">
+			{@render createAccessPolicyButton()}
+			<div class="flex items-center gap-4">
+				<button
+					class="btn btn-primary flex items-center gap-1"
+					onclick={handleAddToRules}
+					disabled={savingRules}
+				>
+					{#if savingRules}
+						<Loading class="size-4" />
+					{:else}
+						Continue
+					{/if}
+				</button>
+			</div>
+		</div>
+	{:else}
+		<div class="mt-auto flex justify-end gap-4">
+			<button class="btn btn-secondary" onclick={close}> Skip Step </button>
+			{@render createAccessPolicyButton()}
+		</div>
+	{/if}
+</ResponsiveDialog>
+
+{#snippet createAccessPolicyButton()}
+	<button class="btn btn-primary" onclick={handleCreateNewRule} disabled={updatingBeforeCreate}>
+		{#if updatingBeforeCreate}
+			<Loading class="size-4" />
+		{:else}
+			Create Access Policy
+		{/if}
+	</button>
+{/snippet}

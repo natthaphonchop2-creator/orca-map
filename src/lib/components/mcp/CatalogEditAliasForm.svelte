@@ -1,0 +1,107 @@
+<script lang="ts">
+	import Loading from '$lib/icons/Loading.svelte';
+	import { UserService, type MCPCatalogServer } from '$lib/services';
+	import { getMCPDisplayName } from '$lib/services/user/mcp';
+	import { errors } from '$lib/stores';
+	import ResponsiveDialog from '../ResponsiveDialog.svelte';
+	import { Server } from '@lucide/svelte';
+
+	interface Props {
+		server?: MCPCatalogServer;
+		onUpdateConfigure?: () => void;
+	}
+
+	let { server, onUpdateConfigure }: Props = $props();
+
+	let dialog = $state<ReturnType<typeof ResponsiveDialog>>();
+	let newName = $state('');
+	let originalName = $state('');
+	let saving = $state(false);
+
+	export function open() {
+		const name = getMCPDisplayName(server, '');
+		newName = name;
+		originalName = name;
+		dialog?.open();
+	}
+
+	export function close() {
+		dialog?.close();
+	}
+
+	async function handleSave() {
+		const trimmedName = newName.trim();
+		if (!server?.id || !trimmedName || trimmedName === originalName) return;
+
+		try {
+			saving = true;
+			await UserService.updateSingleOrRemoteMcpServerAlias(server.id, trimmedName);
+			dialog?.close();
+			onUpdateConfigure?.();
+		} catch (err) {
+			errors.append(`Failed to update server alias: ${err}`);
+		} finally {
+			saving = false;
+		}
+	}
+</script>
+
+<ResponsiveDialog
+	bind:this={dialog}
+	animate="slide"
+	onClose={() => {
+		newName = originalName;
+		saving = false;
+	}}
+>
+	{#snippet titleContent()}
+		<div class="flex items-center gap-2">
+			<div class="bg-base-200 rounded-sm p-1 dark:bg-base-300">
+				{#if server?.manifest?.icon}
+					<img
+						src={server.manifest.icon}
+						alt={newName || getMCPDisplayName(server, '')}
+						class="size-8"
+					/>
+				{:else}
+					<Server class="size-8" />
+				{/if}
+			</div>
+			{newName || getMCPDisplayName(server, 'Server')}
+		</div>
+	{/snippet}
+
+	<form
+		onsubmit={(e) => {
+			e.preventDefault();
+			handleSave();
+		}}
+	>
+		<div class="my-4 flex flex-col gap-4">
+			<div class="flex flex-col gap-1">
+				<label for="serverName" class="text-sm font-medium">Server Alias</label>
+				<input
+					type="text"
+					id="serverName"
+					bind:value={newName}
+					class="text-input-filled"
+					placeholder="Enter server alias..."
+				/>
+			</div>
+		</div>
+	</form>
+
+	<div class="flex justify-end gap-2">
+		<button
+			class="btn btn-primary"
+			onclick={handleSave}
+			disabled={saving || !newName.trim() || newName.trim() === originalName}
+		>
+			{#if saving}
+				<Loading class="size-4" />
+			{:else}
+				Update
+			{/if}
+		</button>
+	</div>
+</ResponsiveDialog>

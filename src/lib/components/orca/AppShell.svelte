@@ -1,0 +1,413 @@
+<script lang="ts">
+  import { localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
+  import { activeNavigationView } from "$lib/orca/navigation";
+  import {
+    memberName,
+    memberRole,
+    type OrcaBootstrap,
+  } from "$lib/services/orca";
+  import Brand from "./Brand.svelte";
+  import "./app-workspace.css";
+  import {
+    Building2,
+    ChevronDown,
+    ChevronsLeft,
+    ChevronsRight,
+    CircleHelp,
+    CreditCard,
+    FolderKanban,
+    LockKeyhole,
+    Server,
+    ShieldCheck,
+    SlidersHorizontal,
+    UserCheck,
+    ClipboardList,
+    Folder,
+    LayoutGrid,
+    LayoutDashboard,
+    Activity,
+    KeyRound,
+    LogOut,
+    Menu,
+    Plug,
+    RefreshCw,
+    Settings,
+    UserRound,
+    Users,
+    X,
+  } from "@lucide/svelte";
+  import { onMount, type Snippet } from "svelte";
+
+  let {
+    data,
+    view,
+    refreshing,
+    onrefresh,
+    children,
+  }: {
+    data?: OrcaBootstrap;
+    view: string;
+    refreshing: boolean;
+    onrefresh: () => void;
+    children: Snippet;
+  } = $props();
+  const preferenceKey = "orca.workspace.sidebar.collapsed";
+  function readSidebarPreference() {
+    try {
+      return (
+        typeof window !== "undefined" &&
+        window.localStorage.getItem(preferenceKey) === "1"
+      );
+    } catch {
+      return false;
+    }
+  }
+  let collapsed = $state(readSidebarPreference());
+  let drawer: HTMLDialogElement | undefined = $state();
+  let shell: HTMLDivElement | undefined = $state();
+  const currentUser = $derived(
+    data?.members.find((item) => item.id === data?.currentUserID),
+  );
+  const organization = $derived(data?.organization.displayName || "ORCA");
+  const accountName = $derived(
+    currentUser ? memberName(currentUser) : t("บัญชีของคุณ", "Your account"),
+  );
+  const navigationGroups = $derived([
+    {
+      id: "main", label: "", nested: false,
+      items: [
+        { id: "dashboard", label: "Dashboard", href: "/app", icon: LayoutDashboard },
+        { id: "organization", label: "Organization", href: "/app?view=organization", icon: Building2 },
+        { id: "projects", label: "Projects", href: "/app?view=projects", icon: FolderKanban },
+        { id: "members", label: "Members & departments", href: "/app?view=members", icon: Users },
+      ],
+    },
+    {
+      id: "tools", label: "Tools", nested: false,
+      items: [
+        ...(data?.canManage ? [{ id: "catalog", label: "Tool Catalog", href: "/app?view=catalog", icon: LayoutGrid }] : []),
+        { id: "workspaces", label: "MCP Gateways", href: "/app?view=workspaces", icon: Folder },
+        { id: "user-sources", label: "User sources", href: "/app?view=user-sources", icon: UserRound },
+        { id: "servers", label: "Servers", href: "/app?view=servers", icon: Server },
+        { id: "secrets", label: "Secrets", href: "/app?view=secrets", icon: LockKeyhole },
+      ],
+    },
+    {
+      id: "connections", label: "Connections", nested: true,
+      items: [
+        { id: "connected-apps", label: "Connected apps", href: "/app?view=connections", icon: Plug },
+        { id: "connected-users", label: "Connected users", href: "/app?view=connected-users", icon: Users },
+        { id: "user-verification", label: "User verification", href: "/app?view=user-verification", icon: UserCheck },
+      ],
+    },
+    {
+      id: "access", label: "", nested: false,
+      items: [{ id: "contextual-access", label: "Contextual Access", href: "/app?view=contextual-access", icon: ShieldCheck }],
+    },
+    {
+      id: "observability", label: "Observability", nested: true,
+      items: [
+        { id: "audit", label: "Audit Logs", href: "/app?view=audit", icon: ClipboardList },
+        { id: "logging-policy", label: "Logging Policy", href: "/app?view=logging-policy", icon: SlidersHorizontal },
+        { id: "executions", label: "Tool Executions", href: "/app?view=executions", icon: Activity },
+      ],
+    },
+    {
+      id: "administration", label: "", nested: false,
+      items: [
+        { id: "api-keys", label: "API keys", href: "/app?view=api-keys", icon: KeyRound },
+        { id: "billing", label: "Billing", href: "/app?view=billing", icon: CreditCard },
+      ],
+    },
+  ]);
+  const utilityNavigation = $derived([
+    {
+      id: "settings",
+      label: "Settings",
+      href: "/app?view=settings",
+      icon: Settings,
+    },
+    {
+      id: "help",
+      label: "Help",
+      href: "/app?view=help",
+      icon: CircleHelp,
+    },
+  ]);
+  const activeView = $derived(activeNavigationView(view));
+  const currentPage = $derived(
+    view === "new"
+      ? "Create MCP Gateway"
+      : view === "accounts"
+        ? "My accounts"
+        : view === "knowledge"
+          ? "Knowledge"
+        : [
+          ...navigationGroups.flatMap((group) => group.items),
+          ...utilityNavigation,
+        ].find((item) => item.id === activeView)?.label ||
+          (view === "catalog"
+            ? "Tool Catalog"
+            : "Dashboard"),
+  );
+  function closeAccounts() {
+    shell
+      ?.querySelectorAll<HTMLDetailsElement>(".workspace-account[open]")
+      .forEach((account) => {
+        account.open = false;
+      });
+  }
+  function closeDrawer() {
+    drawer?.close();
+    closeAccounts();
+  }
+  function toggleSidebar() {
+    closeAccounts();
+    collapsed = !collapsed;
+    try {
+      window.localStorage.setItem(preferenceKey, collapsed ? "1" : "0");
+    } catch {
+      // The rail still works when browser storage is unavailable.
+    }
+  }
+  function onAccountKeydown(event: KeyboardEvent) {
+    if (event.key !== "Escape" || !(event.target instanceof Element)) return;
+    const account = event.target.closest<HTMLDetailsElement>(
+      ".workspace-account[open]",
+    );
+    if (!account || !shell?.contains(account)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    account.open = false;
+    account.querySelector("summary")?.focus();
+  }
+  onMount(() => {
+    const desktop = window.matchMedia("(min-width: 821px)");
+    const onResize = () => {
+      if (desktop.matches) closeDrawer();
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === preferenceKey) {
+        closeAccounts();
+        collapsed = event.newValue === "1";
+      }
+    };
+    const onOutsideAccount = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      shell
+        ?.querySelectorAll<HTMLDetailsElement>(".workspace-account[open]")
+        .forEach((account) => {
+          if (!account.contains(target)) account.open = false;
+        });
+    };
+    desktop.addEventListener("change", onResize);
+    window.addEventListener("storage", onStorage);
+    document.addEventListener("pointerdown", onOutsideAccount);
+    document.addEventListener("focusin", onOutsideAccount);
+    document.addEventListener("keydown", onAccountKeydown);
+    return () => {
+      desktop.removeEventListener("change", onResize);
+      window.removeEventListener("storage", onStorage);
+      document.removeEventListener("pointerdown", onOutsideAccount);
+      document.removeEventListener("focusin", onOutsideAccount);
+      document.removeEventListener("keydown", onAccountKeydown);
+    };
+  });
+  $effect(() => {
+    const currentView = view;
+    if (currentView) closeDrawer();
+  });
+</script>
+
+{#snippet sidebar(compact: boolean = false, mobile: boolean = false)}
+  <div class="workspace-sidebar-header">
+    <div
+      class="workspace-brand"
+      aria-label="ORCA"
+      title={compact ? "ORCA" : undefined}
+    >
+      <Brand {compact} />
+    </div>
+    {#if !mobile}
+      <button
+        class="workspace-collapse workspace-icon-button"
+        onclick={toggleSidebar}
+        aria-expanded={!collapsed}
+        aria-controls="workspace-desktop-navigation"
+        aria-label={collapsed
+          ? t("ขยายเมนูด้านข้าง", "Expand sidebar")
+          : t("ย่อเมนูด้านข้าง", "Collapse sidebar")}
+        title={collapsed
+          ? t("ขยายเมนูด้านข้าง", "Expand sidebar")
+          : t("ย่อเมนูด้านข้าง", "Collapse sidebar")}
+      >
+        {#if collapsed}<ChevronsRight size={17} />{:else}<ChevronsLeft
+            size={17}
+          />{/if}
+      </button>
+    {/if}
+  </div>
+
+  <div
+    class="workspace-sidebar-scroll"
+    id={mobile ? undefined : "workspace-desktop-navigation"}
+  >
+    <nav class="workspace-nav" aria-label={t("เมนูหลัก", "Main navigation")}>
+      {#each navigationGroups as group (group.id)}
+        <div class="workspace-nav-group" class:nested={group.nested}>
+          {#if group.label}
+            <p class="workspace-nav-heading">{group.label}</p>
+          {/if}
+          {#each group.items as item (item.id)}
+            <a
+              href={localeHref(item.href)}
+              onclick={closeDrawer}
+              class:active={activeView === item.id}
+              aria-current={activeView === item.id ? "page" : undefined}
+              aria-label={item.label}
+              title={item.label}
+            >
+              <item.icon size={18} strokeWidth={1.7} aria-hidden="true" />
+              <span class="workspace-nav-label">{item.label}</span>
+            </a>
+          {/each}
+        </div>
+      {/each}
+    </nav>
+  </div>
+  <div class="workspace-sidebar-bottom">
+    <nav
+      class="workspace-nav"
+      aria-label={t("การตั้งค่าและความช่วยเหลือ", "Settings and help")}
+    >
+      {#each utilityNavigation as item (item.id)}
+        <a
+          href={localeHref(item.href)}
+          onclick={closeDrawer}
+          class:active={activeView === item.id}
+          aria-current={activeView === item.id ? "page" : undefined}
+          aria-label={item.label}
+          title={compact ? item.label : undefined}
+        >
+          <item.icon size={18} strokeWidth={1.7} aria-hidden="true" />
+          <span class="workspace-nav-label">{item.label}</span>
+        </a>
+      {/each}
+    </nav>
+    <details class="workspace-account">
+      <summary
+        aria-label={t(`บัญชี ${accountName}`, `Account: ${accountName}`)}
+        title={compact ? accountName : undefined}
+      >
+        <span class="workspace-avatar" aria-hidden="true"
+          ><UserRound size={20} /></span
+        >
+        <span class="workspace-account-copy"
+          ><strong>{accountName}</strong><small
+            >{currentUser
+              ? memberRole(currentUser.role)
+              : t("กำลังโหลด…", "Loading…")}</small
+          ></span
+        >
+        <ChevronDown
+          size={15}
+          class="workspace-account-chevron"
+          aria-hidden="true"
+        />
+      </summary>
+      <div class="workspace-account-menu">
+        <strong>{accountName}</strong>
+        {#if currentUser?.email}<span>{currentUser.email}</span>{/if}
+        <small>{organization}</small>
+        <a
+          href={localeHref("/app?view=accounts")}
+          onclick={closeDrawer}
+          aria-current={view === "accounts" ? "page" : undefined}
+          ><KeyRound size={17} aria-hidden="true" />{t(
+            "บัญชีของฉัน",
+            "My accounts",
+          )}</a
+        >
+        <a
+          href={localeHref("/app?view=settings&section=preferences")}
+          onclick={closeDrawer}
+          ><Settings size={17} aria-hidden="true" />{t(
+            "การตั้งค่าบัญชี",
+            "Account settings",
+          )}</a
+        >
+        <a href="/oauth2/sign_out?rd=/"
+          ><LogOut size={17} aria-hidden="true" />{t(
+            "ออกจากระบบ",
+            "Sign out",
+          )}</a
+        >
+      </div>
+    </details>
+  </div>
+{/snippet}
+
+<div
+  class="orca khum orca-app orca-workspace"
+  class:sidebar-collapsed={collapsed}
+  lang={orcaLocale.value}
+  bind:this={shell}
+>
+  <a href="#khum-main" class="k-skip"
+    >{t("ข้ามไปยังเนื้อหา", "Skip to content")}</a
+  >
+  <aside
+    class="workspace-sidebar"
+    class:compact={collapsed}
+    aria-label={t("เมนู ORCA", "ORCA menu")}
+  >
+    {@render sidebar(collapsed)}
+  </aside>
+  <dialog
+    class="workspace-drawer"
+    bind:this={drawer}
+    onclose={closeAccounts}
+    aria-label={t("เมนู ORCA", "ORCA menu")}
+  >
+    <button
+      class="workspace-close"
+      onclick={closeDrawer}
+      aria-label={t("ปิดเมนู", "Close menu")}><X size={22} /></button
+    >
+    {@render sidebar(false, true)}
+  </dialog>
+  <div class="workspace-stage">
+    <header class="workspace-topbar">
+      <button
+        class="workspace-menu workspace-icon-button"
+        onclick={() => drawer?.showModal()}
+        aria-label={t("เปิดเมนู", "Open menu")}
+        aria-haspopup="dialog"><Menu size={22} /></button
+      >
+      <div class="workspace-location">
+        <div class="workspace-organization">
+          <Building2 size={16} strokeWidth={1.6} aria-hidden="true" />
+          <span title={organization}>{organization}</span>
+        </div>
+        <span class="workspace-breadcrumb-divider" aria-hidden="true">/</span>
+        <strong class="workspace-current-page" aria-current="page"
+          >{currentPage}</strong
+        >
+      </div>
+      <div class="workspace-header-actions">
+        <button
+          class="workspace-icon-button"
+          disabled={refreshing}
+          onclick={onrefresh}
+          aria-label={t("อัปเดตข้อมูล", "Refresh data")}
+          title={t("อัปเดตข้อมูล", "Refresh data")}
+          ><RefreshCw size={17} class={refreshing ? "k-spin" : ""} /></button
+        >
+      </div>
+    </header>
+    <main class="workspace-main" id="khum-main" tabindex="-1">
+      {@render children()}
+    </main>
+  </div>
+</div>

@@ -1,0 +1,2331 @@
+import { DEFAULT_MCP_CATALOG_ID } from '$lib/constants';
+import { HttpError } from '$lib/errors';
+import type { Skill } from '$lib/services/nanobot/types';
+import { buildQueryString } from '$lib/url';
+import {
+	doDelete,
+	doGet,
+	doGetForResponse,
+	doPatch,
+	doPost,
+	doPut,
+	handleResponse,
+	type Fetcher,
+	type PaginatedResponse
+} from '../http';
+import { AUDIT_LOG_FILTER_OPTIONS_LIMIT } from '../user/constants';
+import type {
+	ModelProvider,
+	MCPCatalogServer,
+	MCPServerInstance,
+	MCPServerTool,
+	Model,
+	ModelAlias,
+	DefaultModelAlias,
+	BootstrapStatus,
+	AppPreferences,
+	AppNotification,
+	AccessControlRule,
+	AccessControlRuleManifest,
+	K8sServerDetail,
+	MCPAllowedSecretBindingTarget,
+	MCPSubField
+} from '../user/types';
+import type {
+	MCPCatalog,
+	MCPCatalogEntry,
+	MCPCatalogEntryServerManifest,
+	MCPCatalogManifest,
+	MCPCatalogServerManifest,
+	ModelAccessPolicy,
+	ModelAccessPolicyManifest,
+	AuthProvider,
+	MCPFilter,
+	MCPFilterManifest,
+	TempUser,
+	ScheduledAuditLogExport,
+	StorageCredentials,
+	AuditLogExport,
+	AuditLogExportInput,
+	AuditLogType,
+	ScheduledAuditLogExportInput,
+	K8sSettings,
+	ServerK8sSettings,
+	ImagePullSecret,
+	ImagePullSecretCapability,
+	ImagePullSecretManifest,
+	ImagePullSecretRefreshResponse,
+	ImagePullSecretTestRequest,
+	ImagePullSecretTestResponse,
+	GitCredential,
+	GitCredentialManifest,
+	MCPCompositeDeletionDependency,
+	MCPTunnel,
+	MCPTunnelManifest,
+	TunnelConnection,
+	GroupRoleAssignment,
+	GroupRoleAssignmentList,
+	MCPCapacityInfo,
+	MCPServerOAuthCredentialRequest,
+	MCPServerOAuthCredentialStatus,
+	TokenUsageTimeRange,
+	TotalTokenUsage,
+	TokenUsage,
+	SkillRepository,
+	SkillRepositoryManifest,
+	SkillAccessPolicy,
+	SkillAccessPolicyManifest,
+	MessagePolicy,
+	MessagePolicyManifest,
+	MessagePolicyViolation,
+	MessagePolicyViolationFilters,
+	MessagePolicyViolationStats,
+	RestartNanobotAgentDeploymentsResult,
+	SystemMCPCatalog,
+	SystemMCPCatalogManifest,
+	SystemMCPServer,
+	SystemMCPServerCatalogEntry,
+	SystemMCPServerCatalogEntryManifest,
+	SystemMCPServerManifest,
+	DeviceMCPServerOccurrenceResponse,
+	DeviceMCPServerDetail,
+	DeviceScanStats,
+	DeviceSkillListFilters,
+	DeviceSkillOccurrenceResponse,
+	DeviceSkillDetail,
+	DeviceSkillStatResponse,
+	DeviceClientFleetSummary,
+	DeviceClientFleetSummaryResponse,
+	DeviceClientListFilters,
+	OAuthDebuggerAuthorizationURL,
+	OAuthDebuggerAuthorizationURLRequest,
+	OAuthDebuggerRegisterClientResponse,
+	OAuthDebuggerTokenRequest,
+	OAuthToken,
+	AppPreferencesManifest,
+	AppNotificationManifest,
+	License,
+	LicenseManifest,
+	CommunityLicenseEnrollment,
+	LLMAuditLog,
+	LLMAuditLogURLFilters,
+	EnforcementDecisionAllowlistCheck,
+	EnforcementDecisionEvent,
+	EnforcementDecisionURLFilters,
+	MDMAsset,
+	MDMAssetList,
+	MDMAssetSource,
+	MDMConfiguration,
+	MDMConfigurationEnforcementInput,
+	MDMConfigurationInput,
+	MDMDevice,
+	MDMEnrollmentKey,
+	MDMEnrollmentKeyCreateResponse,
+	LocalAuthUser
+} from './types';
+import { MCPCompositeDeletionDependencyError } from './types';
+
+type ItemsResponse<T> = { items: T[] | null };
+type RequestOptions = { fetch?: Fetcher; dontLogErrors?: boolean; signal?: AbortSignal };
+
+export async function listMCPSecretBindingTargets(
+	opts?: RequestOptions
+): Promise<MCPAllowedSecretBindingTarget[]> {
+	const response = (await doGet(
+		'/mcp-server-binding-secrets',
+		opts
+	)) as ItemsResponse<MCPAllowedSecretBindingTarget>;
+	return response.items ?? [];
+}
+
+// Access control rules
+
+export async function listAccessControlRules(opts?: {
+	fetch?: Fetcher;
+}): Promise<AccessControlRule[]> {
+	const response = (await doGet(
+		`/mcp-catalogs/${DEFAULT_MCP_CATALOG_ID}/access-control-rules`,
+		opts
+	)) as ItemsResponse<AccessControlRule>;
+	return response.items ?? [];
+}
+
+export async function getAccessControlRule(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<AccessControlRule> {
+	const response = (await doGet(
+		`/mcp-catalogs/${DEFAULT_MCP_CATALOG_ID}/access-control-rules/${id}`,
+		opts
+	)) as AccessControlRule;
+	return response;
+}
+
+export async function createAccessControlRule(
+	rule: AccessControlRuleManifest
+): Promise<AccessControlRule> {
+	const response = (await doPost(
+		`/mcp-catalogs/${DEFAULT_MCP_CATALOG_ID}/access-control-rules`,
+		rule
+	)) as AccessControlRule;
+	return response;
+}
+
+export async function updateAccessControlRule(
+	id: string,
+	rule: AccessControlRuleManifest
+): Promise<AccessControlRule> {
+	return (await doPut(
+		`/mcp-catalogs/${DEFAULT_MCP_CATALOG_ID}/access-control-rules/${id}`,
+		rule
+	)) as AccessControlRule;
+}
+
+export async function deleteAccessControlRule(id: string): Promise<void> {
+	await doDelete(`/mcp-catalogs/${DEFAULT_MCP_CATALOG_ID}/access-control-rules/${id}`);
+}
+
+// App preferences
+
+export async function updateAppPreferences(
+	preferences: AppPreferencesManifest,
+	opts?: { fetch?: Fetcher }
+) {
+	return (await doPut('/app-preferences', preferences, opts)) as AppPreferences;
+}
+
+// App notification
+
+export async function updateAppNotification(
+	notification: AppNotificationManifest,
+	opts?: { fetch?: Fetcher }
+) {
+	return (await doPut('/app-notification', notification, opts)) as AppNotification;
+}
+
+// Audit log exports
+
+export async function getAuditLogExports(type: AuditLogType = 'mcp', opts?: { fetch?: Fetcher }) {
+	const response = (await doGet(
+		`/audit-log-exports?type=${type}`,
+		opts
+	)) as PaginatedResponse<AuditLogExport>;
+	return response;
+}
+
+export async function getAuditLogExport(name: string, opts?: { fetch?: Fetcher }) {
+	const response = (await doGet(`/audit-log-exports/${name}`, opts)) as AuditLogExport;
+	return response;
+}
+
+export async function createAuditLogExport(
+	request: AuditLogExportInput,
+	opts?: { fetch?: Fetcher }
+) {
+	const response = (await doPost('/audit-log-exports', request, opts)) as AuditLogExport;
+	return response;
+}
+
+export async function deleteAuditLogExport(name: string, opts?: { signal?: AbortSignal }) {
+	await doDelete(`/audit-log-exports/${name}`, { signal: opts?.signal });
+}
+
+export async function getScheduledAuditLogExports(
+	type: AuditLogType = 'mcp',
+	opts?: { fetch?: Fetcher }
+) {
+	const response = (await doGet(
+		`/scheduled-audit-log-exports?type=${type}`,
+		opts
+	)) as PaginatedResponse<ScheduledAuditLogExport>;
+	return response;
+}
+
+export async function getScheduledAuditLogExport(
+	name: string,
+	opts?: { fetch?: Fetcher }
+): Promise<ScheduledAuditLogExport> {
+	const response = await doGet(`/scheduled-audit-log-exports/${name}`, opts);
+	return response as ScheduledAuditLogExport;
+}
+
+export async function createScheduledAuditLogExport(
+	request: ScheduledAuditLogExportInput,
+	opts?: { dontLogErrors?: boolean }
+) {
+	const response = (await doPost(
+		'/scheduled-audit-log-exports',
+		request,
+		opts
+	)) as ScheduledAuditLogExport;
+	return response;
+}
+
+export async function updateScheduledAuditLogExport(
+	id: string,
+	request: Partial<ScheduledAuditLogExportInput>,
+	opts?: { dontLogErrors?: boolean }
+) {
+	const response = (await doPatch(
+		`/scheduled-audit-log-exports/${id}`,
+		request,
+		opts
+	)) as ScheduledAuditLogExport;
+	return response;
+}
+
+export async function deleteScheduledAuditLogExport(name: string, opts?: { signal?: AbortSignal }) {
+	await doDelete(`/scheduled-audit-log-exports/${name}`, { signal: opts?.signal });
+}
+
+// LLM audit logs
+
+export async function getLLMAuditLog(id: string, opts?: { fetch?: Fetcher; signal?: AbortSignal }) {
+	const response = (await doGet(`/llm-audit-logs/detail/${id}`, opts)) as LLMAuditLog;
+	return response;
+}
+
+export async function listLLMAuditLogs(
+	filters?: LLMAuditLogURLFilters,
+	opts?: { fetch?: Fetcher; signal?: AbortSignal }
+) {
+	const queryString = buildQueryString(filters ?? {});
+	const response = (await doGet(
+		`/llm-audit-logs${queryString ? `?${queryString}` : ''}`,
+		opts
+	)) as PaginatedResponse<LLMAuditLog>;
+	return response;
+}
+
+export async function listLLMAuditLogFilterOptions(
+	filter: string,
+	opts?: { fetch?: Fetcher; signal?: AbortSignal } & Partial<LLMAuditLogURLFilters>
+) {
+	const { fetch: fetchFn, signal, ...filters } = opts ?? {};
+	const queryString = buildQueryString({ ...filters, limit: AUDIT_LOG_FILTER_OPTIONS_LIMIT });
+	const response = (await doGet(
+		`/llm-audit-logs/filter-options/${filter}${queryString ? `?${queryString}` : ''}`,
+		{ fetch: fetchFn, signal }
+	)) as { options: string[] };
+	return response;
+}
+
+// Auth providers
+
+export async function listAuthProviders(opts?: { fetch?: Fetcher }): Promise<AuthProvider[]> {
+	const list = (await doGet('/auth-providers', opts)) as ItemsResponse<AuthProvider>;
+	return list.items ?? [];
+}
+
+export async function configureAuthProvider(
+	authProviderID: string,
+	envs: Record<string, string>,
+	opts?: { fetch?: Fetcher }
+): Promise<void> {
+	await doPost(`/auth-providers/${authProviderID}/configure`, envs, opts);
+}
+
+export async function revealAuthProvider(
+	authProviderID: string,
+	opts?: { fetch?: Fetcher }
+): Promise<Record<string, string> | undefined> {
+	const response = (await doPost(
+		`/auth-providers/${authProviderID}/reveal`,
+		{},
+		{
+			...opts,
+			dontLogErrors: true
+		}
+	)) as Record<string, string> | undefined;
+	return response;
+}
+
+export async function deconfigureAuthProvider(
+	authProviderID: string,
+	opts?: { fetch?: Fetcher }
+): Promise<void> {
+	await doPost(`/auth-providers/${authProviderID}/deconfigure`, {}, opts);
+}
+
+// Local auth provider users
+
+export async function listLocalAuthUsers(opts?: { fetch?: Fetcher }): Promise<LocalAuthUser[]> {
+	const list = (await doGet('/local-auth/users', opts)) as ItemsResponse<LocalAuthUser>;
+	return list.items ?? [];
+}
+
+export async function createLocalAuthUser(
+	email: string,
+	password: string,
+	opts?: { fetch?: Fetcher }
+): Promise<LocalAuthUser> {
+	return (await doPost('/local-auth/users', { email, password }, opts)) as LocalAuthUser;
+}
+
+export async function setLocalAuthUserPassword(
+	id: string,
+	password: string,
+	opts?: { fetch?: Fetcher }
+): Promise<void> {
+	await doPost(`/local-auth/users/${id}/password`, { password }, opts);
+}
+
+export async function deleteLocalAuthUser(id: string, opts?: { fetch?: Fetcher }): Promise<void> {
+	await doDelete(`/local-auth/users/${id}`, opts);
+}
+
+// Bootstrap
+
+export async function bootstrapLogin(token: string) {
+	const response = (await doPost(
+		'/bootstrap/login',
+		{},
+		{
+			headers: {
+				Authorization: `Bearer ${token}`
+			}
+		}
+	)) as BootstrapStatus;
+	return response;
+}
+
+export async function bootstrapLogout() {
+	return doPost('/bootstrap/logout', {});
+}
+
+// Devices
+
+export async function listDeviceClients(
+	filters?: DeviceClientListFilters,
+	opts?: { fetch?: Fetcher }
+): Promise<DeviceClientFleetSummaryResponse> {
+	const queryString = buildQueryString(filters ?? {});
+	return (await doGet(
+		`/devices/clients${queryString ? `?${queryString}` : ''}`,
+		opts
+	)) as DeviceClientFleetSummaryResponse;
+}
+
+export async function getDeviceClient(
+	name: string,
+	opts?: { fetch?: Fetcher }
+): Promise<DeviceClientFleetSummary> {
+	return (await doGet(
+		`/devices/clients/${encodeURIComponent(name)}`,
+		opts
+	)) as DeviceClientFleetSummary;
+}
+
+export async function getDeviceMCPServerDetail(
+	configHash: string,
+	opts?: { fetch?: Fetcher }
+): Promise<DeviceMCPServerDetail> {
+	return (await doGet(
+		`/devices/mcp-servers/${encodeURIComponent(configHash)}`,
+		opts
+	)) as DeviceMCPServerDetail;
+}
+
+export async function listDeviceMCPServerOccurrences(
+	configHash: string,
+	page: { limit?: number; offset?: number },
+	opts?: { fetch?: Fetcher }
+): Promise<DeviceMCPServerOccurrenceResponse> {
+	const queryString = buildQueryString(page ?? {});
+	return (await doGet(
+		`/devices/mcp-servers/${encodeURIComponent(configHash)}/occurrences${queryString ? `?${queryString}` : ''}`,
+		opts
+	)) as DeviceMCPServerOccurrenceResponse;
+}
+
+export async function deleteDeviceScan(id: number | string): Promise<void> {
+	await doDelete(`/devices/scans/${id}`);
+}
+
+export async function getDeviceScanStats(
+	range?: { start?: string; end?: string },
+	opts?: { fetch?: Fetcher }
+): Promise<DeviceScanStats> {
+	const queryString = buildQueryString(range ?? {});
+	return (await doGet(
+		`/devices/scan-stats${queryString ? `?${queryString}` : ''}`,
+		opts
+	)) as DeviceScanStats;
+}
+
+export async function listDeviceSkills(
+	filters?: DeviceSkillListFilters,
+	opts?: { fetch?: Fetcher }
+): Promise<DeviceSkillStatResponse> {
+	const queryString = buildQueryString(filters ?? {});
+	return (await doGet(
+		`/devices/skills${queryString ? `?${queryString}` : ''}`,
+		opts
+	)) as DeviceSkillStatResponse;
+}
+
+export async function getDeviceSkillDetail(
+	name: string,
+	opts?: { fetch?: Fetcher }
+): Promise<DeviceSkillDetail> {
+	return (await doGet(`/devices/skills/${encodeURIComponent(name)}`, opts)) as DeviceSkillDetail;
+}
+
+export async function listDeviceSkillOccurrences(
+	name: string,
+	page: { limit?: number; offset?: number },
+	opts?: { fetch?: Fetcher }
+): Promise<DeviceSkillOccurrenceResponse> {
+	const queryString = buildQueryString(page ?? {});
+	return (await doGet(
+		`/devices/skills/${encodeURIComponent(name)}/occurrences${queryString ? `?${queryString}` : ''}`,
+		opts
+	)) as DeviceSkillOccurrenceResponse;
+}
+
+// EULA
+
+export async function getEula() {
+	const response = (await doGet('/eula', {
+		dontLogErrors: true
+	})) as {
+		accepted: boolean;
+	};
+	return response;
+}
+
+export async function acceptEula() {
+	return (await doPut('/eula', {
+		accepted: true
+	})) as {
+		accepted: boolean;
+	};
+}
+
+// Group role assignments
+
+export async function listGroupRoleAssignments(opts?: {
+	fetch?: Fetcher;
+}): Promise<GroupRoleAssignment[]> {
+	const response = (await doGet('/group-role-assignments', opts)) as GroupRoleAssignmentList;
+	return response.items ?? [];
+}
+
+export async function getGroupRoleAssignment(
+	groupName: string,
+	opts?: { fetch?: Fetcher }
+): Promise<GroupRoleAssignment> {
+	const response = (await doGet(
+		`/group-role-assignments/${encodeURIComponent(groupName)}`,
+		opts
+	)) as GroupRoleAssignment;
+	return response;
+}
+
+export async function createGroupRoleAssignment(
+	assignment: GroupRoleAssignment,
+	opts?: { fetch?: Fetcher }
+): Promise<GroupRoleAssignment> {
+	const response = (await doPost(
+		'/group-role-assignments',
+		assignment,
+		opts
+	)) as GroupRoleAssignment;
+	return response;
+}
+
+export async function updateGroupRoleAssignment(
+	groupName: string,
+	assignment: GroupRoleAssignment,
+	opts?: { fetch?: Fetcher }
+): Promise<GroupRoleAssignment> {
+	const response = (await doPut(
+		`/group-role-assignments/${encodeURIComponent(groupName)}`,
+		assignment,
+		opts
+	)) as GroupRoleAssignment;
+	return response;
+}
+
+export async function deleteGroupRoleAssignment(
+	groupName: string,
+	opts?: { signal?: AbortSignal | undefined }
+): Promise<void> {
+	await doDelete(`/group-role-assignments/${encodeURIComponent(groupName)}`, opts);
+}
+
+// Image pull secrets
+
+export async function getImagePullSecretCapability(
+	opts?: RequestOptions
+): Promise<ImagePullSecretCapability> {
+	return (await doGet('/image-pull-secrets/capability', opts)) as ImagePullSecretCapability;
+}
+
+export async function listImagePullSecrets(opts?: RequestOptions): Promise<ImagePullSecret[]> {
+	const response = (await doGet('/image-pull-secrets', opts)) as ItemsResponse<ImagePullSecret>;
+	return response.items ?? [];
+}
+
+export async function getImagePullSecret(
+	id: string,
+	opts?: RequestOptions
+): Promise<ImagePullSecret> {
+	return (await doGet(`/image-pull-secrets/${id}`, opts)) as ImagePullSecret;
+}
+
+export async function createImagePullSecret(
+	input: ImagePullSecretManifest,
+	opts?: RequestOptions
+): Promise<ImagePullSecret> {
+	return (await doPost('/image-pull-secrets', input, opts)) as ImagePullSecret;
+}
+
+export async function updateImagePullSecret(
+	id: string,
+	input: ImagePullSecretManifest,
+	opts?: RequestOptions
+): Promise<ImagePullSecret> {
+	return (await doPut(`/image-pull-secrets/${id}`, input, opts)) as ImagePullSecret;
+}
+
+export async function deleteImagePullSecret(id: string, opts?: RequestOptions): Promise<void> {
+	await doDelete(`/image-pull-secrets/${id}`, opts);
+}
+
+// Git credentials
+
+export async function listGitCredentials(opts?: RequestOptions): Promise<GitCredential[]> {
+	const response = (await doGet('/git-credentials', opts)) as ItemsResponse<GitCredential>;
+	return response.items ?? [];
+}
+
+export async function getGitCredential(id: string, opts?: RequestOptions): Promise<GitCredential> {
+	return (await doGet(`/git-credentials/${id}`, opts)) as GitCredential;
+}
+
+export async function createGitCredential(
+	input: GitCredentialManifest,
+	opts?: RequestOptions
+): Promise<GitCredential> {
+	return (await doPost('/git-credentials', input, opts)) as GitCredential;
+}
+
+export async function updateGitCredential(
+	id: string,
+	input: GitCredentialManifest,
+	opts?: RequestOptions
+): Promise<GitCredential> {
+	return (await doPatch(`/git-credentials/${id}`, input, opts)) as GitCredential;
+}
+
+export async function deleteGitCredential(id: string, opts?: RequestOptions): Promise<void> {
+	await doDelete(`/git-credentials/${id}`, opts);
+}
+
+export async function testImagePullSecret(
+	id: string,
+	input: ImagePullSecretTestRequest,
+	opts?: RequestOptions
+): Promise<ImagePullSecretTestResponse> {
+	return (await doPost(
+		`/image-pull-secrets/${id}/test`,
+		input,
+		opts
+	)) as ImagePullSecretTestResponse;
+}
+
+export async function refreshImagePullSecret(
+	id: string,
+	opts?: RequestOptions
+): Promise<ImagePullSecretRefreshResponse> {
+	return (await doPost(
+		`/image-pull-secrets/${id}/refresh`,
+		{},
+		opts
+	)) as ImagePullSecretRefreshResponse;
+}
+
+// K8s settings
+
+export async function listK8sSettings(opts?: { fetch?: Fetcher }) {
+	const response = (await doGet('/k8s-settings', opts)) as K8sSettings;
+	return response;
+}
+
+export async function updateK8sSettings(settings: K8sSettings, opts?: { fetch?: Fetcher }) {
+	return (await doPut('/k8s-settings', settings, opts)) as K8sSettings;
+}
+
+export async function getK8sServerDetail(
+	mcpServerId: string,
+	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
+) {
+	const response = (await doGet(`/mcp-servers/${mcpServerId}/details`, opts)) as K8sServerDetail;
+	return response;
+}
+
+export async function getMcpCatalogServerK8sDetail(
+	catalogID: string,
+	mcpServerId: string,
+	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
+) {
+	const response = (await doGet(
+		`/mcp-catalogs/${catalogID}/servers/${mcpServerId}/details`,
+		opts
+	)) as K8sServerDetail;
+	return response;
+}
+
+export async function restartMcpCatalogServerDeployment(
+	catalogID: string,
+	mcpServerId: string,
+	opts?: { fetch?: Fetcher }
+) {
+	await doPost(`/mcp-catalogs/${catalogID}/servers/${mcpServerId}/restart`, {}, opts);
+}
+
+export async function getMcpCatalogServerK8sSettingsStatus(
+	mcpServerId: string,
+	opts?: { dontLogErrors?: boolean }
+) {
+	const response = (await doGet(
+		`/mcp-catalogs/${DEFAULT_MCP_CATALOG_ID}/servers/${mcpServerId}/k8s-settings-status`,
+		opts
+	)) as ServerK8sSettings;
+	return response;
+}
+
+export async function redeployWithK8sSettings(
+	mcpServerId: string,
+	catalogId: string,
+	opts?: { fetch?: Fetcher }
+) {
+	const response = await doPost(
+		`/mcp-catalogs/${catalogId}/servers/${mcpServerId}/redeploy-with-k8s-settings`,
+		{},
+		opts
+	);
+	return response;
+}
+
+export async function getMCPCatalogEntryServerK8sSettingsStatus(
+	entryID: string,
+	serverID: string,
+	opts?: { dontLogErrors?: boolean }
+) {
+	const response = (await doGet(
+		`/mcp-catalogs/${DEFAULT_MCP_CATALOG_ID}/entries/${entryID}/servers/${serverID}/k8s-settings-status`,
+		opts
+	)) as ServerK8sSettings;
+	return response;
+}
+
+export async function redeployMCPCatalogServerWithK8sSettings(
+	entryID: string,
+	serverID: string,
+	opts?: { fetch?: Fetcher }
+) {
+	const response = await doPost(
+		`/mcp-catalogs/${DEFAULT_MCP_CATALOG_ID}/entries/${entryID}/servers/${serverID}/redeploy-with-k8s-settings`,
+		{},
+		opts
+	);
+	return response;
+}
+
+// MCP capacity
+
+export async function getMCPCapacity(opts?: { fetch?: Fetcher }): Promise<MCPCapacityInfo> {
+	const response = (await doGet('/mcp-capacity', opts)) as MCPCapacityInfo;
+	return response;
+}
+
+// MCP catalogs
+
+export async function listMCPCatalogs(opts?: { fetch?: Fetcher }): Promise<MCPCatalog[]> {
+	const response = (await doGet('/mcp-catalogs', opts)) as ItemsResponse<MCPCatalog>;
+	return response.items ?? [];
+}
+
+export async function getMCPCatalog(id: string, opts?: { fetch?: Fetcher }): Promise<MCPCatalog> {
+	const response = (await doGet(`/mcp-catalogs/${id}`, opts)) as MCPCatalog;
+	return response;
+}
+
+export async function refreshMCPCatalog(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<MCPCatalog> {
+	const response = (await doPost(`/mcp-catalogs/${id}/refresh`, {}, opts)) as MCPCatalog;
+	return response;
+}
+
+export async function updateMCPCatalog(
+	id: string,
+	catalog: MCPCatalogManifest,
+	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
+): Promise<MCPCatalog> {
+	const response = (await doPut(`/mcp-catalogs/${id}`, catalog, opts)) as MCPCatalog;
+	return response;
+}
+
+export async function listCatalogCategories(catalogId: string, opts?: { fetch?: Fetcher }) {
+	const response = (await doGet(`/mcp-catalogs/${catalogId}/categories`, opts)) as string[];
+	return response;
+}
+
+export async function listAllCatalogDeployedSingleRemoteServers(
+	catalogId: string,
+	opts?: { fetch?: Fetcher }
+) {
+	const response = (await doGet(
+		`/mcp-catalogs/${catalogId}/entries/all-servers`,
+		opts
+	)) as ItemsResponse<MCPCatalogServer>;
+	return response.items ?? [];
+}
+
+// MCP catalog entries
+
+export async function listMCPCatalogEntries(
+	catalogID: string,
+	opts?: { fetch?: Fetcher; all?: boolean }
+): Promise<MCPCatalogEntry[]> {
+	const url = opts?.all
+		? `/mcp-catalogs/${catalogID}/entries?all=true`
+		: `/mcp-catalogs/${catalogID}/entries`;
+	const response = (await doGet(url, opts)) as ItemsResponse<MCPCatalogEntry>;
+	return (
+		response.items?.map((item) => {
+			return {
+				...item,
+				isCatalogEntry: true
+			};
+		}) ?? []
+	);
+}
+
+export async function getMCPCatalogEntry(
+	catalogID: string,
+	entryID: string,
+	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
+): Promise<MCPCatalogEntry> {
+	const response = (await doGet(
+		`/mcp-catalogs/${catalogID}/entries/${entryID}`,
+		opts
+	)) as MCPCatalogEntry;
+	return {
+		...response,
+		isCatalogEntry: true
+	};
+}
+
+export async function createMCPCatalogEntry(
+	catalogID: string,
+	entry: MCPCatalogEntryServerManifest,
+	opts?: { fetch?: Fetcher }
+): Promise<MCPCatalogEntry> {
+	const response = (await doPost(
+		`/mcp-catalogs/${catalogID}/entries`,
+		entry,
+		opts
+	)) as MCPCatalogEntry;
+	return {
+		...response,
+		isCatalogEntry: true
+	};
+}
+
+export async function updateMCPCatalogEntry(
+	catalogID: string,
+	entryID: string,
+	entry: MCPCatalogEntryServerManifest,
+	opts?: { fetch?: Fetcher }
+): Promise<MCPCatalogEntry> {
+	const response = (await doPut(
+		`/mcp-catalogs/${catalogID}/entries/${entryID}`,
+		entry,
+		opts
+	)) as MCPCatalogEntry;
+	return {
+		...response,
+		isCatalogEntry: true
+	};
+}
+
+export async function deleteMCPCatalogEntry(catalogID: string, entryID: string): Promise<void> {
+	await doDelete(`/mcp-catalogs/${catalogID}/entries/${entryID}`);
+}
+
+export async function getMCPCatalogEntryOAuthCredentials(
+	catalogID: string,
+	entryID: string,
+	opts?: { fetch?: Fetcher }
+): Promise<MCPServerOAuthCredentialStatus> {
+	const response = (await doGet(`/mcp-catalogs/${catalogID}/entries/${entryID}/oauth-credentials`, {
+		...opts,
+		dontLogErrors: true
+	})) as MCPServerOAuthCredentialStatus;
+	return response;
+}
+
+export async function setMCPCatalogEntryOAuthCredentials(
+	catalogID: string,
+	entryID: string,
+	credentials: MCPServerOAuthCredentialRequest,
+	opts?: { fetch?: Fetcher }
+): Promise<MCPServerOAuthCredentialStatus> {
+	const response = (await doPost(
+		`/mcp-catalogs/${catalogID}/entries/${entryID}/oauth-credentials`,
+		credentials,
+		opts
+	)) as MCPServerOAuthCredentialStatus;
+	return response;
+}
+
+export async function deleteMCPCatalogEntryOAuthCredentials(
+	catalogID: string,
+	entryID: string,
+	opts?: { signal?: AbortSignal }
+): Promise<void> {
+	await doDelete(`/mcp-catalogs/${catalogID}/entries/${entryID}/oauth-credentials`, opts);
+}
+
+export async function refreshCompositeComponents(
+	catalogID: string,
+	entryID: string,
+	opts?: { fetch?: Fetcher }
+): Promise<MCPCatalogEntry> {
+	const response = (await doPost(
+		`/mcp-catalogs/${catalogID}/entries/${entryID}/refresh-components`,
+		{},
+		opts
+	)) as MCPCatalogEntry;
+	return {
+		...response,
+		isCatalogEntry: true
+	};
+}
+
+export async function generateMcpCatalogEntryToolPreviews(
+	catalogID: string,
+	entryID: string,
+	body?: {
+		config?: Record<string, string>;
+		url?: string;
+	},
+	opts?: { fetch?: Fetcher; dryRun?: boolean }
+): Promise<MCPCatalogEntry> {
+	const path = `/mcp-catalogs/${catalogID}/entries/${entryID}/generate-tool-previews`;
+	const url = opts?.dryRun ? `${path}?dryRun=true` : path;
+	const resp = await doPost(url, body ?? {}, {
+		...opts,
+		dontLogErrors: true
+	});
+	return resp as MCPCatalogEntry;
+}
+
+export async function generateMcpCompositeComponentToolPreviews(
+	catalogID: string,
+	compositeEntryID: string,
+	componentID: string,
+	body?: {
+		config?: Record<string, string>;
+		url?: string;
+	},
+	opts?: { fetch?: Fetcher; dryRun?: boolean }
+): Promise<MCPCatalogEntry> {
+	const path = `/mcp-catalogs/${catalogID}/entries/${compositeEntryID}/${componentID}/generate-tool-previews`;
+	const url = opts?.dryRun ? `${path}?dryRun=true` : path;
+	const resp = await doPost(url, body ?? {}, {
+		...opts,
+		dontLogErrors: true
+	});
+	return resp as MCPCatalogEntry;
+}
+
+export async function getMcpCatalogToolPreviewsOauth(
+	catalogID: string,
+	entryID: string,
+	body?: {
+		config?: Record<string, string>;
+		url?: string;
+		componentConfigs?: Record<
+			string,
+			{
+				config?: Record<string, string>;
+				url?: string;
+				skip?: boolean;
+			}
+		>;
+	},
+	opts?: { fetch?: Fetcher; dryRun?: boolean }
+): Promise<string | Record<string, string>> {
+	try {
+		const path = `/mcp-catalogs/${catalogID}/entries/${entryID}/generate-tool-previews/oauth-url`;
+		const url = opts?.dryRun ? `${path}?dryRun=true` : path;
+		const response = (await doPost(url, body ?? {}, {
+			...opts,
+			dontLogErrors: true
+		})) as
+			| {
+					oauthURL: string;
+			  }
+			| Record<string, string>;
+
+		// Check if response has oauthURL property (single server response)
+		if (response && typeof response === 'object' && 'oauthURL' in response) {
+			return response.oauthURL;
+		}
+
+		// Otherwise it's a map of component IDs to OAuth URLs
+		return response as Record<string, string>;
+	} catch (_err) {
+		return '';
+	}
+}
+
+export async function getMcpCompositeComponentToolPreviewsOauth(
+	catalogID: string,
+	compositeEntryID: string,
+	componentID: string,
+	body?: {
+		config?: Record<string, string>;
+		url?: string;
+	},
+	opts?: { fetch?: Fetcher; dryRun?: boolean }
+): Promise<string> {
+	try {
+		const path = `/mcp-catalogs/${catalogID}/entries/${compositeEntryID}/${componentID}/generate-tool-previews/oauth-url`;
+		const url = opts?.dryRun ? `${path}?dryRun=true` : path;
+		const response = (await doPost(url, body ?? {}, {
+			...opts,
+			dontLogErrors: true
+		})) as {
+			oauthURL: string;
+		};
+		return response.oauthURL;
+	} catch (_err) {
+		return '';
+	}
+}
+
+export async function listMCPServersForEntry(
+	catalogID: string,
+	entryID: string,
+	opts?: { fetch?: Fetcher }
+): Promise<MCPCatalogServer[]> {
+	const response = (await doGet(
+		`/mcp-catalogs/${catalogID}/entries/${entryID}/servers`,
+		opts
+	)) as ItemsResponse<MCPCatalogServer>;
+	return response.items ?? [];
+}
+
+// MCP catalog servers
+
+export async function listMCPCatalogServers(
+	catalogID: string,
+	opts?: { fetch?: Fetcher; all?: boolean }
+): Promise<MCPCatalogServer[]> {
+	const url = opts?.all
+		? `/mcp-catalogs/${catalogID}/servers?all=true`
+		: `/mcp-catalogs/${catalogID}/servers`;
+	const response = (await doGet(url, opts)) as ItemsResponse<MCPCatalogServer>;
+	return response.items ?? [];
+}
+
+export async function getMCPCatalogServer(
+	catalogID: string,
+	serverID: string,
+	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
+): Promise<MCPCatalogServer> {
+	const response = (await doGet(
+		`/mcp-catalogs/${catalogID}/servers/${serverID}`,
+		opts
+	)) as MCPCatalogServer;
+	return response;
+}
+
+export async function createMCPCatalogServer(
+	catalogID: string,
+	server: MCPCatalogServerManifest,
+	opts?: { fetch?: Fetcher }
+): Promise<MCPCatalogServer> {
+	const response = (await doPost(
+		`/mcp-catalogs/${catalogID}/servers`,
+		server,
+		opts
+	)) as MCPCatalogServer;
+	return response;
+}
+
+export async function deployMultiUserCatalogEntry(
+	catalogID: string,
+	catalogEntryID: string,
+	server?: {
+		manifest?: { env?: MCPSubField[]; remoteConfig?: { url?: string; headers?: MCPSubField[] } };
+		alias?: string;
+	},
+	opts?: { fetch?: Fetcher }
+): Promise<MCPCatalogServer> {
+	const response = (await doPost(
+		`/mcp-catalogs/${catalogID}/servers`,
+		{ ...server, catalogEntryID },
+		opts
+	)) as MCPCatalogServer;
+	return response;
+}
+
+export async function updateMCPCatalogServer(
+	catalogID: string,
+	serverID: string,
+	server: MCPCatalogServerManifest['manifest'],
+	opts?: { fetch?: Fetcher }
+): Promise<MCPCatalogServer> {
+	const response = (await doPut(
+		`/mcp-catalogs/${catalogID}/servers/${serverID}`,
+		server,
+		opts
+	)) as MCPCatalogServer;
+	return response;
+}
+
+export async function mcpServerDeleteResponseHandler(
+	resp: Response,
+	path: string,
+	opts?: { dontLogErrors?: boolean }
+): Promise<unknown> {
+	if (resp.status === 409 && resp.headers.get('Content-Type')?.includes('application/json')) {
+		const body = (await resp.json()) as {
+			message?: string;
+			dependencies: MCPCompositeDeletionDependency[];
+		};
+
+		if (body.dependencies && body.dependencies.length > 0) {
+			throw new MCPCompositeDeletionDependencyError(
+				body.message ??
+					'All dependencies on this MCP server must be removed before it can be deleted',
+				body.dependencies
+			);
+		}
+	}
+
+	return handleResponse(resp, path, opts);
+}
+
+export async function deleteMCPCatalogServer(catalogID: string, serverID: string): Promise<void> {
+	await doDelete(`/mcp-catalogs/${catalogID}/servers/${serverID}`, {
+		responseHandler: mcpServerDeleteResponseHandler
+	});
+}
+
+export async function listMcpCatalogServerInstances(
+	catalogId: string,
+	mcpServerId: string,
+	opts?: { fetch?: Fetcher }
+) {
+	const response = (await doGet(
+		`/mcp-catalogs/${catalogId}/servers/${mcpServerId}/instances`,
+		opts
+	)) as ItemsResponse<MCPServerInstance>;
+	return response.items ?? [];
+}
+
+export async function configureMCPCatalogServer(
+	catalogID: string,
+	serverID: string,
+	envs: Record<string, string>,
+	opts?: { fetch?: Fetcher }
+): Promise<MCPCatalogServer> {
+	const response = (await doPost(
+		`/mcp-catalogs/${catalogID}/servers/${serverID}/configure`,
+		envs,
+		opts
+	)) as MCPCatalogServer;
+	return response;
+}
+
+export async function deconfigureMCPCatalogServer(
+	catalogID: string,
+	serverID: string,
+	opts?: { fetch?: Fetcher }
+): Promise<void> {
+	await doPost(`/mcp-catalogs/${catalogID}/servers/${serverID}/deconfigure`, {}, opts);
+}
+
+export async function updateMCPCatalogServerAlias(
+	catalogID: string,
+	serverID: string,
+	alias: string,
+	opts?: { fetch?: Fetcher }
+): Promise<void> {
+	await doPut(`/mcp-catalogs/${catalogID}/servers/${serverID}/alias`, { alias }, opts);
+}
+
+export async function revealMcpCatalogServer(
+	catalogID: string,
+	serverID: string,
+	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
+): Promise<Record<string, string>> {
+	const response = (await doPost(
+		`/mcp-catalogs/${catalogID}/servers/${serverID}/reveal`,
+		{},
+		{
+			...opts,
+			dontLogErrors: true
+		}
+	)) as Record<string, string>;
+	return response;
+}
+
+export async function getMCPCatalogServerOAuthURL(
+	catalogID: string,
+	serverID: string,
+	opts?: { signal?: AbortSignal }
+): Promise<string> {
+	try {
+		const response = (await doGet(`/mcp-catalogs/${catalogID}/servers/${serverID}/oauth-url`, {
+			dontLogErrors: true,
+			signal: opts?.signal
+		})) as {
+			oauthURL: string;
+		};
+		return response.oauthURL;
+	} catch (_err) {
+		return '';
+	}
+}
+
+export async function isMCPCatalogServerOauthNeeded(
+	catalogID: string,
+	serverID: string,
+	opts?: { signal?: AbortSignal }
+): Promise<boolean> {
+	try {
+		await doPost(`/mcp-catalogs/${catalogID}/servers/${serverID}/check-oauth`, {
+			dontLogErrors: true,
+			signal: opts?.signal
+		});
+	} catch (err) {
+		if (err instanceof HttpError && err.statusCode === 412) {
+			return true;
+		}
+	}
+	return false;
+}
+
+export async function triggerMcpCatalogServerUpdate(
+	catalogID: string,
+	mcpServerId: string,
+	opts?: { fetch?: Fetcher }
+): Promise<MCPCatalogServer> {
+	return (await doPost(
+		`/mcp-catalogs/${catalogID}/servers/${mcpServerId}/trigger-update`,
+		{},
+		opts
+	)) as MCPCatalogServer;
+}
+
+// MCP filters
+
+export async function listMCPFilters(opts?: { fetch?: Fetcher }) {
+	const response = (await doGet('/mcp-webhook-validations', opts)) as ItemsResponse<MCPFilter>;
+	return response.items ?? [];
+}
+
+export async function getMCPFilter(id: string, opts?: { fetch?: Fetcher }) {
+	return (await doGet(`/mcp-webhook-validations/${id}`, opts)) as MCPFilter;
+}
+
+export async function createMCPFilter(filter: MCPFilterManifest, opts?: { fetch?: Fetcher }) {
+	return (await doPost('/mcp-webhook-validations', filter, opts)) as MCPFilter;
+}
+
+export async function updateMCPFilter(
+	id: string,
+	filter: MCPFilterManifest,
+	opts?: { fetch?: Fetcher }
+) {
+	return (await doPut(`/mcp-webhook-validations/${id}`, filter, opts)) as MCPFilter;
+}
+
+export async function deleteMCPFilter(id: string, opts?: { keepalive?: boolean }) {
+	await doDelete(`/mcp-webhook-validations/${id}`, {
+		keepalive: opts?.keepalive,
+		dontLogErrors: opts?.keepalive
+	});
+}
+
+export async function configureMCPFilter(
+	id: string,
+	envs: Record<string, string>,
+	opts?: { fetch?: Fetcher }
+): Promise<MCPFilter> {
+	return (await doPost(`/mcp-webhook-validations/${id}/configure`, envs, opts)) as MCPFilter;
+}
+
+export async function deconfigureMCPFilter(id: string, opts?: { fetch?: Fetcher }): Promise<void> {
+	await doPost(`/mcp-webhook-validations/${id}/deconfigure`, {}, opts);
+}
+
+export async function launchMCPFilter(id: string): Promise<{
+	success: boolean;
+	message?: string;
+	code?: number;
+}> {
+	try {
+		await doPost(`/mcp-webhook-validations/${id}/launch`, {}, { dontLogErrors: true });
+		return {
+			success: true
+		};
+	} catch (err) {
+		if (err instanceof Error) {
+			return {
+				success: false,
+				message: err.message,
+				code: err instanceof HttpError ? err.statusCode : 500
+			};
+		}
+
+		throw err;
+	}
+}
+
+export async function revealMCPFilter(
+	id: string,
+	opts?: { dontLogErrors?: boolean }
+): Promise<Record<string, string>> {
+	return doPost(`/mcp-webhook-validations/${id}/reveal`, {}, opts) as Promise<
+		Record<string, string>
+	>;
+}
+
+export async function restartMCPFilter(id: string, opts?: { fetch?: Fetcher }): Promise<void> {
+	await doPost(`/mcp-webhook-validations/${id}/restart`, {}, opts);
+}
+
+export async function getMCPFilterDetails(
+	id: string,
+	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
+) {
+	const response = (await doGet(`/mcp-webhook-validations/${id}/details`, opts)) as K8sServerDetail;
+	return response;
+}
+
+// MCP servers
+
+export async function getMCPServer(
+	serverID: string,
+	opts?: { fetch?: Fetcher }
+): Promise<MCPCatalogServer> {
+	const response = (await doGet(`/mcp-servers/${serverID}`, opts)) as MCPCatalogServer;
+	return response;
+}
+
+export async function getMCPServerById(
+	serverID: string,
+	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
+): Promise<MCPCatalogServer> {
+	const response = (await doGet(`/mcp-servers/${serverID}`, opts)) as MCPCatalogServer;
+	return response;
+}
+
+export async function registerMcpServerOAuthDebuggerClient(
+	serverID: string,
+	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
+): Promise<OAuthDebuggerRegisterClientResponse> {
+	return (await doPost(
+		`/mcp-servers/${serverID}/oauth-debugger/client`,
+		{},
+		opts
+	)) as OAuthDebuggerRegisterClientResponse;
+}
+
+export async function getMCPServerOAuthDebuggerAuthorizationURL(
+	serverID: string,
+	body: OAuthDebuggerAuthorizationURLRequest,
+	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
+): Promise<OAuthDebuggerAuthorizationURL> {
+	return (await doPost(
+		`/mcp-servers/${serverID}/oauth-debugger/authorization-url`,
+		body,
+		opts
+	)) as OAuthDebuggerAuthorizationURL;
+}
+
+export async function exchangeMCPServerOAuthDebuggerToken(
+	serverID: string,
+	body: OAuthDebuggerTokenRequest,
+	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
+): Promise<OAuthToken> {
+	return (await doPost(`/mcp-servers/${serverID}/oauth-debugger/token`, body, opts)) as OAuthToken;
+}
+
+// MCP tunnels
+
+export async function createMCPTunnel(
+	input: MCPTunnelManifest,
+	opts?: RequestOptions
+): Promise<MCPTunnel> {
+	return (await doPost('/mcp-tunnels', input, opts)) as MCPTunnel;
+}
+
+export async function deleteMCPTunnel(id: string, opts?: RequestOptions): Promise<void> {
+	await doDelete(`/mcp-tunnels/${id}`, opts);
+}
+
+export async function getMCPTunnel(id: string, opts?: RequestOptions): Promise<MCPTunnel> {
+	return (await doGet(`/mcp-tunnels/${id}`, opts)) as MCPTunnel;
+}
+
+export async function listMCPTunnels(opts?: RequestOptions): Promise<MCPTunnel[]> {
+	const response = (await doGet('/mcp-tunnels', opts)) as ItemsResponse<MCPTunnel>;
+	return response.items ?? [];
+}
+
+export async function listTunnelConnections(opts?: RequestOptions): Promise<TunnelConnection[]> {
+	const response = (await doGet('/tunnels', opts)) as ItemsResponse<TunnelConnection>;
+	return response.items ?? [];
+}
+
+export async function rotateMCPTunnelSecret(id: string, opts?: RequestOptions): Promise<MCPTunnel> {
+	return (await doPost(`/mcp-tunnels/${id}/rotate-secret`, {}, opts)) as MCPTunnel;
+}
+
+export async function updateMCPTunnel(
+	id: string,
+	input: MCPTunnelManifest,
+	opts?: RequestOptions
+): Promise<MCPTunnel> {
+	return (await doPut(`/mcp-tunnels/${id}`, input, opts)) as MCPTunnel;
+}
+
+// Message policies
+
+export async function listMessagePolicies(opts?: { fetch?: Fetcher }): Promise<MessagePolicy[]> {
+	const response = (await doGet('/message-policies', opts)) as ItemsResponse<MessagePolicy>;
+	return response.items ?? [];
+}
+
+export async function getMessagePolicy(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<MessagePolicy> {
+	return (await doGet(`/message-policies/${id}`, opts)) as MessagePolicy;
+}
+
+export async function createMessagePolicy(manifest: MessagePolicyManifest): Promise<MessagePolicy> {
+	return (await doPost('/message-policies', manifest)) as MessagePolicy;
+}
+
+export async function updateMessagePolicy(
+	id: string,
+	manifest: MessagePolicyManifest
+): Promise<MessagePolicy> {
+	return (await doPut(`/message-policies/${id}`, manifest)) as MessagePolicy;
+}
+
+export async function deleteMessagePolicy(id: string): Promise<void> {
+	await doDelete(`/message-policies/${id}`);
+}
+
+// Message policy violations
+
+function buildMessagePolicyViolationParams(filters?: MessagePolicyViolationFilters): string {
+	if (!filters) return '';
+	const params = new URLSearchParams();
+	for (const [key, value] of Object.entries(filters)) {
+		if (value != null && value !== '') {
+			params.set(key, String(value));
+		}
+	}
+	const str = params.toString();
+	return str ? `?${str}` : '';
+}
+
+export async function listMessagePolicyViolations(
+	filters?: MessagePolicyViolationFilters,
+	opts?: { fetch?: Fetcher }
+): Promise<PaginatedResponse<MessagePolicyViolation>> {
+	return (await doGet(
+		`/message-policy-violations${buildMessagePolicyViolationParams(filters)}`,
+		opts
+	)) as PaginatedResponse<MessagePolicyViolation>;
+}
+
+export async function getMessagePolicyViolation(
+	id: number | string,
+	opts?: { fetch?: Fetcher }
+): Promise<MessagePolicyViolation> {
+	return (await doGet(`/message-policy-violations/${id}`, opts)) as MessagePolicyViolation;
+}
+
+export async function listMessagePolicyViolationFilterOptions(
+	filter: string,
+	filters?: MessagePolicyViolationFilters,
+	opts?: { fetch?: Fetcher }
+): Promise<string[]> {
+	const response = (await doGet(
+		`/message-policy-violations/filter-options/${filter}${buildMessagePolicyViolationParams(filters)}`,
+		opts
+	)) as { options: string[] };
+	return response.options ?? [];
+}
+
+export async function getMessagePolicyViolationStats(
+	filters?: MessagePolicyViolationFilters,
+	opts?: { fetch?: Fetcher }
+): Promise<MessagePolicyViolationStats> {
+	return (await doGet(
+		`/message-policy-violation-stats${buildMessagePolicyViolationParams(filters)}`,
+		opts
+	)) as MessagePolicyViolationStats;
+}
+
+// Model access policies
+
+export async function listModelAccessPolicies(opts?: {
+	fetch?: Fetcher;
+}): Promise<ModelAccessPolicy[]> {
+	const response = (await doGet(
+		'/model-access-policies',
+		opts
+	)) as ItemsResponse<ModelAccessPolicy>;
+	return response.items ?? [];
+}
+
+export async function getModelAccessPolicy(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<ModelAccessPolicy> {
+	const response = (await doGet(`/model-access-policies/${id}`, opts)) as ModelAccessPolicy;
+	return response;
+}
+
+export async function createModelAccessPolicy(
+	rule: ModelAccessPolicyManifest
+): Promise<ModelAccessPolicy> {
+	const response = (await doPost('/model-access-policies', rule)) as ModelAccessPolicy;
+	return response;
+}
+
+export async function updateModelAccessPolicy(
+	id: string,
+	rule: ModelAccessPolicyManifest
+): Promise<ModelAccessPolicy> {
+	return (await doPut(`/model-access-policies/${id}`, rule)) as ModelAccessPolicy;
+}
+
+export async function deleteModelAccessPolicy(id: string): Promise<void> {
+	await doDelete(`/model-access-policies/${id}`);
+}
+
+// Model providers
+
+export async function listModelProviders(opts?: { fetch?: Fetcher }): Promise<ModelProvider[]> {
+	const response = (await doGet('/model-providers', opts)) as ItemsResponse<ModelProvider>;
+	return response.items ?? [];
+}
+
+export async function getModelProvider(
+	providerID: string,
+	opts?: { fetch?: Fetcher }
+): Promise<ModelProvider> {
+	const response = (await doGet(`/model-providers/${providerID}`, opts)) as ModelProvider;
+	return response;
+}
+
+export async function configureModelProvider(
+	providerID: string,
+	envs: Record<string, string>,
+	opts?: { fetch?: Fetcher }
+): Promise<void> {
+	await doPost(`/model-providers/${providerID}/configure`, envs, opts);
+}
+
+export async function deconfigureModelProvider(
+	providerID: string,
+	opts?: { fetch?: Fetcher }
+): Promise<void> {
+	await doPost(`/model-providers/${providerID}/deconfigure`, {}, opts);
+}
+
+export async function revealModelProvider(
+	providerID: string,
+	opts?: { fetch?: Fetcher }
+): Promise<Record<string, string> | undefined> {
+	const response = (await doPost(
+		`/model-providers/${providerID}/reveal`,
+		{},
+		{
+			...opts,
+			dontLogErrors: true
+		}
+	)) as Record<string, string> | undefined;
+	return response;
+}
+
+export async function validateModelProvider(
+	providerID: string,
+	envs: Record<string, string>,
+	opts?: { fetch?: Fetcher }
+): Promise<void> {
+	await doPost(`/model-providers/${providerID}/validate`, envs, {
+		...opts,
+		dontLogErrors: true
+	});
+}
+
+// Models
+
+export async function listModels(opts?: { fetch?: Fetcher; all?: boolean }): Promise<Model[]> {
+	const url = opts?.all ? '/models?all=true' : '/models';
+	const response = (await doGet(url, opts)) as ItemsResponse<Model>;
+	return response.items ?? [];
+}
+
+export async function updateModel(modelID: string, model: Model): Promise<void> {
+	await doPut(`/models/${modelID}`, model);
+}
+
+export async function updateDefaultModelAlias(
+	alias: ModelAlias,
+	defaultModelAlias: DefaultModelAlias
+): Promise<void> {
+	await doPut(`/default-model-aliases/${alias}`, defaultModelAlias);
+}
+
+// Projects
+
+export async function deleteProject(assistantID: string, projectID: string): Promise<void> {
+	await doDelete(`/assistants/${assistantID}/projects/${projectID}`);
+}
+
+// Setup
+
+export async function initiateTempLogin(authProviderName: string, authProviderNamespace?: string) {
+	const response = (await doPost('/setup/initiate-temp-login', {
+		authProviderName,
+		authProviderNamespace
+	})) as {
+		redirectUrl: string;
+		tokenId: string;
+	};
+	return response;
+}
+
+export async function getTempUser() {
+	const response = (await doGet('/setup/temp-user')) as TempUser;
+	return response;
+}
+
+export async function confirmTempUserAsOwner(email: string) {
+	const response = (await doPost('/setup/confirm-owner', { email })) as {
+		success: boolean;
+		userId: number;
+		email: string;
+		message: string;
+	};
+	return response;
+}
+
+export async function cancelTempLogin() {
+	await doPost(
+		'/setup/cancel-temp-login',
+		{},
+		{
+			dontLogErrors: true
+		}
+	);
+}
+
+export async function listExplicitRoleEmails(opts?: { fetch?: Fetcher }) {
+	const response = (await doGet('/setup/explicit-role-emails', opts)) as {
+		owners: string[] | null;
+		admins: string[] | null;
+	};
+	return response;
+}
+
+// Skills
+
+export async function listAllSkills(opts?: {
+	fetch?: Fetcher;
+	query?: string;
+	repoId?: string;
+	limit?: number;
+	dontLogErrors?: boolean;
+}): Promise<Skill[]> {
+	const params = new URLSearchParams();
+	params.set('all', 'true');
+	params.set('limit', String(opts?.limit ?? 200));
+	if (opts?.query != null) params.set('q', opts.query);
+	if (opts?.repoId != null) params.set('repoID', opts.repoId);
+	const queryString = params.toString();
+	const url = queryString ? `/skills?${queryString}` : '/skills';
+	const response = (await doGet(url, opts)) as ItemsResponse<Skill>;
+	return response.items ?? [];
+}
+
+export async function getSkillPreview(id: string, opts?: { fetch?: Fetcher }): Promise<string> {
+	const response = (await doGet(`/skills/${id}/preview`, { ...opts, text: true })) as string;
+	return response;
+}
+
+export async function listSkillRepositories(opts?: {
+	fetch?: Fetcher;
+	dontLogErrors?: boolean;
+}): Promise<SkillRepository[]> {
+	const response = (await doGet('/skill-repositories', opts)) as ItemsResponse<SkillRepository>;
+	return response.items ?? [];
+}
+
+export async function getSkillRepository(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<SkillRepository> {
+	const response = (await doGet(`/skill-repositories/${id}`, opts)) as SkillRepository;
+	return response;
+}
+
+export async function createSkillRepository(
+	request: SkillRepositoryManifest,
+	opts?: { fetch?: Fetcher }
+): Promise<SkillRepository> {
+	const response = (await doPost('/skill-repositories', request, opts)) as SkillRepository;
+	return response;
+}
+
+export async function updateSkillRepository(
+	id: string,
+	request: SkillRepositoryManifest,
+	opts?: { fetch?: Fetcher }
+): Promise<SkillRepository> {
+	const response = (await doPut(`/skill-repositories/${id}`, request, opts)) as SkillRepository;
+	return response;
+}
+
+export async function deleteSkillRepository(
+	id: string,
+	opts?: { signal?: AbortSignal }
+): Promise<void> {
+	await doDelete(`/skill-repositories/${id}`, opts);
+}
+
+export async function refreshSkillRepository(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<void> {
+	await doPost(`/skill-repositories/${id}/refresh`, {}, opts);
+}
+
+// Skill access policies
+
+export async function listSkillAccessPolicies(opts?: {
+	fetch?: Fetcher;
+}): Promise<SkillAccessPolicy[]> {
+	const response = (await doGet('/skill-access-rules', opts)) as ItemsResponse<SkillAccessPolicy>;
+	return response.items ?? [];
+}
+
+export async function getSkillAccessPolicy(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<SkillAccessPolicy> {
+	const response = (await doGet(`/skill-access-rules/${id}`, opts)) as SkillAccessPolicy;
+	return response;
+}
+
+export async function createSkillAccessPolicy(
+	request: SkillAccessPolicyManifest,
+	opts?: { fetch?: Fetcher }
+): Promise<SkillAccessPolicy> {
+	const response = (await doPost('/skill-access-rules', request, opts)) as SkillAccessPolicy;
+	return response;
+}
+
+export async function updateSkillAccessPolicy(
+	id: string,
+	request: SkillAccessPolicyManifest,
+	opts?: { fetch?: Fetcher }
+): Promise<SkillAccessPolicy> {
+	const response = (await doPut(`/skill-access-rules/${id}`, request, opts)) as SkillAccessPolicy;
+	return response;
+}
+
+export async function deleteSkillAccessPolicy(
+	id: string,
+	opts?: { signal?: AbortSignal }
+): Promise<void> {
+	await doDelete(`/skill-access-rules/${id}`, opts);
+}
+
+// Storage credentials
+
+export async function getStorageCredentials() {
+	const response = (await doGet('/storage-credentials', {
+		dontLogErrors: true
+	})) as StorageCredentials;
+	return response;
+}
+
+export async function configureStorageCredentials(
+	request: StorageCredentials,
+	opts?: { fetch?: Fetcher }
+) {
+	const response = await doPost('/storage-credentials', request, opts);
+	return response;
+}
+
+export async function deleteStorageCredentials(
+	opts?:
+		| {
+				signal?: AbortSignal | undefined;
+		  }
+		| undefined
+) {
+	const response = await doDelete('/storage-credentials', opts);
+	return response;
+}
+
+export async function testStorageCredentials(
+	request: StorageCredentials,
+	opts?: { fetch?: Fetcher }
+) {
+	const response = await doPost('/storage-credentials/test', request, opts);
+	return response;
+}
+
+// System MCP catalogs
+
+export async function listSystemMCPCatalogs(opts?: {
+	fetch?: Fetcher;
+}): Promise<SystemMCPCatalog[]> {
+	const response = (await doGet('/system-mcp-catalogs', opts)) as ItemsResponse<SystemMCPCatalog>;
+	return response.items ?? [];
+}
+
+export async function getSystemMCPCatalog(
+	catalogId: string,
+	opts?: { fetch?: Fetcher }
+): Promise<SystemMCPCatalog> {
+	return (await doGet(`/system-mcp-catalogs/${catalogId}`, opts)) as SystemMCPCatalog;
+}
+
+export async function createSystemMCPCatalog(
+	manifest: SystemMCPCatalogManifest,
+	opts?: { fetch?: Fetcher }
+): Promise<SystemMCPCatalog> {
+	return (await doPost('/system-mcp-catalogs', manifest, opts)) as SystemMCPCatalog;
+}
+
+export async function updateSystemMCPCatalog(
+	catalogId: string,
+	manifest: SystemMCPCatalogManifest,
+	opts?: { fetch?: Fetcher }
+): Promise<SystemMCPCatalog> {
+	return (await doPut(`/system-mcp-catalogs/${catalogId}`, manifest, opts)) as SystemMCPCatalog;
+}
+
+export async function deleteSystemMCPCatalog(
+	catalogId: string,
+	opts?: { signal?: AbortSignal }
+): Promise<void> {
+	await doDelete(`/system-mcp-catalogs/${catalogId}`, opts);
+}
+
+export async function refreshSystemMCPCatalog(
+	catalogId: string,
+	opts?: { fetch?: Fetcher }
+): Promise<void> {
+	await doPost(`/system-mcp-catalogs/${catalogId}/refresh`, {}, opts);
+}
+
+export async function listSystemMCPCatalogEntries(
+	catalogId: string,
+	opts?: { fetch?: Fetcher }
+): Promise<SystemMCPServerCatalogEntry[]> {
+	const response = (await doGet(
+		`/system-mcp-catalogs/${catalogId}/entries`,
+		opts
+	)) as ItemsResponse<SystemMCPServerCatalogEntry>;
+	return response.items ?? [];
+}
+
+export async function createSystemMCPCatalogEntry(
+	catalogId: string,
+	manifest: SystemMCPServerCatalogEntryManifest,
+	opts?: { fetch?: Fetcher }
+): Promise<SystemMCPServerCatalogEntry> {
+	return (await doPost(
+		`/system-mcp-catalogs/${catalogId}/entries`,
+		manifest,
+		opts
+	)) as SystemMCPServerCatalogEntry;
+}
+
+export async function getSystemMCPCatalogEntry(
+	catalogId: string,
+	entryId: string,
+	opts?: { fetch?: Fetcher }
+): Promise<SystemMCPServerCatalogEntry> {
+	return (await doGet(
+		`/system-mcp-catalogs/${catalogId}/entries/${entryId}`,
+		opts
+	)) as SystemMCPServerCatalogEntry;
+}
+
+export async function updateSystemMCPCatalogEntry(
+	catalogId: string,
+	entryId: string,
+	manifest: SystemMCPServerCatalogEntryManifest,
+	opts?: { fetch?: Fetcher }
+): Promise<SystemMCPServerCatalogEntry> {
+	return (await doPut(
+		`/system-mcp-catalogs/${catalogId}/entries/${entryId}`,
+		manifest,
+		opts
+	)) as SystemMCPServerCatalogEntry;
+}
+
+export async function deleteSystemMCPCatalogEntry(
+	catalogId: string,
+	entryId: string,
+	opts?: { signal?: AbortSignal }
+): Promise<void> {
+	await doDelete(`/system-mcp-catalogs/${catalogId}/entries/${entryId}`, opts);
+}
+
+// System MCP servers
+
+export async function listSystemMCPServers(opts?: { fetch?: Fetcher }): Promise<SystemMCPServer[]> {
+	const response = (await doGet('/system-mcp-servers', opts)) as ItemsResponse<SystemMCPServer>;
+	return response.items ?? [];
+}
+
+export async function getSystemMCPServer(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<SystemMCPServer> {
+	return (await doGet(`/system-mcp-servers/${id}`, opts)) as SystemMCPServer;
+}
+
+export async function createSystemMCPServer(
+	manifest: SystemMCPServerManifest,
+	opts?: { fetch?: Fetcher }
+): Promise<SystemMCPServer> {
+	return (await doPost('/system-mcp-servers', manifest, opts)) as SystemMCPServer;
+}
+
+export async function updateSystemMCPServer(
+	id: string,
+	manifest: SystemMCPServerManifest,
+	opts?: { fetch?: Fetcher }
+): Promise<SystemMCPServer> {
+	return (await doPut(`/system-mcp-servers/${id}`, manifest, opts)) as SystemMCPServer;
+}
+
+export async function deleteSystemMCPServer(
+	id: string,
+	opts?: { signal?: AbortSignal }
+): Promise<void> {
+	await doDelete(`/system-mcp-servers/${id}`, opts);
+}
+
+export async function configureSystemMCPServer(
+	id: string,
+	envVars: Record<string, string>,
+	opts?: { fetch?: Fetcher }
+): Promise<SystemMCPServer> {
+	return (await doPost(`/system-mcp-servers/${id}/configure`, envVars, opts)) as SystemMCPServer;
+}
+
+export async function deconfigureSystemMCPServer(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<SystemMCPServer> {
+	return (await doPost(`/system-mcp-servers/${id}/deconfigure`, {}, opts)) as SystemMCPServer;
+}
+
+export async function restartSystemMCPServer(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<void> {
+	await doPost(`/system-mcp-servers/${id}/restart`, {}, opts);
+}
+
+export async function revealSystemMCPServerCredentials(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<Record<string, string>> {
+	return (await doPost(`/system-mcp-servers/${id}/reveal`, {}, opts)) as Record<string, string>;
+}
+
+export async function getSystemMCPServerDetails(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<K8sServerDetail> {
+	return (await doGet(`/system-mcp-servers/${id}/details`, opts)) as K8sServerDetail;
+}
+
+export async function getSystemMCPServerTools(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<MCPServerTool[]> {
+	return (await doGet(`/system-mcp-servers/${id}/tools`, opts)) as MCPServerTool[];
+}
+
+export async function restartNanobotAgentDeployments(opts?: {
+	fetch?: Fetcher;
+	dryRun?: boolean;
+}): Promise<RestartNanobotAgentDeploymentsResult> {
+	const params = new URLSearchParams();
+	if (opts?.dryRun != null) {
+		params.set('dryRun', String(opts.dryRun));
+	}
+	const qs = params.toString();
+	const path = qs
+		? `/system-mcp-servers/restart-nanobot-agent-deployments?${qs}`
+		: '/system-mcp-servers/restart-nanobot-agent-deployments';
+	return (await doPost(path, {}, opts)) as RestartNanobotAgentDeploymentsResult;
+}
+
+// Token usage
+
+function formatTokenUsageDate(d: Date | string): string {
+	return typeof d === 'string' ? d : d.toISOString();
+}
+
+function tokenUsageQueryString(timeRange: TokenUsageTimeRange): string {
+	const parts = [
+		`start=${encodeURIComponent(formatTokenUsageDate(timeRange.start))}`,
+		`end=${encodeURIComponent(formatTokenUsageDate(timeRange.end))}`
+	];
+	return parts.join('&');
+}
+
+/** Returns token usage for all users in the time range as a flat list. */
+
+function unwrapTokenUsageList(response: unknown): TokenUsage[] {
+	if (Array.isArray(response)) return response;
+	const list = response as { items?: TokenUsage[] };
+	return list?.items ?? [];
+}
+
+export async function listTotalTokenUsage(
+	timeRange: TokenUsageTimeRange,
+	opts?: { fetch?: Fetcher; signal?: AbortSignal }
+) {
+	const queryString = tokenUsageQueryString(timeRange);
+	const response = await doGet(`/total-token-usage?${queryString}`, opts);
+	return response as TotalTokenUsage;
+}
+
+export async function listTokenUsage(
+	timeRange: TokenUsageTimeRange,
+	opts?: { fetch?: Fetcher; signal?: AbortSignal }
+): Promise<TokenUsage[]> {
+	const queryString = tokenUsageQueryString(timeRange);
+	const response = await doGet(`/token-usage?${queryString}`, opts);
+	return unwrapTokenUsageList(response);
+}
+
+export async function listRemainingTokenUsageForUser(userId: string, opts?: { fetch?: Fetcher }) {
+	const response = await doGet(`/users/${userId}/remaining-token-usage`, opts);
+	return response;
+}
+
+export async function listTotalTokenUsageForUser(userId: string, opts?: { fetch?: Fetcher }) {
+	const response = await doGet(`/users/${userId}/total-token-usage`, opts);
+	return response;
+}
+
+export async function listTokenUsageForUser(
+	userId: string,
+	timeRange: TokenUsageTimeRange,
+	opts?: { fetch?: Fetcher }
+): Promise<TokenUsage[]> {
+	const queryString = tokenUsageQueryString(timeRange);
+	const response = await doGet(`/users/${userId}/token-usage?${queryString}`, opts);
+	return unwrapTokenUsageList(response);
+}
+
+// User default role settings
+
+export async function getDefaultUsersRoleSettings(opts?: { fetch?: Fetcher }) {
+	const response = (await doGet('/user-default-role-settings', opts)) as { role: number };
+	return response.role;
+}
+
+export async function updateDefaultUsersRoleSettings(role: number, opts?: { fetch?: Fetcher }) {
+	await doPost('/user-default-role-settings', { role }, opts);
+}
+
+// Users
+
+export async function updateUserRole(
+	userID: string,
+	role: number,
+	opts?: { fetch?: Fetcher }
+): Promise<void> {
+	await doPatch(`/users/${userID}`, { role }, opts);
+}
+
+export async function deleteUser(userID: string): Promise<void> {
+	await doDelete(`/users/${userID}`);
+}
+
+// Workspaces
+
+export async function listAllUserWorkspaceCatalogEntries(opts?: { fetch?: Fetcher }) {
+	const response = (await doGet(`/workspaces/all-entries`, opts)) as ItemsResponse<MCPCatalogEntry>;
+	return (
+		response.items?.map((item) => {
+			return {
+				...item,
+				isCatalogEntry: true
+			};
+		}) ?? []
+	);
+}
+
+export async function listAllWorkspaceDeployedSingleRemoteServers(opts?: { fetch?: Fetcher }) {
+	const response = (await doGet(
+		`/workspaces/all-entries/all-servers`,
+		opts
+	)) as ItemsResponse<MCPCatalogServer>;
+	return response.items ?? [];
+}
+
+export async function listAllUserWorkspaceMCPServers(opts?: { fetch?: Fetcher }) {
+	const response = (await doGet(
+		`/workspaces/all-servers`,
+		opts
+	)) as ItemsResponse<MCPCatalogServer>;
+	return response.items ?? [];
+}
+
+export async function listAllUserWorkspaceAccessControlRules(opts?: { fetch?: Fetcher }) {
+	const response = (await doGet(
+		`/workspaces/all-access-control-rules`,
+		opts
+	)) as ItemsResponse<AccessControlRule>;
+	return response.items ?? [];
+}
+
+// License
+
+export async function deleteLicense(): Promise<void> {
+	await doDelete('/license');
+}
+
+export async function recheckLicense(opts?: {
+	fetch?: Fetcher;
+	dontLogErrors?: boolean;
+}): Promise<License> {
+	return (await doPost('/license', {}, opts)) as License;
+}
+
+export async function updateLicense(
+	manifest: LicenseManifest,
+	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
+): Promise<License> {
+	return (await doPut('/license', manifest, opts)) as License;
+}
+
+export async function createCommunityLicense(
+	enrollment: CommunityLicenseEnrollment,
+	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
+): Promise<License> {
+	return (await doPost('/license/community', enrollment, opts)) as License;
+}
+
+// MDM configurations
+
+export async function listMDMConfigurations(opts?: {
+	fetch?: Fetcher;
+}): Promise<MDMConfiguration[]> {
+	const response = (await doGet('/mdm/configurations', opts)) as {
+		items: MDMConfiguration[] | null;
+	};
+	return response.items ?? [];
+}
+
+export async function createMDMConfiguration(
+	input: MDMConfigurationInput
+): Promise<MDMConfiguration> {
+	return (await doPost('/mdm/configurations', input, {
+		dontLogErrors: true
+	})) as MDMConfiguration;
+}
+
+export async function updateMDMConfiguration(
+	id: number,
+	input: MDMConfigurationInput
+): Promise<MDMConfiguration> {
+	return (await doPut(`/mdm/configurations/${id}`, input, {
+		dontLogErrors: true
+	})) as MDMConfiguration;
+}
+
+export async function deleteMDMConfiguration(id: number): Promise<void> {
+	await doDelete(`/mdm/configurations/${id}`);
+}
+
+export async function listMDMEnrollmentKeys(
+	configurationId: number,
+	opts?: { fetch?: Fetcher }
+): Promise<MDMEnrollmentKey[]> {
+	const response = (await doGet(
+		`/mdm/configurations/${configurationId}/enrollment-keys`,
+		opts
+	)) as {
+		items: MDMEnrollmentKey[] | null;
+	};
+	return response.items ?? [];
+}
+
+export async function createMDMEnrollmentKey(
+	configurationId: number,
+	input: { name?: string; expiresAt?: string }
+): Promise<MDMEnrollmentKeyCreateResponse> {
+	return (await doPost(
+		`/mdm/configurations/${configurationId}/enrollment-keys`,
+		input
+	)) as MDMEnrollmentKeyCreateResponse;
+}
+
+export async function deleteMDMEnrollmentKey(
+	configurationId: number,
+	keyId: number
+): Promise<void> {
+	await doDelete(`/mdm/configurations/${configurationId}/enrollment-keys/${keyId}`);
+}
+
+export async function listMDMDevices(
+	configurationId: number,
+	opts?: { fetch?: Fetcher }
+): Promise<MDMDevice[]> {
+	const response = (await doGet(`/mdm/configurations/${configurationId}/devices`, opts)) as {
+		items: MDMDevice[] | null;
+	};
+	return response.items ?? [];
+}
+
+export async function getMDMConfiguration(
+	id: number | string,
+	opts?: { fetch?: Fetcher }
+): Promise<MDMConfiguration> {
+	return (await doGet(`/mdm/configurations/${id}`, opts)) as MDMConfiguration;
+}
+
+export async function updateMDMConfigurationEnforcement(
+	id: number,
+	input: MDMConfigurationEnforcementInput,
+	opts?: { fetch?: Fetcher }
+): Promise<MDMConfiguration> {
+	return (await doPut(`/mdm/configurations/${id}/enforcement`, input, opts)) as MDMConfiguration;
+}
+
+// Enforcement decisions
+
+export async function listEnforcementDecisions(
+	filters?: EnforcementDecisionURLFilters,
+	opts?: { fetch?: Fetcher; signal?: AbortSignal }
+): Promise<PaginatedResponse<EnforcementDecisionEvent>> {
+	const queryString = buildQueryString(filters ?? {});
+	return (await doGet(
+		`/enforcement-decisions${queryString ? `?${queryString}` : ''}`,
+		opts
+	)) as PaginatedResponse<EnforcementDecisionEvent>;
+}
+
+export async function getEnforcementDecision(
+	id: string,
+	opts?: { fetch?: Fetcher; signal?: AbortSignal }
+): Promise<EnforcementDecisionEvent> {
+	return (await doGet(
+		`/enforcement-decisions/${encodeURIComponent(id)}`,
+		opts
+	)) as EnforcementDecisionEvent;
+}
+
+export async function checkEnforcementDecisionAllowlist(
+	id: string,
+	opts?: { fetch?: Fetcher; signal?: AbortSignal }
+): Promise<EnforcementDecisionAllowlistCheck> {
+	return (await doGet(
+		`/enforcement-decisions/allowlist-check/${encodeURIComponent(id)}`,
+		opts
+	)) as EnforcementDecisionAllowlistCheck;
+}
+
+export async function listEnforcementDecisionFilterOptions(
+	filter: string,
+	opts?: { fetch?: Fetcher; signal?: AbortSignal } & Partial<EnforcementDecisionURLFilters>
+): Promise<{ options: string[] }> {
+	const { fetch: fetchFn, signal, ...filters } = opts ?? {};
+	const queryString = buildQueryString({
+		...filters,
+		limit: AUDIT_LOG_FILTER_OPTIONS_LIMIT
+	});
+	return (await doGet(
+		`/enforcement-decisions/filter-options/${filter}${queryString ? `?${queryString}` : ''}`,
+		{ fetch: fetchFn, signal }
+	)) as { options: string[] };
+}
+
+// parseContentDispositionFilename pulls the download filename out of a
+// Content-Disposition header, preferring the RFC 5987 filename* form.
+function parseContentDispositionFilename(header: string | null): string | undefined {
+	if (!header) return undefined;
+	const encoded = header.match(/filename\*=(?:UTF-8'')?([^;]+)/i);
+	if (encoded) {
+		try {
+			return decodeURIComponent(encoded[1].trim().replace(/^"|"$/g, ''));
+		} catch {
+			// Fall back to the plain filename form below.
+		}
+	}
+	const plain = header.match(/filename="?([^";]+)"?/i);
+	return plain ? plain[1].trim() : undefined;
+}
+
+export async function getMDMAssetSource(opts?: { fetch?: Fetcher }): Promise<MDMAssetSource> {
+	return (await doGet('/mdm/asset-source', {
+		...opts,
+		dontLogErrors: true
+	})) as MDMAssetSource;
+}
+
+export async function refreshMDMAssetSource(opts?: { fetch?: Fetcher }): Promise<void> {
+	await doPost('/mdm/asset-source/refresh', {}, opts);
+}
+
+export async function listMDMAssets(opts?: { fetch?: Fetcher }): Promise<MDMAsset[]> {
+	const response = (await doGet('/mdm/assets', {
+		...opts,
+		dontLogErrors: true
+	})) as MDMAssetList;
+	return response.items ?? [];
+}
+
+// Downloads one already-rendered artifact. The bundle carries no credentials;
+// an administrator supplies an enrollment key according to its instructions.
+export async function downloadMDMConfig(
+	configurationId: number,
+	slug: string,
+	reqOpts?: RequestOptions
+): Promise<{ blob: Blob; filename: string }> {
+	const resp = await doGetForResponse(
+		`/mdm/configurations/${configurationId}/download/${encodeURIComponent(slug)}`,
+		reqOpts
+	);
+	const blob = await resp.blob();
+	const filename =
+		parseContentDispositionFilename(resp.headers.get('content-disposition')) ??
+		`obot-sentry-config-${configurationId}.zip`;
+	return { blob, filename };
+}

@@ -1,0 +1,80 @@
+<script lang="ts">
+	import { popover } from '$lib/actions';
+	import { responsive } from '$lib/stores';
+	import type { Placement } from '@floating-ui/dom';
+	import { EllipsisVertical } from '@lucide/svelte';
+	import { type Snippet } from 'svelte';
+	import { twMerge } from 'tailwind-merge';
+
+	interface Props {
+		id?: string;
+		children: Snippet<[{ toggle: (newOpenValue?: boolean) => void }]>;
+		class?: string;
+		classes?: {
+			menu?: string;
+			popover?: string;
+		};
+		placement?: Placement;
+		icon?: Snippet;
+		onClick?: () => void;
+		disablePortal?: boolean;
+		el?: Element;
+		ariaLabel?: string;
+	}
+
+	let {
+		id,
+		children,
+		class: clazz,
+		classes,
+		placement = 'right-start',
+		icon,
+		onClick,
+		disablePortal,
+		el,
+		ariaLabel = 'Row actions'
+	}: Props = $props();
+
+	const { tooltip, ref, toggle } = popover({
+		get placement() {
+			return placement;
+		}
+	});
+</script>
+
+<button
+	{id}
+	aria-label={ariaLabel}
+	class={twMerge('btn', !clazz?.includes('btn-block') && 'btn-ghost btn-square', clazz)}
+	use:ref
+	onclick={(e) => {
+		toggle();
+		e.stopPropagation();
+		e.preventDefault();
+		onClick?.();
+	}}
+>
+	{#if icon}
+		{@render icon()}
+	{:else}
+		<EllipsisVertical class="size-5 transition-colors duration-300" />
+	{/if}
+</button>
+<div
+	use:tooltip={{
+		fixed: responsive.isMobile ? true : undefined,
+		slide: responsive.isMobile ? 'up' : undefined,
+		disablePortal,
+		el
+	}}
+	role="none"
+	onclick={(e) => {
+		e.preventDefault();
+		toggle();
+	}}
+	class={twMerge(responsive.isMobile ? 'bottom-0 left-0 w-full' : '', classes?.popover)}
+>
+	<div class={twMerge('dropdown-menu flex min-w-max flex-col p-2 gap-1', classes?.menu)}>
+		{@render children({ toggle })}
+	</div>
+</div>

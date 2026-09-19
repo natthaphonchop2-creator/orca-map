@@ -1,0 +1,293 @@
+<script lang="ts">
+	import { ADMIN_ALL_OPTION, MCP_ACCESS_POLICY_FIELD_IDS } from '$lib/constants';
+	import Loading from '$lib/icons/Loading.svelte';
+	import { stripMarkdownToText } from '$lib/markdown';
+	import {
+		UserService,
+		type MCPCatalogEntry,
+		type MCPCatalogServer,
+		type OrgUser
+	} from '$lib/services';
+	import { isDeprecatedMCPServer } from '$lib/services/user/mcp';
+	import { getUserDisplayName } from '$lib/utils';
+	import ResponsiveDialog from '../ResponsiveDialog.svelte';
+	import Search from '../Search.svelte';
+	import McpDeprecatedNotice from '../mcp/McpDeprecatedNotice.svelte';
+	import { Check, Server } from '@lucide/svelte';
+	import { onMount } from 'svelte';
+	import { twMerge } from 'tailwind-merge';
+
+	interface Props {
+		onAdd: (mcpCatalogEntryIds: string[], mcpServerIds: string[], otherSelectors: string[]) => void;
+		exclude?: string[];
+		mcpEntriesContextFn?: () => {
+			entries: MCPCatalogEntry[];
+			servers: MCPCatalogServer[];
+			loading: boolean;
+		};
+		all?: { label: string; description: string };
+		type: 'acr' | 'filter';
+		entity?: 'catalog' | 'workspace';
+		workspaceId?: string | null;
+		isAdminView?: boolean;
+		singleSelect?: boolean;
+		title?: string;
+	}
+
+	type SearchItem = {
+		icon: string | undefined;
+		name: string;
+		description: string | undefined;
+		id: string;
+		type: 'mcpcatalogentry' | 'mcpserver' | 'all' | 'mcpCatalog';
+		registry?: string;
+		deprecated?: boolean;
+	};
+
+	let {
+		onAdd,
+		exclude,
+		mcpEntriesContextFn,
+		type,
+		workspaceId,
+		isAdminView,
+		singleSelect,
+		title = 'Add Server(s)',
+		entity = 'catalog',
+		all = ADMIN_ALL_OPTION
+	}: Props = $props();
+	let addMcpServerDialog = $state<ReturnType<typeof ResponsiveDialog>>();
+	let users = $state<OrgUser[]>([]);
+	let search = $state('');
+	let selected = $state<SearchItem[]>([]);
+	let selectedMap = $derived(new Set(selected.map((i) => i.id)));
+	let usersMap = $derived(new Map(users.map((user) => [user.id, user])));
+
+	const mcpServerAndEntries = $derived(
+		mcpEntriesContextFn?.() ?? {
+			entries: [],
+			servers: [],
+			loading: false
+		}
+	);
+
+	let loading = $state(false);
+	let allData: SearchItem[] = $derived(
+		[
+			{
+				icon: undefined,
+				name: all.label,
+				description: all.description,
+				id: type === 'acr' ? '*' : 'default',
+				type: 'all' as const,
+				registry: ''
+			},
+			...mcpServerAndEntries.entries
+				.filter((entry) => {
+					if (type === 'filter') {
+						return true;
+					}
+
+					// exclude multi-user catalog entries
+					if (entry.manifest.serverUserType === 'multiUser') return false;
+
+					return entity === 'catalog'
+						? !entry.powerUserWorkspaceID
+						: workspaceId
+							? entry.powerUserWorkspaceID === workspaceId
+							: !!entry.powerUserWorkspaceID;
+				})
+				.map((entry) => ({
+					icon: entry.manifest?.icon,
+					name: entry.manifest?.name || '',
+					description: entry.manifest?.description,
+					id: entry.id,
+					type: 'mcpcatalogentry' as const,
+					deprecated: isDeprecatedMCPServer(entry),
+					registry:
+						entry.powerUserID && isAdminView
+							? `${getUserDisplayName(usersMap, entry.powerUserID)}'s Registry`
+							: ''
+				})),
+			...mcpServerAndEntries.servers
+				.filter((server) => {
+					if (type === 'filter') {
+						return true;
+					}
+
+					return entity === 'catalog'
+						? !server.powerUserWorkspaceID
+						: workspaceId
+							? server.powerUserWorkspaceID === workspaceId
+							: !!server.powerUserWorkspaceID;
+				})
+				.map((server) => ({
+					icon: server.manifest.icon,
+					name: server.alias || server.manifest.name || '',
+					description: server.manifest.description,
+					id: server.id,
+					type: 'mcpserver' as const,
+					deprecated: isDeprecatedMCPServer(server),
+					registry:
+						server.userID && server.powerUserWorkspaceID && isAdminView
+							? `${getUserDisplayName(usersMap, server.userID)}'s Registry`
+							: ''
+				}))
+		].filter((item) => !exclude?.includes(item.id))
+	);
+	let filteredData = $derived(
+		search
+			? allData.filter((item) => {
+					return item.name.toLowerCase().includes(search.toLowerCase());
+				})
+			: allData
+	);
+
+	export function open() {
+		addMcpServerDialog?.open();
+	}
+
+	function onClose() {
+		search = '';
+		selected = [];
+	}
+
+	function handleAdd() {
+		const mcpServerIds = [];
+		const mcpCatalogEntryIds = [];
+		const otherSelectors = [];
+		for (const item of selected) {
+			if (item.type === 'mcpserver') {
+				mcpServerIds.push(item.id);
+			} else if (item.type === 'mcpcatalogentry') {
+				mcpCatalogEntryIds.push(item.id);
+			} else {
+				otherSelectors.push(item.id);
+			}
+		}
+		onAdd(mcpCatalogEntryIds, mcpServerIds, otherSelectors);
+		addMcpServerDialog?.close();
+	}
+
+	onMount(async () => {
+		users = await UserService.listUsersIncludeDeleted();
+	});
+</script>
+
+<ResponsiveDialog
+	id="search-mcp-servers-dialog"
+	bind:this={addMcpServerDialog}
+	{onClose}
+	{title}
+	class="h-full w-full md:overflow-visible md:h-125 md:max-w-md"
+	classes={{ header: 'p-4 md:pb-0', content: 'min-h-inherit p-0' }}
+>
+	<div class="default-scrollbar-thin flex grow flex-col gap-4 overflow-y-auto pt-1">
+		<div class="flex flex-col gap-2">
+			{#if loading}
+				<div class="flex items-center justify-center">
+					<Loading class="size-6" />
+				</div>
+			{:else}
+				<div class="px-4">
+					<Search
+						class="dark:bg-base-200 dark:border-base-400 shadow-inner dark:border"
+						onChange={(val) => (search = val)}
+						value={search}
+						placeholder="Search by name..."
+					/>
+				</div>
+
+				<div class="flex flex-col">
+					{#each filteredData as item (item.id)}
+						<button
+							id={item.id === '*'
+								? MCP_ACCESS_POLICY_FIELD_IDS.everythingOption
+								: `search-mcp-server-${item.id}`}
+							class={twMerge(
+								'dark:hover:bg-base-200 hover:bg-base-300 flex w-full items-center gap-2 px-4 py-2 text-left',
+								selectedMap.has(item.id) && 'bg-base-200/50'
+							)}
+							onclick={() => {
+								if (singleSelect) {
+									selected = [item];
+									handleAdd();
+									return;
+								}
+
+								if (selectedMap.has(item.id)) {
+									const index = selected.findIndex((i) => i.id === item.id);
+									if (index !== -1) {
+										selected.splice(index, 1);
+									}
+								} else {
+									selected.push(item);
+								}
+							}}
+						>
+							<div class="flex w-full items-center gap-2 overflow-hidden">
+								<div class="icon">
+									{#if item.icon}
+										<img src={item.icon} alt={item.name} class="size-8 shrink-0" />
+									{:else}
+										<Server class="size-8 shrink-0" />
+									{/if}
+								</div>
+								<div class="flex min-w-0 grow flex-col">
+									<div class="flex items-center gap-2 flex-wrap">
+										<p class="truncate">
+											{item.name}
+										</p>
+
+										{#if item.registry}
+											<div class="badge badge-xs badge-soft badge-primary">
+												{item.registry}
+											</div>
+										{/if}
+										<McpDeprecatedNotice deprecated={item.deprecated} />
+									</div>
+									<span class="text-muted-content line-clamp-2 text-xs">
+										{stripMarkdownToText(item.description ?? '')}
+									</span>
+								</div>
+							</div>
+							<div class="flex size-6 items-center justify-center">
+								{#if selectedMap.has(item.id)}
+									<Check class="text-primary size-6" />
+								{/if}
+							</div>
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	</div>
+	<div class="flex w-full flex-col justify-between gap-4 p-4 md:flex-row">
+		{#if !singleSelect}
+			<div class="flex items-center gap-1 font-light">
+				{#if selected.length > 0}
+					<Server class="size-4" />
+					{selected.length} Selected
+				{/if}
+			</div>
+			<div class="flex items-center gap-2">
+				<button
+					id="search-mcp-servers-cancel-btn"
+					class="btn btn-secondary w-full md:w-fit"
+					onclick={() => addMcpServerDialog?.close()}
+				>
+					Cancel
+				</button>
+				<button
+					id={type === 'acr'
+						? MCP_ACCESS_POLICY_FIELD_IDS.serverConfirmBtn
+						: 'search-mcp-servers-confirm-btn'}
+					class="btn btn-primary w-full md:w-fit"
+					onclick={handleAdd}
+				>
+					Confirm
+				</button>
+			</div>
+		{/if}
+	</div>
+</ResponsiveDialog>

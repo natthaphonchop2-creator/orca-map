@@ -1,0 +1,299 @@
+<script lang="ts">
+	import { browser } from '$app/environment';
+	import { toHTMLFromMarkdownWithNewTabLinks } from '$lib/markdown';
+	import {
+		UserService,
+		type MCPCatalogEntry,
+		type MCPCatalogEntryServerManifest,
+		type MCPCatalogServer,
+		type MCPServerTool
+	} from '$lib/services';
+	import { conflictIssue, duplicateToolNames, toolNameIssue } from '$lib/services/user/mcp';
+	import Search from '../Search.svelte';
+	import Toggle from '../Toggle.svelte';
+	import IconButton from '../primitives/IconButton.svelte';
+	import McpOauth from './McpOauth.svelte';
+	import ToolNameIssueIcon from './ToolNameIssueIcon.svelte';
+	import { CircleAlert, ChevronDown, ChevronUp, Info, Wrench } from '@lucide/svelte';
+	import type { Snippet } from 'svelte';
+	import { slide } from 'svelte/transition';
+	import { twMerge } from 'tailwind-merge';
+
+	interface Props {
+		entry: MCPCatalogEntry | MCPCatalogServer;
+		server?: MCPCatalogServer;
+		onAuthenticate?: () => void;
+		noToolsContent?: Snippet;
+		classes?: {
+			root?: string;
+		};
+		previewOverride?: MCPCatalogEntryServerManifest['toolPreview'];
+		// When true, surface inline warning/error indicators next to each tool
+		// name for names that may be problematic for MCP clients / inference
+		// APIs (length, disallowed chars, or duplicates in this list).
+		showToolNameIssues?: boolean;
+	}
+
+	let {
+		entry,
+		server,
+		onAuthenticate,
+		noToolsContent,
+		classes,
+		previewOverride,
+		showToolNameIssues = false
+	}: Props = $props();
+	let search = $state('');
+	let tools = $state<MCPServerTool[]>([]);
+	let previewTools = $derived(previewOverride ?? getToolPreview(entry));
+	let loading = $state(false);
+	let previousEntryId = $state<string | undefined>(undefined);
+	let previousServerId = $state<string | undefined>(undefined);
+	let error = $state('');
+
+	let expanded = $state<Record<string, boolean>>({});
+	let allDescriptionsEnabled = $state(false);
+	let abortController = $state<AbortController | null>(null);
+
+	// Determine if we have "real" tools or should show previews
+	let showRealTools = $derived(
+		!('isCatalogEntry' in entry) || ('isCatalogEntry' in entry && server)
+	);
+	let showPreviewTools = $derived(previewTools.length > 0 && !showRealTools);
+	let displayTools = $derived(
+		(showRealTools
+			? tools
+			: showPreviewTools
+				? previewTools.map((t) => ({ ...t, id: t.id || t.name }))
+				: []
+		).filter(
+			(tool) =>
+				tool.name.toLowerCase().includes(search.toLowerCase()) ||
+				tool.description?.toLowerCase().includes(search.toLowerCase())
+		)
+	);
+
+	// Detect duplicate effective names across the aggregated tool list (composite
+	// previews/live lists only). Disabled via showToolNameIssues=false for other
+	// contexts so the icons stay opt-in.
+	let toolNameDuplicates = $derived(
+		showToolNameIssues ? duplicateToolNames(displayTools.map((t) => t.name)) : new Set<string>()
+	);
+
+	// Extract tool previews from the appropriate manifest
+	function getToolPreview(entry: MCPCatalogEntry | MCPCatalogServer): MCPServerTool[] {
+		if ('manifest' in entry) {
+			// Catalog entry or connected server - get from manifest.toolPreview
+			return entry.manifest?.toolPreview || [];
+		}
+		return [];
+	}
+
+	function handleToggleDescription(toolId: string, show: boolean) {
+		if (allDescriptionsEnabled && !show) {
+			allDescriptionsEnabled = false;
+			for (const { id: refToolId } of displayTools) {
+				if (toolId !== refToolId) {
+					expanded[refToolId] = true;
+				}
+			}
+		}
+
+		expanded[toolId] = show;
+		const expandedValues = Object.values(expanded);
+		if (expandedValues.length === displayTools.length && expandedValues.every((v) => v)) {
+			allDescriptionsEnabled = true;
+		}
+	}
+
+	async function loadTools() {
+		// Cancel any existing requests
+		if (abortController) {
+			abortController.abort();
+		}
+
+		// Create new AbortController for this request
+		abortController = new AbortController();
+		loading = true;
+		try {
+			// Make a best effort attempt to load tools, prompts, and resources concurrently
+			let id = 'isCatalogEntry' in entry && server ? server.id : entry.id;
+			let toolCall = UserService.listMcpCatalogServerTools(id, {
+				signal: abortController.signal
+			});
+			tools = await toolCall;
+		} catch (err) {
+			if (err instanceof DOMException && err.name === 'AbortError') return;
+			error = err instanceof Error ? err.message : 'An unknown error occurred';
+		} finally {
+			loading = false;
+		}
+	}
+
+	$effect(() => {
+		if (!showRealTools) return;
+		const changedEntry = entry && (!previousEntryId || entry.id !== previousEntryId);
+		const changedServer =
+			(server?.id && (!previousServerId || server.id !== previousServerId)) ||
+			(!server && previousServerId);
+		if (changedEntry || changedServer) {
+			previousEntryId = entry?.id;
+			previousServerId = server?.id;
+			loadTools();
+		}
+	});
+
+	async function handleAuthenticate() {
+		await loadTools();
+		onAuthenticate?.();
+	}
+</script>
+
+<div class={twMerge('flex w-full flex-col gap-4', classes?.root)}>
+	{#if showPreviewTools || error}
+		<div class="flex w-full flex-col items-center gap-2 md:flex-row">
+			{#if showPreviewTools}
+				<div class="notification-info w-full p-3 text-sm font-light">
+					<div class="flex items-center gap-3">
+						<Info class="size-6 shrink-0" />
+						<div>
+							This is a preview of the tools that are available for this MCP server; the actual
+							tools may differ on user connection.
+						</div>
+					</div>
+				</div>
+			{/if}
+			{#if error}
+				<div class="notification-error flex w-full items-center gap-2 p-3">
+					<CircleAlert class="size-4" />
+					<div class="flex flex-col">
+						<p class="text-sm font-semibold">Unable to retrieve the server's tools</p>
+						<p class="text-sm font-light">
+							{error}
+						</p>
+					</div>
+				</div>
+			{/if}
+		</div>
+	{/if}
+
+	{#if showRealTools}
+		{#key server?.id ?? entry.id}
+			<McpOauth entry={server ?? entry} onAuthenticate={handleAuthenticate} bind:error />
+		{/key}
+	{/if}
+
+	<div class="flex w-full flex-col gap-2">
+		<div class="mb-2 flex w-full flex-col gap-4">
+			<div class="flex flex-wrap items-center justify-end gap-2 md:shrink-0">
+				<Toggle
+					checked={allDescriptionsEnabled}
+					onChange={(checked) => {
+						allDescriptionsEnabled = checked;
+						expanded = {};
+					}}
+					label="Show All Descriptions"
+					labelInline
+					classes={{
+						label: 'text-sm gap-2'
+					}}
+				/>
+			</div>
+
+			<Search
+				class="dark:bg-base-200 dark:border-base-400 bg-base-100 border border-transparent shadow-sm"
+				onChange={(val) => (search = val)}
+				placeholder="Search tools..."
+			/>
+		</div>
+		<div class="flex flex-col gap-4 overflow-hidden">
+			{#if loading}
+				{#each Array.from({ length: 3 }) as _, i (i)}
+					<div class="skeleton h-14 w-full rounded-none"></div>
+				{/each}
+			{:else if displayTools.length > 0}
+				{#each displayTools as tool, index (`${tool.name}-${index}`)}
+					{@const hasContentDisplayed = allDescriptionsEnabled || expanded[tool.id]}
+					<div
+						class="border-base-200 dark:bg-base-200 dark:border-base-400 bg-base-100 flex flex-col gap-2 rounded-md border p-3 shadow-sm"
+						class:pb-2={hasContentDisplayed}
+					>
+						<div class="flex items-center justify-between gap-2">
+							<p class="text-md flex min-w-0 flex-1 items-center gap-1.5 font-semibold">
+								<span class="min-w-0 flex-1 truncate" title={tool.name}>{tool.name}</span>
+								{#if showToolNameIssues}
+									{@const conflict = conflictIssue(tool.name, toolNameDuplicates)}
+									<ToolNameIssueIcon issue={conflict ?? toolNameIssue(tool.name)} />
+								{/if}
+								{#if tool.unsupported}
+									<span class="text-muted-content ml-3 shrink-0 text-sm">
+										⚠️ Not yet fully supported in Obot
+									</span>
+								{/if}
+							</p>
+							<div class="flex shrink-0 items-center gap-2">
+								<IconButton
+									class="btn-sm"
+									onclick={() => handleToggleDescription(tool.id, !hasContentDisplayed)}
+								>
+									{#if hasContentDisplayed}
+										<ChevronUp class="size-4" />
+									{:else}
+										<ChevronDown class="size-4" />
+									{/if}
+								</IconButton>
+							</div>
+						</div>
+						{#if hasContentDisplayed}
+							{#if browser}
+								<div
+									in:slide={{ axis: 'y' }}
+									class="milkdown-content text-muted-content max-w-none text-sm font-light"
+								>
+									{@html toHTMLFromMarkdownWithNewTabLinks(tool.description || '', true)}
+								</div>
+							{/if}
+							{#if Object.keys(tool.params ?? {}).length > 0}
+								<div
+									class="from-base-300 dark:from-base-400 text-muted-content flex w-full shrink-0 bg-linear-to-r to-transparent px-4 py-2 text-xs font-semibold md:w-sm"
+								>
+									Parameters
+								</div>
+								<div class="flex flex-col px-4 text-xs" in:slide={{ axis: 'y' }}>
+									<div class="flex flex-col gap-2">
+										{#each Object.keys(tool.params ?? {}) as paramKey (paramKey)}
+											<div class="flex flex-col items-center gap-2 md:flex-row">
+												<p class="text-muted-content self-start font-semibold md:min-w-xs">
+													{paramKey}
+												</p>
+												<p class="text-muted-content self-start font-light">
+													{tool.params?.[paramKey]}
+												</p>
+											</div>
+										{/each}
+									</div>
+								</div>
+							{/if}
+						{/if}
+					</div>
+				{/each}
+			{:else if noToolsContent}
+				{@render noToolsContent()}
+			{:else}
+				<div class="mt-12 flex w-md flex-col items-center gap-4 self-center text-center">
+					<Wrench class="text-muted-content size-24 opacity-50" />
+					<h4 class="text-muted-content text-lg font-semibold">No tools</h4>
+					<p class="text-muted-content text-sm font-light">
+						{#if showRealTools}
+							Looks like this MCP server doesn't have any tools available.
+						{:else}
+							Connection to the server is required to list available tools.
+						{/if}
+					</p>
+				</div>
+			{/if}
+		</div>
+	</div>
+</div>
+
+<div class="flex grow"></div>

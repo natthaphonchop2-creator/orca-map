@@ -1,0 +1,14 @@
+node_modules
+.svelte-kit/
+build/
+build-node/
+.env
+.env.*
+!.env.example
+.local
+coverage/
+test-results/
+playwright-report/
+.pnpm-store/
+*.log
+.DS_Store

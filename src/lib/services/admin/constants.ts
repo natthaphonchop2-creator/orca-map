@@ -1,0 +1,52 @@
+import { Role } from './types';
+
+export const userRoleOptions = [
+	{
+		id: Role.BASIC,
+		label: 'Basic User',
+		description: 'Connect to MCP servers made available through access policies and use Chat.'
+	},
+	{
+		id: Role.POWERUSER,
+		label: 'Power User',
+		description:
+			'In addition to basic user features, users can publish custom MCP servers for their own personal use.'
+	},
+	{
+		id: Role.POWERUSER_PLUS,
+		label: 'Power User Plus',
+		description:
+			'In addition to power user features, users can share their custom MCP servers through their own access policies.'
+	},
+	{
+		id: Role.ADMIN,
+		label: 'Admin',
+		description: 'Every user is a full admin. Use caution when selecting this option.'
+	}
+];
+
+export const groupRoleOptions = [
+	{
+		id: Role.ADMIN,
+		label: 'Admin',
+		description: 'All group members will be full admins. Use caution when selecting this option.'
+	},
+	{
+		id: Role.POWERUSER_PLUS,
+		label: 'Power User Plus',
+		description:
+			'In addition to Power User features, all group members can share their custom MCP servers through their own Access Control Rules.'
+	},
+	{
+		id: Role.POWERUSER,
+		label: 'Power User',
+		description: 'All group members can publish custom MCP servers for their own personal use.'
+	}
+];
+
+export const OBOT_PLATFORM_REPO = 'https://github.com/obot-platform/';
+
+export const MCP_MULTI_TENANT_LAUNCH_TEXT =
+	'You are about to launch a new server for a multi-tenant catalog entry.';
+export const MCP_SINGLE_TENANT_LAUNCH_TEXT =
+	'You are about to launch a personal server for a single-tenant catalog entry. This will only be accessible to you.';

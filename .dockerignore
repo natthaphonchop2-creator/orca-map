@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+build
+dist
+coverage
+outputs
+*.log
+.DS_Store
+.local
+.svelte-kit

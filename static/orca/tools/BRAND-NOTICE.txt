@@ -1,0 +1,13 @@
+ORCA tool-icon sources and brand notice
+
+Slack, Microsoft, Google Sheets, Google Docs, Google Drive, LINE and Oracle are the names or marks of their respective owners. Microsoft is a trademark of the Microsoft group of companies. Google product marks belong to Google LLC; LINE marks belong to LY Corporation; Oracle marks belong to Oracle and/or its affiliates.
+
+The displayed systems are examples for a pilot assessment. Their appearance does not represent a partnership, endorsement, customer relationship, or an available native ORCA integration.
+
+Slack, Microsoft and Oracle SVG files were obtained from the SVG Logos collection at revision a5b65275e761a8347a99eded1101c6b130a06e52. That collection's CC0-1.0 text is in SVG-LOGOS-CC0.txt. CC0 does not waive trademark rights and does not establish permission from the brand owners.
+
+Google product SVG files were obtained from Google's versioned product-icon URLs referenced by the Google Workspace website. The LINE PNG is an unchanged member of LINE's official brand-icon download. No open-source license is asserted for these official brand files. The generic API symbol was authored for ORCA.
+
+No permission from Microsoft, Google or Oracle for external marketing use was established in this work. Their published brand-approval requirements must be resolved for that use; this source inventory does not grant those permissions.
+
+Source URLs, SHA-256 hashes, versions and usage-review links: manifest.json in this directory.

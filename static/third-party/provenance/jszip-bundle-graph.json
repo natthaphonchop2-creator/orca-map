@@ -1,0 +1,517 @@
+{
+  "schema": 1,
+  "component": "jszip@3.10.1",
+  "publisher_commit": "0f2f1e4d0509514417db83fe5b86bde90e0ffe8d",
+  "dist_sha256": "e2e1be5c22d3f15b0b89e676d3eede94644529996d9898a6b1587c9908a78506",
+  "method": "AST inspection of the exact received Browserify bundle that byte-matches publisher source archive dist/jszip.js; external library names come from require-map edges, versions from publisher package-lock. This does not independently prove standalone-package byte equality.",
+  "module_count": 54,
+  "modules": [
+    {
+      "id": 1,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "0798ea58921f4a3552aba5ccaa8933605839ba0e341514200ab3511c83fb126b",
+      "requires": {
+        "./support": 30,
+        "./utils": 32
+      }
+    },
+    {
+      "id": 2,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "9606cb289852197590e9bb0d491a70fbe3b768d314ddcb48e389d1a574aea733",
+      "requires": {
+        "./external": 6,
+        "./stream/Crc32Probe": 25,
+        "./stream/DataLengthProbe": 26,
+        "./stream/DataWorker": 27
+      }
+    },
+    {
+      "id": 3,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "893120a15f1873740679b1fe8d9a2ed579b76dfc854c680b1349ed305702b994",
+      "requires": {
+        "./flate": 7,
+        "./stream/GenericWorker": 28
+      }
+    },
+    {
+      "id": 4,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "16d8a6a3aa4d7d5f693a50c12206d7d03c9665acb8b263ecf61c4580538ffe0b",
+      "requires": {
+        "./utils": 32
+      }
+    },
+    {
+      "id": 5,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "73be84462baaef6b826d1f02a77a8357cbc41fd3ea7a2713291e3d6d76ecc354",
+      "requires": {}
+    },
+    {
+      "id": 6,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "27a970b56083ec0f0820977bcecea372b9bb186bce0e7a2ac7c9804cfa900c3b",
+      "requires": {
+        "lie": 37
+      }
+    },
+    {
+      "id": 7,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "898c7b4640ef8db55e39b1ebdd91670bc36ae3457c25fb52ead5d0eda6da2cc6",
+      "requires": {
+        "./stream/GenericWorker": 28,
+        "./utils": 32,
+        "pako": 38
+      }
+    },
+    {
+      "id": 8,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "006ccc6bfe9f46b25489f81ea090da5147e23ee8330bca720b14690f5b85886c",
+      "requires": {
+        "../crc32": 4,
+        "../signature": 23,
+        "../stream/GenericWorker": 28,
+        "../utf8": 31,
+        "../utils": 32
+      }
+    },
+    {
+      "id": 9,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "d3dd2f07a587c4b040fb27d6bb38946c8064ffa75570085d34b4d1060ae13320",
+      "requires": {
+        "../compressions": 3,
+        "./ZipFileWorker": 8
+      }
+    },
+    {
+      "id": 10,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "34e2c8001b284fd3c8ea593cf30bd0b1cccc23fbccf0380653b8502cda28f7d5",
+      "requires": {
+        "./defaults": 5,
+        "./external": 6,
+        "./load": 11,
+        "./object": 15,
+        "./support": 30
+      }
+    },
+    {
+      "id": 11,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "a885b6243cc41e36e7f60786d81eb93abb706fb269f0ad8f5221e2c276427857",
+      "requires": {
+        "./external": 6,
+        "./nodejsUtils": 14,
+        "./stream/Crc32Probe": 25,
+        "./utf8": 31,
+        "./utils": 32,
+        "./zipEntries": 33
+      }
+    },
+    {
+      "id": 12,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "78e59734baa40fd33a088d8e3600a7efc56c9b4567e66eb5926bf05381845ecd",
+      "requires": {
+        "../stream/GenericWorker": 28,
+        "../utils": 32
+      }
+    },
+    {
+      "id": 13,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "be73a55b81e99c9bf676faf2265a133d5bccc7b39a4b1a3be5d24c2e3a93686c",
+      "requires": {
+        "../utils": 32,
+        "readable-stream": 16
+      }
+    },
+    {
+      "id": 14,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "cc82e347f40a38a9d927a65091bfb2cecdb903c84565dca13d087f3fd5e0646b",
+      "requires": {}
+    },
+    {
+      "id": 15,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "3f6a92157b7daa42bc672e3e3e773c22fc386fc954082e7bbb9095f78f5766ce",
+      "requires": {
+        "./compressedObject": 2,
+        "./defaults": 5,
+        "./generate": 9,
+        "./nodejs/NodejsStreamInputAdapter": 12,
+        "./nodejsUtils": 14,
+        "./stream/GenericWorker": 28,
+        "./stream/StreamHelper": 29,
+        "./utf8": 31,
+        "./utils": 32,
+        "./zipObject": 35
+      }
+    },
+    {
+      "id": 16,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "9e87123692a56041c574052cbb9cebb8f6465f7023971032b03711b708922808",
+      "requires": {}
+    },
+    {
+      "id": 17,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "aefdeb6e34bcb718787c1cef023781dac359cb07f1bea5cd9716f739f11378a2",
+      "requires": {
+        "../utils": 32,
+        "./DataReader": 18
+      }
+    },
+    {
+      "id": 18,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "5524cb38cb4cecd945cdd28eed95dcbd7afd26b0c5435b90e153c1c874aa3419",
+      "requires": {
+        "../utils": 32
+      }
+    },
+    {
+      "id": 19,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "39438022b14a772ad1f22937a7197b364a1c2c81613cfdfdb0f9998774c25b24",
+      "requires": {
+        "../utils": 32,
+        "./Uint8ArrayReader": 21
+      }
+    },
+    {
+      "id": 20,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "f50a511cfe40021451d5aba795d64ca89994a7a982778c81bb35f718b9562a5a",
+      "requires": {
+        "../utils": 32,
+        "./DataReader": 18
+      }
+    },
+    {
+      "id": 21,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "c5db7c8656e2faf68f4be3722f6a295e8c27dd0445ff530680a55adba79a47dc",
+      "requires": {
+        "../utils": 32,
+        "./ArrayReader": 17
+      }
+    },
+    {
+      "id": 22,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "de38c4e35bf62da600b32213e619bb1a7f5e191ef7c32fdee77ab227888fa588",
+      "requires": {
+        "../support": 30,
+        "../utils": 32,
+        "./ArrayReader": 17,
+        "./NodeBufferReader": 19,
+        "./StringReader": 20,
+        "./Uint8ArrayReader": 21
+      }
+    },
+    {
+      "id": 23,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "d6be472bf844dded916933f748ce5c08eba43f966d14df0a425ca96a1d465d6f",
+      "requires": {}
+    },
+    {
+      "id": 24,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "924b1abe9503d6d9e422f01398cbc28272f90a3a91ef5e3da57c77ca5bdacd56",
+      "requires": {
+        "../utils": 32,
+        "./GenericWorker": 28
+      }
+    },
+    {
+      "id": 25,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "d7c87a04147aac555fe447c88e6356eca4b04b3a594bd2fb627d76a36377d948",
+      "requires": {
+        "../crc32": 4,
+        "../utils": 32,
+        "./GenericWorker": 28
+      }
+    },
+    {
+      "id": 26,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "313a0a1a6968f5804b467a77f922c688efbbb0718e1821b74e10be6724b0f55f",
+      "requires": {
+        "../utils": 32,
+        "./GenericWorker": 28
+      }
+    },
+    {
+      "id": 27,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "3be7c686380a6b3448787b0448fb6fe9825dd7966645352001124da125072443",
+      "requires": {
+        "../utils": 32,
+        "./GenericWorker": 28
+      }
+    },
+    {
+      "id": 28,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "14e6102363cfbbd8fa3ac63760449c562b513b1a73138ccd5e76f9118e9cc76c",
+      "requires": {}
+    },
+    {
+      "id": 29,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "8dc4ef558c26507157a1dc09fe6d160e8f1d342125adfa9fc7a7370d5099c304",
+      "requires": {
+        "../base64": 1,
+        "../external": 6,
+        "../nodejs/NodejsStreamOutputAdapter": 13,
+        "../support": 30,
+        "../utils": 32,
+        "./ConvertWorker": 24,
+        "./GenericWorker": 28
+      }
+    },
+    {
+      "id": 30,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "3014ead98dccb52170cbffc5e6c09cd1b48fc2d02b6b807269846ce68a2440bf",
+      "requires": {
+        "readable-stream": 16
+      }
+    },
+    {
+      "id": 31,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "daa2dff297dd3e40ed4723e1de7043f72356bebd13ff5e5b7fa785d267ecd726",
+      "requires": {
+        "./nodejsUtils": 14,
+        "./stream/GenericWorker": 28,
+        "./support": 30,
+        "./utils": 32
+      }
+    },
+    {
+      "id": 32,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "54f47ea4c795ae5ffb74671ed3a2f479bafbee1542e1a44c433d60e0889afb14",
+      "requires": {
+        "./base64": 1,
+        "./external": 6,
+        "./nodejsUtils": 14,
+        "./support": 30,
+        "setimmediate": 54
+      }
+    },
+    {
+      "id": 33,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "57dc23044fd3c17ee3c7770bbaebbfdd8f9c31ab70499fcf889e6b7128287a88",
+      "requires": {
+        "./reader/readerFor": 22,
+        "./signature": 23,
+        "./support": 30,
+        "./utils": 32,
+        "./zipEntry": 34
+      }
+    },
+    {
+      "id": 34,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "f23235a1de1c6a156e92da698ac8d078b8440303775f3ec2b2fd812f3eae4b77",
+      "requires": {
+        "./compressedObject": 2,
+        "./compressions": 3,
+        "./crc32": 4,
+        "./reader/readerFor": 22,
+        "./support": 30,
+        "./utf8": 31,
+        "./utils": 32
+      }
+    },
+    {
+      "id": 35,
+      "package_from_publisher_lock": "jszip@3.10.1",
+      "module_body_sha256": "fda262bf44239645fbdea803939a77fb196dad021fcfa7d363e8ea9ee1582847",
+      "requires": {
+        "./compressedObject": 2,
+        "./stream/DataWorker": 27,
+        "./stream/GenericWorker": 28,
+        "./stream/StreamHelper": 29,
+        "./utf8": 31
+      }
+    },
+    {
+      "id": 36,
+      "package_from_publisher_lock": "immediate@3.0.6",
+      "module_body_sha256": "ea06dd24ad158ad9c8e3211f89564f70cb6e32b5dbb78cb87ee58573f6f67c8e",
+      "requires": {}
+    },
+    {
+      "id": 37,
+      "package_from_publisher_lock": "lie@3.3.0",
+      "module_body_sha256": "ae6d336f577986ee66c0055336e30ebf7afe75e42daeff654ff2e10df13a4199",
+      "requires": {
+        "immediate": 36
+      }
+    },
+    {
+      "id": 38,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "d55c8556717c452a7a1c4c75df8d06f8b337face2ca408b2acf3a4a32acb88f9",
+      "requires": {
+        "./lib/deflate": 39,
+        "./lib/inflate": 40,
+        "./lib/utils/common": 41,
+        "./lib/zlib/constants": 44
+      }
+    },
+    {
+      "id": 39,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "3f47fd9da1a2bf832b640e4c3f951967c435a6079374e0a09a77b7687770dcef",
+      "requires": {
+        "./utils/common": 41,
+        "./utils/strings": 42,
+        "./zlib/deflate": 46,
+        "./zlib/messages": 51,
+        "./zlib/zstream": 53
+      }
+    },
+    {
+      "id": 40,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "b737b6f6c056b38a6093e5545cbd68aa8af8ae24e8fdb03973b92ff77a9e8a34",
+      "requires": {
+        "./utils/common": 41,
+        "./utils/strings": 42,
+        "./zlib/constants": 44,
+        "./zlib/gzheader": 47,
+        "./zlib/inflate": 49,
+        "./zlib/messages": 51,
+        "./zlib/zstream": 53
+      }
+    },
+    {
+      "id": 41,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "aa329cfa20084823f1a25c3170184972414f4ef85f7993a6f85a2d01c8577131",
+      "requires": {}
+    },
+    {
+      "id": 42,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "501104700eff8e8bc49d6aba088478e42ca8bea1deff5b84d62a6d4cfe0e0b81",
+      "requires": {
+        "./common": 41
+      }
+    },
+    {
+      "id": 43,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "80731d0d308b08fdab330454d079bb72d5288119bd01a509dd82311a7cbc6d67",
+      "requires": {}
+    },
+    {
+      "id": 44,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "b8b0cb8483abe88071b359b5dd5e9a5aa9407a7966ccce9f40533c6e11888e6f",
+      "requires": {}
+    },
+    {
+      "id": 45,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "2355548004e8d42abc70625c57feae5a8668a7ec1d2ba6bd516c54512a7e63a2",
+      "requires": {}
+    },
+    {
+      "id": 46,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "aeac3562322206d6a1d6124ac6696c1b3e9140ec0aba3dd324a0cd11ff50886c",
+      "requires": {
+        "../utils/common": 41,
+        "./adler32": 43,
+        "./crc32": 45,
+        "./messages": 51,
+        "./trees": 52
+      }
+    },
+    {
+      "id": 47,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "136e9b32d0f8d04fb51a60142708094e0836f9bb55976d1da6ec406fbe985414",
+      "requires": {}
+    },
+    {
+      "id": 48,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "e0bfb3325c5bb892ce66eaf7a6427e7557cb9159339b9b7c397143b01de54b4a",
+      "requires": {}
+    },
+    {
+      "id": 49,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "c222ac69bd3b995d5debdd7d720c120df8ad4e74191c90d453c2bf4477a7fd3b",
+      "requires": {
+        "../utils/common": 41,
+        "./adler32": 43,
+        "./crc32": 45,
+        "./inffast": 48,
+        "./inftrees": 50
+      }
+    },
+    {
+      "id": 50,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "ac24699675298d5fc5139bc1d9cf2feacc3baef76a9717a4f3614257f4217fcf",
+      "requires": {
+        "../utils/common": 41
+      }
+    },
+    {
+      "id": 51,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "6e06093282c91f5a498beb8428e5db51c1b31b36e48f343ee4aeae7e59904b50",
+      "requires": {}
+    },
+    {
+      "id": 52,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "d7259ac3a7d1e5ad9401267c9475775cb4169a9cad05b65ebf194f9219077558",
+      "requires": {
+        "../utils/common": 41
+      }
+    },
+    {
+      "id": 53,
+      "package_from_publisher_lock": "pako@1.0.5",
+      "module_body_sha256": "48b5b63ded97b4667e34a37e4bf072599609a86f8a0e7e589776b7b33628a3e5",
+      "requires": {}
+    },
+    {
+      "id": 54,
+      "package_from_publisher_lock": "setimmediate@1.0.5",
+      "module_body_sha256": "d81fa3010f12fdff280bb8b425244f48521ff7978a1bceaeb014e0b34b3f84ae",
+      "requires": {}
+    }
+  ],
+  "named_vendor_libraries": [
+    "immediate@3.0.6",
+    "lie@3.3.0",
+    "pako@1.0.5",
+    "setimmediate@1.0.5"
+  ],
+  "browser_replacement": {
+    "module": 16,
+    "path": "lib/readable-stream-browser.js",
+    "note": "JSZip browser mapping replaces readable-stream with its own wrapper; the full readable-stream dependency closure is not included in these 54 modules."
+  }
+}

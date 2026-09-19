@@ -1,0 +1,277 @@
+{
+  "schema_version": 1,
+  "retrieved_on": "2026-09-08",
+  "assets": [
+    {
+      "file": "slack.svg",
+      "source_url": "https://raw.githubusercontent.com/gilbarbara/logos/a5b65275e761a8347a99eded1101c6b130a06e52/logos/slack-icon.svg",
+      "source": "SVG Logos collection",
+      "source_revision": "a5b65275e761a8347a99eded1101c6b130a06e52",
+      "license_note": "CC0-1.0; brand rights retained by Slack",
+      "sha256": "cf3c36c4ec98189ac7195410f0b93839b33527a71d023b69960d95129a4532a2",
+      "bytes": 2807,
+      "svg_dimensions": {
+        "width": "256px",
+        "height": "256px",
+        "viewBox": "0 0 256 256"
+      }
+    },
+    {
+      "file": "microsoft.svg",
+      "source_url": "https://raw.githubusercontent.com/gilbarbara/logos/a5b65275e761a8347a99eded1101c6b130a06e52/logos/microsoft-icon.svg",
+      "source": "SVG Logos collection",
+      "source_revision": "a5b65275e761a8347a99eded1101c6b130a06e52",
+      "license_note": "CC0-1.0; Microsoft brand authorization not established",
+      "sha256": "0a70bb4ba26d5cf9bbd377a82c7a14c845cda823032547505f7f8baa9921740a",
+      "bytes": 689,
+      "svg_dimensions": {
+        "width": "256px",
+        "height": "256px",
+        "viewBox": "0 0 256 256"
+      }
+    },
+    {
+      "file": "oracle.svg",
+      "source_url": "https://raw.githubusercontent.com/gilbarbara/logos/a5b65275e761a8347a99eded1101c6b130a06e52/logos/oracle.svg",
+      "source": "SVG Logos collection",
+      "source_revision": "a5b65275e761a8347a99eded1101c6b130a06e52",
+      "license_note": "CC0-1.0; Oracle brand rights retained",
+      "sha256": "282101a714c62e917154dce433c3f8a8815f4755172ce8d1c379f253ef4800b9",
+      "bytes": 3255,
+      "svg_dimensions": {
+        "width": "512px",
+        "height": "67px",
+        "viewBox": "0 0 512 67"
+      }
+    },
+    {
+      "file": "google-sheets.svg",
+      "source_url": "https://www.gstatic.com/images/branding/productlogos/sheets_2026q3/v1/web/192px.svg",
+      "source": "Google Workspace website",
+      "source_revision": "sheets_2026q3/v1",
+      "license_note": "Google brand asset; no open-source license asserted",
+      "sha256": "3dd989706d03cf9ed780beb45af592bb46aa777edcc18543ea0764463ec936d2",
+      "bytes": 1825,
+      "svg_dimensions": {
+        "width": "192",
+        "height": "192",
+        "viewBox": "0 0 192 192"
+      }
+    },
+    {
+      "file": "google-docs.svg",
+      "source_url": "https://www.gstatic.com/images/branding/productlogos/docs_2026/v2/web/192px.svg",
+      "source": "Google Workspace website",
+      "source_revision": "docs_2026/v2",
+      "license_note": "Google brand asset; no open-source license asserted",
+      "sha256": "ce8a250ed67fa813f00e2f2be6fcf515b284dbd0c7fa29aab254b1ba8310258c",
+      "bytes": 2033,
+      "svg_dimensions": {
+        "width": "192",
+        "height": "192",
+        "viewBox": "0 0 192 192"
+      }
+    },
+    {
+      "file": "google-drive.svg",
+      "source_url": "https://www.gstatic.com/images/branding/productlogos/drive_2026/v2/web/192px.svg",
+      "source": "Google Workspace website",
+      "source_revision": "drive_2026/v2",
+      "license_note": "Google brand asset; no open-source license asserted",
+      "sha256": "60a6496d705d8bf010ce126469be89889db331622b14d8ae1645a38c2aaa23f5",
+      "bytes": 1293,
+      "svg_dimensions": {
+        "width": "192",
+        "height": "192"
+      }
+    },
+    {
+      "file": "SVG-LOGOS-CC0.txt",
+      "source_url": "https://raw.githubusercontent.com/gilbarbara/logos/a5b65275e761a8347a99eded1101c6b130a06e52/LICENSE.txt",
+      "source": "SVG Logos collection",
+      "source_revision": "a5b65275e761a8347a99eded1101c6b130a06e52",
+      "license_note": "CC0-1.0",
+      "sha256": "36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673",
+      "bytes": 6555
+    },
+    {
+      "file": "line.png",
+      "source_url": "https://www.line.me/static/logo/top/LINE_Brand_icon.zip",
+      "source": "Official LINE brand download",
+      "archive_member": "LINE_Brand_icon.png",
+      "source_revision": "Guidelines revision 2021-05-27, downloaded 2026-09-07",
+      "license_note": "LY Corporation brand asset; published LINE icon guidelines, no open-source license asserted",
+      "sha256": "5e93437eb5ec0dcdece92d1562fcd435d1d521cca5c013d2d9e15b544a1d8a39",
+      "bytes": 22239,
+      "width": 1001,
+      "height": 1000
+    },
+    {
+      "file": "api.svg",
+      "source": "ORCA project-authored generic API symbol",
+      "source_revision": "2026-09-07",
+      "license_note": "Same project license as ORCA UI source; generic symbol, not a third-party trademark",
+      "sha256": "c89b04cee80e4b8a14b780bb0f21a4f3725395e10db8c43a6e2c8f0bf7da47e3",
+      "bytes": 496,
+      "svg_dimensions": {
+        "width": "48",
+        "height": "48",
+        "viewBox": "0 0 48 48"
+      }
+    },
+    {
+      "file": "peak.svg",
+      "source_url": "https://www.peakaccount.com/hubfs/favicon.svg",
+      "source_page": "https://www.peakaccount.com/",
+      "source": "Official brand website",
+      "retrieved_on": "2026-09-08",
+      "sha256": "fbac5ea508e4f10ac913db8d05f93f44cab9e7a02dc89af99a7540c42255bf8b",
+      "bytes": 823,
+      "svg_dimensions": {
+        "width": "512",
+        "height": "512",
+        "viewBox": "0 0 512 512"
+      },
+      "license_note": "Brand asset; no open-source license asserted"
+    },
+    {
+      "file": "flowaccount.svg",
+      "source_url": "https://flowaccountcdn.com/logo_favicon/flowaccount.svg",
+      "source_page": "https://flowaccount.com/",
+      "source": "Official brand website",
+      "retrieved_on": "2026-09-08",
+      "sha256": "a41e81ef0ae6ce42c82c604c2557368f9c2d4a0cc7ecb609ff4e555ad9fe20e3",
+      "bytes": 787,
+      "svg_dimensions": {
+        "id": "Logo",
+        "width": "30",
+        "height": "30",
+        "viewBox": "0 0 30 30"
+      },
+      "license_note": "Brand asset; no open-source license asserted"
+    },
+    {
+      "file": "gemini.svg",
+      "source_url": "https://www.gstatic.com/lamda/images/gemini_sparkle_aurora_33f86dc0c0257da337c63.svg",
+      "source_page": "https://gemini.google.com/",
+      "source": "Official brand website",
+      "retrieved_on": "2026-09-08",
+      "sha256": "f56df33f86dc0c0257da337c63bf7ad68c0a1b27b796ec707e147984351bccb3",
+      "bytes": 27794,
+      "svg_dimensions": {
+        "id": "Layer_1",
+        "viewBox": "0 0 192 192"
+      },
+      "license_note": "Brand asset; no open-source license asserted"
+    },
+    {
+      "file": "cursor.svg",
+      "source_url": "https://cursor.com/marketing-static/favicon-light.svg",
+      "source_page": "https://cursor.com/",
+      "source": "Official brand website",
+      "retrieved_on": "2026-09-08",
+      "sha256": "78f169abca311d70e18ada789ccf1a55b4ca0306822f21a9ab0c2658ed88dbe0",
+      "bytes": 4388,
+      "svg_dimensions": {
+        "fill": "none",
+        "height": "512",
+        "viewBox": "0 0 512 512",
+        "width": "512"
+      },
+      "license_note": "Brand asset; no open-source license asserted"
+    },
+    {
+      "file": "aws.svg",
+      "source_url": "https://raw.githubusercontent.com/gilbarbara/logos/a5b65275e761a8347a99eded1101c6b130a06e52/logos/aws.svg",
+      "source_page": "https://github.com/gilbarbara/logos",
+      "source": "SVG Logos collection",
+      "retrieved_on": "2026-09-08",
+      "sha256": "3a4720542e42a50cd738f6150f54efe8161c1aaed601af07ea4ad3a19d5f18c2",
+      "bytes": 8235,
+      "svg_dimensions": {
+        "width": "256px",
+        "height": "153px",
+        "viewBox": "0 0 256 153",
+        "version": "1.1",
+        "preserveAspectRatio": "xMidYMid"
+      },
+      "license_note": "CC0-1.0; brand rights retained"
+    },
+    {
+      "file": "chatgpt.svg",
+      "source_url": "https://raw.githubusercontent.com/gilbarbara/logos/a5b65275e761a8347a99eded1101c6b130a06e52/logos/openai-icon.svg",
+      "source_page": "https://github.com/gilbarbara/logos",
+      "source": "SVG Logos collection",
+      "retrieved_on": "2026-09-08",
+      "sha256": "9c4a3baf62dc6950e9357302080d33120005e866fbc101ca3fe3cf7cb4ed54c4",
+      "bytes": 3741,
+      "svg_dimensions": {
+        "width": "256px",
+        "height": "260px",
+        "viewBox": "0 0 256 260",
+        "version": "1.1",
+        "preserveAspectRatio": "xMidYMid"
+      },
+      "license_note": "CC0-1.0; brand rights retained"
+    },
+    {
+      "file": "claude.svg",
+      "source": "Existing Obot assistant brand asset, retained unchanged",
+      "source_url": "https://github.com/obot-platform/obot/blob/v0.25.4/ui/user/static/user/images/assistant/claude-mark.svg",
+      "retrieved_on": "2026-09-08",
+      "sha256": "a3101f3047a119aa11825ad9369510f0c472428c8c52d420e31bc62db44a8364",
+      "bytes": 1696,
+      "license_note": "Claude brand artwork; brand rights retained"
+    }
+  ],
+  "line_archive": {
+    "url": "https://www.line.me/static/logo/top/LINE_Brand_icon.zip",
+    "sha256": "0e1d2a57b68e0337c666063162daa03953176744fa727e73596825a7b90bab6a",
+    "bytes": 20972
+  },
+  "transforms": "None: third-party image bytes retained unchanged; proportional display sizing only in ToolIcon.",
+  "brand_rights": "Asset provenance is not a trademark license or a clearance opinion. Do not claim partnership, customer adoption, or ready integration.",
+  "usage_reviews": [
+    {
+      "brand": "Microsoft",
+      "status": "Express brand license not established in this work; resolve before external marketing release",
+      "source_url": "https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks"
+    },
+    {
+      "brand": "Oracle",
+      "status": "Brand authorization not established in this work; resolve before external marketing release",
+      "source_url": "https://www.oracle.com/legal/logos/"
+    },
+    {
+      "brand": "Google Workspace",
+      "status": "Current Google guidelines request approval for product-icon use; permission for external marketing not established in this work",
+      "source_url": "https://partnermarketinghub.withgoogle.com/brands/google/branding-guidelines/how-to-show-googles-brand/"
+    },
+    {
+      "brand": "Slack",
+      "status": "Unmodified collection artwork; observe Slack brand guidelines",
+      "source_url": "https://slack.com/media-kit"
+    },
+    {
+      "brand": "LINE",
+      "status": "Official unmodified PNG; no animation/filter, white clear area, at least 40px mobile display",
+      "source_url": "https://www.line.me/en/logo"
+    }
+  ],
+  "notice_files": [
+    "BRAND-NOTICE.txt",
+    "SVG-LOGOS-CC0.txt"
+  ],
+  "supporting_files": [
+    {
+      "file": "BRAND-NOTICE.txt",
+      "sha256": "fbb367b3d3d172a67f687604c3e1e60c73d2f092e038875abe264883fe4c0f70",
+      "bytes": 1484
+    },
+    {
+      "file": "LINE_Brand_icon.source.zip",
+      "sha256": "0e1d2a57b68e0337c666063162daa03953176744fa727e73596825a7b90bab6a",
+      "bytes": 20972
+    }
+  ]
+}
