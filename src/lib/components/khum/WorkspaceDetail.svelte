@@ -6,8 +6,10 @@
 	import SourceSetup from '$lib/components/orca/SourceSetup.svelte';
 	import WorkspaceReadiness from '$lib/components/orca/WorkspaceReadiness.svelte';
 	import { personalKeyAvailable, workspaceToolingReady } from '$lib/orca/activation';
-	import { unavailableGatewayTools } from '$lib/orca/gateway-tool-selection';
-	import { t, localeHref } from '$lib/orca/locale.svelte';
+	import { gatewaySources, gatewayToolCount } from '$lib/orca/gateway-sources';
+	import { matchesToolSearch, toolPresentation } from '$lib/orca/tool-presentation';
+	import CatalogIcon from '$lib/orca/CatalogIcon.svelte';
+	import { t, localeHref, orcaLocale } from '$lib/orca/locale.svelte';
 	import {
 		OrcaService,
 		displayDate,
@@ -49,17 +51,28 @@
 	let toolQuery = $state('');
 	const tabs = $derived([
 		{ id: 'overview', label: t('ภาพรวม', 'Overview') },
-		{ id: 'tools', label: t('เครื่องมือ', 'Tools'), count: hub.toolNames.length },
+		{ id: 'tools', label: t('เครื่องมือ', 'Tools'), count: gatewayToolCount(hub) },
 		{ id: 'access', label: t('สิทธิ์และสมาชิก', 'Access & members'), count: hub.memberIDs.length },
 		...(!archived ? [{ id: 'connect', label: t('เชื่อมแอป AI', 'Connect AI') }] : [])
 	]);
 	function tabHref(tab: string) {
 		return localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}&tab=${tab}`);
 	}
-	const visibleTools = $derived(hub.toolNames.filter((name) => {
-		const tool = connection?.tools.find((item) => item.name === name);
-		return `${name} ${tool?.description || ''}`.toLowerCase().includes(toolQuery.trim().toLowerCase());
+	const sources = $derived(gatewaySources(hub).map((source) => {
+		const connection = data.connections.find((item) => item.id === source.connectionID);
+		const ready = workspaceToolingReady({ ...hub, sources: [source] }, connection);
+		return { ...source, connection, ready };
 	}));
+	const selectedTools = $derived(sources.flatMap((source) => source.toolNames.map((name) => ({
+		key: JSON.stringify([source.connectionID, name]),
+		name, source,
+		tool: source.connection?.tools.find((item) => item.name === name) ?? { name, inputSchema: {} }
+	}))));
+	const visibleTools = $derived(selectedTools.filter((item) =>
+		matchesToolSearch(item.tool, toolQuery, orcaLocale.value) ||
+		!!toolQuery.trim() && (item.source.connection?.name ?? '').toLocaleLowerCase().includes(toolQuery.trim().toLocaleLowerCase())
+	));
+	let accountSourceID = $state('');
 	let keys = $state<OrcaKey[]>([]);
 	let loadingKeys = $state(false);
 	let keysLoaded = $state(false);
@@ -79,18 +92,13 @@
 	let creating = $state(false);
 	let revoking = $state<number>();
 	let confirmRevoke = $state<number>();
-	const connection = $derived(data.connections.find((item) => item.id === hub.connectionID));
-	const unavailableTools = $derived(unavailableGatewayTools(connection, hub.toolNames));
-	const toolAccessLabel = $derived(
-		connection?.reviewedReadOnly
-			? t('อ่านข้อมูลเท่านั้น', 'Read only')
-			: connection?.reviewedTools
-				? t('เครื่องมือที่เลือก', 'Selected tools')
-				: t('รอตรวจเครื่องมือ', 'Needs tool review')
-	);
+	const unavailableTools = $derived(selectedTools.filter((item) => !item.source.ready));
+	function accessLabel(readOnly: boolean | undefined) {
+		return readOnly ? t('อ่านข้อมูลเท่านั้น', 'Read only') : t('เครื่องมือที่เลือก', 'Selected tools');
+	}
 	const isMember = $derived(hub.memberIDs.includes(data.currentUserID));
 	const canConnect = $derived(
-		isMember && hub.status === 'active' && workspaceToolingReady(hub, connection)
+		isMember && hub.status === 'active' && workspaceToolingReady(hub, data.connections)
 	);
 	const members = $derived(data.members.filter((item) => hub.memberIDs.includes(item.id)));
 	const used = $derived(hub.usedToday ?? 0);
@@ -176,6 +184,7 @@
 					description: hub.description,
 					connectionID: hub.connectionID,
 					toolNames: hub.toolNames,
+					sources: gatewaySources(hub),
 					memberIDs: hub.memberIDs,
 					unitIDs: hub.unitIDs,
 					dailyLimit: hub.dailyLimit,
@@ -201,12 +210,12 @@
 		if (
 			!keyName.trim() ||
 			!Number.isInteger(expiryDays) ||
-			(expiryDays ?? 0) < 1 ||
+			(expiryDays ?? -1) < 0 ||
 			(expiryDays ?? 0) > 30
 		) {
 			keyError = t(
-				'กรุณาตั้งชื่อคีย์และเลือกอายุการใช้งาน 1–30 วัน',
-				'Enter a key name and an expiry between 1 and 30 days.'
+				'กรุณาตั้งชื่อคีย์และเลือกอายุการใช้งาน หรือเลือกไม่หมดอายุ',
+				'Enter a key name and choose an expiry or Never expires.'
 			);
 			return;
 		}
@@ -313,12 +322,12 @@
 			</div>
 		</div>
 	</div>{/if}
-{#if !connection?.enabled}<div class="k-banner" role="status">
+{#if sources.some((source) => !source.ready)}<div class="k-banner" role="status">
 		<Info size={19} />
 		<p>
 			{t(
-				'การเชื่อมต่อระบบนี้ถูกปิดใช้งาน Gateway จึงยังเข้าถึงข้อมูลไม่ได้',
-				'The source connection is disabled. This Gateway cannot access data yet.'
+				'บางแอปยังใช้งานไม่ได้ ตรวจบัญชีและสิทธิ์ของแอปนั้น ส่วนแอปที่พร้อมยังใช้ได้ตามสิทธิ์',
+				'Some apps are unavailable. Review those accounts and permissions. Ready apps remain accessible.'
 			)}
 		</p>
 	</div>{/if}
@@ -334,23 +343,17 @@
 
 <div class="k-grid-2">
 	<div class="k-panel">
-		<div class="k-panel-head">
-			<div class="k-actions">
-				<span class="k-icon"><Plug size={23} /></span>
-				<div>
-					<p class="k-muted k-small">{t('ระบบที่เชื่อมต่อ', 'Connected source')}</p>
-					<h2>{connection?.name || t('ไม่พบการเชื่อมต่อ', 'Connection not found')}</h2>
+		<div class="k-section-title"><h2>{t('แอปใน Gateway นี้', 'Apps in this Gateway')}</h2><span class="k-badge">{sources.length}</span></div>
+		<div class="gateway-source-list">
+			{#each sources as source (source.connectionID)}
+				<div class="gateway-source-row">
+					<CatalogIcon name={source.connection?.name || ''} size={30} />
+					<div><strong>{source.connection?.name || t('ไม่พบ Server นี้', 'Server unavailable')}</strong><p class="k-small k-muted">{source.toolNames.length} {t('เครื่องมือ', 'tools')} · {accessLabel(source.connection?.reviewedReadOnly)}</p></div>
+					<span class="k-badge" class:paused={!source.ready}>{source.ready ? t('พร้อมใช้', 'Ready') : t('ตรวจการตั้งค่า', 'Needs review')}</span>
 				</div>
-			</div>
-			<span class="k-badge accent">{toolAccessLabel}</span>
+			{/each}
 		</div>
-		<p class="k-muted" style="white-space:pre-wrap">{connection?.scopeNote}</p>
-		<p class="k-small k-muted" style="margin-top:13px">
-			{t(
-				'ข้อมูลที่เข้าถึงได้ขึ้นอยู่กับสิทธิ์ของบัญชีที่ใช้ในระบบที่เชื่อมต่อ',
-				'Data scope follows the permissions configured in the source account.'
-			)}
-		</p>
+		<p class="k-small k-muted" style="margin-top:13px">{t('แต่ละแอปใช้สิทธิ์ของบัญชีต้นทาง ร่วมกับเครื่องมือและสมาชิกที่กำหนดใน Gateway นี้', 'Each app follows its source account permissions and this Gateway’s selected tools and members.')}</p>
 	</div>
 	<div class="k-panel" style="margin-top:0">
 		<div class="k-panel-head">
@@ -410,7 +413,19 @@
 	aria-labelledby="connect-title"
 	style="scroll-margin-top:100px"
 >
-	{#if canConnect && connection}<SourceSetup sourceID={connection.mcpID} />{/if}
+	<div class="k-panel gateway-unified-intro">
+		<div><h2>{t('เชื่อม AI กับ ORCA ครั้งเดียว', 'One connection to ORCA')}</h2><p class="k-muted">{t('ใช้เครื่องมือจากทุก Gateway ที่คุณได้รับสิทธิ์ รวมถึง Gateway นี้', 'Use tools from every Gateway you can access, including this one.')}</p></div>
+		<a class="k-button primary" href={localeHref('/app?view=settings&section=ai')}>{t('เชื่อม AI กับ ORCA', 'Connect AI to ORCA')}</a>
+	</div>
+	{#if canConnect}<div class="gateway-account-list">
+		{#each sources as source (source.connectionID)}
+			{#if source.connection}<details class="gateway-account" open={accountSourceID === source.connectionID} ontoggle={(event) => { if (event.currentTarget.open) accountSourceID = source.connectionID; else if (accountSourceID === source.connectionID) accountSourceID = ''; }}>
+				<summary>{t('บัญชีที่ใช้กับ', 'Account for')} {source.connection.name}</summary>
+				{#if accountSourceID === source.connectionID}<SourceSetup sourceID={source.connection.mcpID} />{/if}
+			</details>{/if}
+		{/each}
+	</div>{/if}
+	<details class="gateway-guide"><summary>{t('เชื่อมเฉพาะ Gateway นี้', 'Connect only this Gateway')}</summary>
 	<div class="k-section-title">
 		<h2 id="connect-title">
 			{t('เชื่อมแอป AI กับ Gateway นี้', 'Connect your AI to this Gateway')}
@@ -518,8 +533,7 @@
 									><option value={1}>{t('1 วัน', '1 day')}</option><option value={7}
 										>{t('7 วัน', '7 days')}</option
 									><option value={14}>{t('14 วัน', '14 days')}</option><option value={30}
-										>{t('30 วัน', '30 days')}</option
-									></select
+										>{t('30 วัน', '30 days')}</option><option value={0}>{t('ไม่หมดอายุ', 'Never expires')}</option></select
 								>
 							</div>
 						</div>
@@ -568,7 +582,7 @@
 												{t('สร้าง', 'Create')}
 												{displayDate(key.createdAt)}
 											</p></td
-										><td>{displayDate(key.expiresAt)}</td><td>{displayDate(key.lastUsedAt)}</td><td
+										><td>{key.expiresAt ? displayDate(key.expiresAt) : t('ไม่หมดอายุ', 'Never expires')}</td><td>{displayDate(key.lastUsedAt)}</td><td
 											>{#if confirmRevoke === key.id}<div class="k-stack">
 													<span class="k-small"
 														>{t(
@@ -604,17 +618,18 @@
 					</div>{/if}
 			</div>{/if}
 	</div>
+	</details>
 </section>
 {:else if activeTab === 'tools'}
 <section class="k-panel gateway-tools">
   <div class="k-section-title"><h2>{t('เครื่องมือที่เลือกใน Gateway', 'Selected Gateway tools')}</h2>{#if data.canManage && !archived}<a class="k-button" href={localeHref(`/app?view=new&edit=${encodeURIComponent(hub.id)}&step=tools`)}><Pencil size={16} />{t('แก้ไขเครื่องมือ', 'Edit tools')}</a>{:else}<FileCheck2 size={20} />{/if}</div>
-  {#if unavailableTools.length}<div class="k-banner" role="status"><Info size={19} /><p>{t('มีเครื่องมือที่ Server ไม่อนุญาตแล้ว ทำให้ Gateway ใช้เครื่องมือไม่ได้ ผู้ดูแลต้องนำรายการเหล่านั้นออกและบันทึกอีกครั้ง', 'Some selected tools are no longer allowed by the server, which blocks Gateway tool access. An administrator must remove those tools and save again.')}</p></div>{/if}
-  <div class="k-field"><label for="gateway-tool-search">{t('ค้นหาเครื่องมือ', 'Search tools')}</label><input id="gateway-tool-search" type="search" bind:value={toolQuery} placeholder={t('ชื่อหรือคำอธิบายเครื่องมือ', 'Tool name or description')} /></div>
-  <p class="k-small k-muted gateway-result-count">{t(`แสดง ${visibleTools.length} จาก ${hub.toolNames.length} เครื่องมือ`, `${visibleTools.length} of ${hub.toolNames.length} tools`)}</p>
-  {#each visibleTools as name}
-    {@const tool = connection?.tools.find((item) => item.name === name)}
-    <details class="gateway-tool"><summary><span><strong>{name}</strong><span class="k-muted k-small">{tool?.description || t('ไม่มีคำอธิบาย', 'No description')}</span></span><span class="k-badge">{unavailableTools.includes(name) ? t('Server ไม่อนุญาตแล้ว', 'No longer allowed') : toolAccessLabel}</span></summary>
-      {#if tool}<div class="gateway-schema"><p class="k-small k-muted">{t('รูปแบบข้อมูลที่เครื่องมือต้องการ', 'Tool input schema')}</p><pre>{JSON.stringify(tool.inputSchema, null, 2)}</pre></div>{:else}<p class="k-small k-muted">{t('ไม่พบข้อมูลเครื่องมือล่าสุด กรุณาให้ผู้ดูแลตรวจการเชื่อมต่อ', 'Latest tool details are unavailable. Ask an administrator to review the connection.')}</p>{/if}
+  {#if unavailableTools.length}<div class="k-banner" role="status"><Info size={19} /><p>{t('เครื่องมือบางรายการยังใช้ไม่ได้ ตรวจ Server หรือปรับสิทธิ์ของแอปนั้นก่อนใช้งาน', 'Some selected tools are unavailable. Review that server or update its tool permissions.')}</p></div>{/if}
+  <div class="k-field"><label for="gateway-tool-search">{t('ค้นหาเครื่องมือหรือแอป', 'Search tools or apps')}</label><input id="gateway-tool-search" type="search" bind:value={toolQuery} placeholder={t('ชื่อแอป งานที่ทำ หรือชื่อเครื่องมือ', 'App, action or tool name')} /></div>
+  <p class="k-small k-muted gateway-result-count">{t(`แสดง ${visibleTools.length} จาก ${gatewayToolCount(hub)} เครื่องมือ`, `${visibleTools.length} of ${gatewayToolCount(hub)} tools`)}</p>
+  {#each visibleTools as item (item.key)}
+    {@const presentation = toolPresentation(item.tool, orcaLocale.value)}
+    <details class="gateway-tool"><summary><span><span class="gateway-tool-app">{item.source.connection?.name || t('ไม่พบ Server', 'Server unavailable')}</span><strong>{presentation.label}</strong><span class="gateway-tool-description k-muted k-small">{presentation.description}</span></span><span class="gateway-tool-status"><span class="k-badge">{!item.source.ready ? t('ยังใช้ไม่ได้', 'Unavailable') : accessLabel(item.source.connection?.reviewedReadOnly)}</span><span class="gateway-tool-hint">{t('รายละเอียด', 'Details')} <span aria-hidden="true">⌄</span></span></span></summary>
+      <div class="gateway-schema"><p class="k-small k-muted">{t('ชื่อสำหรับเรียกเครื่องมือ', 'Tool identifier')}</p><code>{item.name}</code><p class="k-small k-muted">{t('รูปแบบข้อมูลที่เครื่องมือต้องการ', 'Tool input schema')}</p><pre>{JSON.stringify(item.tool.inputSchema, null, 2)}</pre></div>
     </details>
   {:else}<p class="gateway-empty">{t('ไม่พบเครื่องมือตามคำค้น', 'No tools match your search.')}</p>{/each}
 </section>
@@ -645,6 +660,16 @@
 {/if}
 
 <style>
+  .gateway-source-list { display:grid; gap:16px; }
+  .gateway-source-row { display:flex; align-items:center; gap:12px; }
+  .gateway-source-row > div { flex:1; min-width:0; }
+  .gateway-unified-intro { display:flex; flex-wrap:wrap; gap:20px; align-items:center; justify-content:space-between; }
+  .gateway-unified-intro p { margin-top:8px; }
+  .gateway-account-list { display:grid; gap:10px; margin:20px 0; }
+  .gateway-account { border:1px solid var(--k-line); border-radius:12px; padding:16px; background:white; }
+  .gateway-account summary { cursor:pointer; font-weight:600; }
+  .gateway-tool-app { color:var(--k-muted); font-size:12px; }
+
   .gateway-tabs { display:flex; gap:24px; border-bottom:1px solid var(--k-line,#e2e6ed); overflow-x:auto; margin:24px 0; }
   .gateway-tabs a { display:flex; align-items:center; gap:7px; padding:12px 1px; white-space:nowrap; text-decoration:none; border-bottom:2px solid transparent; color:var(--k-muted,#647087); font-size:13px; font-weight:600; }
   .gateway-tabs a.active { border-color:var(--k-accent,#d7f76a); color:var(--k-ink,#171c2a); }
@@ -657,6 +682,9 @@
   .gateway-tool summary { cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:18px; }
   .gateway-tool summary > span:first-child { min-width:0; display:grid; gap:5px; overflow-wrap:anywhere; }
   .gateway-tool strong { font-size:13px; font-weight:600; }
+  .gateway-tool:not([open]) .gateway-tool-description { display:-webkit-box; line-clamp:2; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .gateway-tool-status { display:grid; gap:8px; justify-items:end; flex-shrink:0; }
+  .gateway-tool-hint { color:var(--k-muted); font-size:12px; white-space:nowrap; }
   .gateway-tool .k-badge { flex-shrink:0; }
   .gateway-schema { margin-top:16px; }
   .gateway-schema pre { background:#f6f7fa; border:1px solid #e2e6ed; border-radius:6px; padding:16px; max-height:320px; overflow:auto; font-size:12px; line-height:1.65; }

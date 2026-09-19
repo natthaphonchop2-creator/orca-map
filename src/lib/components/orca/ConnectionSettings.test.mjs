@@ -5,6 +5,10 @@ import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { compile } from 'svelte/compiler';
 import { render } from 'svelte/server';
+import { importTypeScript } from '../../orca/test-import.mjs';
+
+const { gatewayUsesConnection, gatewayToolCount } = await importTypeScript(new URL('../../orca/gateway-sources.ts', import.meta.url));
+const { toolPresentation } = await importTypeScript(new URL('../../orca/tool-presentation.ts', import.meta.url));
 
 const require = createRequire(import.meta.url);
 const source = await readFile(new URL('./ConnectionSettings.svelte', import.meta.url), 'utf8');
@@ -15,6 +19,7 @@ const module = `import * as $ from ${JSON.stringify(pathToFileURL(require.resolv
   export function component(deps) {
     const { page, LifecycleActions, Connections, ConnectionMembers, SourceSetup, CatalogIcon, connectionReady,
       sourcePresentationNames, localeHref, t, OrcaService, displayDate, orcaError, statusLabels,
+      gatewayUsesConnection, gatewayToolCount, toolPresentation, orcaLocale,
       ArrowLeft, ArrowRight, Check, Folder, Info, Plus, ShieldCheck, onDestroy, onMount } = deps;
     ${code}
     return ConnectionSettings;
@@ -29,6 +34,7 @@ function screen(tab, canManage = true, props = {}) {
   const view = component({
     page: { url: new URL(`https://orca.invalid/app?view=servers&tab=${tab}`) },
     ...children, LifecycleActions: noop, CatalogIcon: noop, connectionReady: () => true, sourcePresentationNames: () => ({}),
+    gatewayUsesConnection, gatewayToolCount, toolPresentation, orcaLocale: { value: 'en' },
     localeHref: (value) => value, t: (_th, en) => en, OrcaService: {}, displayDate: () => '',
     orcaError: () => '', statusLabels: {}, ArrowLeft: noop, ArrowRight: noop, Check: noop,
     Folder: noop, Info: noop, Plus: noop, ShieldCheck: noop, onDestroy: noop, onMount: noop,
@@ -62,6 +68,23 @@ test('nonmanagers cannot mount account controls or policy editor through detail 
   const tools = screen('tools', false);
   assert.deepEqual(tools.calls, []);
   assert.match(tools.html, /search/);
+});
+
+test('server detail includes a secondary-source Gateway and counts tools from every source', () => {
+  const hub = {
+    id: 'multi-source', name: 'Shared team', status: 'active', memberIDs: ['member'],
+    connectionID: 'other-server', toolNames: ['other'],
+    sources: [
+      { connectionID: 'other-server', toolNames: ['other', 'lookup'] },
+      { connectionID: connection.id, toolNames: ['search'] },
+    ],
+  };
+  const result = screen('workspaces', false, { data: { canManage: false, connections: [connection], hubs: [hub, { ...hub, id: 'deleted', name: 'Removed team', status: 'deleted' }] } });
+  assert.deepEqual(result.calls, []);
+  assert.match(result.html, /view=hub&amp;hub=multi-source/);
+  assert.match(result.html, /Shared team/);
+  assert.match(result.html, /3\s+tools/);
+  assert.doesNotMatch(result.html, /Removed team|view=new/);
 });
 
 

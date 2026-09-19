@@ -1,4 +1,5 @@
 import { workspaceToolingReady } from "./activation";
+import { gatewayConnections } from "./gateway-sources";
 import type {
   OrcaBootstrap,
   OrcaConnection,
@@ -19,9 +20,7 @@ export function personalSources(data: OrcaBootstrap): PersonalSource[] {
   const records = new Map<string, PersonalSource>();
   for (const hub of data.hubs) {
     if (!hub.memberIDs.includes(data.currentUserID)) continue;
-    const connection = data.connections.find(
-      (item) => item.id === hub.connectionID,
-    );
+    for (const connection of gatewayConnections(hub, data.connections)) {
     if (!connection?.mcpID) continue;
     const usable =
       hub.status === "active" && workspaceToolingReady(hub, connection);
@@ -41,6 +40,7 @@ export function personalSources(data: OrcaBootstrap): PersonalSource[] {
     if (!record.hubs.some((item) => item.id === hub.id)) record.hubs.push(hub);
     if (usable) record.manageHubID = hub.id;
     record.canReadSetup ||= data.canManage || usable;
+    }
   }
   return [...records.values()].sort((a, b) =>
     a.connections[0].name.localeCompare(b.connections[0].name),

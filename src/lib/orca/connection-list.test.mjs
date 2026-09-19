@@ -1,17 +1,10 @@
+import { importTypeScript } from './test-import.mjs';
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 
-const source = stripTypeScriptTypes(
-  await readFile(new URL("./connection-list.ts", import.meta.url), "utf8"),
-).replace(
-  /['"]\.\/activation['"]/,
-  JSON.stringify(new URL("./activation.ts", import.meta.url).href),
-);
-const { filterConnections, connectionPage } = await import(
-  "data:text/javascript;base64," + Buffer.from(source).toString("base64")
-);
+const { filterConnections, connectionPage } = await importTypeScript(new URL('./connection-list.ts', import.meta.url));
 const reviewed = {
   id: "ready",
   name: "Google Drive",

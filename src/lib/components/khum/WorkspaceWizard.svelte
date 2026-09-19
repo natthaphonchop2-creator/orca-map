@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { connectionReady } from '$lib/orca/activation';
 	import { unavailableGatewayTools } from '$lib/orca/gateway-tool-selection';
-	import { t, localeHref } from '$lib/orca/locale.svelte';
+	import { gatewaySources } from '$lib/orca/gateway-sources';
+	import { matchesToolSearch, toolPresentation } from '$lib/orca/tool-presentation';
+	import { t, localeHref, orcaLocale } from '$lib/orca/locale.svelte';
 	import {
 		OrcaService,
 		orcaError,
@@ -48,21 +50,28 @@
 	let step = $state(toolsOnly ? 2 : 1);
 	let name = $state(untrack(() => existing?.name ?? ''));
 	let description = $state(untrack(() => existing?.description ?? ''));
-	let connectionID = $state(
+	const maxSources = 20;
+	type SelectedSource = { connectionID: string; toolNames: string[] };
+	let sources = $state<SelectedSource[]>(
 		untrack(() => {
-			if (existing) return existing.connectionID;
+			if (existing)
+				return gatewaySources(existing).map((source) => ({
+					...source,
+					toolNames: [...source.toolNames]
+				}));
 			const requested = data.connections.find((item) => item.id === requestedConnectionID);
-			return requested && connectionReady(requested) ? requested.id : '';
+			return requested && connectionReady(requested)
+				? [{ connectionID: requested.id, toolNames: [...requested.toolNames] }]
+				: [];
 		})
 	);
-	let toolNames = $state<string[]>(untrack(() => [...(existing?.toolNames ?? [])]));
 	let memberIDs = $state<string[]>(untrack(() => [...(existing?.memberIDs ?? [])]));
 	let unitIDs = $state<string[]>(untrack(() => [...(existing?.unitIDs ?? [])]));
 	let dailyLimit = $state<number | undefined>(untrack(() => existing?.dailyLimit ?? 100));
 	let status = $state<HubStatus>(untrack(() => existing?.status ?? 'active'));
 	let query = $state('');
 	let toolQuery = $state('');
-	let customToolsOpen = $state(false);
+	let customToolsOpen = $state<string[]>([]);
 	let error = $state('');
 	let busy = $state(false);
 	let reviewed = $state(false);
@@ -82,74 +91,118 @@
 	]);
 	const stepDescriptions = $derived([
 		t(
-			'ตั้งชื่อให้ทีมเข้าใจ แล้วเลือกหนึ่งระบบสำหรับ Gateway นี้',
-			'Give your Gateway a clear name and choose one connected source.'
+			'ตั้งชื่อให้ทีมเข้าใจ แล้วเลือกระบบที่ต้องใช้ รวมหลายแอปไว้ใน Gateway เดียวได้',
+			'Give your Gateway a clear name and combine the connected apps your team needs.'
 		),
-		toolsOnly ? t(
-			'เลือกเครื่องมือที่ทีมต้องใช้ โดยคงจำนวนครั้งต่อวันและการตั้งค่าอื่นไว้',
-			'Select the tools your team needs. The daily limit and other settings stay the same.'
-		) : t(
-			'ใช้ชุดเครื่องมือที่องค์กรอนุญาตไว้ได้ทันที หรือเลือกเฉพาะรายการให้ Gateway นี้',
-			'Use the organization’s approved tool set, or choose a smaller set for this Gateway.'
-		),
+		toolsOnly
+			? t(
+					'เลือกเครื่องมือที่ทีมต้องใช้ โดยคงจำนวนครั้งต่อวันและการตั้งค่าอื่นไว้',
+					'Select the tools your team needs. The daily limit and other settings stay the same.'
+				)
+			: t(
+					'รวมเครื่องมือที่องค์กรอนุญาตไว้จากแต่ละระบบ หรือเลือกเฉพาะรายการให้ทีมนี้',
+					'Combine the approved tools from each source, or choose a smaller set for this team.'
+				),
 		t(
 			'เฉพาะสมาชิกที่เลือกเท่านั้นจึงจะใช้เครื่องมือใน Gateway นี้ได้',
 			'Only the people you select can use this Gateway’s tools.'
 		),
-		toolsOnly ? t(
-			'ตรวจสอบรายการเครื่องมือก่อนบันทึก สมาชิก หน่วยงาน และสถานะจะคงเดิม',
-			'Review the selected tools before saving. Members, departments and status stay the same.'
-		) : t(
-			'ตรวจระบบ เครื่องมือ และสมาชิกให้ครบ แล้วเลือกว่าจะเปิดใช้งานหรือเก็บเป็นฉบับร่าง',
-			'Check the source, tools and members, then activate the Gateway or save it as a draft.'
-		)
+		toolsOnly
+			? t(
+					'ตรวจสอบรายการเครื่องมือก่อนบันทึก สมาชิก หน่วยงาน และสถานะจะคงเดิม',
+					'Review the selected tools before saving. Members, departments and status stay the same.'
+				)
+			: t(
+					'ตรวจระบบ เครื่องมือ และสมาชิกให้ครบ แล้วเลือกว่าจะเปิดใช้งานหรือเก็บเป็นฉบับร่าง',
+					'Check the source, tools and members, then activate the Gateway or save it as a draft.'
+				)
 	]);
-	const connection = $derived(data.connections.find((item) => item.id === connectionID));
-	const unavailableTools = $derived(unavailableGatewayTools(connection, toolNames));
+	const selectedConnectionIDs = $derived(sources.map((source) => source.connectionID));
+	const sourceGroups = $derived(
+		sources.map((selection) => {
+			const connection = data.connections.find((item) => item.id === selection.connectionID);
+			const eligibleTools = connectionReady(connection)
+				? (connection?.tools ?? []).filter((tool) => connection?.toolNames.includes(tool.name))
+				: [];
+			return {
+				...selection,
+				connection,
+				eligibleTools,
+				unavailableTools: unavailableGatewayTools(connection, selection.toolNames),
+				visibleTools: eligibleTools.filter((tool) =>
+					matchesToolSearch(tool, toolQuery, orcaLocale.value)
+				),
+				allApprovedSelected:
+					eligibleTools.length > 0 &&
+					eligibleTools.every((tool) => selection.toolNames.includes(tool.name)),
+				selectedEligibleCount: eligibleTools.filter((tool) =>
+					selection.toolNames.includes(tool.name)
+				).length
+			};
+		})
+	);
+	const selectedToolCount = $derived(
+		sources.reduce((count, source) => count + source.toolNames.length, 0)
+	);
+	const eligibleToolCount = $derived(
+		sourceGroups.reduce((count, source) => count + source.eligibleTools.length, 0)
+	);
+	const allReadOnly = $derived(
+		sourceGroups.length > 0 && sourceGroups.every((source) => source.connection?.reviewedReadOnly)
+	);
 	const toolAccessLabel = $derived(
-		!connection
-			? t('ยังไม่ได้เลือกระบบ', 'No source selected')
-			: connection.reviewedReadOnly
+		!sources.length
+			? t('ยังไม่ได้เลือกระบบ', 'No sources selected')
+			: allReadOnly
 				? t('อ่านข้อมูลเท่านั้น', 'Read only')
-				: connection.reviewedTools
-					? t('เครื่องมือที่เลือก', 'Selected tools')
-					: t('รอตรวจเครื่องมือ', 'Needs tool review')
+				: t('เครื่องมือที่เลือก', 'Selected tools')
 	);
 	const sourceLinkChanged = $derived(!editingID && initialConnectionID !== requestedConnectionID);
 	const currentMember = $derived(data.members.find((item) => item.id === data.currentUserID));
 	const sourceIssue = $derived.by(() => {
-		const requested = connectionID || (initialSelection ? requestedConnectionID : '');
-		if (!requested) return '';
-		const source = data.connections.find((item) => item.id === requested);
-		if (!source)
-			return t(
-				'ไม่พบระบบที่เลือก หรือบัญชีของคุณไม่มีสิทธิ์ใช้ระบบนี้ กรุณาเลือกระบบอีกครั้ง',
-				'The selected source was not found or is not accessible to your account. Choose a source again.'
-			);
-		if (!source.enabled)
-			return t(
-				'ระบบที่เลือกถูกปิดใช้งาน เปิดใช้งานที่หน้าระบบที่เชื่อมต่อ หรือเลือกระบบอื่นก่อนดำเนินการต่อ',
-				'The selected source is disabled. Enable it in Servers or choose another source to continue.'
-			);
-		if (!connectionReady(source))
-			return t(
-				'ระบบที่เลือกยังไม่มีรายการเครื่องมือที่ตรวจสอบครบแล้ว กรุณาตรวจสอบการเชื่อมต่อก่อน หรือเลือกระบบอื่น',
-				'The selected source does not have a complete set of reviewed tools. Review the connection or choose another source.'
-			);
-		if (!connectionID)
-			return t(
-				'ระบบที่ระบุพร้อมให้เลือกแล้ว กรุณาเลือกระบบด้านล่างเพื่อใช้กับ Gateway นี้',
-				'The requested source is now available. Select it below to use it in this Gateway.'
-			);
+		const requestedIDs = [...selectedConnectionIDs];
+		if (
+			initialSelection &&
+			requestedConnectionID &&
+			!requestedIDs.includes(requestedConnectionID)
+		) {
+			requestedIDs.push(requestedConnectionID);
+		}
+		for (const id of requestedIDs) {
+			const source = data.connections.find((item) => item.id === id);
+			if (!source)
+				return t(
+					'ไม่พบระบบที่เลือก หรือบัญชีของคุณไม่มีสิทธิ์ใช้ระบบนี้ กรุณานำระบบนั้นออกหรือเลือกระบบอีกครั้ง',
+					'A selected source was not found or is not accessible to your account. Remove it or choose a source again.'
+				);
+			if (!source.enabled || source.archivedAt || source.deletedAt)
+				return t(
+					`ระบบ ${source.name} ไม่ได้เปิดใช้งาน กรุณาเปิดใช้งานหรือนำออกจาก Gateway ก่อนดำเนินการต่อ`,
+					`${source.name} is not active. Enable it or remove it from the Gateway to continue.`
+				);
+			if (!connectionReady(source))
+				return t(
+					`ระบบ ${source.name} ยังมีเครื่องมือที่ตรวจสอบไม่ครบ กรุณาตรวจสอบการเชื่อมต่อหรือนำระบบนี้ออก`,
+					`${source.name} does not have a complete set of reviewed tools. Review the connection or remove it.`
+				);
+			if (!selectedConnectionIDs.includes(id))
+				return t(
+					'ระบบที่ระบุพร้อมให้เลือกแล้ว กรุณาเลือกระบบด้านล่างเพื่อใช้กับ Gateway นี้',
+					'The requested source is now available. Select it below to use it in this Gateway.'
+				);
+		}
 		return '';
 	});
 	const availableConnections = $derived(
 		data.connections.filter(
 			(item) =>
 				connectionReady(item) ||
-				item.id === connectionID ||
+				selectedConnectionIDs.includes(item.id) ||
 				(initialSelection && item.id === requestedConnectionID)
 		)
+	);
+	const missingSources = $derived(
+		sources.filter((source) => !data.connections.some((item) => item.id === source.connectionID))
 	);
 	const hasReadyConnection = $derived(availableConnections.some(connectionReady));
 	const visibleMembers = $derived(
@@ -157,44 +210,67 @@
 			`${memberName(item)} ${item.email}`.toLowerCase().includes(query.toLowerCase())
 		)
 	);
-	const eligibleTools = $derived(
-		connectionReady(connection)
-			? (connection?.tools ?? []).filter((item) => connection?.toolNames.includes(item.name))
-			: []
-	);
-	const allApprovedSelected = $derived(
-		eligibleTools.length > 0 && eligibleTools.every((tool) => toolNames.includes(tool.name))
-	);
-	const selectedEligibleCount = $derived(
-		eligibleTools.filter((tool) => toolNames.includes(tool.name)).length
-	);
-	const visibleTools = $derived(
-		eligibleTools.filter((item) =>
-			`${item.name} ${item.description ?? ''}`.toLowerCase().includes(toolQuery.toLowerCase())
-		)
-	);
 
-	function selectAllApprovedTools() {
-		if (busy || sourceIssue || !eligibleTools.length || allApprovedSelected) return;
-		// Keep revoked selections visible until explicitly removed; copy today's allowlist only.
-		toolNames = [...new Set([...toolNames, ...eligibleTools.map((tool) => tool.name)])];
+	function selectAllApprovedTools(connectionID: string) {
+		const group = sourceGroups.find((source) => source.connectionID === connectionID);
+		if (busy || !group?.eligibleTools.length || group.allApprovedSelected) return;
+		// Copy only today's approved inventory, preserving revoked selections for explicit removal.
+		sources = sources.map((source) =>
+			source.connectionID === connectionID
+				? {
+						...source,
+						toolNames: [
+							...new Set([...source.toolNames, ...group.eligibleTools.map((tool) => tool.name)])
+						]
+					}
+				: source
+		);
 		reviewed = false;
 		error = '';
 	}
 
 	function selectConnection(id: string) {
-		if (toolsOnly) return;
+		if (busy || toolsOnly) return;
 		const selected = data.connections.find((item) => item.id === id);
-		if (!selected || !connectionReady(selected)) return;
-		initialSelection = false;
-		if (connectionID !== id) {
-			connectionID = id;
-			toolNames = [];
-			toolQuery = '';
-			customToolsOpen = false;
-			reviewed = false;
+		if (selectedConnectionIDs.includes(id)) {
+			sources = sources.filter((source) => source.connectionID !== id);
+		} else {
+			if (!selected || !connectionReady(selected)) return;
+			if (sources.length >= maxSources) {
+				error = t(
+					`Gateway รวมได้สูงสุด ${maxSources} ระบบ กรุณานำระบบที่ไม่ใช้ออกก่อนเพิ่ม`,
+					`A Gateway supports up to ${maxSources} sources. Remove an unused source before adding another.`
+				);
+				return;
+			}
+			// Checking a Server explicitly selects its current approved set, not future tools.
+			sources = [...sources, { connectionID: id, toolNames: [...selected.toolNames] }];
 		}
+		initialSelection = false;
+		toolQuery = '';
+		customToolsOpen = customToolsOpen.filter((sourceID) => sourceID !== id);
+		reviewed = false;
 		error = '';
+	}
+	function toggleSourceTool(connectionID: string, name: string) {
+		if (
+			busy ||
+			!sourceGroups
+				.find((source) => source.connectionID === connectionID)
+				?.eligibleTools.some((tool) => tool.name === name)
+		)
+			return;
+		sources = sources.map((source) =>
+			source.connectionID === connectionID
+				? { ...source, toolNames: toggle(source.toolNames, name) }
+				: source
+		);
+		error = '';
+	}
+	function toggleCustomization(connectionID: string) {
+		customToolsOpen = customToolsOpen.includes(connectionID)
+			? customToolsOpen.filter((id) => id !== connectionID)
+			: [...customToolsOpen, connectionID];
 	}
 	function toggleMyMembership() {
 		if (toolsOnly) return;
@@ -204,28 +280,51 @@
 		reviewed = false;
 		return values.includes(id) ? values.filter((value) => value !== id) : [...values, id];
 	}
-	function removeUnavailableTool(name: string) {
-		if (busy || !unavailableTools.includes(name)) return;
-		toolNames = toolNames.filter((tool) => tool !== name);
+	function removeUnavailableTool(connectionID: string, name: string) {
+		if (
+			busy ||
+			!sourceGroups
+				.find((source) => source.connectionID === connectionID)
+				?.unavailableTools.includes(name)
+		)
+			return;
+		sources = sources.map((source) =>
+			source.connectionID === connectionID
+				? {
+						...source,
+						toolNames: source.toolNames.filter((tool) => tool !== name)
+					}
+				: source
+		);
 		reviewed = false;
 		error = '';
 	}
 	function validation(at: number): string {
 		if (at >= 1 && sourceIssue) return sourceIssue;
-		if (at >= 1 && (!name.trim() || !connection || !connectionReady(connection)))
+		if (at >= 1 && sources.length > maxSources)
+			return t(
+				`Gateway รวมได้สูงสุด ${maxSources} ระบบ`,
+				`A Gateway supports up to ${maxSources} sources.`
+			);
+		if (
+			at >= 1 &&
+			(!name.trim() ||
+				!sources.length ||
+				sourceGroups.some((source) => !connectionReady(source.connection)))
+		)
 			return t(
 				'กรุณาตั้งชื่อ Gateway และเลือกระบบที่เปิดใช้งานพร้อมเครื่องมือที่ตรวจสอบแล้ว',
-				'Enter a Gateway name and select an enabled source with reviewed tools.'
+				'Enter a Gateway name and select at least one enabled source with reviewed tools.'
 			);
-		if (at >= 2 && unavailableTools.length)
+		if (at >= 2 && sourceGroups.some((source) => source.unavailableTools.length))
 			return t(
 				'นำเครื่องมือที่ Server ไม่อนุญาตแล้วออกจาก Gateway ก่อนดำเนินการต่อ',
-				'Remove tools that this server no longer allows before continuing.'
+				'Remove tools that a server no longer allows before continuing.'
 			);
-		if (at >= 2 && !toolNames.length)
+		if (at >= 2 && sources.some((source) => !source.toolNames.length))
 			return t(
-				'กรุณาเลือกเครื่องมือที่ทีมจะใช้อย่างน้อย 1 รายการ',
-				'Select at least one tool from this source.'
+				'กรุณาเลือกเครื่องมืออย่างน้อย 1 รายการจากแต่ละระบบ หรือนำระบบที่ไม่ใช้ออกจาก Gateway',
+				'Select at least one tool from each source, or remove the unused source from the Gateway.'
 			);
 		if (
 			at >= 2 &&
@@ -275,8 +374,12 @@
 		const input: HubInput = {
 			name: name.trim(),
 			description: description.trim(),
-			connectionID,
-			toolNames,
+			sources: sources.map((source) => ({
+				...source,
+				toolNames: [...source.toolNames]
+			})),
+			connectionID: sources[0]?.connectionID ?? '',
+			toolNames: [...(sources[0]?.toolNames ?? [])],
 			memberIDs,
 			unitIDs,
 			dailyLimit: dailyLimit!,
@@ -296,7 +399,9 @@
 
 <div class="workspace-setup">
 	<div class="k-breadcrumb">
-		<a href={localeHref('/app?view=workspaces')}>{t('MCP Gateways', 'MCP Gateways')}</a><span>/</span><span
+		<a href={localeHref('/app?view=workspaces')}>{t('MCP Gateways', 'MCP Gateways')}</a><span
+			>/</span
+		><span
 			>{existing
 				? t('แก้ไข Gateway', 'Update Gateway')
 				: t('สร้าง Gateway', 'Create Gateway')}</span
@@ -304,18 +409,22 @@
 	</div>
 	<div class="k-intro">
 		<h1 bind:this={title} tabindex="-1">
-			{toolsOnly ? t('แก้ไขเครื่องมือของ Gateway', 'Edit Gateway tools') : existing
-				? t('แก้ไข Gateway', 'Edit Gateway')
-				: t('สร้าง Gateway', 'Create Gateway')}
+			{toolsOnly
+				? t('แก้ไขเครื่องมือของ Gateway', 'Edit Gateway tools')
+				: existing
+					? t('แก้ไข Gateway', 'Edit Gateway')
+					: t('สร้าง Gateway', 'Create Gateway')}
 		</h1>
 		<p class="k-subtitle">
-			{toolsOnly ? t(
-				'เลือกเครื่องมือแล้วตรวจสอบก่อนบันทึก สมาชิก หน่วยงาน และการตั้งค่าอื่นใช้ค่าปัจจุบัน',
-				'Select tools and review before saving. Members, units, and other settings keep their current values.'
-			) : t(
-				'จัดระบบ เครื่องมือ และสมาชิกให้พร้อมสำหรับงานของทีม',
-				'Bring the right source, tools and people together for your team.'
-			)}
+			{toolsOnly
+				? t(
+						'เลือกเครื่องมือแล้วตรวจสอบก่อนบันทึก สมาชิก หน่วยงาน และการตั้งค่าอื่นใช้ค่าปัจจุบัน',
+						'Select tools and review before saving. Members, units, and other settings keep their current values.'
+					)
+				: t(
+						'จัดระบบ เครื่องมือ และสมาชิกให้พร้อมสำหรับงานของทีม',
+						'Bring the right apps, tools and people together for your team.'
+					)}
 		</p>
 	</div>
 
@@ -346,8 +455,8 @@
 					<Info size={19} />
 					<p>
 						{t(
-							'ลิงก์เปลี่ยนแล้ว แต่ข้อมูลที่กำลังกรอกยังอยู่ เลือกระบบในขั้นตอนแรกหากต้องการเปลี่ยนระบบของ Gateway นี้',
-							'The link changed, and your current entries are preserved. Choose a source in the first step if you want to change this Gateway’s source.'
+							'ลิงก์เปลี่ยนแล้ว แต่ข้อมูลที่กำลังกรอกยังอยู่ เพิ่มหรือนำระบบออกในขั้นตอนแรกได้',
+							'The link changed, and your current entries are preserved. Add or remove sources in the first step.'
 						)}
 					</p>
 				</div>{/if}
@@ -374,7 +483,12 @@
 			<fieldset disabled={busy} class="setup-fields">
 				<div class="k-wizard-content">
 					<header class="setup-step-intro">
-						<p class="setup-step-count">{t('ขั้นตอน', 'Step')} {flowSteps.indexOf(step) + 1} {t('จาก', 'of')} {flowSteps.length}</p>
+						<p class="setup-step-count">
+							{t('ขั้นตอน', 'Step')}
+							{flowSteps.indexOf(step) + 1}
+							{t('จาก', 'of')}
+							{flowSteps.length}
+						</p>
 						<h2>{stepTitles[step - 1]}</h2>
 						<p>{stepDescriptions[step - 1]}</p>
 					</header>
@@ -407,11 +521,25 @@
 							</div>
 						</div>
 						<fieldset class="k-section setup-source-selection">
-							<legend>{t('เลือกระบบที่ทีมจะใช้', 'Choose the source your team will use')}</legend>
+							<legend>{t('เลือกระบบที่ทีมจะใช้', 'Choose the sources your team will use')}</legend>
+							<p class="k-small k-muted setup-source-help">
+								{t(
+									'เลือกได้หลายระบบ แต่ละระบบจะใช้ชุดเครื่องมือที่อนุญาตไว้ตอนนี้ และปรับให้เฉพาะทีมได้ในขั้นตอนถัดไป',
+									'Select multiple sources. Each starts with its currently approved tools, which you can customize for this team in the next step.'
+								)}
+							</p>
+							<p class="k-small k-muted">
+								{t(
+									`เลือกแล้ว ${sources.length} / ${maxSources} ระบบ`,
+									`${sources.length} / ${maxSources} sources selected`
+								)}
+							</p>
 							{#if !hasReadyConnection}
 								<div class="setup-prerequisite">
 									<span class="setup-prerequisite-icon"><Plug size={28} /></span>
-									<h3>{t('เชื่อมระบบก่อนสร้าง Gateway', 'Connect a source to get started')}</h3>
+									<h3>
+										{t('เชื่อมระบบก่อนสร้าง Gateway', 'Connect a source to get started')}
+									</h3>
 									<p>
 										{t(
 											'เพิ่มระบบที่ทีมต้องใช้ แล้วตรวจสอบและเปิดใช้งานเครื่องมือ ระบบที่พร้อมจะปรากฏให้เลือกในหน้านี้',
@@ -428,114 +556,201 @@
 							{#if availableConnections.length}
 								<div class="k-check-list">
 									{#each availableConnections as source (source.id)}
-										<label class="k-check-row" class:selected={source.id === connectionID}>
+										<label
+											class="k-check-row"
+											class:selected={selectedConnectionIDs.includes(source.id)}
+										>
 											<input
-												type="radio"
+												type="checkbox"
 												name="connection"
 												value={source.id}
-												checked={source.id === connectionID}
-												disabled={!connectionReady(source)}
+												checked={selectedConnectionIDs.includes(source.id)}
+												disabled={!selectedConnectionIDs.includes(source.id) &&
+													(!connectionReady(source) || sources.length >= maxSources)}
 												onchange={() => selectConnection(source.id)}
 											/>
 											<span class="k-icon"><Plug size={23} /></span><span class="k-check-copy"
 												><strong>{source.name}</strong>
 												<p>{source.description || source.scopeNote}</p></span
 											><span class="k-badge" class:active={connectionReady(source)}
-												>{!source.enabled
-													? t('ปิดใช้งาน', 'Disabled')
-													: connectionReady(source)
-														? t('ตรวจเครื่องมือแล้ว', 'Tools reviewed')
-														: t('รอตรวจสอบเครื่องมือ', 'Tool review needed')}</span
+												>{source.archivedAt || source.deletedAt
+													? t('จัดเก็บแล้ว', 'Archived')
+													: !source.enabled
+														? t('ปิดใช้งาน', 'Disabled')
+														: connectionReady(source)
+															? t('ตรวจเครื่องมือแล้ว', 'Tools reviewed')
+															: t('รอตรวจสอบเครื่องมือ', 'Tool review needed')}</span
 											>
 										</label>
 									{/each}
 								</div>
 							{/if}
+							{#each missingSources as source (source.connectionID)}
+								<div class="setup-revoked-tool">
+									<span
+										>{t('ไม่พบระบบที่เคยเลือก', 'Selected source is unavailable')}
+										<code>{source.connectionID}</code></span
+									>
+									<button
+										type="button"
+										class="k-button small"
+										onclick={() => selectConnection(source.connectionID)}
+										>{t('นำระบบออก', 'Remove source')}</button
+									>
+								</div>
+							{/each}
 						</fieldset>
 					{:else if step === 2}
-						<div class="setup-source">
-							<div class="k-heading-row">
-								<div class="k-actions">
-									<span class="k-icon"><Plug size={24} /></span>
-									<div>
-										<p class="k-small k-muted">{t('ระบบที่เลือก', 'Selected source')}</p>
-										<strong>{connection?.name}</strong>
-									</div>
-								</div>
-								<Check size={22} color="#36965b" />
-							</div>
+						<div class="k-section-title">
+							<h3>
+								{t('ระบบและเครื่องมือใน Gateway', 'Gateway sources and tools')}
+							</h3>
+							<span class="k-badge accent"
+								>{t(
+									`${sources.length} ระบบ · ${selectedToolCount} เครื่องมือ`,
+									`${sources.length} sources · ${selectedToolCount} tools`
+								)}</span
+							>
 						</div>
-						<div class="k-section">
-							<h3>{t('ข้อมูลที่ระบบนี้ให้ใช้งาน', 'Available source data')}</h3>
-							<p class="k-muted" style="margin-top:9px;white-space:pre-wrap">
-								{connection?.scopeNote}
-							</p>
-							<p class="k-small k-muted" style="margin-top:8px">
-								{t(
-									'ขอบเขตข้อมูลขึ้นอยู่กับบัญชีและสิทธิ์ในระบบที่เชื่อมต่อ ข้อความอธิบายนี้ไม่ได้จำกัดข้อมูลให้โดยอัตโนมัติ',
-									'Available data depends on the account and permissions configured in the source system.'
-								)}
-							</p>
-						</div>
-						<fieldset class="k-section">
-							<legend>{t('เครื่องมือสำหรับ Gateway นี้', 'Tools for this Gateway')}</legend>
-							<div class="setup-tool-preset">
-								<p class="k-muted">{t('ใช้รายการที่คุณอนุญาตไว้ตอนเชื่อมแอปได้เลย สมาชิกใน Gateway นี้จะใช้เครื่องมือชุดที่เลือก', 'Reuse the tools approved when connecting the app. Members of this Gateway will use the selected set.')}</p>
-								<button type="button" class="k-button primary setup-use-approved" disabled={!eligibleTools.length || allApprovedSelected} onclick={selectAllApprovedTools}>
-									<Check size={18} />
-									{t(`ใช้เครื่องมือที่อนุญาตไว้ทั้งหมด — ${eligibleTools.length} รายการ`, `Use all approved tools — ${eligibleTools.length} tools`)}
-								</button>
-								<p class="setup-tool-selection" role="status">
-									{allApprovedSelected
-										? t(`เลือกครบ ${selectedEligibleCount} รายการแล้ว`, `All ${selectedEligibleCount} tools selected`)
-										: t(`เลือกแล้ว ${selectedEligibleCount} จาก ${eligibleTools.length} รายการ`, `${selectedEligibleCount} of ${eligibleTools.length} tools selected`)}
-								</p>
-							</div>
-							{#if unavailableTools.length}<div class="setup-revoked-tools" role="status">
-								<h3>{t('เครื่องมือที่ Server ไม่อนุญาตแล้ว', 'Tools no longer allowed by this server')}</h3>
-								<p>{t('รายการเหล่านี้ยังอยู่ในการตั้งค่า Gateway และทำให้ใช้เครื่องมือไม่ได้ กรุณานำออกก่อนบันทึก', 'These tools remain in the Gateway configuration and block tool access. Remove them before saving.')}</p>
-								{#each unavailableTools as tool (tool)}<div class="setup-revoked-tool"><strong>{tool}</strong><button type="button" class="k-button small" onclick={() => removeUnavailableTool(tool)}>{t('นำออกจาก Gateway', 'Remove from Gateway')}</button></div>{/each}
-							</div>{/if}
-							<details class="setup-custom-tools" bind:open={customToolsOpen}>
-								<summary>{t('กำหนดเฉพาะ Gateway นี้', 'Customize this Gateway')}</summary>
-								<p class="k-small k-muted">{t('เลือกเฉพาะเครื่องมือที่ทีมนี้ต้องใช้ โดยไม่เปลี่ยนสิทธิ์ของ Gateway อื่น', 'Choose only the tools this team needs. Other Gateways keep their existing permissions.')}</p>
-							{#if eligibleTools.length > 5}<div
-									class="k-field"
-									style="margin-bottom:13px"
+						<p class="k-small k-muted setup-source-help">
+							{t(
+								'ชุดนี้ใช้เฉพาะเครื่องมือที่เลือกในครั้งนี้ หากเพิ่มเครื่องมือใน Server ภายหลัง คุณต้องเลือกเพิ่มให้ Gateway เอง',
+								'This set includes only the tools selected now. New Server tools need to be added to this Gateway explicitly.'
+							)}
+						</p>
+						{#if eligibleToolCount > 5}<div class="k-field setup-tool-search">
+								<label for="tool-search" class="k-small k-muted"
+									>{t('ค้นหาเครื่องมือทุกระบบ', 'Search tools across sources')}</label
 								>
-									<label for="tool-search" class="k-small k-muted"
-										>{t('ค้นหาเครื่องมือ', 'Search tools')}</label
-									><input
-										id="tool-search"
-										type="search"
-										bind:value={toolQuery}
-										placeholder={t('ชื่อหรือคำอธิบายเครื่องมือ', 'Tool name or description')}
-									/>
-								</div>{/if}
-							<div class="k-check-list">
-								{#each visibleTools as tool (tool.name)}
-									<label class="k-check-row" class:selected={toolNames.includes(tool.name)}
-										><input
-											type="checkbox"
-											checked={toolNames.includes(tool.name)}
-											onchange={() => (toolNames = toggle(toolNames, tool.name))}
-										/><span class="k-icon"><FileCheck2 size={22} /></span><span class="k-check-copy"
-											><strong>{tool.name}</strong>
-											<p>
-												{tool.description ||
-													t(
-														'ระบบที่เชื่อมต่อไม่ได้ระบุคำอธิบาย',
-														'No description provided by the source'
-													)}
-											</p></span
-										></label
+								<input
+									id="tool-search"
+									type="search"
+									bind:value={toolQuery}
+									placeholder={t('ชื่อหรือคำอธิบายเครื่องมือ', 'Tool name or description')}
+								/>
+							</div>{/if}
+						{#each sourceGroups as group (group.connectionID)}
+							<fieldset class="setup-source-tools">
+								<legend
+									><Plug size={19} />{group.connection?.name ||
+										t('ระบบที่ไม่พร้อมใช้งาน', 'Unavailable source')}</legend
+								>
+								{#if group.connection?.scopeNote}<p class="k-small k-muted setup-scope-note">
+										{group.connection.scopeNote}
+									</p>{/if}
+								<div class="setup-tool-preset">
+									<p class="setup-tool-selection" role="status">
+										{group.allApprovedSelected
+											? t(
+													`ใช้เครื่องมือที่อนุญาตไว้ครบ ${group.selectedEligibleCount} รายการ`,
+													`All ${group.selectedEligibleCount} approved tools selected`
+												)
+											: t(
+													`เลือกแล้ว ${group.selectedEligibleCount} จาก ${group.eligibleTools.length} รายการ`,
+													`${group.selectedEligibleCount} of ${group.eligibleTools.length} tools selected`
+												)}
+									</p>
+									{#if !group.allApprovedSelected}<button
+											type="button"
+											class="k-button small setup-use-approved"
+											disabled={!group.eligibleTools.length}
+											onclick={() => selectAllApprovedTools(group.connectionID)}
+										>
+											<Check size={18} />{t(
+												`ใช้เครื่องมือที่อนุญาตไว้ทั้งหมด — ${group.eligibleTools.length} รายการ`,
+												`Use all approved tools — ${group.eligibleTools.length} tools`
+											)}
+										</button>{/if}
+								</div>
+								{#if group.unavailableTools.length}<div class="setup-revoked-tools" role="status">
+										<h3>
+											{t(
+												'เครื่องมือที่ Server ไม่อนุญาตแล้ว',
+												'Tools no longer allowed by this server'
+											)}
+										</h3>
+										<p>
+											{t(
+												'รายการเหล่านี้ยังอยู่ในการตั้งค่า Gateway กรุณานำออกก่อนบันทึก',
+												'These tools remain in the Gateway configuration. Remove them before saving.'
+											)}
+										</p>
+										{#each group.unavailableTools as tool (tool)}<div class="setup-revoked-tool">
+												<strong
+													>{toolPresentation({ name: tool }, orcaLocale.value).label}<code
+														class="setup-tool-identifier">{tool}</code
+													></strong
+												>
+												<button
+													type="button"
+													class="k-button small"
+													onclick={() => removeUnavailableTool(group.connectionID, tool)}
+													>{t('นำออกจาก Gateway', 'Remove from Gateway')}</button
+												>
+											</div>{/each}
+									</div>{/if}
+								<div class="setup-custom-tools">
+									<button
+										type="button"
+										class="setup-custom-toggle"
+										aria-expanded={customToolsOpen.includes(group.connectionID) ||
+											Boolean(toolQuery.trim())}
+										aria-controls={`gateway-tools-${group.connectionID}`}
+										onclick={() => toggleCustomization(group.connectionID)}
+										>{t('กำหนดเครื่องมือเฉพาะทีม', 'Customize this team’s tools')}<span
+											>{customToolsOpen.includes(group.connectionID) ? '−' : '+'}</span
+										></button
 									>
-								{:else}<p class="k-muted" style="padding:18px">
-										{t('ไม่พบเครื่องมือที่ตรงกับคำค้น', 'No tools match your search.')}
-									</p>{/each}
-							</div>
-							</details>
-						</fieldset>
+									{#if customToolsOpen.includes(group.connectionID) || toolQuery.trim()}<div
+											id={`gateway-tools-${group.connectionID}`}
+										>
+											<p class="k-small k-muted">
+												{t(
+													'การเลือกนี้มีผลกับ Gateway นี้เท่านั้น สิทธิ์ของ Gateway อื่นยังเหมือนเดิม',
+													'These choices apply only to this Gateway. Other Gateways keep their permissions.'
+												)}
+											</p>
+											<div class="k-check-list">
+												{#each group.visibleTools as tool (tool.name)}
+													{@const presentation = toolPresentation(tool, orcaLocale.value)}
+													<label
+														class="k-check-row"
+														class:selected={group.toolNames.includes(tool.name)}
+													>
+														<input
+															type="checkbox"
+															checked={group.toolNames.includes(tool.name)}
+															onchange={() => toggleSourceTool(group.connectionID, tool.name)}
+														/>
+														<span class="k-icon"><FileCheck2 size={22} /></span><span
+															class="k-check-copy"
+														>
+															<strong>{presentation.label}</strong><code
+																class="setup-tool-identifier">{presentation.identifier}</code
+															>
+															<p>
+																{presentation.description ||
+																	t(
+																		'ระบบที่เชื่อมต่อไม่ได้ระบุคำอธิบาย',
+																		'No description provided by the source'
+																	)}
+															</p>
+														</span>
+													</label>
+												{:else}<p class="k-muted" style="padding:18px">
+														{t('ไม่พบเครื่องมือที่ตรงกับคำค้น', 'No tools match your search.')}
+													</p>{/each}
+											</div>
+										</div>{/if}
+								</div>
+							</fieldset>
+						{/each}
+						<p class="k-small k-muted setup-source-help">
+							{t(
+								'ข้อมูลที่เข้าถึงได้ขึ้นอยู่กับบัญชีและสิทธิ์ของแต่ละระบบที่เชื่อมต่อ',
+								'Available data follows the account and permissions of each connected source.'
+							)}
+						</p>
 						<div class="k-grid-2 k-section">
 							<div class="k-field">
 								<label for="daily-limit"
@@ -562,7 +777,7 @@
 								<div>
 									<strong>{t('เครื่องมือที่ตรวจสอบแล้ว', 'Reviewed tools')}</strong>
 									<p>
-										{connection?.reviewedReadOnly
+										{allReadOnly
 											? t(
 													'Gateway นี้ใช้เฉพาะเครื่องมืออ่านข้อมูลที่ผู้ดูแลอนุญาต',
 													'This Gateway uses only administrator-approved read tools.'
@@ -579,7 +794,9 @@
 						<div class="k-section-title">
 							<h3>{t('สมาชิกใน Gateway', 'Gateway members')}</h3>
 							<span class="k-badge accent"
-								>{t('เลือกแล้ว', 'Selected')} {memberIDs.length} {t('คน', 'people')}</span
+								>{t('เลือกแล้ว', 'Selected')}
+								{memberIDs.length}
+								{t('คน', 'people')}</span
 							>
 						</div>
 						{#if currentMember}<div class="setup-my-membership">
@@ -684,18 +901,26 @@
 									</dd>
 								</div>
 								<div>
-									<dt>{t('ระบบและข้อมูล', 'System and data')}</dt>
-									<dd>
-										{connection?.name}
-										<p class="k-small k-muted">{connection?.scopeNote}</p>
-									</dd>
-								</div>
-								<div>
-									<dt>{t('เครื่องมือที่ใช้ได้', 'Available tools')}</dt>
-									<dd>
-										<ul>
-											{#each toolNames as tool (tool)}<li>{tool}</li>{/each}
-										</ul>
+									<dt>{t('ระบบและเครื่องมือ', 'Sources and tools')}</dt>
+									<dd class="setup-review-sources">
+										{#each sourceGroups as group (group.connectionID)}<section>
+												<strong>{group.connection?.name || group.connectionID}</strong>
+												<ul>
+													{#each group.toolNames as tool (tool)}
+														{@const presentation = toolPresentation(
+															group.connection?.tools.find((item) => item.name === tool) || {
+																name: tool
+															},
+															orcaLocale.value
+														)}
+														<li>
+															{presentation.label}<code class="setup-tool-identifier"
+																>{presentation.identifier}</code
+															>
+														</li>
+													{/each}
+												</ul>
+											</section>{/each}
 									</dd>
 								</div>
 								<div>
@@ -770,13 +995,16 @@
 				{#if step === flowSteps[0]}<a
 						class="k-button"
 						href={localeHref(
-							existing ? `/app?view=hub&hub=${encodeURIComponent(existing.id)}${toolsOnly ? '&tab=tools' : ''}` : '/app?view=workspaces'
+							existing
+								? `/app?view=hub&hub=${encodeURIComponent(existing.id)}${toolsOnly ? '&tab=tools' : ''}`
+								: '/app?view=workspaces'
 						)}>{t('ยกเลิก', 'Cancel')}</a
 					>{:else}<button
 						type="button"
 						class="k-button"
 						disabled={busy}
-						onclick={() => move(flowSteps[flowSteps.indexOf(step) - 1])}><ChevronLeft size={17} /> {t('ย้อนกลับ', 'Back')}</button
+						onclick={() => move(flowSteps[flowSteps.indexOf(step) - 1])}
+						><ChevronLeft size={17} /> {t('ย้อนกลับ', 'Back')}</button
 					>{/if}
 				{#if step < 4}<button
 						type="button"
@@ -805,20 +1033,31 @@
 				<span class="setup-summary-icon"><Folder size={22} /></span>
 				<h2>{t('MCP Gateway ของคุณ', 'Your Gateway')}</h2>
 			</div>
-			<p class="setup-summary-name">{name.trim() || t('Gateway ใหม่', 'New Gateway')}</p>
-			{#if description.trim()}<p class="setup-summary-description">{description.trim()}</p>{/if}
+			<p class="setup-summary-name">
+				{name.trim() || t('Gateway ใหม่', 'New Gateway')}
+			</p>
+			{#if description.trim()}<p class="setup-summary-description">
+					{description.trim()}
+				</p>{/if}
 			<dl>
 				<div class="k-summary-row">
 					<span class="k-icon"><Plug size={21} /></span>
-					<dt>{t('ระบบ:', 'Source:')}</dt>
-					<dd>{connection?.name || t('ยังไม่ได้เลือก', 'Not selected')}</dd>
+					<dt>{t('ระบบ:', 'Sources:')}</dt>
+					<dd>
+						{sourceGroups
+							.map(
+								(source) =>
+									source.connection?.name || t('ระบบที่ไม่พร้อมใช้งาน', 'Unavailable source')
+							)
+							.join(', ') || t('ยังไม่ได้เลือก', 'Not selected')}
+					</dd>
 				</div>
 				<div class="k-summary-row">
 					<span class="k-icon"><Folder size={21} /></span>
 					<dt>{t('เครื่องมือ:', 'Tools:')}</dt>
 					<dd>
-						{toolNames.length
-							? t(`${toolNames.length} เครื่องมือ`, `${toolNames.length} tools`)
+						{selectedToolCount
+							? t(`${selectedToolCount} เครื่องมือ`, `${selectedToolCount} tools`)
 							: t('ยังไม่ได้กำหนด', 'Not defined')}
 					</dd>
 				</div>
@@ -857,7 +1096,54 @@
 		border-radius: 10px;
 		background: #f7faef;
 	}
-	.setup-tool-preset > p { font-size: 14px; line-height: 1.75; }
+	.setup-tool-preset > p {
+		font-size: 14px;
+		line-height: 1.75;
+	}
+	.setup-source-help {
+		margin: 12px 0 18px;
+		line-height: 1.75;
+	}
+	.setup-source-tools {
+		min-width: 0;
+		border: 1px solid var(--setup-line);
+		border-radius: 12px;
+		padding: 18px;
+		margin: 24px 0;
+	}
+	.setup-source-tools legend {
+		display: flex;
+		align-items: center;
+		gap: 9px;
+		padding: 0 8px;
+		font-size: 16px;
+		font-weight: 600;
+	}
+	.setup-source-tools legend :global(svg) {
+		flex-shrink: 0;
+	}
+	.setup-scope-note {
+		white-space: pre-wrap;
+		line-height: 1.75;
+		overflow-wrap: anywhere;
+	}
+	.setup-tool-search {
+		margin: 18px 0;
+	}
+	.setup-tool-identifier {
+		display: block;
+		margin-top: 4px;
+		font-size: 11px;
+		font-weight: 400;
+		color: var(--setup-muted);
+		overflow-wrap: anywhere;
+	}
+	.setup-review-sources section + section {
+		margin-top: 18px;
+	}
+	.setup-review-sources li + li {
+		margin-top: 10px;
+	}
 	.workspace-setup .setup-use-approved {
 		justify-self: start;
 		max-width: 100%;
@@ -866,18 +1152,75 @@
 		text-align: left;
 		line-height: 1.6;
 	}
-	.setup-use-approved :global(svg) { flex-shrink: 0; }
-	.setup-tool-selection { color: #526b29; font-weight: 600; }
-	.setup-custom-tools { margin-top: 16px; border: 1px solid var(--setup-line); border-radius: 10px; padding: 0 18px; }
-	.setup-custom-tools summary { padding: 16px 0; cursor: pointer; font-size: 14px; font-weight: 600; }
-	.setup-custom-tools summary:focus-visible { outline: 2px solid var(--setup-ink); outline-offset: 3px; border-radius: 4px; }
-	.setup-custom-tools > p { margin-bottom: 14px; line-height: 1.75; }
-	.setup-custom-tools .k-check-list { padding-bottom: 16px; }
-	.setup-revoked-tools { border: 1px solid #e8bf78; border-radius: 10px; background: #fff8ea; padding: 16px; margin-bottom: 16px; }
-	.setup-revoked-tools h3 { font-size: 15px; margin: 0 0 8px; }
-	.setup-revoked-tools p { font-size: 13px; line-height: 1.6; margin: 0 0 12px; }
-	.setup-revoked-tool { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding-top: 10px; }
-	.setup-revoked-tool strong { overflow-wrap: anywhere; font-size: 13px; }
+	.setup-use-approved :global(svg) {
+		flex-shrink: 0;
+	}
+	.setup-tool-selection {
+		color: #526b29;
+		font-weight: 600;
+	}
+	.setup-custom-tools {
+		margin-top: 16px;
+		border: 1px solid var(--setup-line);
+		border-radius: 10px;
+		padding: 0 18px;
+	}
+	.setup-custom-toggle {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		width: 100%;
+		padding: 16px 0;
+		border: 0;
+		background: transparent;
+		color: inherit;
+		text-align: left;
+		cursor: pointer;
+		font: inherit;
+		font-size: 14px;
+		font-weight: 600;
+	}
+	.setup-custom-toggle:focus-visible {
+		outline: 2px solid var(--setup-ink);
+		outline-offset: 3px;
+		border-radius: 4px;
+	}
+	.setup-custom-tools p {
+		margin-bottom: 14px;
+		line-height: 1.75;
+	}
+	.setup-custom-tools .k-check-list {
+		padding-bottom: 16px;
+	}
+	.setup-revoked-tools {
+		border: 1px solid #e8bf78;
+		border-radius: 10px;
+		background: #fff8ea;
+		padding: 16px;
+		margin-bottom: 16px;
+	}
+	.setup-revoked-tools h3 {
+		font-size: 15px;
+		margin: 0 0 8px;
+	}
+	.setup-revoked-tools p {
+		font-size: 13px;
+		line-height: 1.6;
+		margin: 0 0 12px;
+	}
+	.setup-revoked-tool {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 10px;
+		padding-top: 10px;
+	}
+	.setup-revoked-tool strong {
+		overflow-wrap: anywhere;
+		font-size: 13px;
+	}
 	.workspace-setup {
 		--setup-ink: var(--o-ink, #171b28);
 		--setup-muted: var(--o-muted, #687086);
@@ -1032,17 +1375,6 @@
 	}
 	.setup-prerequisite .k-button {
 		margin-top: 5px;
-	}
-	.setup-source {
-		padding: 16px 18px;
-		border: 1px solid var(--setup-line);
-		border-radius: 10px;
-		background: #fafbf8;
-	}
-	.setup-source strong {
-		display: block;
-		margin-top: 3px;
-		overflow-wrap: anywhere;
 	}
 	.setup-my-membership {
 		display: flex;

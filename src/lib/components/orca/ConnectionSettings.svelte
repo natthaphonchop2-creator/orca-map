@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { toolPresentation } from "$lib/orca/tool-presentation";
+  import { orcaLocale } from "$lib/orca/locale.svelte";
+  import { gatewayUsesConnection, gatewayToolCount } from "$lib/orca/gateway-sources";
   import { goto } from "$app/navigation";
   import LifecycleActions from "./LifecycleActions.svelte";
   import { page } from "$app/state";
@@ -67,7 +70,7 @@
     hubs: data.hubs.filter((item) => item.status !== 'archived' && item.status !== 'deleted')
   });
   const workspaces = $derived(
-    data.hubs.filter((item) => item.connectionID === initialConnectionID && item.status !== 'deleted'),
+    data.hubs.filter((item) => gatewayUsesConnection(item, initialConnectionID) && item.status !== 'deleted'),
   );
   const requestedTab = $derived(page.url.searchParams.get("tab") || (connection ? "overview" : "account"));
   const tab = $derived(connection?.archivedAt && !['workspaces', 'activity'].includes(requestedTab) ? 'overview' : requestedTab);
@@ -226,7 +229,8 @@
       >
         <Check size={17} />
         <div>
-          <strong>{tool.name}</strong>
+          <strong>{toolPresentation(tool, orcaLocale.value).label}</strong>
+          <small class="k-muted">{tool.name}</small>
           <p>
             {tool.description ||
               t("ไม่มีคำอธิบายเพิ่มเติม", "No additional description.")}
@@ -268,7 +272,7 @@
         )}
         ><Folder size={21} /><span
           ><strong>{workspace.name}</strong><small
-            >{workspace.toolNames.length}
+            >{gatewayToolCount(workspace)}
             {t("เครื่องมือ", "tools")} · {workspace.memberIDs.length}
             {t("สมาชิก", "members")}</small
           ></span

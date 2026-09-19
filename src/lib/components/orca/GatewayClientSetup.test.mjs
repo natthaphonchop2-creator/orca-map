@@ -1,0 +1,106 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { createRequire, stripTypeScriptTypes } from 'node:module';
+import test from 'node:test';
+import { pathToFileURL } from 'node:url';
+import { compile, compileModule } from 'svelte/compiler';
+import { render } from 'svelte/server';
+import { effect_root, flush } from 'svelte/internal/client';
+
+const require = createRequire(import.meta.url);
+const moduleURL = (code) => 'data:text/javascript;base64,' + Buffer.from(code).toString('base64');
+const configURL = moduleURL(stripTypeScriptTypes(await readFile(new URL('../../orca/client-config.ts', import.meta.url), 'utf8')));
+const instructionsURL = moduleURL(stripTypeScriptTypes(await readFile(new URL('../../orca/client-instructions.ts', import.meta.url), 'utf8'))
+	.replace("'./client-config'", JSON.stringify(configURL)));
+const { gatewayClientConfig, localGatewayEndpoint } = await import(configURL);
+const { gatewayClientInstructions } = await import(instructionsURL);
+const source = await readFile(new URL('./GatewayClientSetup.svelte', import.meta.url), 'utf8');
+const script = stripTypeScriptTypes(source.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
+	.replace(/^\s*import[^;]+;/gm, '')
+	.replace('$props()', '$state(testProps)');
+const compiled = compileModule(`export function harness(testProps, gatewayClientConfig, localGatewayEndpoint, gatewayClientInstructions, orcaLocale, t, navigator) {
+	${script}
+	return { copy, get instructions() { return instructions; }, get config() { return config; }, get copied() { return copied; }, get error() { return error; }, setClient(value) { client = value; }, setEndpoint(value) { endpoint = value; } };
+}`, { filename: 'gateway-setup-test.svelte.js', generate: 'client' }).js.code.replaceAll('svelte/internal/client', pathToFileURL(require.resolve('svelte/internal/client')).href);
+const { harness } = await import(moduleURL(compiled));
+
+function setupHarness(context, clipboard, locale = 'en') {
+	let view;
+	const stop = effect_root(() => {
+		view = harness({ endpoint: 'https://orca.example/mcp/team' }, gatewayClientConfig, localGatewayEndpoint, gatewayClientInstructions, { value: locale }, (_th, en) => en, { clipboard });
+	});
+	context.after(stop);
+	flush();
+	return view;
+}
+
+test('copying setup stays English and generic while manual formats and endpoint change', async (context) => {
+	const copied = [];
+	const view = setupHarness(context, { writeText: async (value) => copied.push(value) }, 'th');
+	await view.copy(view.instructions, 'Setup instructions');
+	assert.equal(view.copied, 'Setup instructions');
+	assert.match(copied[0], /AI app I am using/);
+	assert.doesNotMatch(copied[0], /Codex|Cursor|VS Code|[\u0E00-\u0E7F]/);
+	view.setClient('vscode');
+	flush();
+	assert.equal(view.instructions, copied[0]);
+	assert.ok(view.config.includes('Bearer ${input:orca-key}'));
+	view.setEndpoint('https://orca.example/mcp/another-team');
+	flush();
+	assert.equal(view.copied, '');
+	await view.copy(view.instructions, 'Setup instructions');
+	assert.doesNotMatch(copied[1], /Codex|Cursor|VS Code|[\u0E00-\u0E7F]/);
+	assert.match(copied[1], /another-team/);
+	assert.doesNotMatch(copied[1], /mcp\/team/);
+});
+
+test('clipboard failure provides a manual-copy fallback without a false success', async (context) => {
+	const view = setupHarness(context, { writeText: async () => { throw new Error('denied'); } });
+	await view.copy(view.instructions, 'Setup instructions');
+	assert.equal(view.copied, '');
+	assert.equal(view.error, 'Select and copy the text manually.');
+});
+
+async function rendered(props) {
+	let code = compile(source, { filename: 'GatewayClientSetup.svelte', generate: 'server' }).js.code;
+	const imports = {
+		'svelte/internal/server': pathToFileURL(require.resolve('svelte/internal/server')).href,
+		'$lib/orca/client-config': configURL,
+		'$lib/orca/client-instructions': instructionsURL,
+		'$lib/orca/locale.svelte': moduleURL("export const orcaLocale = {value:'en'}; export const t = (_th,en) => en;"),
+		'@lucide/svelte': moduleURL('export const Copy = () => {}, Check = () => {}, ExternalLink = () => {}, MessageSquareText = () => {}, ChevronDown = () => {};')
+	};
+	for (const [name, url] of Object.entries(imports)) code = code.replaceAll(`'${name}'`, JSON.stringify(url)).replaceAll(`"${name}"`, JSON.stringify(url));
+	const { default: Component } = await import(moduleURL(code));
+	return render(Component, { props }).body;
+}
+
+test('copy instructions are primary while manual configuration remains accessible and collapsed', async () => {
+	const html = await rendered({ endpoint: 'http://localhost:8787/mcp/team', ready: false });
+	assert.match(html, /Copy setup instructions/);
+	assert.match(html, /These English instructions do not include your key/);
+	assert.match(html, /Activate this Gateway and obtain membership/);
+	assert.match(html, /reachable only by apps on the same computer/);
+	const advanced = html.match(/<details([^>]*class="advanced-setup[^>]*)>([\s\S]*?)<\/details>/);
+	assert.ok(advanced);
+	assert.doesNotMatch(advanced[1], /\bopen(?:\s|=|$)/);
+	assert.match(advanced[2], /MCP gateway URL/);
+	assert.match(advanced[2], /General/);
+	assert.match(advanced[2], /Manual configuration format/);
+	assert.match(advanced[2], /Authorization/);
+	assert.doesNotMatch(html.slice(0, html.indexOf('<details class="advanced-setup')), />Codex<|>Cursor<|>VS Code</);
+});
+
+test('an invalid endpoint cannot produce a copyable setup prompt', async () => {
+	const html = await rendered({ endpoint: 'https://orca.example/mcp?token=secret' });
+	assert.doesNotMatch(html, /Copy setup instructions/);
+	assert.match(html, /endpoint cannot be used to generate a configuration/);
+});
+
+test('the unified endpoint explains that one connection includes only permitted Gateways', async () => {
+	const html = await rendered({ endpoint: 'https://orca.example/api/orca/mcp', scope: 'orca' });
+	assert.match(html, /Connect to ORCA once to use tools from every Gateway you are allowed to access/);
+	assert.match(html, /ORCA MCP URL/);
+	assert.doesNotMatch(html, /MCP gateway URL/);
+	assert.match(html, /current membership and permissions/);
+});

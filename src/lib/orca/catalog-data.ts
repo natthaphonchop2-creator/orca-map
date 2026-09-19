@@ -1,4 +1,4 @@
-// Presentation metadata for the 182 actual catalog candidates captured on 2026-09-09.
+// Presentation metadata for catalog candidates; provider availability comes from the backend.
 // Category labels and Thai summaries describe the source catalog, not connection readiness.
 // Original logo bytes and source/hash receipts: static/orca/catalog/sources.json.
 
@@ -44,6 +44,11 @@ export const catalogCategories = [
 		en: 'Design & content'
 	},
 	{
+		id: 'accounting',
+		th: 'บัญชีและการเงิน',
+		en: 'Accounting & finance'
+	},
+	{
 		id: 'finance',
 		th: 'การเงินและลงทุน',
 		en: 'Finance & investing'
@@ -70,6 +75,7 @@ export type CatalogCategoryId = (typeof catalogCategories)[number]['id'];
 export interface CatalogPresentation {
 	categoryId: CatalogCategoryId;
 	descriptionTh: string;
+	descriptionEn?: string;
 	icon?: string;
 	aliases?: string[];
 }
@@ -84,6 +90,38 @@ export function normalizeCatalogName(name: string): string {
 }
 
 const presentations: Record<string, CatalogPresentation> = {
+	flowaccount: {
+		categoryId: 'accounting',
+		descriptionTh:
+			'เชื่อมข้อมูลงานขาย เอกสาร และบัญชีจาก FlowAccount ให้ AI ช่วยทำงาน',
+		descriptionEn:
+			'Connect sales, documents, and accounting data from FlowAccount to your AI tools.',
+		icon: '/orca/tools/flowaccount.svg',
+		aliases: [
+			'Flow Account',
+			'โฟลว์แอคเคาท์',
+			'บัญชีไทย',
+			'ใบแจ้งหนี้',
+			'invoice',
+			'Thai accounting',
+		],
+	},
+	peak: {
+		categoryId: 'accounting',
+		descriptionTh: 'ให้ AI ช่วยจัดการเอกสารและข้อมูลบัญชีของธุรกิจผ่าน PEAK',
+		descriptionEn:
+			'Work with business documents and accounting data in PEAK through your AI tools.',
+		icon: '/orca/tools/peak.svg',
+		aliases: [
+			'PEAK Account',
+			'PeakAccount',
+			'พีค',
+			'บัญชีไทย',
+			'ใบแจ้งหนี้',
+			'invoice',
+			'Thai accounting',
+		],
+	},
 	'aws-knowledge': {
 		categoryId: 'research-knowledge',
 		descriptionTh: 'ค้นหาเอกสาร AWS และดูบริการที่เปิดในแต่ละภูมิภาค',

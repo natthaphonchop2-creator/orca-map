@@ -87,12 +87,18 @@ export interface OrcaConnection {
 }
 
 export type HubStatus = "draft" | "active" | "paused" | "archived" | "deleted";
+export interface OrcaHubSource {
+  connectionID: string;
+  toolNames: string[];
+}
 export interface OrcaHub {
   id: string;
   name: string;
   description: string;
   connectionID: string;
   toolNames: string[];
+  /** Authoritative when present. Legacy fields project the first source. */
+  sources?: OrcaHubSource[];
   memberIDs: string[];
   unitIDs: string[];
   dailyLimit: number;
@@ -114,6 +120,7 @@ export interface OrcaBootstrap {
   units: OrcaUnit[];
   connections: OrcaConnection[];
   hubs: OrcaHub[];
+  unifiedConnectURL?: string;
 }
 
 export interface OrcaCandidate {
@@ -124,6 +131,8 @@ export interface OrcaCandidate {
   /** Issued by the backend only for an enabled, recognized managed connector. */
   managedProvider?: string;
   oauthProvider?: string;
+  /** Confirmed source authentication capabilities; absent/empty means unknown. */
+  authMethods?: ("oauth" | "secrets" | "none")[];
 }
 
 export interface OrcaSourceSetup {
@@ -209,6 +218,7 @@ export type HubInput = Pick<
   | "description"
   | "connectionID"
   | "toolNames"
+  | "sources"
   | "memberIDs"
   | "unitIDs"
   | "dailyLimit"
@@ -283,11 +293,16 @@ export const OrcaService = {
   createKey: (hubID: string, name: string, expiresInDays: number) =>
     doPost(
       `/orca/hubs/${part(hubID)}/keys`,
-      { name, expiresInDays },
+      { name, ...(expiresInDays === 0 ? { neverExpires: true } : { expiresInDays }) },
       options,
     ) as Promise<OrcaCreatedKey>,
   revokeKey: (hubID: string, keyID: number) =>
     doDelete(`/orca/hubs/${part(hubID)}/keys/${part(String(keyID))}`, options),
+  orcaKeys: () => list<OrcaKey>("/orca/keys"),
+  createOrcaKey: (name: string, expiresInDays: number) =>
+    doPost("/orca/keys", { name, ...(expiresInDays === 0 ? { neverExpires: true } : { expiresInDays }) }, options) as Promise<OrcaCreatedKey>,
+  revokeOrcaKey: (keyID: number) =>
+    doDelete(`/orca/keys/${part(String(keyID))}`, options),
   audit: (hubID?: string) =>
     list<OrcaAuditEvent>(`/orca/audit${hubID ? `?hubID=${part(hubID)}` : ""}`),
   connectionMembers: (connectionID: string, signal?: AbortSignal) =>

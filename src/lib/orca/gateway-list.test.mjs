@@ -1,8 +1,9 @@
+import { importTypeScript } from './test-import.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
 import test from 'node:test';
-const { filterGateways } = await import('data:text/javascript;base64,' + Buffer.from(stripTypeScriptTypes(await readFile(new URL('./gateway-list.ts', import.meta.url), 'utf8'))).toString('base64'));
+const { filterGateways } = await importTypeScript(new URL('./gateway-list.ts', import.meta.url));
 const gateways = ['active', 'paused', 'draft', 'archived', 'deleted'].map((status) => ({ id: status, name: `${status} gateway`, description: 'Finance team', connectionID: 'server', status }));
 const connections = [{ id: 'server', name: 'Google Drive' }];
 test('main Gateway list excludes archives and deletion tombstones', () => {

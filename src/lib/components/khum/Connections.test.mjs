@@ -1,3 +1,4 @@
+import { importTypeScript, typescriptModuleURL } from '../../orca/test-import.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createRequire, stripTypeScriptTypes } from 'node:module';
@@ -8,15 +9,7 @@ import { compileModule } from 'svelte/compiler';
 import { effect_root, flush } from 'svelte/internal/client';
 
 const component = await readFile(new URL('./Connections.svelte', import.meta.url), 'utf8');
-const catalogCode = stripTypeScriptTypes(
-	await readFile(new URL('../../orca/catalog.ts', import.meta.url), 'utf8')
-).replace(
-	"'./catalog-data'",
-	JSON.stringify(new URL('../../orca/catalog-data.ts', import.meta.url).href)
-);
-const { filterCatalog, catalogSourceDisplayName } = await import(
-	'data:text/javascript;base64,' + Buffer.from(catalogCode).toString('base64')
-);
+const { filterCatalog, catalogSourceDisplayName } = await importTypeScript(new URL('../../orca/catalog.ts', import.meta.url));
 const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
 	.replace(/^\s*import[^;]+;/gm, '')
 	.replace('$props()', '$state(testProps)');

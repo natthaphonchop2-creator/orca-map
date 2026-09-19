@@ -1,5 +1,6 @@
 <script lang="ts">
 	import LifecycleActions from './LifecycleActions.svelte';
+	import { gatewayConnections, gatewayToolCount } from '$lib/orca/gateway-sources';
 	import { filterGateways } from '$lib/orca/gateway-list';
 	import { tick } from 'svelte';
 	import { connectionReady } from '$lib/orca/activation';
@@ -80,9 +81,10 @@
 						)}
 			</p>
 		</div>
+		<div class="k-actions"><a class="home-button" href={localeHref("/app?view=settings&section=ai")}>{t("เชื่อม AI กับ ORCA", "Connect AI to ORCA")}</a>
 		{#if data.canManage}<a class="home-button primary" href={localeHref(createWorkspaceHref)}
 				><Plus size={19} aria-hidden="true" />{t('สร้าง Gateway', 'Create Gateway')}</a
-			>{/if}
+			>{/if}</div>
 	</header>
 	{#if notice}<div class="k-banner success" role="status">{notice}</div>{/if}
 	<div class="home-columns">
@@ -116,9 +118,7 @@
 			{#if visibleHubs.length > 0}
 				<div class="workspace-list">
 					{#each visibleHubs as hub (hub.id)}
-						{@const source = data.connections.find(
-							(connection) => connection.id === hub.connectionID
-						)}
+						{@const sources = gatewayConnections(hub, data.connections)}
 						<article class="workspace-card">
 						<a
 							class="workspace-card-main"
@@ -139,9 +139,9 @@
 								{#if hub.description}<p class="workspace-description">{hub.description}</p>{/if}
 								<div class="workspace-card-meta">
 									<span class="workspace-source"
-										><Plug size={13} aria-hidden="true" />{source?.name ||
+										><Plug size={13} aria-hidden="true" />{sources.map((source) => source.name).join(', ') ||
 											t('ยังไม่ได้เลือกระบบ', 'No system selected')}</span
-									><span>{hub.toolNames.length} {t('เครื่องมือ', 'tools')}</span><span
+									><span>{gatewayToolCount(hub)} {t('เครื่องมือ', 'tools')}</span><span
 										>{hub.memberIDs.length} {t('สมาชิก', 'members')}</span
 									>
 								</div>
@@ -389,7 +389,7 @@
 			background 0.16s,
 			border-color 0.16s;
 	}
-	.home-heading > .home-button {
+	.home-heading > .k-actions {
 		flex: 0 0 auto;
 		margin-top: 4px;
 	}
@@ -865,7 +865,7 @@
 			font-size: 13px;
 			line-height: 1.75;
 		}
-		.home-heading > .home-button {
+		.home-heading > .k-actions {
 			margin-top: 0;
 		}
 		.workspace-toolbar {

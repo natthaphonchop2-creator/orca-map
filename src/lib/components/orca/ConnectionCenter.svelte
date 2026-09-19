@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { gatewayUsesConnection } from "$lib/orca/gateway-sources";
   import LifecycleActions from "./LifecycleActions.svelte";
   import { page } from "$app/state";
   import CatalogIcon from "$lib/orca/CatalogIcon.svelte";
@@ -155,7 +156,7 @@
       ></thead
     ><tbody>
       {#each currentPage.items as connection (connection.id)}
-        {@const affectedGateways = data.hubs.filter((hub) => hub.connectionID === connection.id && hub.status !== 'deleted')}
+        {@const affectedGateways = data.hubs.filter((hub) => gatewayUsesConnection(hub, connection.id) && hub.status !== 'deleted')}
         {@const gatewayCount = affectedGateways.length}
         <tr
           ><td class="connection-name-cell"

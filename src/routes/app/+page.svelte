@@ -231,8 +231,14 @@
   {:else if view === "api-keys"}
     <header class="connection-heading"><div>
       <h1>API keys</h1>
-      <p>{t("จัดการคีย์ส่วนตัวสำหรับเชื่อมแอป AI กับ MCP Gateways ที่คุณเป็นสมาชิก", "Manage personal keys for AI clients in MCP Gateways you belong to.")}</p>
+      <p>{t("จัดการคีย์ส่วนตัวสำหรับเชื่อมแอป AI กับ ORCA", "Manage personal keys for connecting AI clients to ORCA.")}</p>
     </div></header>
+    <section class="connection-detail-panel">
+      <div class="connection-section-heading"><div>
+        <h2><KeyRound size={20} />{t("คีย์ ORCA สำหรับทุก Gateway ที่คุณมีสิทธิ์", "One ORCA key for your authorized Gateways")}</h2>
+        <p>{t("สร้างคีย์และคัดลอกวิธีเชื่อม AI จากจุดเดียว เลือกวันหมดอายุหรือใช้จนกว่าจะยกเลิกได้", "Create a key and copy AI setup instructions in one place. Choose an expiry or keep the key active until revoked.")}</p>
+      </div><a class="k-button primary" href={localeHref('/app?view=settings&section=ai')}>{t("เชื่อม AI กับ ORCA", "Connect AI to ORCA")}<ArrowRight size={17} /></a></div>
+    </section>
     <section class="connection-detail-panel">
       <div class="connection-section-heading"><div>
         <h2><KeyRound size={20} />{t("คีย์ของคุณในแต่ละ Gateway", "Your keys by gateway")}</h2>

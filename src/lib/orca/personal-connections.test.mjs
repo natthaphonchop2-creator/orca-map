@@ -1,17 +1,10 @@
+import { importTypeScript } from './test-import.mjs';
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 
-const source = stripTypeScriptTypes(
-  await readFile(new URL("./personal-connections.ts", import.meta.url), "utf8"),
-).replace(
-  /['"]\.\/activation['"]/,
-  JSON.stringify(new URL("./activation.ts", import.meta.url).href),
-);
-const { personalSources, personalSetup, personalAccountReader } = await import(
-  "data:text/javascript;base64," + Buffer.from(source).toString("base64")
-);
+const { personalSources, personalSetup, personalAccountReader } = await importTypeScript(new URL('./personal-connections.ts', import.meta.url));
 
 const connection = (id, mcpID = id) => ({
   id,

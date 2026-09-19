@@ -107,9 +107,7 @@
       gateway.status === "active" &&
       workspaceToolingReady(
         gateway,
-        source.connections.find(
-          (connection) => connection.id === gateway.connectionID,
-        ),
+        source.connections,
       ),
     );
   }

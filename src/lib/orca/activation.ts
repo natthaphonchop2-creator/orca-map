@@ -1,4 +1,5 @@
 import type { OrcaConnection, OrcaHub, OrcaKey } from '../services/khum';
+import { gatewaySources } from './gateway-sources';
 
 function validNames(names: string[]) {
 	return (
@@ -22,14 +23,14 @@ export function connectionReady(connection: OrcaConnection | undefined): boolean
 
 export function workspaceToolingReady(
 	hub: OrcaHub,
-	connection: OrcaConnection | undefined
+	connection: OrcaConnection | OrcaConnection[] | undefined
 ): boolean {
-	return (
-		connectionReady(connection) &&
-		hub.connectionID === connection?.id &&
-		validNames(hub.toolNames) &&
-		hub.toolNames.every((name) => connection!.toolNames.includes(name))
-	);
+	const connections = Array.isArray(connection) ? connection : connection ? [connection] : [];
+	return gatewaySources(hub).some((source) => {
+		const candidate = connections.find((item) => item.id === source.connectionID);
+		return connectionReady(candidate) && validNames(source.toolNames) &&
+			source.toolNames.every((name) => candidate!.toolNames.includes(name));
+	});
 }
 
 export function personalKeyAvailable(key: Pick<OrcaKey, 'expiresAt'>, now: number): boolean {

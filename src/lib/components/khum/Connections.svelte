@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { toolPresentation } from "$lib/orca/tool-presentation";
+  import { orcaLocale } from "$lib/orca/locale.svelte";
+  import { gatewayUsesConnection } from "$lib/orca/gateway-sources";
 	import SourceSetup from '$lib/components/orca/SourceSetup.svelte';
 	import { connectionReady } from '$lib/orca/activation';
 	import { catalogSourceDisplayName, filterCatalog } from '$lib/orca/catalog';
@@ -344,7 +347,7 @@
 </script>
 
 {#snippet workspaceSteps(connection: OrcaConnection)}
-	{@const workspaces = data.hubs.filter((hub) => hub.connectionID === connection.id)}
+	{@const workspaces = data.hubs.filter((hub) => gatewayUsesConnection(hub, connection.id))}
 	<div class="connection-workspaces">
 		<div class="connection-next-title">
 			<Folder size={19} />
@@ -632,7 +635,7 @@
 											}}
 										/>
 										<div class="k-check-copy">
-											<label for={`source-tool-${index}`}><strong>{tool.name}</strong></label>
+											<label for={`source-tool-${index}`}><strong>{toolPresentation(tool, orcaLocale.value).label}</strong></label>
 											<p>
 												{tool.description ||
 													t(
@@ -834,7 +837,7 @@
 					>{connection.tools?.length ?? connection.toolNames?.length ?? 0}
 					{t('เครื่องมือที่ตรวจสอบแล้ว', 'Reviewed tools')}</span
 				><span
-					>{data.hubs.filter((hub) => hub.connectionID === connection.id).length}
+					>{data.hubs.filter((hub) => gatewayUsesConnection(hub, connection.id)).length}
 					{'MCP Gateways'}</span
 				><span>{connection.reviewedReadOnly ? t('อ่านข้อมูลเท่านั้น', 'Read only') : t('ตามเครื่องมือที่เลือก', 'Selected tools')}</span>
 			</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { gatewaySources, gatewayToolCount } from '$lib/orca/gateway-sources';
 	import { connectionReady, workspaceToolingReady } from '$lib/orca/activation';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { orcaError, type OrcaBootstrap, type OrcaHub } from '$lib/services/orca';
@@ -26,8 +27,8 @@
 	let libraryError = $state('');
 	let revision = $state(0);
 	const isMember = $derived(hub.memberIDs.includes(data.currentUserID));
-	const connection = $derived(data.connections.find((item) => item.id === hub.connectionID));
-	const toolingReady = $derived(workspaceToolingReady(hub, connection));
+	const connection = $derived(data.connections.find((item) => gatewaySources(hub).some((source) => source.connectionID === item.id) && !connectionReady(item)) ?? data.connections.find((item) => item.id === hub.connectionID));
+	const toolingReady = $derived(workspaceToolingReady(hub, data.connections));
 	const active = $derived(hub.status === 'active' && toolingReady);
 	const editHref = $derived(`/app?view=new&edit=${encodeURIComponent(hub.id)}`);
 	const libraryHref = $derived(`/app?view=knowledge&hub=${encodeURIComponent(hub.id)}`);
@@ -105,8 +106,8 @@
 									'This workspace is not active. You can still prepare knowledge and templates.'
 								)
 							: t(
-									`กำหนดสิทธิ์ใน ORCA แล้ว ${hub.toolNames.length} เครื่องมือ ตรวจบัญชีต้นทางของคุณได้ด้านล่าง`,
-									`ORCA access is configured for ${hub.toolNames.length} tools. Review your source account below.`
+									`กำหนดสิทธิ์ใน ORCA แล้ว ${gatewayToolCount(hub)} เครื่องมือ ตรวจบัญชีต้นทางของคุณได้ด้านล่าง`,
+									`ORCA access is configured for ${gatewayToolCount(hub)} tools. Review your source account below.`
 								)}
 			</p>
 			{#if data.canManage && (!isMember || hub.status !== 'active' || !toolingReady)}

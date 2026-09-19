@@ -1,6 +1,7 @@
 <script lang="ts">
   import CatalogIcon from "$lib/orca/CatalogIcon.svelte";
   import { catalogSourceDisplayName, googleDriveProvider } from "$lib/orca/catalog";
+  import { providerGuide } from "$lib/orca/provider-guides";
   import { t } from "$lib/orca/locale.svelte";
   import {
     OrcaService,
@@ -71,6 +72,7 @@
     Boolean(setup && !requiresURL && !fields.some((field) => field.required)),
   );
   const providerHost = $derived(setup?.endpointHost || endpointHost);
+  const guide = $derived(providerGuide(providerHost));
   const providerMetadata = $derived({
     endpointHost: providerHost,
     managedProvider: setup ? setup.managedProvider : managedProvider,
@@ -640,6 +642,15 @@
     </div>
     {#if !sourceID}<Plug size={21} />{/if}
   </div>
+  {#if sourceID && guide && !connectionReady}
+    <aside class="provider-guide">
+      <strong>{t("เตรียมบัญชีก่อนเชื่อมต่อ", "Before connecting")}</strong>
+      <p>{t(guide.th, guide.en)}</p>
+      <a href={guide.href} target="_blank" rel="noopener noreferrer">
+        {t("ดูคู่มือของผู้ให้บริการ", "Provider setup guide")}<ExternalLink size={14} />
+      </a>
+    </aside>
+  {/if}
   {#if error}<div class="k-banner error" role="alert">
       <Info size={18} />
       <p>{error}</p>
@@ -1073,6 +1084,17 @@
 </section>
 
 <style>
+  .provider-guide {
+    margin: 16px 0;
+    padding: 16px;
+    border: 1px solid #dce5c7;
+    border-radius: 10px;
+    background: #f7faef;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .provider-guide p { margin: 6px 0 10px; color: #526147; }
+  .provider-guide a { display: inline-flex; align-items: center; gap: 6px; }
   .source-heading {
     display: flex;
     align-items: center;

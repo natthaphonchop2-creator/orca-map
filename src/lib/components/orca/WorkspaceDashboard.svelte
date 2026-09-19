@@ -43,9 +43,7 @@
         hub.status === "active" &&
         !workspaceToolingReady(
           hub,
-          data.connections.find(
-            (connection) => connection.id === hub.connectionID,
-          ),
+          data.connections,
         ),
     ).length,
   );

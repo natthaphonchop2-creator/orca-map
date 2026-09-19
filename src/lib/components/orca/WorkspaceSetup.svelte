@@ -11,10 +11,7 @@
 	);
 	const hasOtherMember = $derived(data.members.some((member) => member.id !== data.currentUserID));
 	const usableHubs = $derived(
-		data.hubs.filter((hub) => {
-			const source = readyConnections.find((connection) => connection.id === hub.connectionID);
-			return hub.status === 'active' && workspaceToolingReady(hub, source);
-		})
+		data.hubs.filter((hub) => hub.status === 'active' && workspaceToolingReady(hub, readyConnections))
 	);
 	const steps = $derived([
 		{

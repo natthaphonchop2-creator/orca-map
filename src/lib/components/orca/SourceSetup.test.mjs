@@ -1,3 +1,4 @@
+import { importTypeScript, typescriptModuleURL } from '../../orca/test-import.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createRequire, stripTypeScriptTypes } from 'node:module';
@@ -11,20 +12,15 @@ import { render } from 'svelte/server';
 // Compile the real component's script and run its Svelte state/effects. Only
 // props and imported services are injected; no production logic is reimplemented.
 const component = await readFile(new URL('./SourceSetup.svelte', import.meta.url), 'utf8');
-const catalogCode = stripTypeScriptTypes(
-	await readFile(new URL('../../orca/catalog.ts', import.meta.url), 'utf8')
-).replace(
-	"'./catalog-data'",
-	JSON.stringify(new URL('../../orca/catalog-data.ts', import.meta.url).href)
-);
-const catalogURL = 'data:text/javascript;base64,' + Buffer.from(catalogCode).toString('base64');
+const catalogURL = await typescriptModuleURL(new URL('../../orca/catalog.ts', import.meta.url));
 const { catalogSourceDisplayName, googleDriveProvider } = await import(catalogURL);
+const { providerGuide } = await import(new URL('../../orca/provider-guides.ts', import.meta.url).href);
 const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
 	.replace(/^\s*import[^;]+;/gm, '')
 	.replace('$props()', '$state(testProps)');
 const require = createRequire(import.meta.url);
 const compiled = compileModule(
-	`export function harness(testProps, OrcaService, onDestroy, untrack, t, orcaError, window, document, catalogSourceDisplayName, googleDriveProvider) {
+	`export function harness(testProps, OrcaService, onDestroy, untrack, t, orcaError, window, document, catalogSourceDisplayName, googleDriveProvider, providerGuide) {
 		${script}
 		return {
 			safeOAuthURL, createSource, configure,
@@ -141,7 +137,8 @@ async function setupHarness(context, methods = {}, props = {}) {
 			windowEvents,
 			documentEvents,
 			catalogSourceDisplayName,
-			googleDriveProvider
+			googleDriveProvider,
+			providerGuide
 		);
 	});
 	const destroy = () => {
@@ -1207,6 +1204,7 @@ test('the rendered source header uses the real Google Drive logo and keeps provi
 		serverModule(component, 'SourceSetup.svelte', {
 			'$lib/orca/CatalogIcon.svelte': iconURL,
 			'$lib/orca/catalog': catalogURL,
+			'$lib/orca/provider-guides': new URL('../../orca/provider-guides.ts', import.meta.url).href,
 			'$lib/orca/locale.svelte': moduleURL('export const t = (_th, en) => en;'),
 			'$lib/services/orca': moduleURL(
 				'export const OrcaService = {}; export const orcaError = (error) => error.message;'

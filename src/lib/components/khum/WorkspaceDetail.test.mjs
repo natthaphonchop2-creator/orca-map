@@ -1,3 +1,4 @@
+import { importTypeScript } from '../../orca/test-import.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createRequire, stripTypeScriptTypes } from 'node:module';
@@ -10,19 +11,22 @@ import { effect_root, flush, untrack } from 'svelte/internal/client';
 const require = createRequire(import.meta.url);
 const component = await readFile(new URL('./WorkspaceDetail.svelte', import.meta.url), 'utf8');
 const moduleURL = (code) => 'data:text/javascript;base64,' + Buffer.from(code).toString('base64');
-const { personalKeyAvailable, workspaceToolingReady } = await import(moduleURL(stripTypeScriptTypes(
-	await readFile(new URL('../../orca/activation.ts', import.meta.url), 'utf8')
-)));
+const { personalKeyAvailable, workspaceToolingReady } = await importTypeScript(new URL('../../orca/activation.ts', import.meta.url));
+const { gatewaySources, gatewayToolCount } = await importTypeScript(new URL('../../orca/gateway-sources.ts', import.meta.url));
+const { matchesToolSearch, toolPresentation } = await importTypeScript(new URL('../../orca/tool-presentation.ts', import.meta.url));
 const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
 	.replace(/^\s*import[^;]+;/gm, '')
 	.replace('$props()', '$state(testProps)');
 const compiled = compileModule(`
-export function harness(testProps, OrcaService, personalKeyAvailable, workspaceToolingReady, t, orcaError, onMount, onDestroy, untrack) {
+export function harness(testProps, OrcaService, personalKeyAvailable, workspaceToolingReady, t, orcaError, onMount, onDestroy, untrack, gatewaySources, gatewayToolCount, matchesToolSearch, toolPresentation) {
+	const orcaLocale = $state({ value: 'en' });
 	const page = $state({ url: new URL('https://orca.example.test/app?tab=connect') });
 	${script}
 	return {
 		createKey, revokeKey, clearCreatedKey, changeStatus,
 		nameKey(value) { keyName = value; },
+		expiry(value) { expiryDays = value; },
+		setSources(value, connections) { hub = { ...hub, sources: value }; data = { ...data, connections }; },
 		reveal() { revealKey = true; },
 		changeActor(id) { data = { ...data, currentUserID: id }; },
 		changeHub(id) { hub = { ...hub, id }; },
@@ -61,7 +65,7 @@ function setup(context, service = {}) {
 			...service
 		}, personalKeyAvailable, workspaceToolingReady,
 			(_th, en) => en, (error) => error.message, () => {},
-			(callback) => destroyCallbacks.push(callback), untrack);
+			(callback) => destroyCallbacks.push(callback), untrack, gatewaySources, gatewayToolCount, matchesToolSearch, toolPresentation);
 	});
 	let destroyed = false;
 	const destroy = () => {
@@ -181,4 +185,27 @@ test('a late key response cannot reveal a secret after archiving the Gateway', a
   await creating;
   assert.equal(view.state.newKey, '');
   assert.equal(view.state.newKeyID, undefined);
+});
+
+test('never-expiring key choice is explicit while the default remains seven days', async (context) => {
+  const expiries = [];
+  const { view } = setup(context, { createKey: async (_hub, _name, days) => { expiries.push(days); return {id:22,key:'synthetic-key'}; } });
+  await view.createKey();
+  view.clearCreatedKey();
+  view.nameKey('Persistent client');
+  view.expiry(0);
+  await view.createKey();
+  assert.deepEqual(expiries, [7, 0]);
+});
+
+test('pausing a Gateway sends every source, and a ready secondary source allows key creation', async (context) => {
+  let saved;
+  const { view } = setup(context, {hub: async (value) => { saved=value; }});
+  const sources = [{connectionID:'server-one',toolNames:['read']},{connectionID:'server-two',toolNames:['search']}];
+  view.setSources(sources,[{id:'server-one',enabled:false,reviewedTools:true,toolNames:['read'],tools:[{name:'read'}]}, {id:'server-two',enabled:true,reviewedTools:true,toolNames:['search'],tools:[{name:'search'}]}]);
+  flush();
+  assert.equal(view.state.canConnect, true);
+  await view.changeStatus();
+  assert.deepEqual(saved.sources, sources);
+  assert.equal(saved.status, 'paused');
 });

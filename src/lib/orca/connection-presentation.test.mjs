@@ -1,25 +1,10 @@
+import { importTypeScript } from './test-import.mjs';
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 
-const catalogSource = stripTypeScriptTypes(
-  await readFile(new URL('./catalog.ts', import.meta.url), 'utf8'),
-).replace("'./catalog-data'", JSON.stringify(new URL('./catalog-data.ts', import.meta.url).href));
-const catalogURL = 'data:text/javascript;base64,' + Buffer.from(catalogSource).toString('base64');
-const source = stripTypeScriptTypes(
-  await readFile(
-    new URL("./connection-presentation.ts", import.meta.url),
-    "utf8",
-  ),
-).replace(
-  /['"]\.\/catalog-data['"]/,
-  JSON.stringify(new URL("./catalog-data.ts", import.meta.url).href),
-).replace(/['"]\.\/catalog['"]/, JSON.stringify(catalogURL));
-const { sourceAccountState, sourcePresentationName, sourcePresentationNames } =
-  await import(
-    "data:text/javascript;base64," + Buffer.from(source).toString("base64")
-  );
+const { sourceAccountState, sourcePresentationName, sourcePresentationNames } = await importTypeScript(new URL('./connection-presentation.ts', import.meta.url));
 
 const publicSource = {
   configured: true,

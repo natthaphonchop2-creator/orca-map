@@ -1,14 +1,10 @@
+import { importTypeScript } from './test-import.mjs';
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import test from "node:test";
 
-const code = stripTypeScriptTypes(
-  await readFile(new URL("./connected-users.ts", import.meta.url), "utf8"),
-);
-const { connectedOAuthMembers, unverifiedOAuthMemberCount } = await import(
-  "data:text/javascript;base64," + Buffer.from(code).toString("base64")
-);
+const { connectedOAuthMembers, unverifiedOAuthMemberCount } = await importTypeScript(new URL('./connected-users.ts', import.meta.url));
 const data = {
   canManage: true,
   connections: [{ id: "server-a" }, { id: "server-b" }],

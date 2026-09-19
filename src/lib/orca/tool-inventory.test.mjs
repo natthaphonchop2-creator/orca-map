@@ -1,14 +1,10 @@
+import { importTypeScript } from './test-import.mjs';
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 
-const source = stripTypeScriptTypes(
-  await readFile(new URL("./tool-inventory.ts", import.meta.url), "utf8"),
-);
-const { selectedToolInventory, toolWorkspaceHref } = await import(
-  "data:text/javascript;base64," + Buffer.from(source).toString("base64")
-);
+const { selectedToolInventory, toolWorkspaceHref } = await importTypeScript(new URL('./tool-inventory.ts', import.meta.url));
 
 test("inventory preserves connection identity and only offers caller-scoped active workspaces", () => {
   const connection = {

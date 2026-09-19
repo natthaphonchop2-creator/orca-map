@@ -5,17 +5,19 @@
   import { ArrowRight, BookOpen, Globe } from "@lucide/svelte";
   import LocaleSwitch from "./LocaleSwitch.svelte";
   import PilotInbox from "./PilotInbox.svelte";
+  import OrcaMCPAccess from "./OrcaMCPAccess.svelte";
   let {
     data,
     onchanged,
   }: { data: OrcaBootstrap; onchanged: () => Promise<void> } = $props();
   const section = $derived(
-    ["additional", "owner"].includes(page.url.searchParams.get("section") || "")
+    ["ai", "additional", "owner"].includes(page.url.searchParams.get("section") || "")
       ? page.url.searchParams.get("section")
       : "preferences",
   );
   const tabs = $derived([
     { id: "preferences", label: t("ภาษาและบัญชี", "Preferences") },
+    { id: "ai", label: t("เชื่อม AI", "Connect AI") },
     { id: "additional", label: t("เพิ่มเติม", "Additional features") },
     ...(data.canReviewPilotRequests
       ? [{ id: "owner", label: t("สำหรับเจ้าของระบบ", "Owner") }]
@@ -58,6 +60,7 @@
       <LocaleSwitch />
     </div>
   </section>
+{:else if section === "ai"}<OrcaMCPAccess {data} />
 {:else if section === "additional"}<section class="connection-detail-panel">
     <div class="connection-section-heading">
       <div>

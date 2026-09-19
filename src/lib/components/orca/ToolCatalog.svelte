@@ -1,6 +1,14 @@
 <script lang="ts">
   import CatalogIcon from "$lib/orca/CatalogIcon.svelte";
-  import { catalogSetupHref, filterCatalog, googleDriveProvider } from "$lib/orca/catalog";
+  import {
+    catalogSetupHref,
+    filterCatalog,
+    googleDriveProvider,
+    groupCatalog,
+    popularCatalog,
+    starterCatalog,
+    type CatalogTool,
+  } from "$lib/orca/catalog";
   import { catalogCategories } from "$lib/orca/catalog-data";
   import {
     selectedToolInventory,
@@ -22,9 +30,11 @@
     LoaderCircle,
     Search,
     ShieldCheck,
+    Layers3,
+    TrendingUp,
     X,
   } from "@lucide/svelte";
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
 
   let { data }: { data: OrcaBootstrap } = $props();
   let sources = $state<OrcaCandidate[]>([]);
@@ -34,8 +44,13 @@
   let category = $state("all");
   let tab = $state<"apps" | "tools">("apps");
   let generation = 0;
+  let catalogToolbar = $state<HTMLDivElement>();
   const allSources = $derived(filterCatalog(sources));
   const matches = $derived(filterCatalog(sources, query, category));
+  const groupedMatches = $derived(groupCatalog(matches));
+  const popular = $derived(popularCatalog(allSources, data));
+  const starters = $derived(starterCatalog(allSources));
+  const isOverview = $derived(category === "all" && !query.trim());
   const inventory = $derived(selectedToolInventory(data));
   const selectedTools = $derived(
     inventory.filter(({ connection, tool }) =>
@@ -71,16 +86,53 @@
     query = "";
     category = "all";
   }
+  async function changeCategory(next: string) {
+    category = next;
+    await tick();
+    catalogToolbar?.scrollIntoView({ block: "start", behavior: "instant" });
+  }
   function otherDriveConnections(source: OrcaCandidate) {
     if (!googleDriveProvider(source)) return [];
-    const relatedIDs = new Set(sources
-      .filter((candidate) => candidate.id !== source.id && googleDriveProvider(candidate))
-      .map((candidate) => candidate.id));
-    return data.connections.filter((connection) => relatedIDs.has(connection.mcpID));
+    const relatedIDs = new Set(
+      sources
+        .filter(
+          (candidate) =>
+            candidate.id !== source.id && googleDriveProvider(candidate),
+        )
+        .map((candidate) => candidate.id),
+    );
+    return data.connections.filter(
+      (connection) =>
+        relatedIDs.has(connection.mcpID) &&
+        !connection.archivedAt &&
+        !connection.deletedAt,
+    );
+  }
+  function sourceConnection(source: CatalogTool) {
+    return data.connections.find(
+      (connection) =>
+        connection.mcpID === source.id &&
+        !connection.archivedAt &&
+        !connection.deletedAt,
+    );
+  }
+  function sourceHref(source: CatalogTool) {
+    const connection = sourceConnection(source);
+    return localeHref(
+      connection
+        ? `/app?view=servers&connection=${encodeURIComponent(connection.id)}`
+        : catalogSetupHref(source.id),
+    );
   }
   function driveProviderLabel(source?: OrcaCandidate) {
     const provider = source && googleDriveProvider(source);
-    return provider === "orca" ? "ORCA" : provider === "google" ? "Google" : provider === "obot" ? "Obot" : "";
+    return provider === "orca"
+      ? "ORCA"
+      : provider === "google"
+        ? "Google"
+        : provider === "obot"
+          ? "Obot"
+          : "";
   }
   onMount(() => {
     void load();
@@ -90,14 +142,120 @@
   });
 </script>
 
+{#snippet authBadges(source: CatalogTool)}
+  <span class="auth-tags" aria-label={t("วิธีเชื่อมต่อ", "Authentication methods")}>
+    {#each source.authTags as tag (tag.id)}
+      <span
+        class="auth-tag"
+        class:oauth={tag.id === "oauth"}
+        class:secrets={tag.id === "secrets"}
+        class:muted={tag.id === "unknown" || tag.id === "none"}
+        title={t(tag.descriptionTh, tag.descriptionEn)}
+      >{t(tag.labelTh, tag.label)}</span>
+    {/each}
+  </span>
+{/snippet}
+
+{#snippet sourceRow(source: CatalogTool)}
+  {@const connection = sourceConnection(source)}
+  {@const otherConnections = otherDriveConnections(source)}
+  {@const provider = googleDriveProvider(source)}
+  <details class="source-row">
+    <summary
+      ><span class="app-icon"><CatalogIcon name={source.name} size={27} /></span
+      ><span class="source-copy"
+        ><strong>{source.name}</strong><span class="source-description"
+          >{t(
+            source.descriptionTh,
+            source.descriptionEn || source.description || source.descriptionTh,
+          )}</span
+        >{@render authBadges(source)}</span
+      ><span class="source-type">MCP</span>{#if connection}<span
+          class="saved-dot"
+          title={t("มีการตั้งค่าในองค์กร", "Configured in your organization")}
+        ></span>{/if}<ChevronDown size={15} /></summary
+    >
+    <div class="source-detail">
+      <p>
+        {t(
+          source.descriptionTh,
+          source.descriptionEn || source.description || source.descriptionTh,
+        )}
+      </p>
+      {#if provider}<p class="source-provider-copy">
+          {provider === "orca"
+            ? t(
+                "ORCA ให้บริการ connector และจัดการ OAuth สำหรับ Google Drive API",
+                "ORCA hosts the connector and manages OAuth for the Google Drive API.",
+              )
+            : provider === "obot"
+              ? t(
+                  "การเชื่อมต่อนี้ผ่านบริการของ Obot",
+                  "This connection uses Obot’s service.",
+                )
+              : t(
+                  "การเชื่อมต่อนี้ใช้บริการ Google Drive ของ Google",
+                  "This connection uses Google’s Google Drive service.",
+                )}
+        </p>{/if}
+      {#if otherConnections.length}
+        <div class="existing-provider-connections">
+          <p>
+            {t(
+              "การเชื่อมต่อเดิมขององค์กรยังใช้บัญชีและสิทธิ์แยกกัน",
+              "Existing organization connections keep their separate accounts and permissions.",
+            )}
+          </p>
+          {#each otherConnections as existing (existing.id)}
+            <a
+              href={localeHref(
+                `/app?view=servers&connection=${encodeURIComponent(existing.id)}`,
+              )}
+            >
+              {existing.name} · {driveProviderLabel(
+                sources.find((candidate) => candidate.id === existing.mcpID),
+              )}<ArrowRight size={14} />
+            </a>
+          {/each}
+        </div>
+      {/if}
+      <div class="source-actions">
+        <span
+          ><ShieldCheck size={15} />{connection
+            ? t(
+                "มีการตั้งค่าแล้ว · ตรวจบัญชีและสิทธิ์ก่อนใช้",
+                "Configured · check account and permissions before use",
+              )
+            : t(
+                "เชื่อมบัญชีและเลือกเครื่องมือก่อนใช้งาน",
+                "Connect your account and select tools before use",
+              )}</span
+        ><a
+          class="k-button"
+          href={localeHref(
+            connection
+              ? `/app?view=servers&connection=${encodeURIComponent(connection.id)}`
+              : catalogSetupHref(source.id),
+          )}
+          >{connection
+            ? t("ตั้งค่า Server", "Server settings")
+            : provider === "orca"
+              ? t("เชื่อมต่อผ่าน ORCA", "Connect with ORCA")
+              : t("เชื่อมต่อแอป", "Connect app")}<ArrowRight size={15} /></a
+        >
+      </div>
+    </div>
+  </details>
+{/snippet}
+
 <section class="tool-library" aria-label={t("คลังเครื่องมือ", "Tool catalog")}>
   <header class="catalog-heading">
     <div>
       <h1>Tool Catalog</h1>
       <p>
         {t(
-          "ค้นหาแอป เชื่อมบัญชี แล้วเลือกเครื่องมือให้ทีมใช้งาน",
-          "Find apps, connect accounts, and choose tools for your team.",
+          "เลือก MCP ตามงานของทีม เชื่อมบัญชี แล้วกำหนดเครื่องมือที่ใช้งานได้",
+          "Find MCP servers for your team’s work, connect accounts, and choose their tools.",
         )}
       </p>
     </div>
@@ -145,7 +303,7 @@
         ></button
       >
     </nav>
-    <div class="catalog-toolbar">
+    <div class="catalog-toolbar" bind:this={catalogToolbar}>
       <div class="catalog-search">
         <Search size={17} /><input
           type="search"
@@ -159,20 +317,17 @@
             aria-label={t("ล้างคำค้น", "Clear search")}><X size={15} /></button
           >{/if}
       </div>
-      {#if tab === "apps"}<select
-          bind:value={category}
-          aria-label={t("หมวดเครื่องมือ", "Tool category")}
-          ><option value="all">{t("ทุกหมวด", "All categories")}</option
-          >{#each groups as group}<option value={group.id}
-              >{t(group.th, group.en)}</option
-            >{/each}</select
-        >{/if}
       <span class="result-count" role="status"
         >{tab === "apps" ? matches.length : selectedTools.length}
         {t("รายการ", "results")}</span
       >
     </div>
     {#if tab === "apps"}
+      <p class="auth-legend">
+        <strong>OAuth</strong> {t("ลงชื่อเข้าใช้ผ่านผู้ให้บริการ", "Sign in through the provider")}
+        <span aria-hidden="true">·</span>
+        <strong>Secrets</strong> {t("ใช้ API key หรือ token", "Use an API key or token")}
+      </p>
       {#if loading}<div class="catalog-empty" role="status">
           <LoaderCircle class="k-spin" size={23} />{t(
             "กำลังโหลดแอป…",
@@ -190,99 +345,164 @@
           >
         </div>
       {:else}
-        <div class="source-list">
-          {#each matches as source (source.id)}
-            {@const connection = data.connections.find(
-              (item) => item.mcpID === source.id,
-            )}
-            {@const otherConnections = otherDriveConnections(source)}
-            {@const provider = googleDriveProvider(source)}
-            {@const group = catalogCategories.find(
-              (item) => item.id === source.categoryId,
-            )}
-            <details class="source-row">
-              <summary
-                ><span class="app-icon"
-                  ><CatalogIcon name={source.name} size={27} /></span
-                ><span class="source-copy"
-                  ><strong>{source.name}</strong><span
-                    >{t(
-                      source.descriptionTh,
-                      source.description || source.descriptionTh,
-                    )}</span
-                  ></span
-                ><span class="source-category"
-                  >{group ? t(group.th, group.en) : "MCP"}</span
-                ><span class="source-type">MCP</span>{#if connection}<span
-                    class="saved-dot"
-                    title={t(
-                      "มีการตั้งค่าในองค์กร",
-                      "Configured in your organization",
-                    )}
-                  ></span>{/if}<ChevronDown size={15} /></summary
+        <div class="catalog-layout">
+          <nav
+            class="category-nav"
+            aria-label={t("หมวดงาน", "Work categories")}
+          >
+            <span class="category-label"
+              >{t("เลือกตามงานของคุณ", "Browse by work")}</span
+            >
+            <button
+              class:chosen={category === "all"}
+              aria-pressed={category === "all"}
+              onclick={() => changeCategory("all")}
+            >
+              <span>{t("ทุกหมวดงาน", "All categories")}</span><span
+                class="category-count">{allSources.length}</span
               >
-              <div class="source-detail">
-                <p>
-                  {t(
-                    source.descriptionTh,
-                    source.description || source.descriptionTh,
-                  )}
-                </p>
-                {#if provider}<p class="source-provider-copy">{provider === "orca"
-                  ? t("ORCA ให้บริการ connector และจัดการ OAuth สำหรับ Google Drive API", "ORCA hosts the connector and manages OAuth for the Google Drive API.")
-                  : provider === "obot"
-                    ? t("การเชื่อมต่อนี้ผ่านบริการของ Obot", "This connection uses Obot’s service.")
-                    : t("การเชื่อมต่อนี้ใช้บริการ Google Drive ของ Google", "This connection uses Google’s Google Drive service.")}</p>{/if}
-                {#if otherConnections.length}
-                  <div class="existing-provider-connections">
-                    <p>{t("การเชื่อมต่อเดิมขององค์กรยังใช้บัญชีและสิทธิ์แยกกัน", "Existing organization connections keep their separate accounts and permissions.")}</p>
-                    {#each otherConnections as existing (existing.id)}
-                      <a href={localeHref(`/app?view=servers&connection=${encodeURIComponent(existing.id)}`)}>
-                        {existing.name} · {driveProviderLabel(sources.find((candidate) => candidate.id === existing.mcpID))}<ArrowRight size={14} />
+            </button>
+            {#each groups as group (group.id)}
+              <button
+                class:chosen={category === group.id}
+                aria-pressed={category === group.id}
+                onclick={() => changeCategory(group.id)}
+              >
+                <span>{t(group.th, group.en)}</span><span class="category-count"
+                  >{allSources.filter(
+                    (source) => source.categoryId === group.id,
+                  ).length}</span
+                >
+              </button>
+            {/each}
+          </nav>
+          <div class="catalog-content">
+            {#if isOverview}
+              <section class="popular-section" aria-labelledby="popular-title">
+                <header class="section-heading">
+                  <div>
+                    <h2 id="popular-title">
+                      <TrendingUp size={17} />{t(
+                        "ยอดนิยมในองค์กร",
+                        "Popular in your organization",
+                      )}
+                    </h2>
+                    <p>
+                      {t(
+                        "เรียงตามจำนวน MCP Gateways ที่เปิดใช้แอปนี้ในองค์กรของคุณ",
+                        "Ranked by active MCP Gateways using each app in your organization.",
+                      )}
+                    </p>
+                  </div>
+                </header>
+                {#if popular.length}
+                  <div class="highlight-grid">
+                    {#each popular as item (item.source.id)}
+                      <a
+                        class="highlight-card popular-card"
+                        href={sourceHref(item.source)}
+                      >
+                        <span class="highlight-icon"
+                          ><CatalogIcon
+                            name={item.source.name}
+                            size={28}
+                          /></span
+                        >
+                        <strong>{item.source.name}</strong>
+                        {@render authBadges(item.source)}
+                        <span class="adoption-count"
+                          >{item.gatewayCount}
+                          {t("Gateways ที่เปิดใช้งาน", "active Gateways")}</span
+                        >
+                        <ArrowRight size={14} />
                       </a>
                     {/each}
                   </div>
+                {:else}
+                  <div class="popular-empty">
+                    <Layers3 size={18} />
+                    <p>
+                      {t(
+                        "ยังไม่มี MCP Gateway ที่เปิดใช้งาน เมื่อทีมเริ่มใช้แอปผ่าน Gateway จะแสดงอันดับที่นี่",
+                        "No active MCP Gateways yet. Your organization’s most adopted apps will appear here once Gateways are in use.",
+                      )}
+                    </p>
+                  </div>
                 {/if}
-                <div class="source-actions">
-                  <span
-                    ><ShieldCheck size={15} />{connection
-                      ? t(
-                          "มีการตั้งค่าแล้ว · ตรวจบัญชีและสิทธิ์ก่อนใช้",
-                          "Configured · check account and permissions before use",
-                        )
-                      : t(
-                          "เชื่อมบัญชีและเลือกเครื่องมือก่อนใช้งาน",
-                          "Connect your account and select tools before use",
-                        )}</span
-                  ><a
-                    class="k-button"
-                    href={localeHref(
-                      connection
-                        ? `/app?view=servers&connection=${encodeURIComponent(connection.id)}`
-                        : catalogSetupHref(source.id),
-                    )}
-                    >{connection
-                      ? t("ตั้งค่า Server", "Server settings")
-                      : provider === "orca"
-                        ? t("เชื่อมต่อผ่าน ORCA", "Connect with ORCA")
-                        : t("เชื่อมต่อแอป", "Connect app")}<ArrowRight
-                      size={15}
-                    /></a
-                  >
-                </div>
-              </div>
-            </details>
-          {:else}<div class="catalog-empty">
-              <Search size={28} />
-              <h2>{t("ไม่พบแอปที่ค้นหา", "No matching apps")}</h2>
-              <button
-                class="k-button"
-                onclick={() => {
-                  query = "";
-                  category = "all";
-                }}>{t("ล้างตัวกรอง", "Clear filters")}</button
+              </section>
+              {#if starters.length}
+                <section
+                  class="starter-section"
+                  aria-labelledby="starter-title"
+                >
+                  <header class="section-heading">
+                    <div>
+                      <h2 id="starter-title">
+                        {t("แนะนำให้เริ่มต้น", "Suggested starting points")}
+                      </h2>
+                      <p>
+                        {t(
+                          "แอปสำหรับงานเอกสาร การสื่อสาร และบัญชีไทยที่ ORCA คัดมาให้",
+                          "An ORCA-curated selection for documents, communication, and Thai accounting.",
+                        )}
+                      </p>
+                    </div>
+                  </header>
+                  <div class="highlight-grid">
+                    {#each starters as source (source.id)}
+                      <a class="highlight-card" href={sourceHref(source)}>
+                        <span class="highlight-icon"
+                          ><CatalogIcon name={source.name} size={28} /></span
+                        >
+                        <strong>{source.name}</strong>
+                        {@render authBadges(source)}
+                        <span
+                          >{t(
+                            source.descriptionTh,
+                            source.descriptionEn ||
+                              source.description ||
+                              source.descriptionTh,
+                          )}</span
+                        >
+                        <ArrowRight size={14} />
+                      </a>
+                    {/each}
+                  </div>
+                </section>
+              {/if}
+            {/if}
+            {#each groupedMatches as group (group.id)}
+              <section
+                class="category-section"
+                aria-labelledby={`catalog-${group.id}`}
               >
-            </div>{/each}
+                <header class="section-heading">
+                  <h2 id={`catalog-${group.id}`}>
+                    {t(group.th, group.en)}<span class="section-count"
+                      >{group.sources.length}</span
+                    >
+                  </h2>
+                </header>
+                <div class="source-list">
+                  {#each group.sources as source (source.id)}{@render sourceRow(
+                      source,
+                    )}{/each}
+                </div>
+              </section>
+            {:else}
+              <div class="catalog-empty">
+                <Search size={28} />
+                <h2>{t("ไม่พบแอปที่ค้นหา", "No matching apps")}</h2>
+                <button
+                  class="k-button"
+                  onclick={() => {
+                    query = "";
+                    category = "all";
+                  }}>{t("ล้างตัวกรอง", "Clear filters")}</button
+                >
+              </div>
+            {/each}
+          </div>
         </div>
       {/if}
     {:else}
@@ -362,9 +582,7 @@
               )}
             </p>
             <a class="k-button" href={localeHref("/app?view=servers")}
-              >{t("ไปที่ Servers", "Go to Servers")}<ArrowRight
-                size={16}
-              /></a
+              >{t("ไปที่ Servers", "Go to Servers")}<ArrowRight size={16} /></a
             >
           </div>{/each}
       </div>
@@ -428,6 +646,7 @@
     font-size: 11px;
   }
   .catalog-toolbar {
+    scroll-margin-top: 76px;
     display: flex;
     gap: 10px;
     align-items: center;
@@ -469,16 +688,6 @@
     color: inherit;
     padding: 3px;
     cursor: pointer;
-  }
-  select {
-    padding: 9px 28px 9px 10px;
-    border: 1px solid #e0e4e8;
-    border-radius: 6px;
-    background: white;
-    color: #4b5666;
-    font: inherit;
-    font-size: 12px;
-    max-width: 230px;
   }
   .result-count {
     margin-left: auto;
@@ -545,7 +754,7 @@
     font-weight: 600;
     overflow-wrap: anywhere;
   }
-  .source-copy > span {
+  .source-description {
     font-size: 11px;
     line-height: 1.6;
     color: #78818e;
@@ -553,10 +762,53 @@
     white-space: nowrap;
     text-overflow: ellipsis;
   }
-  .source-category {
-    color: #89919c;
+  .auth-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 3px 6px;
+    margin: 0 0 20px;
+    color: #78818e;
     font-size: 11px;
-    flex-basis: 150px;
+    line-height: 1.7;
+  }
+  .auth-legend strong {
+    font-weight: 600;
+    color: #536170;
+  }
+  .auth-legend > span {
+    margin: 0 4px;
+  }
+  .auth-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+  }
+  .auth-tag {
+    display: inline-flex;
+    padding: 2px 6px;
+    border: 1px solid;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.45;
+    white-space: nowrap;
+  }
+  .auth-tag.oauth {
+    color: #356159;
+    background: #edf6f3;
+    border-color: #cfe6dd;
+  }
+  .auth-tag.secrets {
+    color: #645687;
+    background: #f4f1fa;
+    border-color: #e2daf1;
+  }
+  .auth-tag.muted {
+    color: #6c7480;
+    background: #f5f6f8;
+    border-color: #e3e6eb;
   }
   .source-type,
   .state {
@@ -704,11 +956,6 @@
     margin: 0;
     line-height: 1.7;
   }
-  @media (max-width: 1000px) {
-    .source-category {
-      display: none;
-    }
-  }
   @media (max-width: 600px) {
     .catalog-heading {
       align-items: flex-start;
@@ -745,6 +992,198 @@
     }
     .state {
       font-size: 9px;
+    }
+  }
+  .catalog-layout {
+    display: grid;
+    grid-template-columns: 196px minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+  }
+  .category-nav {
+    display: grid;
+    gap: 3px;
+    position: sticky;
+    top: 80px;
+  }
+  .category-label {
+    padding: 10px 10px 12px;
+    color: #87909b;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .category-nav button {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    padding: 10px;
+    color: #657180;
+    text-align: left;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .category-nav button:hover {
+    background: #f0f3ed;
+  }
+  .category-nav button.chosen {
+    background: #eaf3d6;
+    color: #344d18;
+    font-weight: 600;
+  }
+  .category-count {
+    color: #849174;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  .catalog-content {
+    min-width: 0;
+    display: grid;
+    gap: 30px;
+  }
+  .section-heading {
+    margin-bottom: 12px;
+  }
+  .section-heading h2 {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+    margin: 0;
+    color: #263143;
+    font-size: 15px;
+    font-weight: 650;
+  }
+  .section-heading h2 :global(svg) {
+    color: #6d872f;
+  }
+  .section-heading p {
+    margin: 6px 0 0;
+    color: #7c8592;
+    font-size: 11px;
+    line-height: 1.7;
+  }
+  .section-count {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #829071;
+    background: #eef2e9;
+    font-weight: 500;
+  }
+  .highlight-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .highlight-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 14px;
+    align-items: center;
+    gap: 5px 11px;
+    padding: 15px;
+    border: 1px solid #e2e7ed;
+    border-radius: 8px;
+    background: #fff;
+    text-decoration: none;
+    transition:
+      border-color 0.16s,
+      background 0.16s;
+  }
+  .highlight-card:hover {
+    border-color: #abc47a;
+    background: #fcfdf9;
+  }
+  .highlight-icon {
+    grid-row: 1 / 4;
+    display: grid;
+    place-items: center;
+  }
+  .highlight-card strong {
+    grid-column: 2;
+    font-size: 13px;
+    color: #273145;
+    overflow-wrap: anywhere;
+  }
+  .highlight-card > span:not(.highlight-icon) {
+    grid-column: 2;
+    color: #7b8693;
+    font-size: 10px;
+    line-height: 1.65;
+  }
+  .highlight-card > :global(svg) {
+    grid-column: 3;
+    grid-row: 1 / 4;
+    color: #849171;
+  }
+  .popular-card {
+    border-color: #dce6c9;
+    background: #f9fcf3;
+  }
+  .highlight-card > .adoption-count {
+    color: #5b7730;
+  }
+  .popular-empty {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 15px 17px;
+    border: 1px dashed #dbe2d1;
+    border-radius: 8px;
+    background: #fafcf6;
+    color: #7f8c70;
+  }
+  .popular-empty :global(svg) {
+    flex-shrink: 0;
+  }
+  .popular-empty p {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.8;
+  }
+  @media (max-width: 1100px) {
+    .catalog-layout {
+      grid-template-columns: 175px minmax(0, 1fr);
+      gap: 18px;
+    }
+  }
+  @media (max-width: 800px) {
+    .catalog-layout {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 22px;
+    }
+    .category-nav {
+      position: static;
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+    }
+    .category-label {
+      display: none;
+    }
+    .category-nav button {
+      flex: 0 0 auto;
+      white-space: nowrap;
+      border: 1px solid #e3e7eb;
+      background: white;
+      padding: 8px 11px;
+    }
+    .category-nav button.chosen {
+      border-color: #cedea9;
+      background: #eaf3d6;
+    }
+  }
+  @media (max-width: 500px) {
+    .highlight-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .catalog-content {
+      gap: 25px;
     }
   }
 </style>

@@ -1,3 +1,4 @@
+import { importTypeScript } from './test-import.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
@@ -5,12 +6,46 @@ import { test } from 'node:test';
 
 // Run the shipped module with Node's native type stripping. Resolve its single
 // extensionless application import without changing browser compiler settings.
-const source = stripTypeScriptTypes(
-	await readFile(new URL('./catalog.ts', import.meta.url), 'utf8')
-).replace("'./catalog-data'", JSON.stringify(new URL('./catalog-data.ts', import.meta.url).href));
-const { catalogSetupHref, catalogSource, catalogSourceDisplayName, filterCatalog, googleDriveProvider } = await import(
-	'data:text/javascript;base64,' + Buffer.from(source).toString('base64')
-);
+const { catalogAuthTags, catalogSetupHref, catalogSource, catalogSourceDisplayName, filterCatalog, googleDriveProvider, groupCatalog, popularCatalog, starterCatalog } = await importTypeScript(new URL('./catalog.ts', import.meta.url));
+
+test('catalog authentication tags use explicit methods, preserve combinations, and never claim account readiness', () => {
+	for (const [methods, expected] of [
+		[['oauth'], ['OAuth']],
+		[['secrets'], ['Secrets']],
+		[['secrets', 'oauth', 'oauth'], ['OAuth', 'Secrets']],
+		[['none'], ['No auth']]
+	]) {
+		const source = { id: 'custom', name: 'An organization MCP', authMethods: methods };
+		const before = structuredClone(source);
+		const tags = catalogAuthTags(source);
+		assert.deepEqual(tags.map((tag) => tag.label), expected);
+		assert.ok(tags.every((tag) => tag.descriptionTh && tag.descriptionEn));
+		assert.deepEqual(catalogSource(source).authTags, tags);
+		assert.deepEqual(source, before);
+		assert.doesNotMatch(JSON.stringify(tags), /connected|verified account|tested/i);
+	}
+});
+
+test('missing, invalid, or contradictory authentication metadata stays unknown without guessing from provider identity', () => {
+	for (const authMethods of [undefined, null, [], 'oauth', ['oauth', 'none'], ['none', 'secrets'], ['future-method'], ['oauth', 'future-method'], [true], [{}]]) {
+		for (const identity of [
+			{ name: 'FlowAccount', endpointHost: 'mcp.flowaccount.com' },
+			{ name: 'PEAK', oauthProvider: 'peak', oauthSupported: true },
+			{ name: 'Google Drive', managedProvider: 'google-drive', oauthProvider: 'google' },
+			{ name: 'Public documents', endpointHost: 'learn.microsoft.com' }
+		]) {
+			const source = { id: 'source', ...identity, authMethods };
+			assert.deepEqual(catalogAuthTags(source).map((tag) => tag.id), ['unknown']);
+		}
+	}
+});
+
+test('catalog search and provider selection retain exact-source authentication metadata', () => {
+	const managed = { id: 'managed', name: 'Google Drive', managedProvider: 'google-drive', authMethods: ['oauth'] };
+	const legacy = { id: 'legacy', name: 'Google Drive', endpointHost: 'google-drive-mcp.obot.ai', authMethods: ['secrets'] };
+	assert.deepEqual(filterCatalog([managed, legacy], 'drive')[0].authTags.map((tag) => tag.id), ['oauth']);
+	assert.deepEqual(filterCatalog([managed, legacy], 'drive', 'all', legacy.id)[0].authTags.map((tag) => tag.id), ['secrets']);
+});
 
 const sources = [
 	{ id: 'drive', name: 'Google Drive', description: 'Search and organize files' },
@@ -179,4 +214,176 @@ test('provider naming depends on exact endpoint hosts rather than custom names o
 		);
 	}
 	assert.equal(catalogSourceDisplayName({ name: 'Google Drive' }), 'Google Drive');
+});
+
+const thaiSources = [
+	{ id: 'flow-account & account=other', name: 'FlowAccount' },
+	{ id: 'peak-thai', name: 'PEAK' },
+	{ id: 'market', name: 'Alpha Vantage' },
+];
+
+test('Thai accounting providers have real logos, separate work category, and searchable aliases in both languages', () => {
+	const accounting = filterCatalog(thaiSources, '', 'accounting');
+	assert.deepEqual(
+		accounting.map((source) => source.name),
+		['FlowAccount', 'PEAK'],
+	);
+	assert.deepEqual(
+		accounting.map((source) => source.icon),
+		['/orca/tools/flowaccount.svg', '/orca/tools/peak.svg'],
+	);
+	assert.ok(
+		accounting.every(
+			(source) => source.descriptionEn && /[ก-๙]/.test(source.descriptionTh),
+		),
+	);
+	assert.deepEqual(
+		filterCatalog(thaiSources, 'บัญชีไทย').map((source) => source.name),
+		['FlowAccount', 'PEAK'],
+	);
+	assert.deepEqual(
+		filterCatalog(thaiSources, 'Flow Account').map((source) => source.name),
+		['FlowAccount'],
+	);
+	assert.deepEqual(
+		filterCatalog(thaiSources, 'พีค').map((source) => source.name),
+		['PEAK'],
+	);
+	assert.deepEqual(
+		filterCatalog(thaiSources, '', 'finance').map((source) => source.name),
+		['Alpha Vantage'],
+	);
+	assert.equal(filterCatalog(thaiSources, 'พีค', 'finance').length, 0);
+});
+
+test('visible work sections contain every filtered source once and omit empty categories', () => {
+	const filtered = filterCatalog([...sources, ...thaiSources]);
+	const before = structuredClone(filtered);
+	const grouped = groupCatalog(filtered);
+	assert.equal(
+		grouped.some((group) => group.id === 'marketing'),
+		false,
+	);
+	assert.equal(
+		grouped.find((group) => group.id === 'accounting').sources.length,
+		2,
+	);
+	assert.deepEqual(
+		new Set(
+			grouped.flatMap((group) => group.sources.map((source) => source.id)),
+		),
+		new Set(filtered.map((source) => source.id)),
+	);
+	assert.equal(
+		grouped.flatMap((group) => group.sources).length,
+		filtered.length,
+	);
+	assert.deepEqual(
+		groupCatalog(filterCatalog(thaiSources, 'peak')).map((group) => group.id),
+		['accounting'],
+	);
+	assert.deepEqual(groupCatalog([]), []);
+	assert.deepEqual(filtered, before);
+});
+
+const connection = (id, mcpID, overrides = {}) => ({
+	id,
+	mcpID,
+	enabled: true,
+	reviewedTools: true,
+	toolNames: ['read'],
+	...overrides,
+});
+const hub = (id, connectionID, overrides = {}) => ({
+	id,
+	connectionID,
+	status: 'active',
+	toolNames: ['read'],
+	...overrides,
+});
+
+test('popular apps count only distinct active Gateways with allowed tools on enabled reviewed connections', () => {
+	const data = {
+		connections: [
+			connection('flow', thaiSources[0].id),
+			connection('peak', 'peak-thai'),
+			connection('disabled', 'market', { enabled: false }),
+			connection('archived', 'market', { archivedAt: '2026-09-19' }),
+			connection('deleted', 'market', { deletedAt: '2026-09-19' }),
+			connection('unreviewed', 'market', { reviewedTools: false }),
+			connection('old-readonly', 'drive', {
+				reviewedTools: undefined,
+				reviewedReadOnly: true,
+			}),
+		],
+		hubs: [
+			hub('flow-1', 'flow'),
+			hub('flow-1', 'flow'),
+			hub('flow-2', 'flow'),
+			hub('peak-1', 'peak'),
+			hub('drive-1', 'old-readonly'),
+			...['draft', 'paused', 'archived', 'deleted'].map((status) =>
+				hub(status, 'flow', { status }),
+			),
+			...['disabled', 'archived', 'deleted', 'unreviewed', 'missing'].map(
+				(id) => hub('gate-' + id, id),
+			),
+			hub('no-tools', 'flow', { toolNames: [] }),
+			hub('revoked-tool', 'flow', { toolNames: ['write'] }),
+		],
+	};
+	const original = structuredClone(data);
+	const ranked = popularCatalog(
+		filterCatalog([...thaiSources, ...sources]),
+		data,
+	);
+	assert.deepEqual(
+		ranked.map(({ source, gatewayCount }) => [source.name, gatewayCount]),
+		[
+			['FlowAccount', 2],
+			['Google Drive', 1],
+			['PEAK', 1],
+		],
+	);
+	assert.equal(popularCatalog(filterCatalog(thaiSources), data, 1).length, 1);
+	assert.deepEqual(popularCatalog(filterCatalog(thaiSources), data, 0), []);
+	assert.deepEqual(data, original);
+});
+
+test('legacy Google Drive adoption is never attributed to the ORCA managed provider', () => {
+	const managed = {
+		id: 'managed',
+		name: 'Google Drive',
+		managedProvider: 'google-drive',
+	};
+	const legacy = {
+		id: 'legacy',
+		name: 'Google Drive',
+		endpointHost: 'google-drive-mcp.obot.ai',
+	};
+	const data = {
+		connections: [connection('existing', 'legacy')],
+		hubs: [hub('existing-hub', 'existing')],
+	};
+	assert.deepEqual(popularCatalog(filterCatalog([managed, legacy]), data), []);
+	assert.equal(
+		popularCatalog(filterCatalog([legacy]), data)[0].source.id,
+		'legacy',
+	);
+});
+
+test('new organizations have no popularity claim; starter picks are curated from available sources only', () => {
+	assert.deepEqual(
+		popularCatalog(filterCatalog(thaiSources), { connections: [], hubs: [] }),
+		[],
+	);
+	assert.deepEqual(
+		starterCatalog(filterCatalog(thaiSources)).map((source) => source.name),
+		['FlowAccount', 'PEAK'],
+	);
+	assert.deepEqual(
+		starterCatalog(filterCatalog([{ id: 'custom-only', name: 'Custom MCP' }])),
+		[],
+	);
+	assert.deepEqual(starterCatalog([]), []);
 });
