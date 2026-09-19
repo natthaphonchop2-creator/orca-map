@@ -78,7 +78,7 @@ Vite อ่านตัวแปร `ORCA_` จาก env สำหรับ mid
 | --- | --- |
 | `ORCA_BACKEND_URL` | Origin ของ backend ที่เชื่อถือได้ ค่าเริ่มต้น `http://127.0.0.1:8787` |
 | `ORCA_BACKEND_PUBLIC_ORIGIN` | Origin ที่ backend ประกาศ หากต่างจาก URL ภายใน; default local รู้จัก `http://localhost:8787` |
-| `ORCA_PUBLIC_ORIGIN` | Origin จริงของแอปเมื่อเปิดใช้นอก localhost เช่น `https://app.example.com` |
+| `ORCA_PUBLIC_ORIGIN` | Origin จริงของแอปเมื่อเปิดใช้นอก localhost เช่น `https://app.example.com`; บน Render หากไม่ได้ตั้ง จะใช้ `RENDER_EXTERNAL_URL` ของบริการโดยอัตโนมัติ |
 | `HOST` / `PORT` | Listener เริ่มต้น `127.0.0.1` / `4000` |
 | `ORCA_BUILD_DIR` | โฟลเดอร์ static build เริ่มต้น `build` |
 
@@ -99,6 +99,10 @@ docker run --rm -p 127.0.0.1:4000:4000 -e ORCA_BACKEND_URL=http://host.docker.in
 เมื่อ deploy ให้ตั้ง `ORCA_PUBLIC_ORIGIN` เป็น HTTPS origin จริงและวางหลัง TLS reverse proxy
 ที่ส่ง Host เดิมถึง adapter ใช้ backend เดิมพร้อม volume และ encryption/auth configuration เดิม
 ไม่เริ่ม backend อีกชุดบน volume เดียวกัน
+
+บน Render ใช้ URL ของบริการจาก `RENDER_EXTERNAL_URL` ได้โดยไม่ต้องเดา hostname ล่วงหน้า
+หากใช้ custom domain ให้ตั้ง `ORCA_PUBLIC_ORIGIN` ซึ่งมีลำดับความสำคัญสูงกว่า
+ทั้งสองค่ายังต้องผ่านการตรวจ origin เดิมของ adapter
 
 การแยก frontend ไม่ได้ย้าย OAuth registrations อัตโนมัติ ต้องตั้ง canonical backend/app
 origin และ provider callbacks ให้ตรงกับ deployment แล้วตรวจ sign-in และ source OAuth จริง

@@ -45,7 +45,8 @@ without SPA fallback or a backend request.
 Requests keep Authorization and cookies. The server validates the browser's
 Origin/Referer against the app origin **before** translating a valid same-origin
 request to the upstream Host/Origin required by local-auth CSRF checks. Host names
-outside loopback are rejected unless `ORCA_PUBLIC_ORIGIN` explicitly configures
+outside loopback are rejected unless `ORCA_PUBLIC_ORIGIN` (or the standalone
+server's `RENDER_EXTERNAL_URL` fallback) explicitly configures
 them. Incoming forwarding headers are discarded. No cross-origin credentialed
 API/CORS policy is offered. Non-browser clients without Origin/Referer continue
 to use the backend's bearer-token authentication normally.
@@ -75,6 +76,11 @@ registered source callbacks are intentionally preserved.
 Run behind a trusted TLS reverse proxy and set `ORCA_PUBLIC_ORIGIN` to the exact
 public browser origin, such as `https://app.example.com`. Preserve that Host when
 forwarding to this server. Set `HOST=0.0.0.0` only where remote access is needed.
+On Render, the standalone server uses the platform-provided `RENDER_EXTERNAL_URL`
+when `ORCA_PUBLIC_ORIGIN` is unset. An explicit `ORCA_PUBLIC_ORIGIN` takes priority
+for custom domains. Both values pass the same origin validation; forwarded request
+headers never determine the trusted origin. See [Render's default environment
+variables](https://render.com/docs/environment-variables).
 Set `ORCA_BACKEND_URL` to the trusted backend's internal or HTTPS origin. It must
 not include credentials, a path, query or fragment. Do not expose its address
 through frontend environment variables. In Docker, localhost refers to that

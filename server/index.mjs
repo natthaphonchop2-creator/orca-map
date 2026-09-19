@@ -8,7 +8,7 @@ const host = process.env.HOST ?? '127.0.0.1';
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be an integer from 1 to 65535');
 const server = createAppServer({
   backendURL: process.env.ORCA_BACKEND_URL,
-  publicOrigin: process.env.ORCA_PUBLIC_ORIGIN,
+  publicOrigin: process.env.ORCA_PUBLIC_ORIGIN ?? process.env.RENDER_EXTERNAL_URL,
   backendPublicOrigin: process.env.ORCA_BACKEND_PUBLIC_ORIGIN,
   buildDir: path.resolve(root, process.env.ORCA_BUILD_DIR ?? 'build'),
 });

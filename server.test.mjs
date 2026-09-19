@@ -5,6 +5,8 @@ import { mkdtemp, mkdir, writeFile, symlink, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { once } from 'node:events';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { createAppServer, createBackendMiddleware, originURL } from './server/app.mjs';
 
 async function listen(server) {
@@ -290,6 +292,48 @@ test('requires the configured public Host and validates HTTPS browser origin bef
   assert.equal((await request(f.appURL, '/api/me', { headers: { host: 'app.example.com', origin: 'http://app.example.com' } })).status, 403);
   assert.equal((await request(f.appURL, '/api/me', { headers: { host: 'app.example.com', origin: 'https://app.example.com' } })).status, 200);
   assert.equal(seenOrigin, f.backendURL);
+});
+
+test('standalone startup trusts Render URL fallback and prefers an explicit public origin', { timeout: 10_000 }, async (t) => {
+  const f = await fixture(t, (_req, res) => res.end('healthy'));
+  for (const explicitOrigin of [undefined, 'https://workspace.example.com']) {
+    const reserved = http.createServer();
+    const address = await listen(reserved);
+    const port = new URL(address).port;
+    await new Promise((resolve) => reserved.close(resolve));
+    const renderOrigin = 'https://orca-app-random.onrender.com';
+    const child = spawn(process.execPath, [fileURLToPath(new URL('./server/index.mjs', import.meta.url))], {
+      env: {
+        HOST: '127.0.0.1', PORT: port, ORCA_BUILD_DIR: f.buildDir,
+        ORCA_BACKEND_URL: f.backendURL, RENDER_EXTERNAL_URL: renderOrigin,
+        ...(explicitOrigin ? { ORCA_PUBLIC_ORIGIN: explicitOrigin } : {})
+      },
+      stdio: ['ignore', 'pipe', 'ignore']
+    });
+    const stop = async () => {
+      if (child.exitCode !== null || child.signalCode !== null) return;
+      const exited = once(child, 'exit');
+      child.kill('SIGTERM');
+      await exited;
+    };
+    t.after(stop);
+    await new Promise((resolve, reject) => {
+      child.once('error', reject);
+      child.once('exit', () => reject(new Error('Adapter exited before listening')));
+      child.stdout.on('data', (chunk) => {
+        if (chunk.toString().includes('adapter is listening on port')) resolve();
+      });
+    });
+    const trusted = explicitOrigin ?? renderOrigin;
+    const healthy = await request(address, '/healthz', { headers: { host: new URL(trusted).host, origin: trusted } });
+    assert.equal(healthy.status, 200);
+    assert.equal(JSON.parse(healthy.body).backend.status, 'reachable');
+    assert.equal((await request(address, '/app')).status, 421);
+    if (explicitOrigin) {
+      assert.equal((await request(address, '/app', { headers: { host: new URL(renderOrigin).host } })).status, 421);
+    }
+    await stop();
+  }
 });
 
 test('strips hop-by-hop headers nominated by the sender', async (t) => {
