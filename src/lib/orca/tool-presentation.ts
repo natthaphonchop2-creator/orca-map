@@ -8,6 +8,13 @@ export interface PresentableTool {
 // Exact identifiers only: a suffix match must never turn an unrelated tool
 // into a trusted ORCA capability. Labels describe actions, never grant access.
 const knownLabels: Record<string, readonly [string, string]> = {
+	facebook_page_get: ['ดูข้อมูลเพจ Facebook', 'Get Facebook Page information'],
+	facebook_page_posts: ['อ่านโพสต์ล่าสุดของเพจ Facebook', 'Read recent Facebook Page posts'],
+	line_bot_get: ['ดูข้อมูลบัญชี LINE OA', 'Get LINE Official Account information'],
+	line_message_quota_get: ['ดูโควตาข้อความ LINE OA', 'Get LINE message quota'],
+	line_message_usage_get: ['ดูยอดข้อความ LINE OA เดือนนี้', 'Get LINE message usage this month'],
+	instagram_account_get: ['ดูข้อมูลบัญชี Instagram', 'Get Instagram account information'],
+	instagram_media_list: ['อ่านโพสต์ล่าสุดของ Instagram', 'Read recent Instagram posts'],
 	list_files: ['ดูรายการไฟล์', 'List files'],
 	get_file: ['ดูข้อมูลไฟล์', 'Get file information'],
 	read_file: ['อ่านไฟล์', 'Read file'],

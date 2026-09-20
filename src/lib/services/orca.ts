@@ -101,6 +101,12 @@ export interface OrcaHub {
   sources?: OrcaHubSource[];
   memberIDs: string[];
   unitIDs: string[];
+  /** Explicit live department grants; legacy unitIDs remain organizational labels. */
+  accessUnitIDs?: string[];
+  /** Server-resolved direct and inherited members. An empty list grants nobody. */
+  effectiveMemberIDs?: string[];
+  /** OIDC identity provider for employee authentication; empty uses existing ORCA access. */
+  userSourceID?: string;
   dailyLimit: number;
   status: HubStatus;
   version: number;
@@ -131,6 +137,7 @@ export interface OrcaCandidate {
   /** Issued by the backend only for an enabled, recognized managed connector. */
   managedProvider?: string;
   oauthProvider?: string;
+  protocol?: "MCP" | "API";
   /** Confirmed source authentication capabilities; absent/empty means unknown. */
   authMethods?: ("oauth" | "secrets" | "none")[];
 }
@@ -141,6 +148,7 @@ export interface OrcaSourceSetup {
   endpointHost?: string;
   managedProvider?: string;
   oauthProvider?: string;
+  protocol?: "MCP" | "API";
   runtime: string;
   kind: "entry" | "shared";
   fields: {
@@ -221,6 +229,8 @@ export type HubInput = Pick<
   | "sources"
   | "memberIDs"
   | "unitIDs"
+  | "accessUnitIDs"
+  | "userSourceID"
   | "dailyLimit"
   | "status"
 > & { version?: number };

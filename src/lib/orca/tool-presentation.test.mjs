@@ -47,3 +47,19 @@ test('search matches both local labels, raw names, and descriptions without chan
 	assert.equal(matchesToolSearch(tool, 'published accounting'), false);
 	assert.equal(matchesToolSearch(tool, '   '), true);
 });
+
+test('native business API tools are named as readable tasks while keeping permission identifiers intact', () => {
+  for (const [name, label] of [
+    ['facebook_page_get', 'ดูข้อมูลเพจ Facebook'],
+    ['facebook_page_posts', 'อ่านโพสต์ล่าสุดของเพจ Facebook'],
+    ['line_bot_get', 'ดูข้อมูลบัญชี LINE OA'],
+    ['line_message_quota_get', 'ดูโควตาข้อความ LINE OA'],
+    ['line_message_usage_get', 'ดูยอดข้อความ LINE OA เดือนนี้'],
+    ['instagram_account_get', 'ดูข้อมูลบัญชี Instagram'],
+    ['instagram_media_list', 'อ่านโพสต์ล่าสุดของ Instagram']
+  ]) {
+    assert.equal(toolPresentation({ name }).label, label);
+    assert.equal(toolPresentation({ name }).identifier, name);
+  }
+  assert.notEqual(toolPresentation({ name: 'custom_facebook_page_get' }).label, 'ดูข้อมูลเพจ Facebook');
+});

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { gatewayHasMember } from '$lib/orca/gateway-sources';
   import { onDestroy, untrack } from "svelte";
   import {
     ArrowRight,
@@ -103,7 +104,7 @@
     const gateway = source.hubs.find((hub) => hub.id === source.manageHubID);
     return Boolean(
       gateway &&
-      gateway.memberIDs.includes(data.currentUserID) &&
+      gatewayHasMember(gateway, data.currentUserID) &&
       gateway.status === "active" &&
       workspaceToolingReady(
         gateway,

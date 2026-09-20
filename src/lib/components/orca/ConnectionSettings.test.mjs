@@ -7,7 +7,7 @@ import { compile } from 'svelte/compiler';
 import { render } from 'svelte/server';
 import { importTypeScript } from '../../orca/test-import.mjs';
 
-const { gatewayUsesConnection, gatewayToolCount } = await importTypeScript(new URL('../../orca/gateway-sources.ts', import.meta.url));
+const { gatewayUsesConnection, gatewayToolCount, gatewayMemberIDs } = await importTypeScript(new URL('../../orca/gateway-sources.ts', import.meta.url));
 const { toolPresentation } = await importTypeScript(new URL('../../orca/tool-presentation.ts', import.meta.url));
 
 const require = createRequire(import.meta.url);
@@ -19,7 +19,7 @@ const module = `import * as $ from ${JSON.stringify(pathToFileURL(require.resolv
   export function component(deps) {
     const { page, LifecycleActions, Connections, ConnectionMembers, SourceSetup, CatalogIcon, connectionReady,
       sourcePresentationNames, localeHref, t, OrcaService, displayDate, orcaError, statusLabels,
-      gatewayUsesConnection, gatewayToolCount, toolPresentation, orcaLocale,
+      gatewayUsesConnection, gatewayToolCount, gatewayMemberIDs, toolPresentation, orcaLocale,
       ArrowLeft, ArrowRight, Check, Folder, Info, Plus, ShieldCheck, onDestroy, onMount } = deps;
     ${code}
     return ConnectionSettings;
@@ -34,7 +34,7 @@ function screen(tab, canManage = true, props = {}) {
   const view = component({
     page: { url: new URL(`https://orca.invalid/app?view=servers&tab=${tab}`) },
     ...children, LifecycleActions: noop, CatalogIcon: noop, connectionReady: () => true, sourcePresentationNames: () => ({}),
-    gatewayUsesConnection, gatewayToolCount, toolPresentation, orcaLocale: { value: 'en' },
+    gatewayUsesConnection, gatewayToolCount, gatewayMemberIDs, toolPresentation, orcaLocale: { value: 'en' },
     localeHref: (value) => value, t: (_th, en) => en, OrcaService: {}, displayDate: () => '',
     orcaError: () => '', statusLabels: {}, ArrowLeft: noop, ArrowRight: noop, Check: noop,
     Folder: noop, Info: noop, Plus: noop, ShieldCheck: noop, onDestroy: noop, onMount: noop,

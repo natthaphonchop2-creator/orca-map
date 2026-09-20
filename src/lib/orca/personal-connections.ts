@@ -1,5 +1,5 @@
 import { workspaceToolingReady } from "./activation";
-import { gatewayConnections } from "./gateway-sources";
+import { gatewayConnections, gatewayHasMember } from "./gateway-sources";
 import type {
   OrcaBootstrap,
   OrcaConnection,
@@ -19,7 +19,7 @@ export interface PersonalSource {
 export function personalSources(data: OrcaBootstrap): PersonalSource[] {
   const records = new Map<string, PersonalSource>();
   for (const hub of data.hubs) {
-    if (!hub.memberIDs.includes(data.currentUserID)) continue;
+    if (!gatewayHasMember(hub, data.currentUserID)) continue;
     for (const connection of gatewayConnections(hub, data.connections)) {
     if (!connection?.mcpID) continue;
     const usable =

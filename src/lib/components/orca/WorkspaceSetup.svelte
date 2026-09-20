@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { gatewayHasMember } from '$lib/orca/gateway-sources';
 	import { connectionReady, workspaceToolingReady } from '$lib/orca/activation';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import type { OrcaBootstrap } from '$lib/services/orca';
@@ -33,7 +34,7 @@
 				: t('เตรียมบัญชีให้ทีมเข้าสู่ระบบ', 'Set up sign-in accounts for your team'),
 			done: usableHubs.some((hub) =>
 				data.members.some(
-					(member) => member.id !== data.currentUserID && hub.memberIDs.includes(member.id)
+					(member) => member.id !== data.currentUserID && gatewayHasMember(hub, member.id)
 				)
 			),
 			href: hasOtherMember

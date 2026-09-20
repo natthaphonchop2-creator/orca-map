@@ -1,12 +1,17 @@
 export type GatewayClient = 'codex' | 'cursor' | 'vscode';
 
 // Configs intentionally contain placeholders, never the user's personal key.
-export function gatewayClientConfig(endpoint: string, client: GatewayClient): string {
+export function gatewayClientConfig(endpoint: string, client: GatewayClient, oauth = false): string {
   const url = new URL(endpoint);
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash)
     throw new Error('Expected a credential-free MCP HTTP endpoint');
   if (client === 'codex') {
-    return `[mcp_servers.orca]\nurl = ${JSON.stringify(url.href)}\nbearer_token_env_var = "ORCA_MCP_KEY"`;
+    return `[mcp_servers.orca]\nurl = ${JSON.stringify(url.href)}${oauth ? "" : '\nbearer_token_env_var = "ORCA_MCP_KEY"'}`;
+  }
+  if (oauth) {
+    return JSON.stringify(client === 'vscode'
+      ? { servers: { orca: { type: 'http', url: url.href } } }
+      : { mcpServers: { orca: { url: url.href } } }, null, 2);
   }
   const authorization = client === 'vscode'
     ? 'Bearer ${input:orca-key}'

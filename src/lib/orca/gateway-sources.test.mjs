@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { importTypeScript } from './test-import.mjs';
-const { gatewaySources, gatewayToolCount } = await importTypeScript(new URL('./gateway-sources.ts', import.meta.url));
+const { gatewaySources, gatewayToolCount, gatewayMemberIDs, gatewayHasMember } = await importTypeScript(new URL('./gateway-sources.ts', import.meta.url));
 const { workspaceToolingReady } = await importTypeScript(new URL('./activation.ts', import.meta.url));
 const { personalSources } = await importTypeScript(new URL('./personal-connections.ts', import.meta.url));
 const { filterGateways } = await importTypeScript(new URL('./gateway-list.ts', import.meta.url));
@@ -35,4 +35,27 @@ test('secondary source names and same-named tools retain the right Gateway in se
   assert.equal(inventory.length, 2);
   assert.equal(new Set(inventory.map((item)=>item.key)).size, 2);
   assert.ok(inventory.every((item)=>item.hub.id==='team'));
+});
+
+test('effective membership is authoritative, including an empty list, while legacy hubs retain direct membership', () => {
+  const direct = { memberIDs: ['owner'], unitIDs: ['finance'], accessUnitIDs: ['finance'] };
+  assert.deepEqual(gatewayMemberIDs(direct), ['owner']);
+  assert.equal(gatewayHasMember(direct, 'employee'), false);
+  const inherited = { ...direct, effectiveMemberIDs: ['owner', 'employee', 'employee'] };
+  assert.deepEqual(gatewayMemberIDs(inherited), ['owner', 'employee']);
+  assert.equal(gatewayHasMember(inherited, 'employee'), true);
+  assert.equal(gatewayHasMember(inherited, ''), false);
+  assert.deepEqual(gatewayMemberIDs({ ...inherited, effectiveMemberIDs: [] }), []);
+  assert.equal(gatewayHasMember({ ...inherited, effectiveMemberIDs: [] }, 'owner'), false);
+  assert.deepEqual(inherited.memberIDs, ['owner'], 'resolved members must not become saved direct grants');
+});
+
+test('team grants expose personal sources and selected tool access, then disappear when membership is revoked', () => {
+  const inherited = { ...hub, memberIDs: ['owner'], accessUnitIDs: ['finance'], effectiveMemberIDs: ['owner', 'me'] };
+  const data = { currentUserID: 'me', canManage: false, hubs: [inherited], connections: [source('drive'), source('slack')] };
+  assert.deepEqual(personalSources(data).map((item) => item.sourceID), ['drive', 'slack']);
+  assert.ok(selectedToolInventory(data).every((item) => item.hub?.id === 'team'));
+  const revoked = { ...data, hubs: [{ ...inherited, effectiveMemberIDs: ['owner'] }] };
+  assert.deepEqual(personalSources(revoked), []);
+  assert.ok(selectedToolInventory(revoked).every((item) => item.hub === undefined));
 });

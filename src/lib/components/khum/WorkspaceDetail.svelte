@@ -6,10 +6,11 @@
 	import SourceSetup from '$lib/components/orca/SourceSetup.svelte';
 	import WorkspaceReadiness from '$lib/components/orca/WorkspaceReadiness.svelte';
 	import { personalKeyAvailable, workspaceToolingReady } from '$lib/orca/activation';
-	import { gatewaySources, gatewayToolCount } from '$lib/orca/gateway-sources';
+	import { gatewaySources, gatewayToolCount, gatewayMemberIDs, gatewayHasMember } from '$lib/orca/gateway-sources';
 	import { matchesToolSearch, toolPresentation } from '$lib/orca/tool-presentation';
 	import CatalogIcon from '$lib/orca/CatalogIcon.svelte';
 	import { t, localeHref, orcaLocale } from '$lib/orca/locale.svelte';
+	import { OrcaUserSourcesService, type OrcaUserSource } from '$lib/services/orca-user-sources';
 	import {
 		OrcaService,
 		displayDate,
@@ -18,6 +19,7 @@
 		statusLabels,
 		type OrcaBootstrap,
 		type OrcaHub,
+		type HubInput,
 		type OrcaKey
 	} from '$lib/services/orca';
 	import {
@@ -52,7 +54,7 @@
 	const tabs = $derived([
 		{ id: 'overview', label: t('ภาพรวม', 'Overview') },
 		{ id: 'tools', label: t('เครื่องมือ', 'Tools'), count: gatewayToolCount(hub) },
-		{ id: 'access', label: t('สิทธิ์และสมาชิก', 'Access & members'), count: hub.memberIDs.length },
+		{ id: 'access', label: t('สิทธิ์และสมาชิก', 'Access & members'), count: gatewayMemberIDs(hub).length },
 		...(!archived ? [{ id: 'connect', label: t('เชื่อมแอป AI', 'Connect AI') }] : [])
 	]);
 	function tabHref(tab: string) {
@@ -92,15 +94,25 @@
 	let creating = $state(false);
 	let revoking = $state<number>();
 	let confirmRevoke = $state<number>();
+	let userSourceID = $state(untrack(() => hub.userSourceID ?? ''));
+	let userSources = $state<OrcaUserSource[]>([]);
+	let loadingUserSources = $state(false);
+	let userSourcesError = $state('');
+	let identitySaving = $state(false);
+	let identitySaved = $state(false);
+	let userSourcesRequest = 0;
+	let userSourcesController: AbortController | undefined;
+	const selectedUserSource = $derived(userSources.find((source) => source.id === userSourceID));
+	const identityChanged = $derived(userSourceID !== (hub.userSourceID ?? ''));
 	const unavailableTools = $derived(selectedTools.filter((item) => !item.source.ready));
 	function accessLabel(readOnly: boolean | undefined) {
 		return readOnly ? t('อ่านข้อมูลเท่านั้น', 'Read only') : t('เครื่องมือที่เลือก', 'Selected tools');
 	}
-	const isMember = $derived(hub.memberIDs.includes(data.currentUserID));
+	const isMember = $derived(gatewayHasMember(hub, data.currentUserID));
 	const canConnect = $derived(
 		isMember && hub.status === 'active' && workspaceToolingReady(hub, data.connections)
 	);
-	const members = $derived(data.members.filter((item) => hub.memberIDs.includes(item.id)));
+	const members = $derived(data.members.filter((item) => gatewayHasMember(hub, item.id)));
 	const used = $derived(hub.usedToday ?? 0);
 	const usagePercent = $derived(
 		Math.min(100, Math.round((used / Math.max(hub.dailyLimit, 1)) * 100))
@@ -151,7 +163,7 @@
 	});
 	$effect(() => {
 		const currentData = data;
-		if (archived || !hub.memberIDs.includes(currentData.currentUserID)) {
+		if (archived || !gatewayHasMember(hub, currentData.currentUserID)) {
 			keyRequest += 1;
 			keys = [];
 			keysLoaded = false;
@@ -159,10 +171,13 @@
 		} else void untrack(loadKeys);
 	});
 	onMount(() => {
+		void loadUserSources();
 		const timer = window.setInterval(() => (now = Date.now()), 30_000);
 		return () => window.clearInterval(timer);
 	});
 	onDestroy(() => {
+		userSourcesRequest++;
+		userSourcesController?.abort();
 		keyRequest += 1;
 		keyCreationGeneration += 1;
 		clearCreatedKey();
@@ -173,23 +188,63 @@
 			clearCreatedKey();
 		}
 	});
+	$effect(() => {
+		const currentHub = hub;
+		userSourceID = currentHub.userSourceID ?? '';
+		identitySaved = false;
+	});
+	async function loadUserSources() {
+		userSourcesController?.abort();
+		const request = ++userSourcesRequest;
+		if (!data.canManage) return;
+		const controller = new AbortController();
+		userSourcesController = controller;
+		loadingUserSources = true;
+		userSourcesError = '';
+		try {
+			const result = await OrcaUserSourcesService.list(controller.signal);
+			if (request === userSourcesRequest && !controller.signal.aborted && data.canManage) userSources = result.items;
+		} catch (cause) {
+			if (request === userSourcesRequest && !controller.signal.aborted) userSourcesError = orcaError(cause);
+		} finally {
+			if (request === userSourcesRequest) loadingUserSources = false;
+		}
+	}
+	function hubInput(identity = hub.userSourceID ?? ''): HubInput {
+		return {
+			name: hub.name, description: hub.description, connectionID: hub.connectionID,
+			toolNames: hub.toolNames, sources: gatewaySources(hub), memberIDs: hub.memberIDs,
+			...(hub.accessUnitIDs !== undefined ? { accessUnitIDs: hub.accessUnitIDs } : {}),
+			unitIDs: hub.unitIDs, dailyLimit: hub.dailyLimit, status: hub.status,
+			userSourceID: identity, version: hub.version,
+		};
+	}
+	async function saveIdentity() {
+		if (!data.canManage || archived || saving || identitySaving || !identityChanged) return;
+		if (userSourceID && !selectedUserSource?.enabled) {
+			userSourcesError = t('เลือก User source ที่เปิดใช้งาน หรือใช้บัญชี ORCA', 'Choose an enabled user source or use an ORCA account.');
+			return;
+		}
+		identitySaving = true;
+		identitySaved = false;
+		userSourcesError = '';
+		try {
+			await OrcaService.hub(hubInput(userSourceID), hub.id);
+			await onchanged();
+			identitySaved = true;
+		} catch (cause) {
+			userSourcesError = orcaError(cause);
+		} finally { identitySaving = false; }
+	}
 	async function changeStatus() {
-		if (saving || archived || !data.canManage) return;
+		if (saving || identitySaving || archived || !data.canManage) return;
 		saving = true;
 		error = '';
 		try {
 			await OrcaService.hub(
 				{
-					name: hub.name,
-					description: hub.description,
-					connectionID: hub.connectionID,
-					toolNames: hub.toolNames,
-					sources: gatewaySources(hub),
-					memberIDs: hub.memberIDs,
-					unitIDs: hub.unitIDs,
-					dailyLimit: hub.dailyLimit,
+					...hubInput(),
 					status: hub.status === 'active' ? 'paused' : 'active',
-					version: hub.version
 				},
 				hub.id
 			);
@@ -413,10 +468,13 @@
 	aria-labelledby="connect-title"
 	style="scroll-margin-top:100px"
 >
-	<div class="k-panel gateway-unified-intro">
+	{#if hub.userSourceID}<div class="k-panel">
+		<h2 id="connect-title">{t('เชื่อมแอป AI กับ Gateway นี้', 'Connect your AI to this Gateway')}</h2>
+		<GatewayClientSetup endpoint={hub.connectURL} ready={canConnect} oauth={true} />
+	</div>{:else}<div class="k-panel gateway-unified-intro">
 		<div><h2>{t('เชื่อม AI กับ ORCA ครั้งเดียว', 'One connection to ORCA')}</h2><p class="k-muted">{t('ใช้เครื่องมือจากทุก Gateway ที่คุณได้รับสิทธิ์ รวมถึง Gateway นี้', 'Use tools from every Gateway you can access, including this one.')}</p></div>
 		<a class="k-button primary" href={localeHref('/app?view=settings&section=ai')}>{t('เชื่อม AI กับ ORCA', 'Connect AI to ORCA')}</a>
-	</div>
+	</div>{/if}
 	{#if canConnect}<div class="gateway-account-list">
 		{#each sources as source (source.connectionID)}
 			{#if source.connection}<details class="gateway-account" open={accountSourceID === source.connectionID} ontoggle={(event) => { if (event.currentTarget.open) accountSourceID = source.connectionID; else if (accountSourceID === source.connectionID) accountSourceID = ''; }}>
@@ -425,15 +483,15 @@
 			</details>{/if}
 		{/each}
 	</div>{/if}
-	<details class="gateway-guide"><summary>{t('เชื่อมเฉพาะ Gateway นี้', 'Connect only this Gateway')}</summary>
+	<details class="gateway-guide"><summary>{hub.userSourceID ? t('API key (ทางเลือก)', 'API key (optional)') : t('เชื่อมเฉพาะ Gateway นี้', 'Connect only this Gateway')}</summary>
 	<div class="k-section-title">
-		<h2 id="connect-title">
-			{t('เชื่อมแอป AI กับ Gateway นี้', 'Connect your AI to this Gateway')}
+		<h2 id={hub.userSourceID ? undefined : 'connect-title'}>
+			{hub.userSourceID ? t('API key', 'API key') : t('เชื่อมแอป AI กับ Gateway นี้', 'Connect your AI to this Gateway')}
 		</h2>
 		<KeyRound size={22} color="#5143e8" />
 	</div>
 	<div class="k-panel">
-		<GatewayClientSetup endpoint={hub.connectURL} ready={canConnect} />
+		{#if !hub.userSourceID}<GatewayClientSetup endpoint={hub.connectURL} ready={canConnect} />{/if}
 		{#if !isMember}<div class="k-banner">
 				<ShieldCheck size={20} />
 				<p>
@@ -634,9 +692,29 @@
   {:else}<p class="gateway-empty">{t('ไม่พบเครื่องมือตามคำค้น', 'No tools match your search.')}</p>{/each}
 </section>
 {:else if activeTab === 'access'}
+	<section class="k-panel gateway-identity">
+		<div class="k-section-title"><h2>{t('การยืนยันตัวตน', 'Authentication')}</h2>{#if data.canManage}<a href={localeHref('/app?view=user-sources')}>{t('จัดการ User sources', 'Manage user sources')}</a>{/if}</div>
+		{#if data.canManage}
+			<form onsubmit={(event) => { event.preventDefault(); void saveIdentity(); }}>
+				<div class="gateway-identity-fields">
+					<div class="k-field"><label for="gateway-user-source">User source</label>
+						<select id="gateway-user-source" bind:value={userSourceID} disabled={archived || saving || identitySaving} onchange={() => identitySaved = false}>
+							<option value="">{t('บัญชี ORCA / API key', 'ORCA account / API key')}</option>
+							{#if userSourceID && !selectedUserSource}<option value={userSourceID} disabled>{t('User source เดิม', 'Existing user source')}</option>{/if}
+							{#each userSources.filter((source) => source.enabled || source.id === userSourceID) as source (source.id)}<option value={source.id} disabled={!source.enabled}>{source.name}{source.enabled ? '' : t(' · ระงับแล้ว', ' · Disabled')}</option>{/each}
+							</select>
+					</div>
+					<button type="submit" class="k-button primary" disabled={archived || saving || identitySaving || !identityChanged}>{identitySaving ? t('กำลังบันทึก…', 'Saving…') : t('บันทึก', 'Save')}</button>
+				</div>
+			</form>
+			{#if loadingUserSources}<p role="status">{t('กำลังโหลด User sources…', 'Loading user sources…')}</p>{/if}
+			{#if userSourcesError}<div class="k-banner error" role="alert"><div>{userSourcesError}<button type="button" class="k-link-button" disabled={loadingUserSources || identitySaving} onclick={loadUserSources}>{t('โหลด User sources อีกครั้ง', 'Retry user sources')}</button></div></div>{/if}
+			{#if identitySaved}<div class="k-banner success" role="status"><Check size={18} />{t('บันทึกการยืนยันตัวตนแล้ว', 'Authentication saved')}</div>{/if}
+		{:else}<p>{hub.userSourceID ? t('บัญชีองค์กร', 'Organization sign-in') : t('บัญชี ORCA / API key', 'ORCA account / API key')}</p>{/if}
+	</section>
 	<section class="k-panel" style="margin-top:0">
 		<div class="k-section-title">
-			<h2>{t('สมาชิก', 'Members')} {hub.memberIDs.length} {t('คน', 'people')}</h2>
+			<h2>{t('สมาชิก', 'Members')} {gatewayMemberIDs(hub).length} {t('คน', 'people')}</h2>
 			<Users size={22} color="#5143e8" />
 		</div>
 		<div class="k-stack">
@@ -646,9 +724,13 @@
 							? t(' (คุณ)', ' (you)')
 							: ''}</strong
 					>
-					<p class="k-small k-muted">{member.email}</p>
+					<p class="k-small k-muted">{member.email} · {hub.memberIDs.includes(member.id) ? t('สมาชิกโดยตรง', 'Direct member') : t('สิทธิ์ผ่านทีม', 'Access through a team')}</p>
 				</div>{/each}
 		</div>
+		{#if hub.accessUnitIDs?.length}<p class="k-small k-muted" style="margin-top:22px">
+				{t('ทีมที่ได้รับสิทธิ์:', 'Teams granted access:')}
+				{data.units.filter((unit) => hub.accessUnitIDs?.includes(unit.id)).map((unit) => unit.name).join(', ')}
+			</p>{/if}
 		{#if hub.unitIDs?.length}<p class="k-small k-muted" style="margin-top:22px">
 				{t('หน่วยงาน:', 'Unit:')}
 				{data.units
@@ -660,6 +742,9 @@
 {/if}
 
 <style>
+	.gateway-identity-fields { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+	.gateway-identity-fields .k-field { flex: 1 1 260px; margin-bottom: 0; }
+	.gateway-identity .k-section-title { flex-wrap: wrap; gap: 12px; }
   .gateway-source-list { display:grid; gap:16px; }
   .gateway-source-row { display:flex; align-items:center; gap:12px; }
   .gateway-source-row > div { flex:1; min-width:0; }

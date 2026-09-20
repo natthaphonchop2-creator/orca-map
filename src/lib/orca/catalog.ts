@@ -1,5 +1,6 @@
 import { catalogCategories, getCatalogPresentation } from './catalog-data';
 import { gatewaySources } from './gateway-sources';
+import { integrationGuideSources, integrationReference } from './integration-directory';
 
 export interface CatalogSource {
 	id: string;
@@ -10,9 +11,25 @@ export interface CatalogSource {
 	managedProvider?: string;
 	/** Confirmed authentication methods emitted by the backend; absent means unknown. */
 	authMethods?: CatalogAuthMethod[];
+	protocol?: 'MCP' | 'API';
+	guideOnly?: boolean;
 }
 
 export type CatalogAuthMethod = 'oauth' | 'secrets' | 'none';
+
+// Presentation aliases for installed API connectors. The backend controls
+// availability and authentication; an explanatory guide alone cannot install one.
+const apiReferenceAliases: Record<string, { guideID: string; provider: string }> = {
+	'default-orca-api-facebook-pages': { guideID: 'guide-facebook-pages-api', provider: 'facebook-pages' },
+	'default-orca-api-line-messaging': { guideID: 'guide-line-messaging-api', provider: 'line-messaging' },
+	'default-orca-api-instagram': { guideID: 'guide-instagram-api', provider: 'instagram' }
+};
+
+function installedAPIReference(source: CatalogSource) {
+	const alias = apiReferenceAliases[source.id];
+	return alias && source.protocol === 'API' && source.managedProvider === alias.provider
+		? alias.guideID : undefined;
+}
 
 const catalogAuthDescriptions = {
 	oauth: {
@@ -80,12 +97,23 @@ export function catalogSourceDisplayName(
 }
 
 export function catalogSource(source: CatalogSource) {
+	const reference = integrationReference(installedAPIReference(source) || source.id);
 	return {
 		...source,
+		protocol: source.protocol ?? reference?.protocol ?? 'MCP',
+		guideOnly: source.guideOnly === true,
+		reference,
 		name: catalogSourceDisplayName(source),
 		authTags: catalogAuthTags(source),
 		...getCatalogPresentation(catalogSourceDisplayName(source), source.description)
 	};
+}
+
+/** Setup guides appear only in the directory, never in executable candidates. */
+export function catalogDirectory(sources: CatalogSource[]) {
+	const installedGuides = new Set(sources.map(installedAPIReference).filter(Boolean));
+	return [...sources, ...integrationGuideSources().filter((guide) =>
+		!installedGuides.has(guide.id) && !sources.some((source) => source.id === guide.id))];
 }
 
 export type CatalogTool = ReturnType<typeof catalogSource>;

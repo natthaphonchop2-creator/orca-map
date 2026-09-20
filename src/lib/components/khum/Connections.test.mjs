@@ -6,7 +6,7 @@ import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { compileModule } from 'svelte/compiler';
 // eslint-disable-next-line svelte/no-svelte-internal -- Exercise the real component script with its matching Svelte runtime.
-import { effect_root, flush } from 'svelte/internal/client';
+import { effect_root, flush, untrack } from 'svelte/internal/client';
 
 const component = await readFile(new URL('./Connections.svelte', import.meta.url), 'utf8');
 const { filterCatalog, catalogSourceDisplayName } = await importTypeScript(new URL('../../orca/catalog.ts', import.meta.url));
@@ -15,7 +15,7 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 	.replace('$props()', '$state(testProps)');
 const require = createRequire(import.meta.url);
 const compiled = compileModule(
-	`export function harness(testProps, OrcaService, onMount, onDestroy, tick, t, orcaError, window, filterCatalog, catalogSourceDisplayName) {
+	`export function harness(testProps, OrcaService, onMount, onDestroy, tick, t, orcaError, window, filterCatalog, catalogSourceDisplayName, untrack) {
 		${script}
 		return {
 			openForm, closeForm, toggleEnabled, applyInitialSelection, sourceChanged, sourceAccountReady, sourceStateChanged, discover, save,
@@ -79,7 +79,8 @@ async function setup(context, methods = {}, props = {}) {
 			(error) => error.message,
 			{ scrollTo() {} },
 			filterCatalog,
-			catalogSourceDisplayName
+			catalogSourceDisplayName,
+			untrack
 		);
 	});
 	context.after(() => {
@@ -397,4 +398,44 @@ test('late policy discovery cannot replace a newly opened server or restore revi
 	assert.deepEqual(view.state.toolNames, ['read-b']);
 	assert.deepEqual(view.state.tools.map((tool) => tool.name), ['read-b']);
 	assert.equal(view.state.reviewedTools, false);
+});
+
+test('embedded connection creation completes in place with the saved record and waits for refresh', async (context) => {
+  const completed = [];
+  const busyEvents = [];
+  const { view, writes, refreshes } = await setup(context, {}, {
+    embedded: true,
+    oncompleted: async (connection) => { completed.push(connection); },
+    onbusychange: (value) => { busyEvents.push(value); }
+  });
+  await view.sourceAccountReady('a');
+  flush();
+  view.fill({ name: 'Finance account', scope: 'Finance', tools: ['search'], reviewed: true, step: 3 });
+  await view.save();
+  flush();
+  assert.equal(writes.length, 1);
+  assert.equal(refreshes(), 1);
+  assert.equal(completed[0].id, 'saved');
+  assert.equal(completed[0].mcpID, 'a');
+  assert.equal(view.state.formOpen, true, 'the dialog remains mounted until its parent closes it');
+  assert.equal(busyEvents.at(-1), false);
+});
+
+test('embedded completion retry does not create a second connection after a successful write', async (context) => {
+  let completeAttempts = 0;
+  const { view, writes, refreshes } = await setup(context, {}, {
+    embedded: true,
+    oncompleted: async () => {
+      completeAttempts++;
+      if (completeAttempts === 1) throw new Error('Temporary refresh failure');
+    }
+  });
+  await view.sourceAccountReady('a');
+  view.fill({ name: 'Finance account', scope: 'Finance', tools: ['search'], reviewed: true, step: 3 });
+  await view.save();
+  assert.match(view.state.error, /Temporary refresh failure/);
+  await view.save();
+  assert.equal(writes.length, 1);
+  assert.equal(completeAttempts, 2);
+  assert.equal(refreshes(), 2);
 });

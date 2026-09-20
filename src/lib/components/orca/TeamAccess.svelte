@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { gatewayHasMember } from '$lib/orca/gateway-sources';
   import { beforeNavigate } from "$app/navigation";
   import {
     organizationRole,
@@ -514,7 +515,7 @@
                         : t("ยังไม่ระบุ", "Unassigned")}</span
                     >{/each}</td
                 >{/if}<td
-                >{#each data.hubs.filter( (hub) => hub.memberIDs.includes(member.id), ) as hub}<a
+                >{#each data.hubs.filter( (hub) => gatewayHasMember(hub, member.id), ) as hub}<a
                     href={localeHref(
                       `/app?view=hub&hub=${encodeURIComponent(hub.id)}`,
                     )}

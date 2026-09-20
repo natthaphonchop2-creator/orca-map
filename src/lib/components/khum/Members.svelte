@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { gatewayHasMember } from '$lib/orca/gateway-sources';
 	import { t, localeHref } from '$lib/orca/locale.svelte';
 	import { memberName, memberRole, type OrcaBootstrap } from '$lib/services/orca';
 	import { ExternalLink, Users } from '@lucide/svelte';
@@ -58,7 +59,7 @@
 							>
 							<p class="k-small k-muted">{member.email}</p></td
 						><td><span class="k-badge">{memberRole(member.role)}</span></td><td
-							>{#each data.hubs.filter((hub) => hub.memberIDs.includes(member.id)) as hub}<a
+							>{#each data.hubs.filter((hub) => gatewayHasMember(hub, member.id)) as hub}<a
 									href={localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}`)}
 									style="display:block;margin-bottom:4px">{hub.name}</a
 								>{:else}<span class="k-muted"

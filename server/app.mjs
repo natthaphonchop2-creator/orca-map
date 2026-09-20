@@ -7,7 +7,8 @@ import path from 'node:path';
 const METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
 const SAFE = new Set(['GET', 'HEAD']);
 const HOP_HEADERS = new Set(['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade']);
-const BACKEND_PREFIXES = ['/api/', '/oauth2/', '/oauth/', '/.well-known/', '/mcp-connect/', '/mcp-connect-composite/'];
+const BACKEND_PREFIXES = ['/api/', '/oauth2/', '/oauth/', '/.well-known/', '/orca/oauth/', '/orca/.well-known/', '/mcp-connect/', '/mcp-connect-composite/'];
+const ORCA_OAUTH_NAVIGATION = new Set(['/orca/oauth/authorize', '/orca/oauth/callback']);
 const UI_PATHS = new Set(['/', '/app', '/login', '/login/local', '/privacy', '/privacy-policy', '/terms-of-service', '/oauth-debugger/callback', '/auth/oauth/complete']);
 const MARKETING = /^\/(?:pricing|services|start)(?:\.html|\/|$)/;
 // ORCA source checks may take 60s and governed MCP calls have a 90s budget,
@@ -60,8 +61,8 @@ function parsedPath(raw) {
   return decoded;
 }
 
-function oauthNavigation(pathname) {
-  return /^\/oauth\/(?:authorize|callback|complete)(?:\/|$)/.test(pathname) || pathname === '/oauth/mcp/callback' || ['/oauth2/start', '/oauth2/callback'].includes(pathname) || pathname.startsWith('/api/oauth/redirect/');
+function oauthNavigation(pathname, method) {
+  return (method === 'GET' && ORCA_OAUTH_NAVIGATION.has(pathname)) || /^\/oauth\/(?:authorize|callback|complete)(?:\/|$)/.test(pathname) || pathname === '/oauth/mcp/callback' || ['/oauth2/start', '/oauth2/callback'].includes(pathname) || pathname.startsWith('/api/oauth/redirect/');
 }
 
 function validBrowserRequest(req, appOrigin, pathname, backendRoute) {
@@ -71,13 +72,13 @@ function validBrowserRequest(req, appOrigin, pathname, backendRoute) {
   if (req.headers.referer) {
     try {
       const foreignReferer = new URL(req.headers.referer).origin !== appOrigin;
-      if (foreignReferer && (!isSafe || (backendRoute && !oauthNavigation(pathname)))) return false;
+      if (foreignReferer && (!isSafe || (backendRoute && !oauthNavigation(pathname, req.method)))) return false;
     } catch { return false; }
   }
   const site = req.headers['sec-fetch-site'];
   if (site && !['same-origin', 'none'].includes(site)) {
     if (!isSafe || req.headers['sec-fetch-mode'] !== 'navigate') return false;
-    if (backendRoute && !oauthNavigation(pathname)) return false;
+    if (backendRoute && !oauthNavigation(pathname, req.method)) return false;
   }
   return true;
 }
@@ -87,6 +88,8 @@ function rewriteLocation(value, origins, appOrigin) {
   let target;
   try { target = new URL(value); } catch { return value; }
   if (!origins.has(target.origin) || target.username || target.password || !parsedPath(target.pathname)) return value;
+  // Incoming MCP OAuth owns its issuer and browser cookie at the backend origin.
+  if (target.pathname.startsWith('/orca/oauth/')) return value;
   // Only rewrite the outer redirect destination. Nested redirect_uri values and
   // OAuth authorization URLs belong to their registered issuer and stay intact.
   return appOrigin + target.pathname + target.search + target.hash;
@@ -94,6 +97,16 @@ function rewriteLocation(value, origins, appOrigin) {
 
 function scopeCookie(cookie, backend) {
   return cookie.replace(/;\s*domain=([^;]+)/ig, (attribute, domain) => domain.trim().replace(/^\./, '').toLowerCase() === backend.hostname.toLowerCase() ? '' : attribute);
+}
+
+function canonicalOAuthNavigation(req, res, config, appOrigin, pathname) {
+  const origin = (config.backendPublicOrigin ?? config.backend).origin;
+  if (req.method !== 'GET' || !ORCA_OAUTH_NAVIGATION.has(pathname) || origin === appOrigin) return false;
+  // Redirect before the backend creates or consumes its host-bound state cookie.
+  // Preserve the raw query, including the client's registered redirect_uri.
+  res.writeHead(302, { location: origin + req.url, 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
+  res.end();
+  return true;
 }
 
 function proxy(req, res, config, appOrigin, requestPath = req.url) {
@@ -123,7 +136,7 @@ function proxy(req, res, config, appOrigin, requestPath = req.url) {
     const responseHeaders = cleanHeaders(response.headers);
     // The adapter is same-origin; upstream CORS policy cannot grant access here.
     for (const name of Object.keys(responseHeaders)) if (name.startsWith('access-control-')) delete responseHeaders[name];
-    if (responseHeaders.location) responseHeaders.location = rewriteLocation(responseHeaders.location, config.redirectOrigins, appOrigin);
+    if (responseHeaders.location && !requestPath.split('?')[0].startsWith('/orca/oauth/')) responseHeaders.location = rewriteLocation(responseHeaders.location, config.redirectOrigins, appOrigin);
     if (responseHeaders['set-cookie']) responseHeaders['set-cookie'] = responseHeaders['set-cookie'].map((cookie) => scopeCookie(scopeCookie(cookie, config.backend), backendOrigin));
     responseHeaders['x-content-type-options'] = 'nosniff';
     responseHeaders['x-frame-options'] = 'DENY';
@@ -220,6 +233,7 @@ export function createBackendMiddleware(options = {}) {
       const pathname = parsedPath(req.url);
       if (pathname === null) return json(res, 400, { error: 'invalid_path' });
       if (!validBrowserRequest(req, appOrigin, rootCallback ? '/oauth2/callback' : pathname, true)) return json(res, 403, { error: 'cross_origin_request' });
+      if (canonicalOAuthNavigation(req, res, config, appOrigin, pathname)) return;
       return proxy(req, res, config, appOrigin, rootCallback ? '/oauth2/callback' + url.search : req.url);
     } catch {
       if (!res.headersSent && !res.destroyed) json(res, 500, { error: 'internal_error' });
@@ -245,6 +259,7 @@ export function createAppServer(options = {}) {
       const backendRoute = rootCallback || BACKEND_PREFIXES.some((prefix) => pathname.startsWith(prefix));
       if (!validBrowserRequest(req, appOrigin, rootCallback ? '/oauth2/callback' : pathname, backendRoute)) return json(res, 403, { error: 'cross_origin_request' });
       if (pathname === '/healthz') return await health(req, res, config);
+      if (canonicalOAuthNavigation(req, res, config, appOrigin, pathname)) return;
       if (backendRoute) return proxy(req, res, config, appOrigin, rootCallback ? '/oauth2/callback' + url.search : req.url);
       await serveStatic(req, res, pathname, config);
     } catch {

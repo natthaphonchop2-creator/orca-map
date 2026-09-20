@@ -1,6 +1,6 @@
 <script lang="ts">
 	import LifecycleActions from './LifecycleActions.svelte';
-	import { gatewayConnections, gatewayToolCount } from '$lib/orca/gateway-sources';
+	import { gatewayConnections, gatewayToolCount, gatewayHasMember, gatewayMemberIDs } from '$lib/orca/gateway-sources';
 	import { filterGateways } from '$lib/orca/gateway-list';
 	import { tick } from 'svelte';
 	import { connectionReady } from '$lib/orca/activation';
@@ -46,7 +46,7 @@
 		`/app?view=new${readyConnections.length === 1 ? `&connection=${encodeURIComponent(readyConnections[0].id)}` : ''}`
 	);
 	const memberHubs = $derived(
-		mainHubs.filter((hub) => hub.memberIDs.includes(data.currentUserID))
+		mainHubs.filter((hub) => gatewayHasMember(hub, data.currentUserID))
 	);
 	const knowledgeHref = $derived(
 		`/app?view=knowledge${memberHubs.length === 1 ? `&hub=${encodeURIComponent(memberHubs[0].id)}` : ''}`
@@ -142,7 +142,7 @@
 										><Plug size={13} aria-hidden="true" />{sources.map((source) => source.name).join(', ') ||
 											t('ยังไม่ได้เลือกระบบ', 'No system selected')}</span
 									><span>{gatewayToolCount(hub)} {t('เครื่องมือ', 'tools')}</span><span
-										>{hub.memberIDs.length} {t('สมาชิก', 'members')}</span
+										>{gatewayMemberIDs(hub).length} {t('สมาชิก', 'members')}</span
 									>
 								</div>
 							</div>

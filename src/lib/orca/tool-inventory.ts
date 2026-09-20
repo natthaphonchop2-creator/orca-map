@@ -1,5 +1,5 @@
 import type { OrcaBootstrap, OrcaConnection, OrcaTool } from "../services/orca";
-import { gatewaySources } from './gateway-sources';
+import { gatewaySources, gatewayHasMember } from './gateway-sources';
 
 /** A saved, selected tool is a configuration record, not proof of a successful call. */
 export function selectedToolInventory(
@@ -15,7 +15,7 @@ export function selectedToolInventory(
         hub: data.hubs.find(
           (hub) =>
             hub.status === "active" &&
-            hub.memberIDs.includes(data.currentUserID) &&
+            gatewayHasMember(hub, data.currentUserID) &&
             gatewaySources(hub).some((source) => source.connectionID === connection.id && source.toolNames.includes(tool.name)),
         ),
         enabled: connection.enabled && (connection.reviewedReadOnly || connection.reviewedTools === true),

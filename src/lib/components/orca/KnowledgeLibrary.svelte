@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { gatewayHasMember } from '$lib/orca/gateway-sources';
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { getHttpStatusCode } from '$lib/errors';
 	import { connectionReady } from '$lib/orca/activation';
@@ -78,13 +79,13 @@
 	let rendering = $state(false);
 	let hasUnsavedEdits = $state(false);
 	let navigationBlocked = $state(false);
-	const hubs = $derived(data.hubs.filter((hub) => hub.memberIDs.includes(data.currentUserID)));
+	const hubs = $derived(data.hubs.filter((hub) => gatewayHasMember(hub, data.currentUserID)));
 	const hub = $derived(hubs.find((item) => item.id === hubID));
 	const managedHub = $derived(
 		data.canManage ? data.hubs.find((item) => item.id === hubID) : undefined
 	);
 	const managedHubs = $derived(
-		data.canManage ? data.hubs.filter((item) => !item.memberIDs.includes(data.currentUserID)) : []
+		data.canManage ? data.hubs.filter((item) => !gatewayHasMember(item, data.currentUserID)) : []
 	);
 	const readyConnections = $derived(data.connections.filter(connectionReady));
 	const createWorkspaceHref = $derived(

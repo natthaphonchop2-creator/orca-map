@@ -1,5 +1,6 @@
 <script lang="ts">
   import CatalogIcon from "$lib/orca/CatalogIcon.svelte";
+  import { apiConnectorSetup, apiConnectorError } from "$lib/orca/api-connector-setup";
   import { catalogSourceDisplayName, googleDriveProvider } from "$lib/orca/catalog";
   import { providerGuide } from "$lib/orca/provider-guides";
   import { t } from "$lib/orca/locale.svelte";
@@ -63,6 +64,7 @@
   let generation = 0;
   let active = true;
   const fields = $derived(setup?.fields ?? []);
+  const apiGuide = $derived(apiConnectorSetup(sourceID));
   const configured = $derived(Boolean(setup?.configured));
   const requiresURL = $derived(Boolean(setup?.requiresURL));
   const needsOAuthClient = $derived(
@@ -129,6 +131,11 @@
       request.sourceID === sourceID &&
       request.canCreate === canCreate
     );
+  }
+  function connectionError(cause: unknown) {
+    const message = orcaError(cause);
+    const translated = apiGuide ? apiConnectorError(message) : undefined;
+    return translated ? t(...translated) : message;
   }
   function clearFields() {
     values = {};
@@ -199,7 +206,7 @@
       const response = await OrcaService.sourceSetup(id);
       if (isCurrent(request)) setup = response;
     } catch (cause) {
-      if (isCurrent(request)) error = orcaError(cause);
+      if (isCurrent(request)) error = connectionError(cause);
     } finally {
       if (isCurrent(request)) loading = false;
     }
@@ -316,7 +323,7 @@
         "Source added. Set up your account to connect.",
       );
     } catch (cause) {
-      if (isCurrent(request)) error = orcaError(cause);
+      if (isCurrent(request)) error = connectionError(cause);
     } finally {
       if (isCurrent(request)) action = "";
     }
@@ -339,6 +346,7 @@
       oauthURL = "";
       notice = "";
     } else if (!oauthRequired) {
+      if (apiGuide) editing = true;
       error = t(
         "ยังเชื่อมต่อไม่ได้ กรุณาตรวจสอบการตั้งค่าบัญชีแล้วลองอีกครั้ง",
         "The connection is not ready. Check your source account settings and try again.",
@@ -464,7 +472,10 @@
       editing = false;
       await connectAccount(request, popup, usingToken);
     } catch (cause) {
-      if (isCurrent(request)) error = orcaError(cause);
+      if (isCurrent(request)) {
+        error = connectionError(cause);
+        if (apiGuide) editing = true;
+      }
     } finally {
       closeReservedWindow(popup);
       if (isCurrent(request)) {
@@ -498,7 +509,10 @@
       }
       await connectAccount(request, popup);
     } catch (cause) {
-      if (isCurrent(request)) error = orcaError(cause);
+      if (isCurrent(request)) {
+        error = connectionError(cause);
+        if (apiGuide) editing = true;
+      }
     } finally {
       closeReservedWindow(popup);
       if (isCurrent(request)) action = "";
@@ -535,7 +549,7 @@
       oauthRequired = false;
       await checkConnection(request, latest);
     } catch (cause) {
-      if (isCurrent(request)) error = orcaError(cause);
+      if (isCurrent(request)) error = connectionError(cause);
     } finally {
       if (isCurrent(request)) action = "";
     }
@@ -578,7 +592,7 @@
       }
       await connectAccount(request, popup);
     } catch (cause) {
-      if (isCurrent(request)) error = orcaError(cause);
+      if (isCurrent(request)) error = connectionError(cause);
     } finally {
       closeReservedWindow(popup);
       if (isCurrent(request)) action = "";
@@ -615,7 +629,7 @@
     } catch (cause) {
       if (isCurrent(request)) {
         oauthRequired = signInRequired;
-        error = orcaError(cause);
+        error = connectionError(cause);
       }
     } finally {
       if (isCurrent(request)) action = "";
@@ -642,14 +656,14 @@
     </div>
     {#if !sourceID}<Plug size={21} />{/if}
   </div>
-  {#if sourceID && guide && !connectionReady}
-    <aside class="provider-guide">
-      <strong>{t("เตรียมบัญชีก่อนเชื่อมต่อ", "Before connecting")}</strong>
-      <p>{t(guide.th, guide.en)}</p>
-      <a href={guide.href} target="_blank" rel="noopener noreferrer">
-        {t("ดูคู่มือของผู้ให้บริการ", "Provider setup guide")}<ExternalLink size={14} />
-      </a>
-    </aside>
+  {#if apiGuide && !connectionReady}
+    <div class="api-onboarding">
+      {#if !onready}<ol aria-label={t("ขั้นตอนเชื่อมบัญชี", "Account connection steps")}>
+        <li class:current={!configured || editing}>{t("กรอกข้อมูลบัญชี", "Enter account details")}</li>
+        <li class:current={configured && !editing}>{t("ทดสอบบัญชี", "Test account")}</li>
+        <li>{t("เลือกงานและสิทธิ์", "Choose tasks and permissions")}</li>
+      </ol>{/if}
+    </div>
   {/if}
   {#if error}<div class="k-banner error" role="alert">
       <Info size={18} />
@@ -706,12 +720,6 @@
             ></select
           >
         </div>
-        <p class="k-small k-muted" style="margin-top:12px">
-          {t(
-            "ใช้ URL เพื่อระบุระบบที่ต้องการเชื่อมต่อ ส่วนโทเคนให้กรอกแยกในขั้นตอนเชื่อมบัญชี โดยสมาชิกคนอื่นจะไม่เห็นโทเคนของคุณ",
-            "The URL identifies the source. Tokens are entered separately during account setup and are not shown to other members.",
-          )}
-        </p>
         <button
           class="k-button primary"
           style="margin-top:16px"
@@ -738,9 +746,9 @@
             )}</strong
           >
           <p>
-            {t(
-              "เรียกรายการเครื่องมือสำเร็จแล้ว ตรวจเครื่องมือและสิทธิ์ที่ต้องการให้ทีมใช้ในขั้นถัดไป",
-              "The tool list request succeeded. Next, review the tools and permissions for your team.",
+            {apiGuide ? t(...apiGuide.result) : t(
+              "พร้อมเลือกเครื่องมือและสิทธิ์",
+              "Ready to choose tools and permissions.",
             )}
           </p>
         </div>
@@ -757,8 +765,8 @@
           >
           <p>
             {t(
-              "ทีม ORCA ดูแลการเปิดใช้งานการเชื่อมต่อนี้ กรุณาติดต่อทีม ORCA หรือลองอีกครั้งภายหลัง",
-              "ORCA manages this connection. Contact ORCA or try again later.",
+              "ติดต่อผู้ดูแลเพื่อเปิดใช้งานการเชื่อมต่อนี้",
+              "Ask an administrator to enable this connection.",
             )}
           </p>
         </div>
@@ -767,12 +775,6 @@
         >{t("ตรวจสอบสถานะอีกครั้ง", "Refresh connection status")}</button
       >
     {:else if primaryState === "configure"}
-      <p class="k-small k-muted">
-        {t(
-          "กรอกข้อมูลที่จำเป็น ORCA จะบันทึก ตรวจการเชื่อมต่อ และเปิดหน้าขอสิทธิ์ให้เมื่อจำเป็น",
-          "Enter the required details. ORCA will save and check the connection, then open sign-in if needed.",
-        )}
-      </p>
       <form
         onsubmit={(event) => {
           event.preventDefault();
@@ -795,9 +797,11 @@
                 autocomplete="off"
               />
             </div>{/if}
-          {#each fields as field, index (field.key)}<div class="k-field">
+          {#each fields as field, index (field.key)}
+            {@const fieldCopy = apiGuide?.fields[field.key]}
+            <div class="k-field">
               <label for={`source-value-${index}`}
-                >{field.key === "READ_ONLY" &&
+                >{fieldCopy ? t(...fieldCopy.label) : field.key === "READ_ONLY" &&
                 (endpointHost === "mcp.supabase.com" ||
                   setup?.name === "Supabase")
                   ? t("สิทธิ์การทำงานใน Supabase", "Supabase access mode")
@@ -846,44 +850,24 @@
                   required={field.required}
                   autocomplete="off"
                   spellcheck="false"
+                  inputmode={fieldCopy?.numeric ? "numeric" : undefined}
+                  pattern={fieldCopy?.numeric ? "[0-9]+" : undefined}
+                  aria-describedby={fieldCopy || field.description ? `source-help-${index}` : undefined}
                 />{/if}
-              <p class="k-small k-muted">
-                {field.key === "READ_ONLY" &&
-                (endpointHost === "mcp.supabase.com" ||
-                  setup?.name === "Supabase")
-                  ? t(
-                      onready
-                        ? "เลือกรูปแบบที่ต้องการ แล้วเลือกเครื่องมือที่อนุญาตให้ทีมใช้ในขั้นตอนถัดไป"
-                        : "เลือกรูปแบบที่บัญชีนี้ใช้เข้าถึงระบบ",
-                      onready
-                        ? "Choose your access mode, then select the tools your team may use in the next step."
-                        : "Choose how this account accesses the source.",
-                    )
-                  : field.description === "Personal upstream access token"
-                    ? t(
-                        "โทเคนส่วนตัวสำหรับเข้าถึงระบบที่เชื่อมต่อ",
-                        "Personal upstream access token",
-                      )
-                    : field.description}
-              </p>
             </div>{/each}
-          {#if !fields.length}<p class="k-small k-muted">
-              {t(
-                "ระบบนี้ไม่ต้องกรอกข้อมูลเพิ่มเติม กดเชื่อมต่อเพื่อเชื่อมบัญชีของคุณ",
-                "This source needs no additional details. Connect your account.",
-              )}
-            </p>{/if}
           {#if editing}<p class="k-small k-muted" style="margin-top:12px">
               {t(
-                "กรอกข้อมูลชุดใหม่ให้ครบ เมื่อบันทึก ระบบจะใช้การตั้งค่าใหม่นี้แทนการตั้งค่าเดิม",
-                "Enter the complete new values. Saving replaces the previous account configuration.",
+                "ข้อมูลใหม่นี้จะใช้แทนการตั้งค่าเดิม",
+                "These values will replace the saved configuration.",
               )}
             </p>{/if}
           <div class="k-actions" style="margin-top:17px">
             <button type="submit" class="k-button primary" disabled={busy}
               ><KeyRound size={16} />{action === "configure"
                 ? t("กำลังเชื่อมต่อ…", "Connecting…")
-                : t("บันทึกและเชื่อมต่อ", "Save and connect")}</button
+                : apiGuide
+                  ? t("บันทึกและทดสอบบัญชี", "Save and test account")
+                  : t("บันทึกและเชื่อมต่อ", "Save and connect")}</button
             >{#if editing}<button
                 type="button"
                 class="k-button"
@@ -894,36 +878,22 @@
         </fieldset>
       </form>
     {:else}
-      <p class="k-small k-muted">
+      {#if primaryState === "pending" || primaryState === "reconnect"}<p class="k-muted" role="status">
         {primaryState === "pending"
           ? oauthWindowOpened
             ? t(
-                "เปิดหน้าขอสิทธิ์แล้ว เมื่อเสร็จให้กลับมาหน้านี้ ORCA จะตรวจการเชื่อมต่อให้อัตโนมัติ",
-                "The permission page is open. Return here when finished and ORCA will check the connection automatically.",
+                "รออนุญาตสิทธิ์ แล้วกลับมาหน้านี้เพื่อตรวจการเชื่อมต่อ",
+                "Finish signing in, then return here to check the connection.",
               )
             : t(
-                "เบราว์เซอร์ยังไม่ได้เปิดหน้าขอสิทธิ์ กดปุ่มด้านล่างเพื่อเปิด แล้วกลับมาหน้านี้เมื่อเสร็จ",
-                "The permission page did not open. Use the button below, then return here when finished.",
+                "หน้าขอสิทธิ์ยังไม่เปิด กดปุ่มด้านล่างเพื่อลงชื่อเข้าใช้",
+                "The sign-in page did not open. Use the button below.",
               )
-          : primaryState === "check"
-            ? t(
-                onready
-                  ? "ตรวจสอบว่าบัญชีนี้ใช้งานได้ก่อนดำเนินการต่อ"
-                  : "ตรวจสอบว่าบัญชีนี้เชื่อมต่อและใช้งานได้",
-                onready
-                  ? "Check that this account works before continuing."
-                  : "Check that this account is connected and ready to use.",
-              )
-            : primaryState === "reconnect"
-              ? t(
+          : t(
                   "บัญชีนี้ต้องเข้าสู่ระบบใหม่ กรุณายกเลิกการเชื่อมบัญชีเดิมก่อน",
                   "This account needs a new sign-in. Disconnect the current account first.",
-                )
-              : t(
-                  "เข้าสู่ระบบด้วยบัญชีของคุณ แล้วตรวจสอบสิทธิ์ที่ผู้ให้บริการขอก่อนอนุญาต",
-                  "Sign in with your account and review the provider’s requested permissions before granting access.",
                 )}
-      </p>
+      </p>{/if}
       <div class="k-actions" style="margin-top:16px">
         {#if busy}
           <button class="k-button primary" disabled
@@ -1035,11 +1005,30 @@
   {:else}<button class="k-button" disabled={busy} onclick={() => load()}
       >{t("โหลดการตั้งค่าอีกครั้ง", "Reload configuration")}</button
     >{/if}
-  {#if sourceID && (providerHost || providerKind)}
+  {#if !sourceID || apiGuide || guide || fields.length || providerHost || providerKind}
     <details class="source-provider">
-      <summary class="k-small k-muted"
-        >{t("รายละเอียดการเชื่อมต่อ", "Connection details")}</summary
+      <summary>{t("วิธีตั้งค่า", "Setup help")}</summary
       >
+      {#if !sourceID}
+        <p>{t("ใส่ URL ของ MCP ส่วน token จะกรอกในขั้นตอนเชื่อมบัญชี", "Enter the MCP URL. You will enter the token during account setup.")}</p>
+      {/if}
+      {#if apiGuide}
+        <p>{t(...apiGuide.summary)}</p>
+        <p>{t("รองรับการอ่านข้อมูล ยังไม่รองรับส่งข้อความหรือเผยแพร่โพสต์", "Supports reading data. Sending messages and publishing posts are not available.")}</p>
+      {:else if guide}
+        <p>{t(guide.th, guide.en)}</p>
+        <a class="field-help-link" href={guide.href} target="_blank" rel="noopener noreferrer">{t("คู่มือผู้ให้บริการ", "Provider guide")}<ExternalLink size={14} /></a>
+      {/if}
+      {#each fields as field, index (field.key)}
+        {@const fieldCopy = apiGuide?.fields[field.key]}
+        {#if fieldCopy || field.description}
+          <div class="setup-field-help" id={`source-help-${index}`}>
+            <strong>{fieldCopy ? t(...fieldCopy.label) : field.name || field.key}</strong>
+            <p>{fieldCopy ? t(...fieldCopy.hint) : field.description === "Personal upstream access token" ? t("โทเคนส่วนตัวสำหรับเข้าถึงระบบที่เชื่อมต่อ", "Personal upstream access token") : field.description}</p>
+            {#if fieldCopy}<a class="field-help-link" href={fieldCopy.href} target="_blank" rel="noopener noreferrer">{t(...fieldCopy.linkLabel)}<ExternalLink size={14} /></a>{/if}
+          </div>
+        {/if}
+      {/each}
       {#if providerKind === "orca"}
         <p class="k-small k-muted">
           {t(
@@ -1068,7 +1057,7 @@
           )}
         </p>
       {/if}
-      {#if providerHost}<p class="k-small k-muted">
+      {#if providerHost && !apiGuide}<p class="k-small k-muted">
         {t("เซิร์ฟเวอร์ต้นทาง", "Source server")}: <code>{providerHost}</code>
       </p>{/if}
       {#if providerKind === "obot" || providerKind === "google"}
@@ -1084,17 +1073,12 @@
 </section>
 
 <style>
-  .provider-guide {
-    margin: 16px 0;
-    padding: 16px;
-    border: 1px solid #dce5c7;
-    border-radius: 10px;
-    background: #f7faef;
-    font-size: 13px;
-    line-height: 1.7;
-  }
-  .provider-guide p { margin: 6px 0 10px; color: #526147; }
-  .provider-guide a { display: inline-flex; align-items: center; gap: 6px; }
+  .api-onboarding { margin: 18px 0; }
+  .api-onboarding ol { display: flex; flex-wrap: wrap; gap: 10px 24px; list-style-position: inside; padding: 0; margin: 16px 0; color: var(--k-muted); font-size: 13px; }
+  .api-onboarding li.current { color: var(--k-text); font-weight: 650; }
+  .field-help-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin-top: 6px; margin-bottom: 8px; }
+  .source-setup :global(.k-field + .k-field) { margin-top: 22px; }
+
   .source-heading {
     display: flex;
     align-items: center;
@@ -1110,10 +1094,14 @@
   }
   .source-provider summary {
     cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
   }
   .source-provider p {
     margin: 10px 0 0;
+    line-height: 1.7;
   }
+  .setup-field-help { margin-top: 18px; font-size: 14px; }
   .source-provider code {
     overflow-wrap: anywhere;
   }

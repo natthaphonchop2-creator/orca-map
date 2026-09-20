@@ -1,5 +1,5 @@
 import type { OrcaBootstrap, OrcaConnectionMembers } from "$lib/services/orca";
-import { gatewayUsesConnection } from './gateway-sources';
+import { gatewayUsesConnection, gatewayHasMember } from './gateway-sources';
 
 /** Saved OAuth evidence within the selected server's current Gateway memberships. */
 function scopedOAuthMembers(
@@ -21,7 +21,7 @@ function scopedOAuthMembers(
     if (!member) return [];
     const memberGateways = gateways.filter(
       (hub) =>
-        hub.memberIDs.includes(row.memberID) &&
+        gatewayHasMember(hub, row.memberID) &&
         row.relevantHubIDs.includes(hub.id),
     );
     return memberGateways.length

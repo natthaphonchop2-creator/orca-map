@@ -15,12 +15,14 @@ const component = await readFile(new URL('./SourceSetup.svelte', import.meta.url
 const catalogURL = await typescriptModuleURL(new URL('../../orca/catalog.ts', import.meta.url));
 const { catalogSourceDisplayName, googleDriveProvider } = await import(catalogURL);
 const { providerGuide } = await import(new URL('../../orca/provider-guides.ts', import.meta.url).href);
+const apiSetupURL = await typescriptModuleURL(new URL('../../orca/api-connector-setup.ts', import.meta.url));
+const { apiConnectorSetup, apiConnectorError } = await import(apiSetupURL);
 const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
 	.replace(/^\s*import[^;]+;/gm, '')
 	.replace('$props()', '$state(testProps)');
 const require = createRequire(import.meta.url);
 const compiled = compileModule(
-	`export function harness(testProps, OrcaService, onDestroy, untrack, t, orcaError, window, document, catalogSourceDisplayName, googleDriveProvider, providerGuide) {
+	`export function harness(testProps, OrcaService, onDestroy, untrack, t, orcaError, window, document, catalogSourceDisplayName, googleDriveProvider, providerGuide, apiConnectorSetup, apiConnectorError) {
 		${script}
 		return {
 			safeOAuthURL, createSource, configure,
@@ -138,7 +140,9 @@ async function setupHarness(context, methods = {}, props = {}) {
 			documentEvents,
 			catalogSourceDisplayName,
 			googleDriveProvider,
-			providerGuide
+			providerGuide,
+			apiConnectorSetup,
+			apiConnectorError
 		);
 	});
 	const destroy = () => {
@@ -1198,12 +1202,13 @@ test('the rendered source header uses the real Google Drive logo and keeps provi
 	const iconURL = serverModule(
 		await readFile(new URL('../../orca/CatalogIcon.svelte', import.meta.url), 'utf8'),
 		'CatalogIcon.svelte',
-		{ './catalog-data': new URL('../../orca/catalog-data.ts', import.meta.url).href }
+		{ './catalog-data': await typescriptModuleURL(new URL('../../orca/catalog-data.ts', import.meta.url)) }
 	);
 	const { default: SourceSetup } = await import(
 		serverModule(component, 'SourceSetup.svelte', {
 			'$lib/orca/CatalogIcon.svelte': iconURL,
 			'$lib/orca/catalog': catalogURL,
+			'$lib/orca/api-connector-setup': apiSetupURL,
 			'$lib/orca/provider-guides': new URL('../../orca/provider-guides.ts', import.meta.url).href,
 			'$lib/orca/locale.svelte': moduleURL('export const t = (_th, en) => en;'),
 			'$lib/services/orca': moduleURL(
@@ -1246,6 +1251,44 @@ test('the rendered source header uses the real Google Drive logo and keeps provi
 	assert.match(managed, /project configured for this installation/);
 	assert.match(managed, /Accounts connected through another provider require a separate sign-in/);
 	assert.doesNotMatch(managed, /Obot|Google’s Google Drive service/);
+	for (const [id, fields, label] of [
+    ['default-orca-api-facebook-pages', [
+      { key: 'Authorization', name: 'Page access token', required: true, sensitive: true },
+      { key: 'FACEBOOK_PAGE_ID', name: 'Page ID', required: true, sensitive: false }
+    ], 'โทเคนของเพจ Facebook'],
+    ['default-orca-api-line-messaging', [
+      { key: 'Authorization', name: 'Channel access token', required: true, sensitive: true }
+    ], 'โทเคนของ LINE OA'],
+    ['default-orca-api-instagram', [
+      { key: 'Authorization', name: 'Instagram access token', required: true, sensitive: true },
+      { key: 'INSTAGRAM_ACCOUNT_ID', name: 'Account ID', required: true, sensitive: false }
+    ], 'โทเคนของ Instagram']
+  ]) {
+    // Seed only the async service result; compile the real template unchanged.
+    const seeded = component.replace('let setup = $state<OrcaSourceSetup>();',
+      `let setup = $state<OrcaSourceSetup>(${JSON.stringify(nativeApiSource(id, { fields }))});`);
+    const { default: NativeSetup } = await import(serverModule(seeded, 'NativeSourceSetup.svelte', {
+      '$lib/orca/CatalogIcon.svelte': iconURL,
+      '$lib/orca/catalog': catalogURL,
+      '$lib/orca/api-connector-setup': apiSetupURL,
+      '$lib/orca/provider-guides': new URL('../../orca/provider-guides.ts', import.meta.url).href,
+      '$lib/orca/locale.svelte': moduleURL('export const t = (th, _en) => th;'),
+      '$lib/services/orca': moduleURL('export const OrcaService = {}; export const orcaError = (error) => error.message;')
+    }));
+    const native = render(NativeSetup, { props: { sourceID: id, sourceLabel: apiConnectorSetup(id).name } }).body;
+    assert.ok(native.includes(label));
+    assert.match(native, /บันทึกและทดสอบบัญชี/);
+    assert.match(native, /กรอกข้อมูลบัญชี/);
+    assert.match(native, /type="password"/);
+    assert.match(native, /aria-describedby="source-help-0"/);
+    const help = native.match(/<details([^>]*)class="source-provider[^>]*>([\s\S]*?)<\/details>/);
+    assert.ok(help, 'account field help is grouped into one setup section');
+    assert.doesNotMatch(help[1], /\bopen(?:\s|=|$)/);
+    assert.match(help[2], /วิธีตั้งค่า/);
+    assert.match(help[2], /id="source-help-0"/);
+    assert.doesNotMatch(native, /API adapter|ติดตั้งตัวเชื่อม|เปิดหน้าขอสิทธิ์ให้เมื่อจำเป็น/);
+    if (fields.length > 1) assert.match(native, /inputmode="numeric"/);
+  }
 	const localCustom = render(SourceSetup, {
 		props: { sourceID: 'custom-local', sourceLabel: 'Custom files', endpointHost: '127.0.0.1' }
 	}).body;
@@ -1257,4 +1300,64 @@ test('the rendered source header uses the real Google Drive logo and keeps provi
 		),
 		/<svg\s/
 	);
+});
+
+function nativeApiSource(id, overrides = {}) {
+  return source(id, {
+    configured: false, oauthSupported: false,
+    fields: [
+      { key: 'Authorization', name: 'Page access token', description: '', required: true, sensitive: true },
+      { key: 'FACEBOOK_PAGE_ID', name: 'Page ID', description: '', required: true, sensitive: false }
+    ],
+    ...overrides
+  });
+}
+
+test('native API account setup saves and checks once before exposing tools without opening OAuth', async (context) => {
+  const id = 'default-orca-api-facebook-pages';
+  const calls = [];
+  let configured = false;
+  const { view, popups } = await setupHarness(context, {
+    sourceSetup: async (sourceID) => nativeApiSource(sourceID, { configured }),
+    configureSource: async (sourceID, values) => {
+      calls.push(['configure', sourceID, { ...values }]);
+      configured = true;
+      return nativeApiSource(sourceID, { configured });
+    },
+    checkSource: async (sourceID) => {
+      calls.push(['check', sourceID]);
+      return { ready: true, oauthRequired: false };
+    },
+    startSourceOAuth: async () => { throw new Error('Native token setup must not start OAuth'); }
+  }, { sourceID: id, onready: async (sourceID) => calls.push(['ready', sourceID]) });
+  assert.equal(view.primaryState, 'configure');
+  const credentials = { Authorization: 'synthetic-test-token', FACEBOOK_PAGE_ID: '12345' };
+  view.setAccount(credentials);
+  await view.configure();
+  assert.deepEqual(calls, [['configure', id, credentials], ['check', id], ['ready', id]]);
+  assert.equal(view.primaryState, 'ready');
+  assert.equal(popups.length, 0);
+  assert.deepEqual(view.state.values, {}, 'the component does not retain credentials after submitting');
+});
+
+test('a rejected native API account stays editable and never advances to tools', async (context) => {
+  const id = 'default-orca-api-facebook-pages';
+  let configured = false;
+  let ready = 0;
+  const { view, popups } = await setupHarness(context, {
+    sourceSetup: async (sourceID) => nativeApiSource(sourceID, { configured }),
+    configureSource: async (sourceID) => {
+      configured = true;
+      return nativeApiSource(sourceID, { configured });
+    },
+    checkSource: async () => { throw new Error('The Page token is invalid or expired.'); }
+  }, { sourceID: id, onready: async () => ready++ });
+  view.setAccount({ Authorization: 'synthetic-invalid-token', FACEBOOK_PAGE_ID: '12345' });
+  await view.configure();
+  assert.equal(view.primaryState, 'configure');
+  assert.equal(view.state.connectionReady, false);
+  assert.match(view.state.error, /invalid or expired/);
+  assert.equal(ready, 0);
+  assert.equal(popups.length, 0);
+  assert.deepEqual(view.state.values, {});
 });

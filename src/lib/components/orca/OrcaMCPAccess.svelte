@@ -3,7 +3,7 @@
 	import { Check, Copy, Eye, EyeOff, KeyRound, RefreshCw, Trash2 } from '@lucide/svelte';
 	import { workspaceToolingReady } from '$lib/orca/activation';
 	import { gatewayClientConfig } from '$lib/orca/client-config';
-	import { gatewaySources, gatewayToolCount } from '$lib/orca/gateway-sources';
+	import { gatewaySources, gatewayToolCount, gatewayHasMember } from '$lib/orca/gateway-sources';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { OrcaService, displayDate, orcaError, type OrcaBootstrap, type OrcaKey } from '$lib/services/orca';
 	import GatewayClientSetup from './GatewayClientSetup.svelte';
@@ -14,13 +14,14 @@
 		try { gatewayClientConfig(endpoint, 'codex'); return true; } catch { return false; }
 	});
 	const accessibleGateways = $derived(data.hubs.filter((hub) =>
-		!!data.currentUserID && hub.status === 'active' && hub.memberIDs.includes(data.currentUserID) &&
+		!!data.currentUserID && hub.status === 'active' && gatewayHasMember(hub, data.currentUserID) &&
 		workspaceToolingReady(hub, data.connections)
 	));
+	const oauth = $derived(accessibleGateways.some((hub) => Boolean(hub.userSourceID)));
 	const canCreate = $derived(!!data.currentUserID && hasEndpoint && accessibleGateways.length > 0);
 	const identity = $derived(JSON.stringify([data.organization.displayName, data.currentUserID, endpoint]));
 	const accessSignature = $derived(JSON.stringify(accessibleGateways.map((hub) => [
-		hub.id,
+		hub.id, hub.userSourceID ?? '',
 		gatewaySources(hub).map((source) => [source.connectionID, [...source.toolNames].sort()])
 	]).sort((a, b) => String(a[0]).localeCompare(String(b[0])))));
 	let keys = $state<OrcaKey[]>([]);
@@ -191,25 +192,26 @@
 <section class="orca-mcp-access" aria-labelledby="orca-mcp-title">
 	<header class="access-heading">
 		<h2 id="orca-mcp-title">{t('เชื่อม AI กับ ORCA ครั้งเดียว', 'Connect your AI to ORCA once')}</h2>
-		<p>{t('ใช้เครื่องมือจากทุก Gateway ที่คุณเป็นสมาชิก เมื่อเพิ่มหรือถอนสิทธิ์ ORCA จะตรวจตามสิทธิ์ใหม่ในการเรียกครั้งถัดไป', 'Use tools from every Gateway you belong to. ORCA checks updated permissions on the next call when access is added or removed.')}</p>
 	</header>
 	<details class="access-gateways">
 		<summary>{t(`Gateway ที่คุณใช้งานได้ · ${accessibleGateways.length}`, `Gateways available to you · ${accessibleGateways.length}`)}</summary>
 		{#each accessibleGateways as hub (hub.id)}
 			<a href={localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}`)}><strong>{hub.name}</strong><span>{t(`${gatewaySources(hub).length} ระบบ · ${gatewayToolCount(hub)} เครื่องมือที่เลือก`, `${gatewaySources(hub).length} sources · ${gatewayToolCount(hub)} selected tools`)}</span></a>
-		{:else}<p>{t('ยังไม่มี Gateway ที่เปิดใช้งานและเลือกคุณเป็นสมาชิก ขอให้ผู้ดูแลเพิ่มคุณใน Gateway ที่ต้องการ', 'No active Gateway has you as a member yet. Ask an administrator to add you to the Gateway you need.')}</p>{/each}
+		{:else}<p>{t('ยังไม่มี Gateway ที่คุณใช้ได้ ติดต่อผู้ดูแลเพื่อขอสิทธิ์', 'No Gateway access yet. Ask an administrator for access.')}</p>{/each}
 	</details>
 
-	<div class="setup-step"><div class="step-title"><span>1</span><h3>{t('เพิ่ม ORCA ในแอป AI', 'Add ORCA to your AI client')}</h3></div>
-		{#if hasEndpoint}<GatewayClientSetup {endpoint} ready={canCreate} scope="orca" />{:else}<p class="k-muted">{t('ระบบยังไม่มี URL สำหรับเชื่อม ORCA MCP กรุณาโหลดข้อมูลล่าสุดหรือติดต่อผู้ดูแล', 'An ORCA MCP URL is not available yet. Reload the latest data or contact your administrator.')}</p>{/if}
+	<div class="setup-step"><div class="step-title">{#if !oauth}<span>1</span>{/if}<h3>{t('เพิ่ม ORCA ในแอป AI', 'Add ORCA to your AI client')}</h3></div>
+		{#if hasEndpoint}<GatewayClientSetup {endpoint} ready={canCreate} scope="orca" {oauth} />{:else}<p class="k-muted">{t('ระบบยังไม่มี URL สำหรับเชื่อม ORCA MCP กรุณาโหลดข้อมูลล่าสุดหรือติดต่อผู้ดูแล', 'An ORCA MCP URL is not available yet. Reload the latest data or contact your administrator.')}</p>{/if}
 	</div>
-	<div class="setup-step"><div class="step-title"><span>2</span><h3>{t('สร้างคีย์ส่วนตัวสำหรับแอป', 'Create a personal key for your client')}</h3></div>
+	<details class="api-key-option" open={!oauth}>
+		<summary>API key{#if oauth} · {t('ทางเลือก', 'Optional')}{/if}</summary>
+	<div class="setup-step"><div class="step-title">{#if !oauth}<span>2</span>{/if}<h3>{t('สร้างคีย์ส่วนตัวสำหรับแอป', 'Create a personal key for your client')}</h3></div>
 		{#if notice}<p class="key-notice" role="status"><Check size={15} />{notice}</p>{/if}
 		{#if keyError}<div class="k-banner error" role="alert"><div>{keyError}<button class="k-link-button" onclick={loadKeys} disabled={loadingKeys}>{t('โหลดรายการคีย์อีกครั้ง', 'Reload keys')}</button></div></div>{/if}
 		{#if newKey && canCreate && secretAccess === accessSignature}
 			<div class="key-created">
 				<strong>{t('คีย์ของคุณพร้อมแล้ว', 'Your key is ready')}</strong>
-				<p>{t('คัดลอกไปใส่ในช่องเก็บคีย์ของแอป คีย์แสดงได้เฉพาะครั้งนี้ และไม่ถูกรวมในคำสั่งตั้งค่า', 'Copy it into your client secret field. It is shown only this once and is not included in the setup instructions.')}</p>
+				<p>{t('คัดลอกคีย์ไปเก็บในแอป AI คีย์นี้แสดงได้ครั้งเดียว', 'Save this key in your AI app. It is shown only once.')}</p>
 				<div class="k-actions"><button class="k-button primary" onclick={copyKey}><Copy size={16} />{t('คัดลอกคีย์', 'Copy key')}</button><button class="k-button" onclick={toggleReveal}>{#if revealKey}<EyeOff size={16} />{t('ซ่อนคีย์', 'Hide key')}{:else}<Eye size={16} />{t('แสดงคีย์', 'Reveal key')}{/if}</button><button class="k-button quiet" onclick={dismissCreatedKey}>{t('เก็บคีย์แล้ว', 'I have saved the key')}</button></div>
 				{#if revealKey}<div class="k-field reveal-field"><label for="orca-created-key">{t('คีย์เชื่อมต่อของคุณ', 'Your connection key')}</label><input id="orca-created-key" value={newKey} readonly autocomplete="off" spellcheck="false" /></div>{/if}
 			</div>
@@ -221,7 +223,7 @@
 					<button type="submit" class="k-button primary" disabled={creating || !keyName.trim()}><KeyRound size={16} />{creating ? t('กำลังสร้าง…', 'Creating…') : t('สร้างคีย์', 'Create key')}</button>
 				</fieldset>
 			</form>
-		{:else}<p class="k-muted">{t('เมื่อคุณได้รับสิทธิ์ใน Gateway ที่เปิดใช้งาน จะสร้างคีย์ได้ที่นี่ คีย์เดิมยังจัดการและยกเลิกได้ด้านล่าง', 'You can create a key here once you have access to an active Gateway. Existing keys can still be managed and revoked below.')}</p>{/if}
+		{:else}<p class="k-muted">{t('ต้องมีสิทธิ์ใช้ Gateway ก่อนสร้างคีย์', 'Gateway access is required to create a key.')}</p>{/if}
 	</div>
 
 	<section class="owned-keys" aria-labelledby="orca-keys-title">
@@ -233,6 +235,7 @@
 			{:else}<button class="k-button quiet small" aria-label={t(`ยกเลิกคีย์ ${key.name}`, `Revoke key ${key.name}`)} disabled={revoking !== undefined} onclick={() => requestRevoke(key.id)}><Trash2 size={15} />{t('ยกเลิกคีย์', 'Revoke')}</button>{/if}
 		</div>{/each}</div>{/if}
 	</section>
+	</details>
 </section>
 
 <style>
@@ -254,6 +257,8 @@
 	.reveal-field { margin-top:18px; }
 	.key-notice { display:flex; align-items:center; gap:7px; color:#4d722d; }
 	.k-banner .k-link-button { display:block; margin-top:6px; }
+	.api-key-option { margin-top:24px; padding:18px; border:1px solid #e1e6ed; border-radius:10px; }
+	.api-key-option > summary { cursor:pointer; font-size:15px; font-weight:600; }
 	.owned-keys { margin-top:30px; }
 	.key-list-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }
 	.key-list { border:1px solid #e1e6ed; border-radius:9px; background:white; }

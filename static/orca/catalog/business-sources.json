@@ -1,0 +1,82 @@
+{
+  "retrievedOn": "2026-09-20",
+  "records": [
+    {
+      "name": "facebook",
+      "sourceURL": "https://raw.githubusercontent.com/gilbarbara/logos/a5b65275e761a8347a99eded1101c6b130a06e52/logos/facebook.svg",
+      "path": "/orca/catalog/facebook.svg",
+      "sha256": "f83b5eaedea0fa8c1fbd0a458febc55f1d38d21c47e656d9af2ba45dec55ed05",
+      "bytes": 1020
+    },
+    {
+      "name": "instagram",
+      "sourceURL": "https://raw.githubusercontent.com/gilbarbara/logos/a5b65275e761a8347a99eded1101c6b130a06e52/logos/instagram-icon.svg",
+      "path": "/orca/catalog/instagram.svg",
+      "sha256": "0a93ecdead8f37cfa697210a18d63729c4fe64e9f06fd28e99bf6bbadfe40fe9",
+      "bytes": 4308
+    },
+    {
+      "name": "tiktok",
+      "sourceURL": "https://raw.githubusercontent.com/gilbarbara/logos/a5b65275e761a8347a99eded1101c6b130a06e52/logos/tiktok-icon.svg",
+      "path": "/orca/catalog/tiktok.svg",
+      "sha256": "1b8526711b7113ace7947a874485938cfcd7fb63ae1a19101a28f296d80c662e",
+      "bytes": 3678
+    },
+    {
+      "name": "shopify",
+      "sourceURL": "https://raw.githubusercontent.com/gilbarbara/logos/a5b65275e761a8347a99eded1101c6b130a06e52/logos/shopify.svg",
+      "path": "/orca/catalog/shopify.svg",
+      "sha256": "117ed805489b77a2279ad02232a2d2fbae5ae44a15344e90a16780f8ebfd93e1",
+      "bytes": 3396
+    },
+    {
+      "name": "woocommerce",
+      "sourceURL": "https://raw.githubusercontent.com/gilbarbara/logos/a5b65275e761a8347a99eded1101c6b130a06e52/logos/woocommerce-icon.svg",
+      "path": "/orca/catalog/woocommerce.svg",
+      "sha256": "5dd1f9d6f6bb4c84d8f318e5805f12e506033a2c4cc7648b7d8bd9429143bca0",
+      "bytes": 4990
+    },
+    {
+      "name": "bigcommerce",
+      "sourceURL": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/bigcommerce.svg",
+      "path": "/orca/catalog/bigcommerce.svg",
+      "sha256": "361cbe00b86c34f73d8b4b3e0f2222c71a7ca46774d6ac45ee41b0bbb1a1ac8d",
+      "bytes": 700
+    },
+    {
+      "name": "ebay",
+      "sourceURL": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/ebay.svg",
+      "path": "/orca/catalog/ebay.svg",
+      "sha256": "846e8d8ac6cea49766e7c62e095e739d115ed355f9b63bf46067f14c9343c745",
+      "bytes": 1268
+    },
+    {
+      "name": "etsy",
+      "sourceURL": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/etsy.svg",
+      "path": "/orca/catalog/etsy.svg",
+      "sha256": "4780de1a0c4949e614557a1fe1d3deb5f57fc0f1f901d19cafcf77091b7d5202",
+      "bytes": 710
+    },
+    {
+      "name": "shopee",
+      "sourceURL": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/shopee.svg",
+      "path": "/orca/catalog/shopee.svg",
+      "sha256": "b51a59e1463937286acca1b03bf9dd11df629fcde3f6fa91822f55d7bcb976bd",
+      "bytes": 1207
+    },
+    {
+      "name": "amazon",
+      "sourceURL": "https://raw.githubusercontent.com/simple-icons/simple-icons/13.0.0/icons/amazon.svg",
+      "path": "/orca/catalog/amazon.svg",
+      "sha256": "f7ef379d2ea0da19e63e74e394ec6a1423e335ef785a456729da66a840858dbf",
+      "bytes": 2129
+    },
+    {
+      "name": "lazada",
+      "sourceURL": "https://www.lazada.co.th/favicon.ico",
+      "path": "/orca/catalog/lazada.ico",
+      "sha256": "ce63dd6e15909af4d4a5b2d43a2a82199328f984dd364f125813d416374593c6",
+      "bytes": 67646
+    }
+  ]
+}

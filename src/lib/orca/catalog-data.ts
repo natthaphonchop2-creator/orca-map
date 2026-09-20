@@ -1,8 +1,11 @@
 // Presentation metadata for catalog candidates; provider availability comes from the backend.
 // Category labels and Thai summaries describe the source catalog, not connection readiness.
 // Original logo bytes and source/hash receipts: static/orca/catalog/sources.json.
+import { integrationPresentation } from './integration-directory';
 
 export const catalogCategories = [
+	{ id: 'social-media', th: 'โซเชียลมีเดีย', en: 'Social media' },
+	{ id: 'ecommerce', th: 'ร้านค้าและอีคอมเมิร์ซ', en: 'Stores & ecommerce' },
 	{
 		id: 'productivity',
 		th: 'งานและเอกสาร',
@@ -1215,6 +1218,8 @@ const presentations: Record<string, CatalogPresentation> = {
 };
 
 export function getCatalogPresentation(name: string, description = ''): CatalogPresentation {
+	const integration = integrationPresentation(name);
+	if (integration) return integration;
 	const presentation = presentations[normalizeCatalogName(name)];
 	if (presentation) return presentation;
 

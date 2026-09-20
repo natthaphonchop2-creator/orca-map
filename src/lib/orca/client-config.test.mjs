@@ -56,3 +56,14 @@ test('identifies endpoints that are local to the client computer', () => {
   assert.equal(localGatewayEndpoint('https://orca.example/mcp/team'), false);
   assert.equal(localGatewayEndpoint('not-a-url'), false);
 });
+
+
+test('OAuth configs preserve endpoint and omit all static credential fields', () => {
+  const endpoint = 'https://orca.example/api/orca/mcp';
+  assert.equal(gatewayClientConfig(endpoint, 'codex', true), `[mcp_servers.orca]\nurl = "${endpoint}"`);
+  assert.deepEqual(JSON.parse(gatewayClientConfig(endpoint, 'cursor', true)), { mcpServers: { orca: { url: endpoint } } });
+  assert.deepEqual(JSON.parse(gatewayClientConfig(endpoint, 'vscode', true)), { servers: { orca: { type: 'http', url: endpoint } } });
+  for (const client of ['codex', 'cursor', 'vscode']) {
+    assert.throws(() => gatewayClientConfig('https://orca.example/mcp?token=secret', client, true));
+  }
+});

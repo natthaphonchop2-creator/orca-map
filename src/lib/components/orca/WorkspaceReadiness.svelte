@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { gatewaySources, gatewayToolCount } from '$lib/orca/gateway-sources';
+	import { gatewaySources, gatewayToolCount, gatewayHasMember } from '$lib/orca/gateway-sources';
 	import { connectionReady, workspaceToolingReady } from '$lib/orca/activation';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { orcaError, type OrcaBootstrap, type OrcaHub } from '$lib/services/orca';
@@ -26,7 +26,7 @@
 	let counts = $state<{ knowledge: number; template: number }>();
 	let libraryError = $state('');
 	let revision = $state(0);
-	const isMember = $derived(hub.memberIDs.includes(data.currentUserID));
+	const isMember = $derived(gatewayHasMember(hub, data.currentUserID));
 	const connection = $derived(data.connections.find((item) => gatewaySources(hub).some((source) => source.connectionID === item.id) && !connectionReady(item)) ?? data.connections.find((item) => item.id === hub.connectionID));
 	const toolingReady = $derived(workspaceToolingReady(hub, data.connections));
 	const active = $derived(hub.status === 'active' && toolingReady);
@@ -46,7 +46,7 @@
 		let cancelled = false;
 		counts = undefined;
 		libraryError = '';
-		if (selectedHub.memberIDs.includes(currentData.currentUserID)) {
+		if (gatewayHasMember(selectedHub, currentData.currentUserID)) {
 			void OrcaLibraryService.load(selectedHub.id)
 				.then((result) => {
 					if (cancelled) return;
@@ -92,8 +92,8 @@
 			<p>
 				{!isMember
 					? t(
-							'ผู้ดูแลต้องเลือกคุณเป็นสมาชิก จึงจะใช้ข้อมูลและสร้างคีย์ในพื้นที่นี้ได้',
-							'An administrator must add you as a member before you can access content or create a key.'
+							'ผู้ดูแลต้องเพิ่มคุณหรือทีมของคุณ จึงจะใช้ข้อมูลและสร้างคีย์ในพื้นที่นี้ได้',
+							'An administrator must add you or your team before you can access content or create a key.'
 						)
 					: !toolingReady
 						? t(

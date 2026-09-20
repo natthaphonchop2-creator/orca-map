@@ -12,7 +12,7 @@ const moduleURL = (code) => 'data:text/javascript;base64,' + Buffer.from(code).t
 const gatewayURL = moduleURL(stripTypeScriptTypes(await readFile(new URL('../../orca/gateway-sources.ts', import.meta.url), 'utf8')));
 const activationURL = moduleURL(stripTypeScriptTypes(await readFile(new URL('../../orca/activation.ts', import.meta.url), 'utf8'))
 	.replace(/(['"])\.\/gateway-sources(?:\.ts)?\1/, JSON.stringify(gatewayURL)));
-const { gatewaySources, gatewayToolCount } = await import(gatewayURL);
+const { gatewaySources, gatewayToolCount, gatewayHasMember } = await import(gatewayURL);
 const { workspaceToolingReady } = await import(activationURL);
 const configURL = moduleURL(stripTypeScriptTypes(await readFile(new URL('../../orca/client-config.ts', import.meta.url), 'utf8')));
 const { gatewayClientConfig } = await import(configURL);
@@ -20,7 +20,7 @@ const source = await readFile(new URL('./OrcaMCPAccess.svelte', import.meta.url)
 const script = stripTypeScriptTypes(source.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
 	.replace(/^\s*import[^;]+;/gm, '')
 	.replace('$props()', '$state(testProps)');
-const compiled = compileModule(`export function harness(testProps, OrcaService, workspaceToolingReady, gatewayClientConfig, gatewaySources, gatewayToolCount, t, orcaError, onDestroy, untrack, navigator) {
+const compiled = compileModule(`export function harness(testProps, OrcaService, workspaceToolingReady, gatewayClientConfig, gatewaySources, gatewayToolCount, gatewayHasMember, t, orcaError, onDestroy, untrack, navigator) {
 	${script}
 	return {
 		loadKeys, createKey, requestRevoke, revokeKey, dismissCreatedKey, toggleReveal, copyKey,
@@ -28,7 +28,7 @@ const compiled = compileModule(`export function harness(testProps, OrcaService, 
 		expires(value) { expiryDays = value; },
 		changeData(value) { data = value; },
 		get data() { return data; },
-		get state() { return { keys, loadingKeys, keysLoaded, keyError, notice, canCreate, creating, revoking, confirmRevoke, newKey, newKeyID, revealKey, keyName, expiryDays, endpoint, accessibleGateways }; }
+		get state() { return { keys, loadingKeys, keysLoaded, keyError, notice, canCreate, creating, revoking, confirmRevoke, newKey, newKeyID, revealKey, keyName, expiryDays, endpoint, accessibleGateways, oauth }; }
 	};
 }`, { filename: 'orca-mcp-access-test.svelte.js', generate: 'client' }).js.code
 	.replaceAll('svelte/internal/client', pathToFileURL(require.resolve('svelte/internal/client')).href);
@@ -70,7 +70,7 @@ async function setup(context, methods = {}, data = bootstrap()) {
 			},
 			revokeOrcaKey: async (id) => { calls.revoke.push(id); entries = entries.filter((item) => item.id !== id); },
 			...methods
-		}, workspaceToolingReady, gatewayClientConfig, gatewaySources, gatewayToolCount,
+		}, workspaceToolingReady, gatewayClientConfig, gatewaySources, gatewayToolCount, gatewayHasMember,
 			(_th, en) => en, (error) => error.message, (fn) => callbacks.push(fn), untrack,
 			{ clipboard: { writeText: async (text) => calls.copy.push(text) } });
 	});
@@ -83,6 +83,7 @@ async function setup(context, methods = {}, data = bootstrap()) {
 	};
 	context.after(destroy);
 	await settle();
+	void view.state.oauth;
 	view.nameKey('My AI');
 	return { view, calls, destroy };
 }
@@ -115,6 +116,22 @@ test('default expiry is seven days and no expiry is an explicit zero selection',
 	assert.deepEqual(calls.create[1], { name: 'Always available', expiry: 0 });
 	assert.equal(view.state.newKey, 'synthetic-key-23');
 	assert.equal(view.state.revealKey, false);
+});
+
+test('inherited team membership permits an ORCA key and clears its secret when the team grant is removed', async (context) => {
+	const inherited = hub('team', { memberIDs: ['owner'], accessUnitIDs: ['finance'], effectiveMemberIDs: ['owner', 'member-one'] });
+	const { view, calls } = await setup(context, {}, bootstrap({ canManage: false, hubs: [inherited] }));
+	assert.equal(view.state.canCreate, true);
+	await view.createKey();
+	assert.equal(calls.create.length, 1);
+	view.toggleReveal();
+	view.changeData({ ...view.data, hubs: [{ ...inherited, effectiveMemberIDs: ['owner'] }] });
+	await settle();
+	assert.equal(view.state.canCreate, false);
+	assert.equal(view.state.newKey, '');
+	assert.equal(view.state.revealKey, false);
+	await view.createKey();
+	assert.equal(calls.create.length, 1);
 });
 
 test('empty, oversized, fractional, or out-of-range key input cannot create keys', async (context) => {
@@ -257,7 +274,7 @@ test('component compiles without warnings and renders unified setup without pass
 	const code = result.js.code.replace(/^import[\s\S]*?;\n/gm, '').replace('export default function OrcaMCPAccess', 'function OrcaMCPAccess');
 	const module = `import * as $ from ${JSON.stringify(pathToFileURL(require.resolve('svelte/internal/server')).href)};
 		export function component(deps) {
-			const { onDestroy, untrack, Check, Copy, Eye, EyeOff, KeyRound, RefreshCw, Trash2, workspaceToolingReady, gatewayClientConfig, gatewaySources, gatewayToolCount, localeHref, t, OrcaService, displayDate, orcaError, GatewayClientSetup } = deps;
+			const { onDestroy, untrack, Check, Copy, Eye, EyeOff, KeyRound, RefreshCw, Trash2, workspaceToolingReady, gatewayClientConfig, gatewaySources, gatewayToolCount, gatewayHasMember, localeHref, t, OrcaService, displayDate, orcaError, GatewayClientSetup } = deps;
 			${code}
 			return OrcaMCPAccess;
 		}`;
@@ -266,7 +283,7 @@ test('component compiles without warnings and renders unified setup without pass
 	const noop = () => {};
 	const Screen = component({
 		onDestroy: noop, untrack, Check: noop, Copy: noop, Eye: noop, EyeOff: noop, KeyRound: noop, RefreshCw: noop, Trash2: noop,
-		workspaceToolingReady, gatewayClientConfig, gatewaySources, gatewayToolCount, localeHref: (url) => url, t: (_th, en) => en,
+		workspaceToolingReady, gatewayClientConfig, gatewaySources, gatewayToolCount, gatewayHasMember, localeHref: (url) => url, t: (_th, en) => en,
 		OrcaService: {}, displayDate: (value) => value || '—', orcaError: (error) => error.message,
 		GatewayClientSetup: (_renderer, props) => calls.push(props)
 	});
@@ -280,8 +297,26 @@ test('component compiles without warnings and renders unified setup without pass
 	assert.equal(calls[0].endpoint, endpoint);
 	assert.equal(calls[0].scope, 'orca');
 	assert.equal(calls[0].ready, true);
-	assert.deepEqual(Object.keys(calls[0]).sort(), ['endpoint', 'ready', 'scope']);
+	assert.deepEqual(Object.keys(calls[0]).sort(), ['endpoint', 'oauth', 'ready', 'scope']);
+	assert.equal(calls[0].oauth, false);
+	const oauthHTML = render(Screen, { props: { data: bootstrap({ hubs: [hub('identity-gateway', { userSourceID: 'company-sso' })] }) } }).body;
+	assert.equal(calls[1].oauth, true);
+	const optional = oauthHTML.match(/<details([^>]*class="api-key-option[^>]*)>([\s\S]*?)<\/details>/);
+	assert.ok(optional);
+	assert.doesNotMatch(optional[1], /\bopen(?:\s|=|$)/);
+	assert.match(optional[2], /API key.*Optional/);
+	assert.match(optional[2], /Create a personal key/);
 	const unavailable = render(Screen, { props: { data: bootstrap({ unifiedConnectURL: undefined }) } }).body;
 	assert.match(unavailable, /ORCA MCP URL is not available yet/);
-	assert.equal(calls.length, 1);
+	assert.equal(calls.length, 2);
+});
+
+
+test('OAuth mode is chosen only from an accessible active Gateway with attached identity source', async (context) => {
+  const { view } = await setup(context, {}, bootstrap({ hubs: [hub('public'), hub('private', { memberIDs: ['someone-else'], userSourceID: 'idp' })] }));
+  assert.equal(view.state.oauth, false);
+  view.changeData({ ...view.data, hubs: [hub('allowed', { userSourceID: 'idp' })] });
+  await settle(); assert.equal(view.state.oauth, true);
+  view.changeData({ ...view.data, hubs: [hub('paused', { userSourceID: 'idp', status: 'paused' })] });
+  await settle(); assert.equal(view.state.oauth, false);
 });

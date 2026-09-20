@@ -52,6 +52,13 @@ const response = {
   ],
 };
 
+test('connected account evidence includes team-derived members only while the backend grant remains effective', () => {
+  const department = { ...data, hubs: [{ ...data.hubs[0], memberIDs: ['bob'], effectiveMemberIDs: ['alice', 'bob'] }] };
+  assert.deepEqual(connectedOAuthMembers(department, 'server-a', response).map((row) => row.memberID), ['alice']);
+  const revoked = { ...department, hubs: [{ ...department.hubs[0], effectiveMemberIDs: [] }] };
+  assert.deepEqual(connectedOAuthMembers(revoked, 'server-a', response), []);
+});
+
 test("Connected users contains saved OAuth grants, not merely configured or assigned users", () => {
   const rows = connectedOAuthMembers(data, "server-a", response);
   assert.deepEqual(

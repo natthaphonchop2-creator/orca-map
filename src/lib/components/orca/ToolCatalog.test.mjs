@@ -13,8 +13,8 @@ const component = await readFile(
   "utf8",
 );
 const catalog = await importTypeScript(new URL('../../orca/catalog.ts', import.meta.url));
-const { catalogCategories } = await import(
-  new URL("../../orca/catalog-data.ts", import.meta.url).href
+const { catalogCategories } = await importTypeScript(
+  new URL("../../orca/catalog-data.ts", import.meta.url)
 );
 const script = stripTypeScriptTypes(
   component.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1],
@@ -24,11 +24,12 @@ const script = stripTypeScriptTypes(
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(testProps, dependencies) {
-  const { OrcaService, onMount, onDestroy, filterCatalog, googleDriveProvider, groupCatalog, popularCatalog, starterCatalog, catalogSetupHref, catalogCategories, selectedToolInventory, orcaError, localeHref } = dependencies;
+  const { OrcaService, onMount, onDestroy, catalogDirectory, filterCatalog, googleDriveProvider, groupCatalog, popularCatalog, starterCatalog, catalogSetupHref, catalogCategories, selectedToolInventory, orcaError, localeHref } = dependencies;
   ${script}
   return {
     load, otherDriveConnections, driveProviderLabel, sourceHref, sourceConnection, changeTab,
-    setQuery(value) { query = value; }, setCategory(value) { category = value; },
+    setQuery(value) { query = value; }, setCategory(value) { category = value; }, setProtocol(value) { protocol = value; },
+    get matches() { return matches; },
     get allSources() { return allSources; }, get groupedMatches() { return groupedMatches; },
     get popular() { return popular; }, get starters() { return starters; },
     get isOverview() { return isOverview; }, get selectedTools() { return selectedTools; }
@@ -55,6 +56,54 @@ function dependencies(candidates, inventory = []) {
     localeHref: (href) => href,
   };
 }
+
+test('protocol selection intersects with search and guides do not become configured sources', async () => {
+  let view;
+  const stop = effect_root(() => {
+    view = harness({ data: { canManage: true, connections: [], hubs: [] } }, dependencies(async () => []));
+  });
+  try {
+    await view.load();
+    view.setQuery('LINE');
+    view.setProtocol('API');
+    flush();
+    assert.deepEqual(view.matches.map((row) => row.name), ['LINE Messaging API']);
+    assert.ok(view.matches.every((row) => row.guideOnly && !view.sourceConnection(row)));
+    view.setProtocol('MCP');
+    flush();
+    assert.deepEqual(view.matches.map((row) => row.name), ['LINE Bot MCP']);
+    assert.equal(view.isOverview, false);
+    view.changeTab('tools');
+    flush();
+    assert.equal(view.selectedTools.length, 0);
+  } finally { stop(); }
+});
+
+test('unavailable integrations open the real add-MCP flow without sending a guide ID to connection setup', async () => {
+  let view;
+  const stop = effect_root(() => {
+    view = harness({ data: { canManage: true, connections: [], hubs: [] } }, dependencies(async () => [
+      { id: 'default-orca-tiktok-ads', name: 'TikTok Ads', authMethods: ['oauth'] },
+    ]));
+  });
+  try {
+    await view.load();
+    flush();
+    for (const id of ['guide-shopee-seller-api', 'guide-line-bot-mcp']) {
+      const source = view.allSources.find((row) => row.id === id);
+      assert.ok(source.guideOnly);
+      const href = new URL(view.sourceHref(source), 'https://orca.test');
+      assert.equal(href.searchParams.get('view'), 'servers');
+      assert.equal(href.searchParams.get('add'), 'source');
+      assert.equal(href.searchParams.has('source'), false);
+      assert.equal(view.sourceConnection(source), undefined);
+    }
+    const available = view.allSources.find((row) => row.id === 'default-orca-tiktok-ads');
+    const href = new URL(view.sourceHref(available), 'https://orca.test');
+    assert.equal(href.searchParams.get('source'), available.id);
+    assert.equal(href.searchParams.has('add'), false);
+  } finally { stop(); }
+});
 
 test("managed catalog choice keeps existing provider connections distinct and available by their saved identities", async () => {
   const managed = {
@@ -155,7 +204,7 @@ test("catalog category, search, and selected tools remain independent and links 
     await view.load();
     flush();
     assert.equal(view.isOverview, true);
-    assert.equal(view.groupedMatches.length, 2);
+    assert.ok(view.groupedMatches.some(({ id }) => id === 'accounting'));
     assert.equal(view.popular[0].gatewayCount, 1);
     assert.deepEqual(
       view.starters.map(({ name }) => name),
@@ -194,7 +243,7 @@ test("catalog category, search, and selected tools remain independent and links 
     view.changeTab("apps");
     flush();
     assert.equal(view.isOverview, true);
-    assert.equal(view.groupedMatches.length, 2);
+    assert.ok(view.groupedMatches.some(({ id }) => id === 'accounting'));
   } finally {
     stop();
   }

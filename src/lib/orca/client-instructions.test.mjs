@@ -51,3 +51,16 @@ test('unified instructions describe only the Gateways the member is permitted to
 	assert.match(prompt, /current membership and permissions/);
 	assert.doesNotMatch(gatewayClientInstructions(endpoint), /every Gateway/);
 });
+
+
+test('OAuth instructions verify client capability and use browser identity sign-in without issuing a key', () => {
+  const prompt = gatewayClientInstructions(endpoint, 'gateway', true);
+  assert.match(prompt, /Authentication: OAuth using my organization account/);
+  assert.match(prompt, /verify that its MCP client supports Streamable HTTP and OAuth/);
+  assert.match(prompt, /complete sign-in in the browser/);
+  assert.match(prompt, /Do not require a manually issued API key/);
+  assert.match(prompt, /Do not assume every client supports this flow/);
+  assert.match(prompt, /verify tools\/list only/);
+  assert.doesNotMatch(prompt, /ORCA_MCP_KEY|Bearer <personal-key>|Codex|Cursor|VS Code|[\u0E00-\u0E7F]/);
+  assert.match(gatewayClientInstructions('http://localhost:8787/api/orca/mcp', 'orca', true), /cloud AI service cannot reach it/);
+});

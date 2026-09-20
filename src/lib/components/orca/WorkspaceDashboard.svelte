@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { gatewayMemberIDs } from '$lib/orca/gateway-sources';
   import { onMount, onDestroy } from "svelte";
   import {
     Activity,
@@ -346,7 +347,7 @@
             href={localeHref("/app?view=hub&hub=" + encodeURIComponent(hub.id))}
             ><Folder size={19} /><span class="row-copy"
               ><strong title={hub.name}>{hub.name}</strong><small
-                >{hub.memberIDs.length}
+                >{gatewayMemberIDs(hub).length}
                 {t("สมาชิก", "members")} · {hub.status === "active"
                   ? t("เปิดใช้งาน", "Active")
                   : hub.status === "draft"

@@ -5,6 +5,7 @@
   import OrganizationSettings from "$lib/components/khum/OrganizationSettings.svelte";
   import WorkspaceDetail from "$lib/components/khum/WorkspaceDetail.svelte";
   import WorkspaceWizard from "$lib/components/khum/WorkspaceWizard.svelte";
+  import GatewayCreated from "$lib/components/orca/GatewayCreated.svelte";
   import notoLicenseURL from "$lib/components/khum/assets/noto-sans-thai-OFL.txt?url";
   import "$lib/components/khum/khum.css";
   import WorkspaceDashboard from "$lib/components/orca/WorkspaceDashboard.svelte";
@@ -15,6 +16,7 @@
   import ConnectionSettings from "$lib/components/orca/ConnectionSettings.svelte";
   import ConnectedUsers from "$lib/components/orca/ConnectedUsers.svelte";
   import FeatureScaffold from "$lib/components/orca/FeatureScaffold.svelte";
+  import UserSources from "$lib/components/orca/UserSources.svelte";
   import SettingsCenter from "$lib/components/orca/SettingsCenter.svelte";
   import KnowledgeLibrary from "$lib/components/orca/KnowledgeLibrary.svelte";
   import PilotInbox from "$lib/components/orca/PilotInbox.svelte";
@@ -24,6 +26,7 @@
   import "$lib/components/orca/orca.css";
   import { initializeLocale, localeHref, t } from "$lib/orca/locale.svelte";
   import { appNavigation } from "$lib/orca/navigation";
+  import { gatewayHasMember } from "$lib/orca/gateway-sources";
   import { getFeatureDefinition } from "$lib/orca/feature-registry";
   import {
     OrcaService,
@@ -44,7 +47,7 @@
   const plannedFeature = $derived(getFeatureDefinition(view));
   const personalHubs = $derived.by(() => {
     const current = data;
-    return current?.hubs.filter((item) => item.status !== "archived" && item.status !== "deleted" && item.memberIDs.includes(current.currentUserID)) ?? [];
+    return current?.hubs.filter((item) => item.status !== "archived" && item.status !== "deleted" && gatewayHasMember(item, current.currentUserID)) ?? [];
   });
   const currentData = $derived(data ? {...data,
     hubs: data.hubs.filter(item => item.status !== 'archived' && item.status !== 'deleted'),
@@ -89,7 +92,6 @@
   });
   async function reloadWizard() {
     await refresh();
-    if (!refreshing && !error) wizardRevision += 1;
   }
   async function saved(hub: OrcaHub) {
     refreshGeneration += 1;
@@ -98,7 +100,9 @@
         ...data,
         hubs: [...data.hubs.filter((item) => item.id !== hub.id), hub],
       };
-    await goto(localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}`));
+    const nextTab = !editID ? '&tab=connect&created=1'
+      : page.url.searchParams.get('step') === 'tools' ? '&tab=tools' : '';
+    await goto(localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}${nextTab}`));
     await refresh();
   }
   $effect(() => {
@@ -179,7 +183,7 @@
           onreload={reloadWizard}
         />{/key}{/if}
   {:else if view === "hub"}
-    {#if hub}{#key hub.id}<WorkspaceDetail
+    {#if hub}{#if page.url.searchParams.get('created') === '1' && data.canManage}<GatewayCreated {hub} />{/if}{#key hub.id}<WorkspaceDetail
           data={managementData!}
           {hub}
           onchanged={refresh}
@@ -203,7 +207,7 @@
       initialCreate={createLibraryItem}
       onchanged={refresh}
     />
-  {:else if view === "catalog"}<ToolCatalog data={currentData!} />
+  {:else if view === "catalog"}<ToolCatalog data={currentData!} onchanged={refresh} />
   {:else if view === "servers"}
     {#if navigation.connectionDetail}{#key `${sourceID}:${connectionID}:${addSource}`}<ConnectionSettings
           data={managementData!}
@@ -251,6 +255,7 @@
         </a>
       {:else}<p>{t("คุณยังไม่ได้เป็นสมาชิกของ MCP Gateway", "You do not belong to an MCP Gateway yet.")}</p>{/each}
     </section>
+  {:else if view === "user-sources"}<UserSources data={currentData!} />
   {:else if plannedFeature}<FeatureScaffold feature={plannedFeature} />
   {:else if view === "settings"}<SettingsCenter {data} onchanged={refresh} />
   {:else if view === "executions"}<Audit {data} {hubID} mode="executions" />

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { toolPresentation } from "$lib/orca/tool-presentation";
   import { orcaLocale } from "$lib/orca/locale.svelte";
-  import { gatewayUsesConnection, gatewayToolCount } from "$lib/orca/gateway-sources";
+  import { gatewayUsesConnection, gatewayToolCount, gatewayMemberIDs } from "$lib/orca/gateway-sources";
   import { goto } from "$app/navigation";
   import LifecycleActions from "./LifecycleActions.svelte";
   import { page } from "$app/state";
@@ -136,13 +136,7 @@
       />{/if}
     <div>
       <h1>{connection?.name || t("เพิ่ม Server", "Add server")}</h1>
-      <p>
-        {connection?.description ||
-          t(
-            "ตั้งค่าระบบต้นทางและขอบเขตเครื่องมือที่องค์กรอนุญาต",
-            "Configure the source system and the maximum set of tools approved by your organization.",
-          )}
-      </p>
+      {#if connection?.description}<p>{connection.description}</p>{/if}
     </div>
   </div>
   {#if connection}<span
@@ -183,10 +177,6 @@
     </p>
   </section>
 {:else if tab === "account" && connection}
-  <p class="connection-empty-copy">{t(
-    "จัดการบัญชีส่วนตัวของคุณที่ใช้กับ Server นี้ เครื่องมือที่องค์กรอนุญาตแก้ไขได้ในแท็บเครื่องมือและสิทธิ์",
-    "Manage your personal account for this server. Edit the organization’s approved tools in Tools & permissions.",
-  )}</p>
   <SourceSetup
     sourceID={connection.mcpID}
     sourceLabel={catalogNames[connection.mcpID] || ""}
@@ -216,12 +206,6 @@
     <div class="connection-section-heading">
       <div>
         <h2>{t("เครื่องมือที่อนุญาต", "Approved tools")}</h2>
-        <p>
-          {t(
-            "ขอบเขตเครื่องมือสูงสุดที่องค์กรอนุญาตสำหรับ Server นี้ แต่ละ MCP Gateway เลือกเครื่องมือย่อยและสมาชิกได้ภายในขอบเขตนี้",
-            "The maximum set of tools approved for this server. Each MCP Gateway chooses a subset of these tools and its members.",
-          )}
-        </p>
       </div>
     </div>
     {#each connection.tools.filter( (tool) => connection.toolNames.includes(tool.name), ) as tool}<div
@@ -231,10 +215,7 @@
         <div>
           <strong>{toolPresentation(tool, orcaLocale.value).label}</strong>
           <small class="k-muted">{tool.name}</small>
-          <p>
-            {tool.description ||
-              t("ไม่มีคำอธิบายเพิ่มเติม", "No additional description.")}
-          </p>
+          {#if tool.description}<p>{tool.description}</p>{/if}
         </div>
       </div>{:else}<p class="connection-empty-copy">
         {t("ยังไม่มีเครื่องมือที่บันทึกไว้", "No approved tools saved yet.")}
@@ -251,12 +232,6 @@
         <h2>
           {t("MCP Gateways ที่ใช้ Server นี้", "MCP Gateways using this server")}
         </h2>
-        <p>
-          {t(
-            "เลือกเครื่องมือภายในขอบเขตที่ Server อนุญาตและสมาชิก แล้วนำ URL ของ Gateway ไปเชื่อมกับ AI",
-            "Choose tools within this server’s approved set and add members, then connect AI using the Gateway URL.",
-          )}
-        </p>
       </div>
       {#if data.canManage && !connection.archivedAt && connectionReady(connection)}<a
           class="k-button primary"
@@ -273,7 +248,7 @@
         ><Folder size={21} /><span
           ><strong>{workspace.name}</strong><small
             >{gatewayToolCount(workspace)}
-            {t("เครื่องมือ", "tools")} · {workspace.memberIDs.length}
+            {t("เครื่องมือ", "tools")} · {gatewayMemberIDs(workspace).length}
             {t("สมาชิก", "members")}</small
           ></span
         ><span class="connection-status">{statusLabels[workspace.status]}</span
@@ -290,12 +265,6 @@
     <div class="connection-section-heading">
       <div>
         <h2>{t("กิจกรรมของ Server", "Server activity")}</h2>
-        <p>
-          {t(
-            "รายการจากประวัติการใช้งานจริง",
-            "Recorded events for this server and its MCP Gateways.",
-          )}
-        </p>
       </div>
       <button
         class="k-button"
@@ -329,12 +298,6 @@
     <div class="connection-section-heading">
       <div>
         <h2>{t("ตั้งค่า Server", "Server setup")}</h2>
-        <p>
-          {t(
-            "ตรวจสอบแต่ละส่วนก่อนให้ทีมเริ่มใช้งาน",
-            "Review each part before giving your team access.",
-          )}
-        </p>
       </div>
       <ShieldCheck size={25} />
     </div>
@@ -343,12 +306,6 @@
         <span>1</span>
         <div>
           <strong>{t("บัญชีของระบบต้นทาง", "Source account")}</strong>
-          <p>
-            {t(
-              "ตรวจสอบหรือเชื่อมบัญชีที่คุณใช้เข้าถึงระบบนี้",
-              "Review or connect your own account for this system.",
-            )}
-          </p>
         </div>
         <a href={href("account")}
           >{t("จัดการบัญชี", "Manage account")}<ArrowRight size={16} /></a

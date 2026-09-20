@@ -419,3 +419,84 @@ test('Vite middleware reuses secure auth proxy while passing UI and filesystem m
   await request(viteURL, '/?code=fixture%2Bcode&state=fixture');
   assert.equal(seen.path, '/oauth2/callback?code=fixture%2Bcode&state=fixture');
 });
+
+for (const mode of ['standalone', 'vite']) {
+  test(`${mode}: incoming ORCA OAuth navigation reaches the canonical issuer before any state cookie is set`, async (t) => {
+    let seen = 0;
+    const canonical = 'https://identity.orca.example';
+    const f = await fixture(t, (_req, res) => { seen++; res.setHeader('set-cookie', 'state=fixture; Path=/orca/oauth'); res.end('upstream'); }, { backendPublicOrigin: canonical });
+    let appURL = f.appURL;
+    if (mode === 'vite') {
+      const middleware = createBackendMiddleware({ backendURL: f.backendURL, backendPublicOrigin: canonical });
+      const vite = http.createServer((req, res) => middleware(req, res, () => res.end('vite')));
+      appURL = await listen(vite);
+      t.after(async () => { vite.closeAllConnections(); await new Promise((resolve) => vite.close(resolve)); });
+    }
+    const headers = { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', referer: 'https://idp.example/' };
+    for (const pathname of [
+      '/orca/oauth/authorize?client_id=fixture&redirect_uri=http%3A%2F%2F127.0.0.1%3A19876%2Fcallback&state=a%2Bb%2Fc',
+      '/orca/oauth/callback?code=opaque%2Bcode&state=opaque%2Fstate',
+    ]) {
+      const response = await request(appURL, pathname, { headers });
+      assert.equal(response.status, 302);
+      assert.equal(response.headers.location, canonical + pathname);
+      assert.equal(response.headers['cache-control'], 'no-store');
+      assert.equal(response.headers['referrer-policy'], 'no-referrer');
+      assert.equal(response.headers['set-cookie'], undefined);
+      assert.equal(response.body, '');
+    }
+    assert.equal(seen, 0, 'the app must not create or consume an issuer state cookie');
+    for (const [pathname, method] of [
+      ['/orca/oauth/authorize/extra', 'GET'], ['/orca/oauth/callback/extra', 'GET'],
+      ['/orca/oauth/consent', 'GET'], ['/orca/oauth/token', 'GET'],
+      ['/orca/oauth/authorize', 'HEAD'], ['/orca/oauth/callback', 'HEAD'],
+      ['/orca/oauth/authorize', 'POST'], ['/orca/oauth/callback', 'POST'],
+      ['/orca/oauth/consent', 'POST'], ['/orca/oauth/register', 'POST'], ['/orca/oauth/token', 'POST'],
+    ]) assert.equal((await request(appURL, pathname, { method, headers })).status, 403, `${method} ${pathname}`);
+    assert.equal((await request(appURL, '/orca/oauth/authorize', { headers: { ...headers, 'sec-fetch-mode': 'cors' } })).status, 403);
+    assert.equal((await request(appURL, '/orca/oauth/callback', { headers: { ...headers, origin: 'https://idp.example' } })).status, 403);
+    assert.equal(seen, 0);
+  });
+
+  test(`${mode}: ORCA issuer metadata and same-origin consent retain canonical URLs without widening mutation access`, async (t) => {
+    const canonical = 'https://identity.orca.example';
+    const captured = [];
+    const metadata = { issuer: canonical + '/orca', authorization_endpoint: canonical + '/orca/oauth/authorize', token_endpoint: canonical + '/orca/oauth/token', registration_endpoint: canonical + '/orca/oauth/register' };
+    const f = await fixture(t, async (req, res) => {
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      captured.push({ path: req.url, method: req.method, headers: req.headers, body: Buffer.concat(chunks).toString() });
+      if (req.url === '/orca/.well-known/oauth-authorization-server') {
+        res.setHeader('content-type', 'application/json'); res.end(JSON.stringify(metadata));
+      } else if (req.url === '/orca/oauth/consent') {
+        res.writeHead(302, { location: canonical + '/client/callback?code=fixture&state=original%2Bstate' }); res.end();
+      } else if (req.url === '/api/redirect-incoming-oauth') {
+        res.writeHead(302, { location: canonical + '/orca/oauth/authorize?redirect_uri=' + encodeURIComponent(canonical + '/registered-client/callback') }); res.end();
+      } else { res.setHeader('content-type', 'application/json'); res.end('{"ok":true}'); }
+    }, { backendPublicOrigin: canonical });
+    let appURL = f.appURL;
+    if (mode === 'vite') {
+      const middleware = createBackendMiddleware({ backendURL: f.backendURL, backendPublicOrigin: canonical });
+      const vite = http.createServer((req, res) => middleware(req, res, () => res.end('vite')));
+      appURL = await listen(vite);
+      t.after(async () => { vite.closeAllConnections(); await new Promise((resolve) => vite.close(resolve)); });
+    }
+    const discovery = await request(appURL, '/orca/.well-known/oauth-authorization-server');
+    assert.equal(discovery.status, 200);
+    assert.deepEqual(JSON.parse(discovery.body), metadata);
+    const headers = { origin: appURL, referer: appURL + '/orca/oauth/callback', 'sec-fetch-site': 'same-origin', 'content-type': 'application/x-www-form-urlencoded' };
+    const consent = await request(appURL, '/orca/oauth/consent', { method: 'POST', headers, body: 'state=fixture%2Bstate&decision=allow' });
+    assert.equal(consent.status, 302);
+    assert.equal(consent.headers.location, canonical + '/client/callback?code=fixture&state=original%2Bstate');
+    assert.equal(captured[1].headers.origin, canonical);
+    assert.equal(captured[1].body, 'state=fixture%2Bstate&decision=allow');
+    const redirect = await request(appURL, '/api/redirect-incoming-oauth');
+    assert.equal(redirect.headers.location, canonical + '/orca/oauth/authorize?redirect_uri=' + encodeURIComponent(canonical + '/registered-client/callback'));
+    for (const route of ['/orca/oauth/consent', '/orca/oauth/register', '/orca/oauth/token']) {
+      const before = captured.length;
+      assert.equal((await request(appURL, route, { method: 'POST', headers: { ...headers, origin: 'https://foreign.example' }, body: 'state=fixture' })).status, 403);
+      assert.equal(captured.length, before);
+      assert.equal((await request(appURL, route, { method: 'POST', headers, body: 'fixture=1' })).status, route.endsWith('/consent') ? 302 : 200);
+    }
+  });
+}

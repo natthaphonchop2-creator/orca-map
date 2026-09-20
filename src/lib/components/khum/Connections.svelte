@@ -28,7 +28,7 @@
 		Plug,
 		Plus
 	} from '@lucide/svelte';
-	import { onMount, onDestroy, tick } from 'svelte';
+	import { onMount, onDestroy, tick, untrack } from 'svelte';
 
 	let {
 		data,
@@ -36,7 +36,10 @@
 		initialSourceID = '',
 		initialConnectionID = '',
 		initiallyAddSource = false,
-		mode = 'setup'
+		mode = 'setup',
+		embedded = false,
+		oncompleted,
+		onbusychange
 	}: {
 		data: OrcaBootstrap;
 		onchanged: () => Promise<void>;
@@ -44,6 +47,9 @@
 		initialConnectionID?: string;
 		initiallyAddSource?: boolean;
 		mode?: 'setup' | 'policy';
+		embedded?: boolean;
+		oncompleted?: (connection: OrcaConnection) => Promise<void>;
+		onbusychange?: (busy: boolean) => void;
 	} = $props();
 	let alive = true;
 	let initialSelectionApplied = false;
@@ -78,6 +84,10 @@
 	let changingConnection = $state('');
 	const busy = $derived(discovering || saving);
 	const policyMode = $derived(mode === 'policy');
+	$effect(() => {
+		const operationBusy = loading || discovering || saving || setupBusy;
+		untrack(() => onbusychange?.(operationBusy));
+	});
 	const toolsReviewed = $derived(
 		!!mcpID && discoveredID === mcpID && toolNames.length > 0 && reviewedTools
 	);
@@ -188,7 +198,7 @@
 		suggestedName = '';
 		await tick();
 		title?.focus({ preventScroll: true });
-		window.scrollTo({ top: 0, behavior: 'instant' });
+		if (!embedded) window.scrollTo({ top: 0, behavior: 'instant' });
 		if (policyMode && connection) await discover(connection.mcpID);
 	}
 	function sourceChanged() {
@@ -284,7 +294,7 @@
 		error = '';
 		try {
 			dataAtSave = data;
-			savedConnection = await OrcaService.connection(
+			if (!embedded || !savedConnection) savedConnection = await OrcaService.connection(
 				{
 					name: name.trim(),
 					description: description.trim(),
@@ -298,12 +308,17 @@
 				},
 				editing?.id
 			);
+			if (embedded) {
+				await onchanged();
+				if (alive && savedConnection) await oncompleted?.(savedConnection);
+				return;
+			}
 			formOpen = false;
 			query = '';
 			success = t('บันทึก Server แล้ว', 'Server saved');
 			await onchanged();
 			await tick();
-			window.scrollTo({ top: 0, behavior: 'instant' });
+			if (!embedded) window.scrollTo({ top: 0, behavior: 'instant' });
 		} catch (cause) {
 			error = orcaError(cause);
 		} finally {
@@ -408,6 +423,7 @@
 	</div>
 {/snippet}
 
+{#if !embedded}
 <div class="k-breadcrumb">
 	<a href={localeHref('/app?view=servers')}>Servers</a><span>/</span><span
 		>{t('ระบบต้นทาง', 'Source systems')}</span
@@ -436,6 +452,7 @@
 		)}
 	</p>
 </div>
+{/if}
 {#if error}<div class="k-banner error" role="alert">
 		<Info size={19} />
 		<div>
@@ -458,7 +475,7 @@
 		</div>
 	</div>{/if}
 {#if success}<div class="k-banner success" role="status"><Check size={19} />{success}</div>{/if}
-{#if !formOpen && savedSource && data.canManage}
+{#if !embedded && !formOpen && savedSource && data.canManage}
 	<section
 		class="k-panel connection-saved"
 		aria-label={t('ขั้นตอนถัดไปหลังบันทึก Server', 'Next steps after saving your server')}
@@ -472,7 +489,10 @@
 	</section>
 {/if}
 
-{#if formOpen && data.canManage}
+{#if embedded && savedConnection}
+  <div class="k-banner success" role="status"><Check size={19} />{t('บันทึกการเชื่อมต่อแล้ว', 'Connection saved')}</div>
+  {#if !saving}<button class="k-button primary" onclick={save}>{t('กลับไปใช้งานการเชื่อมต่อนี้', 'Continue with this connection')}</button>{/if}
+{:else if formOpen && data.canManage}
 	<ol class="connection-progress" aria-label={t('ขั้นตอนตั้งค่า Server', 'Server setup steps')}>
 		{#each policyMode ? [t('เลือกเครื่องมือ', 'Choose tools'), t('บันทึก', 'Save')] : [t('เชื่อมบัญชี', 'Connect account'), t('เลือกเครื่องมือ', 'Choose tools'), t('บันทึก', 'Save')] as label, index (index)}
 			{@const stepNumber = index + (policyMode ? 2 : 1)}
@@ -494,6 +514,7 @@
 		hidden={step !== 1}
 		aria-label={t('เชื่อมบัญชี', 'Connect account')}
 	>
+		{#if !embedded || !initialSourceID}
 		<h2>{t('เลือกระบบ แล้วเชื่อมบัญชีของคุณ', 'Choose a system and connect your account')}</h2>
 		<p class="k-small k-muted step-description">
 			{t(
@@ -501,6 +522,8 @@
 				'After the connection check, ORCA will show the tool list for you to review.'
 			)}
 		</p>
+		{/if}
+		{#if !embedded || !initialSourceID || !selectedSource}
 		<div class="k-field k-section">
 			<label for="candidate">{t('ระบบที่ต้องการเชื่อมต่อ', 'System to connect')}</label>
 			<select
@@ -515,6 +538,7 @@
 					>{/each}
 			</select>
 		</div>
+		{/if}
 		{#if editing}<p class="k-small k-muted">
 				{t(
 					'หากต้องการเปลี่ยนระบบต้นทาง ให้เพิ่ม Server ใหม่',
@@ -801,14 +825,14 @@
 					>{/if}
 			</div>
 		</form>
-	{:else}
+	{:else if !embedded}
 		<div class="k-wizard-actions">
 			<button class="k-link-button" type="button" disabled={busy || setupBusy} onclick={closeForm}
 				><ChevronLeft size={17} />{t('กลับไป Servers', 'Back to Servers')}</button
 			>
 		</div>
 	{/if}
-{:else if !policyMode}
+{:else if !policyMode && !embedded}
 	{#if data.connections.length > 4}<div class="k-field" style="max-width:440px;margin-bottom:20px">
 			<label for="connection-search">{t('ค้นหาระบบ', 'Search sources')}</label><input
 				id="connection-search"
