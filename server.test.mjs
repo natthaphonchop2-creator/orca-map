@@ -436,6 +436,8 @@ for (const mode of ['standalone', 'vite']) {
     for (const pathname of [
       '/orca/oauth/authorize?client_id=fixture&redirect_uri=http%3A%2F%2F127.0.0.1%3A19876%2Fcallback&state=a%2Bb%2Fc',
       '/orca/oauth/callback?code=opaque%2Bcode&state=opaque%2Fstate',
+      '/orca/oauth/session?state=opaque%2Bstate',
+      '/orca/oauth/login?state=opaque%2Fstate',
     ]) {
       const response = await request(appURL, pathname, { headers });
       assert.equal(response.status, 302);
@@ -448,9 +450,12 @@ for (const mode of ['standalone', 'vite']) {
     assert.equal(seen, 0, 'the app must not create or consume an issuer state cookie');
     for (const [pathname, method] of [
       ['/orca/oauth/authorize/extra', 'GET'], ['/orca/oauth/callback/extra', 'GET'],
+      ['/orca/oauth/session/extra', 'GET'], ['/orca/oauth/login/extra', 'GET'],
       ['/orca/oauth/consent', 'GET'], ['/orca/oauth/token', 'GET'],
       ['/orca/oauth/authorize', 'HEAD'], ['/orca/oauth/callback', 'HEAD'],
+      ['/orca/oauth/session', 'HEAD'], ['/orca/oauth/login', 'HEAD'],
       ['/orca/oauth/authorize', 'POST'], ['/orca/oauth/callback', 'POST'],
+      ['/orca/oauth/session', 'POST'], ['/orca/oauth/login', 'POST'],
       ['/orca/oauth/consent', 'POST'], ['/orca/oauth/register', 'POST'], ['/orca/oauth/token', 'POST'],
     ]) assert.equal((await request(appURL, pathname, { method, headers })).status, 403, `${method} ${pathname}`);
     assert.equal((await request(appURL, '/orca/oauth/authorize', { headers: { ...headers, 'sec-fetch-mode': 'cors' } })).status, 403);

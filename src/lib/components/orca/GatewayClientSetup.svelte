@@ -3,7 +3,8 @@
   import { gatewayClientInstructions, type GatewaySetupClient, type GatewaySetupScope } from '$lib/orca/client-instructions';
   import { orcaLocale, t } from '$lib/orca/locale.svelte';
   import { Copy, Check, ExternalLink, ChevronDown } from '@lucide/svelte';
-  let { endpoint, ready = true, scope = 'gateway', oauth = false }: { endpoint: string; ready?: boolean; scope?: GatewaySetupScope; oauth?: boolean } = $props();
+  let { endpoint, ready = true, scope = 'gateway', oauth = true }: { endpoint: string; ready?: boolean; scope?: GatewaySetupScope; oauth?: boolean } = $props();
+  const endpointID = $derived(`mcp-endpoint-${scope}-${oauth ? 'oauth' : 'key'}`);
   let client = $state<GatewaySetupClient>('manual');
   let copied = $state('');
   let error = $state('');
@@ -30,15 +31,15 @@
 
 <div class="client-setup">
   {#if instructions}
-    <div class="k-field"><label for="hub-endpoint">{scope === 'orca' ? t('URL ของ ORCA MCP', 'ORCA MCP URL') : t('URL ของ MCP Gateway', 'MCP gateway URL')}</label>
-      <div class="endpoint"><input id="hub-endpoint" readonly value={endpoint} /><button class="k-button" onclick={() => copy(endpoint, 'URL')} aria-label={t('คัดลอก URL', 'Copy URL')}><Copy size={16} /></button></div>
+    <div class="k-field"><label for={endpointID}>{scope === 'orca' ? t('URL ของ ORCA MCP', 'ORCA MCP URL') : t('URL ของ MCP Gateway', 'MCP gateway URL')}</label>
+      <div class="endpoint"><input id={endpointID} readonly value={endpoint} /><button class="k-button primary" onclick={() => copy(endpoint, 'URL')} aria-label={t('คัดลอก URL', 'Copy URL')}><Copy size={16} />{t('คัดลอก URL', 'Copy URL')}</button></div>
     </div>
-    <div class="setup-actions"><span class="auth-mode">{oauth ? t('เข้าสู่ระบบด้วยบัญชีองค์กร', 'Organization sign-in') : 'API key'}</span><button class="k-button primary" onclick={() => copy(instructions, t('คำสั่งตั้งค่า', 'Setup instructions'))}><Copy size={16} />{t('คัดลอกคำสั่งตั้งค่า', 'Copy setup instructions')}</button></div>
+    <div class="setup-actions"><span class="auth-mode">{oauth ? t('เข้าสู่ระบบ ORCA ผ่าน OAuth', 'ORCA sign-in · OAuth') : 'API key'}</span><button class="k-button" onclick={() => copy(instructions, t('คำสั่งตั้งค่า', 'Setup instructions'))}><Copy size={16} />{t('คัดลอกคำสั่งตั้งค่า', 'Copy setup instructions')}</button></div>
     {#if !ready}<p class="readiness-note">{notReady}</p>{/if}
     <details class="advanced-setup">
       <summary>{t('วิธีตั้งค่า', 'Setup help')}<ChevronDown size={15} /></summary>
       <p class="setup-intro">{oauth
-        ? t('เพิ่ม URL ในแอป AI ที่รองรับ MCP และ OAuth แล้วกดเข้าสู่ระบบด้วยบัญชีองค์กร', 'Add this URL to an AI app that supports MCP and OAuth, then sign in with your organization account.')
+        ? t('เพิ่ม URL ในแอป AI ที่รองรับ MCP และ OAuth แล้วเข้าสู่ระบบ ORCA เพื่อยืนยันบัญชี', 'Add this URL to an AI app that supports MCP and OAuth, then sign in to ORCA to confirm your account.')
         : t('เพิ่ม URL ในแอปที่รองรับ MCP และ Authorization header แล้วใส่คีย์ส่วนตัวในช่องเก็บคีย์ของแอป', 'Add this URL to an app supporting MCP and custom Authorization headers. Enter your personal key in its secure credential field.')}</p>
       {#if scope === 'orca'}<p>{t('เชื่อม ORCA ครั้งเดียว เพื่อใช้เครื่องมือจากทุก Gateway ที่คุณได้รับสิทธิ์', 'Connect to ORCA once to use tools from every Gateway you are allowed to access.')}</p>{/if}
       {#if localGatewayEndpoint(endpoint)}<p class="local-note">{t('URL นี้ใช้กับแอปบนเครื่องเดียวกับ ORCA เท่านั้น', 'This local URL is reachable only by apps on the same computer as ORCA.')}</p>{/if}

@@ -24,7 +24,7 @@ const compiled = compileModule(`export function harness(testProps, gatewayClient
 }`, { filename: 'gateway-setup-test.svelte.js', generate: 'client' }).js.code.replaceAll('svelte/internal/client', pathToFileURL(require.resolve('svelte/internal/client')).href);
 const { harness } = await import(moduleURL(compiled));
 
-function setupHarness(context, clipboard, locale = 'en', oauth = false) {
+function setupHarness(context, clipboard, locale = 'en', oauth = true) {
 	let view;
 	const stop = effect_root(() => {
 		view = harness({ endpoint: 'https://orca.example/mcp/team', oauth }, gatewayClientConfig, localGatewayEndpoint, gatewayClientInstructions, { value: locale }, (_th, en) => en, { clipboard });
@@ -36,7 +36,7 @@ function setupHarness(context, clipboard, locale = 'en', oauth = false) {
 
 test('copying setup stays English and generic while manual formats and endpoint change', async (context) => {
 	const copied = [];
-	const view = setupHarness(context, { writeText: async (value) => copied.push(value) }, 'th');
+	const view = setupHarness(context, { writeText: async (value) => copied.push(value) }, 'th', false);
 	await view.copy(view.instructions, 'Setup instructions');
 	assert.equal(view.copied, 'Setup instructions');
 	assert.match(copied[0], /AI app I am using/);
@@ -75,10 +75,11 @@ async function rendered(props) {
 	return render(Component, { props }).body;
 }
 
-test('copy instructions are primary while manual configuration remains accessible and collapsed', async () => {
+test('OAuth URL and instructions are available while manual configuration remains collapsed', async () => {
 	const html = await rendered({ endpoint: 'http://localhost:8787/mcp/team', ready: false });
 	assert.match(html, /Copy setup instructions/);
-	assert.match(html, /Do not ask me to paste the key into chat/);
+	assert.match(html, /Do not require a manually issued API key/);
+	assert.doesNotMatch(html, /Bearer &lt;personal-key&gt;|ORCA_MCP_KEY/);
 	assert.equal((html.match(/<details/g) ?? []).length, 1);
 	assert.match(html, /Activate this Gateway and obtain membership/);
 	assert.match(html, /reachable only by apps on the same computer/);
@@ -108,7 +109,7 @@ test('the unified endpoint explains that one connection includes only permitted 
 });
 
 
-test('OAuth setup is English, uses organization sign-in and does not demand a personal API key', async (context) => {
+test('OAuth setup is English, uses ORCA sign-in and does not demand a personal API key', async (context) => {
   const view = setupHarness(context, { writeText: async () => {} }, 'th', true);
   assert.match(view.instructions, /Authentication: OAuth/);
   assert.match(view.instructions, /organization identity provider/);
@@ -119,8 +120,19 @@ test('OAuth setup is English, uses organization sign-in and does not demand a pe
     assert.match(view.config, /https:\/\/orca.example\/mcp\/team/);
   }
   const html = await rendered({ endpoint: 'https://orca.example/mcp/team', oauth: true, ready: false });
-  assert.match(html, /Organization sign-in/);
+  assert.match(html, /ORCA sign-in/);
   assert.match(html, /Activate this Gateway and obtain membership/);
   assert.equal((html.match(/<details/g) ?? []).length, 1);
   assert.doesNotMatch(html, /Create a personal key|ORCA_MCP_KEY|Bearer/);
+});
+
+
+test('OAuth and optional key setup have distinct labels and key config appears only on explicit selection', async () => {
+  const oauth = await rendered({ endpoint: 'https://orca.example/mcp/team' });
+  const key = await rendered({ endpoint: 'https://orca.example/mcp/team', oauth: false });
+  assert.match(oauth, /mcp-endpoint-gateway-oauth/);
+  assert.doesNotMatch(oauth, /ORCA_MCP_KEY|Bearer/);
+  assert.match(key, /mcp-endpoint-gateway-key/);
+  assert.match(key, /Authorization: Bearer/);
+  assert.match(key, /optional API-key setup/);
 });

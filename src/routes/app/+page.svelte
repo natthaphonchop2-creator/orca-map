@@ -329,53 +329,17 @@
       </ol>
     </div>
     <div class="k-panel">
-      <h2>{t("สำหรับสมาชิก", "For members")}</h2>
-      <ol
-        style="margin:15px 0 0;padding-left:22px;display:flex;flex-direction:column;gap:13px"
-      >
-        <li>
-          {t(
-            "เปิด MCP Gateway ที่ได้รับสิทธิ์ แล้วคัดลอก URL สำหรับเชื่อมต่อ",
-            "Open an MCP Gateway you can access and copy its connection URL.",
-          )}
-        </li>
-        <li>
-          {t(
-            "สร้างคีย์เชื่อมต่อของคุณ เลือกวันหมดอายุ แล้วคัดลอกคีย์ไปตั้งค่าในแอป AI",
-            "Create a personal key, choose an expiry, and copy the key into your AI client.",
-          )}
-        </li>
-        <li>
-          {t(
-            "เลือกการเชื่อมต่อ MCP แบบ Streamable HTTP แล้วเพิ่ม",
-            "Set up MCP over Streamable HTTP and add",
-          )}
-          <code
-            >{t(
-              "Authorization: Bearer <คีย์เชื่อมต่อของคุณ>",
-              "Authorization: Bearer <personal-key>",
-            )}</code
-          >
-          {t(
-            "ในส่วนหัวคำขอที่กำหนดเอง (custom header) ของแอป AI ที่รองรับ",
-            "in a client that supports custom headers.",
-          )}
-        </li>
-        <li>
-          {t(
-            "ยกเลิกคีย์จากหน้า Gateway เมื่อเลิกใช้หรือเปลี่ยนอุปกรณ์",
-            "Revoke a key from the gateway page when you stop using it or change devices.",
-          )}
-        </li>
+      <h2>{t('สำหรับสมาชิก', 'For members')}</h2>
+      <ol style="margin:15px 0 0;padding-left:22px;display:flex;flex-direction:column;gap:13px">
+        <li>{t('คัดลอก URL ของ ORCA MCP หรือ Gateway ที่คุณได้รับสิทธิ์', 'Copy the ORCA MCP URL or a Gateway URL you are allowed to use.')}</li>
+        <li>{t('เพิ่ม URL ในแอป AI ที่รองรับ MCP แบบ Streamable HTTP และ OAuth', 'Add the URL to an AI app that supports Streamable HTTP MCP and OAuth.')}</li>
+        <li>{t('เมื่อหน้า ORCA เปิดขึ้น ให้เข้าสู่ระบบด้วยบัญชีของคุณและยืนยันการเชื่อมต่อ', 'When ORCA opens, sign in with your own account and approve the connection.')}</li>
       </ol>
     </div>
     <div class="k-banner">
       <Info size={20} />
       <p>
-        {t(
-          "Gateway ใช้ได้เฉพาะเครื่องมือที่ผู้ดูแลเลือก แอป AI ที่ใช้ต้องรองรับการตั้งค่าคีย์เชื่อมต่อในส่วนหัวคำขอ แอปที่รองรับเฉพาะ OAuth ยังเชื่อมกับ Gateway ไม่ได้",
-          "Gateways expose only administrator-selected tools. AI clients must support a key in a custom request header. Clients that support only OAuth cannot connect to a gateway yet.",
-        )}
+        {t('API key เป็นทางเลือกในตั้งค่าขั้นสูงสำหรับแอปที่ต้องใช้คีย์ โดย ORCA ตรวจสิทธิ์ของบัญชีทุกครั้งที่เรียกเครื่องมือ', 'API keys are optional in advanced settings for clients that require them. ORCA checks account access on every tool call.')}
       </p>
     </div>
     <div class="k-actions">

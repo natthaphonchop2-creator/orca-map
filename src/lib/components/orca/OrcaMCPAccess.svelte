@@ -17,7 +17,7 @@
 		!!data.currentUserID && hub.status === 'active' && gatewayHasMember(hub, data.currentUserID) &&
 		workspaceToolingReady(hub, data.connections)
 	));
-	const oauth = $derived(accessibleGateways.some((hub) => Boolean(hub.userSourceID)));
+	const oauth = true;
 	const canCreate = $derived(!!data.currentUserID && hasEndpoint && accessibleGateways.length > 0);
 	const identity = $derived(JSON.stringify([data.organization.displayName, data.currentUserID, endpoint]));
 	const accessSignature = $derived(JSON.stringify(accessibleGateways.map((hub) => [
@@ -200,12 +200,13 @@
 		{:else}<p>{t('ยังไม่มี Gateway ที่คุณใช้ได้ ติดต่อผู้ดูแลเพื่อขอสิทธิ์', 'No Gateway access yet. Ask an administrator for access.')}</p>{/each}
 	</details>
 
-	<div class="setup-step"><div class="step-title">{#if !oauth}<span>1</span>{/if}<h3>{t('เพิ่ม ORCA ในแอป AI', 'Add ORCA to your AI client')}</h3></div>
+	<div class="setup-step"><div class="step-title"><h3>{t('เพิ่ม ORCA ในแอป AI', 'Add ORCA to your AI client')}</h3></div>
 		{#if hasEndpoint}<GatewayClientSetup {endpoint} ready={canCreate} scope="orca" {oauth} />{:else}<p class="k-muted">{t('ระบบยังไม่มี URL สำหรับเชื่อม ORCA MCP กรุณาโหลดข้อมูลล่าสุดหรือติดต่อผู้ดูแล', 'An ORCA MCP URL is not available yet. Reload the latest data or contact your administrator.')}</p>{/if}
 	</div>
-	<details class="api-key-option" open={!oauth}>
-		<summary>API key{#if oauth} · {t('ทางเลือก', 'Optional')}{/if}</summary>
-	<div class="setup-step"><div class="step-title">{#if !oauth}<span>2</span>{/if}<h3>{t('สร้างคีย์ส่วนตัวสำหรับแอป', 'Create a personal key for your client')}</h3></div>
+	<details class="api-key-option">
+		<summary>API key · {t('ทางเลือก', 'Optional')}</summary>
+		{#if hasEndpoint}<GatewayClientSetup {endpoint} ready={canCreate} scope="orca" oauth={false} />{/if}
+	<div class="setup-step"><div class="step-title"><h3>{t('สร้างคีย์ส่วนตัวสำหรับแอป', 'Create a personal key for your client')}</h3></div>
 		{#if notice}<p class="key-notice" role="status"><Check size={15} />{notice}</p>{/if}
 		{#if keyError}<div class="k-banner error" role="alert"><div>{keyError}<button class="k-link-button" onclick={loadKeys} disabled={loadingKeys}>{t('โหลดรายการคีย์อีกครั้ง', 'Reload keys')}</button></div></div>{/if}
 		{#if newKey && canCreate && secretAccess === accessSignature}
@@ -248,7 +249,6 @@
 	.access-gateways a span { color:#647087; font-size:12px; }
 	.setup-step { background:#fff; border:1px solid #e1e6ed; padding:23px; border-radius:10px; margin:16px 0; }
 	.step-title { display:flex; align-items:center; gap:11px; margin-bottom:20px; }
-	.step-title > span { display:grid; place-items:center; border-radius:50%; width:27px; height:27px; background:#eaf2d6; color:#42651e; font-size:13px; font-weight:700; flex-shrink:0; }
 	h3 { font-size:16px; margin:0; }
 	.key-fields { display:grid; grid-template-columns:minmax(0,1fr) minmax(150px,.45fr); gap:18px; margin-bottom:18px; }
 	fieldset { border:0; padding:0; margin:0; min-width:0; }

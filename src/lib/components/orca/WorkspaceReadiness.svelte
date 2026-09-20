@@ -16,8 +16,7 @@
 
 	let {
 		data,
-		hub,
-		keyState
+		hub
 	}: {
 		data: OrcaBootstrap;
 		hub: OrcaHub;
@@ -92,8 +91,8 @@
 			<p>
 				{!isMember
 					? t(
-							'ผู้ดูแลต้องเพิ่มคุณหรือทีมของคุณ จึงจะใช้ข้อมูลและสร้างคีย์ในพื้นที่นี้ได้',
-							'An administrator must add you or your team before you can access content or create a key.'
+							'ผู้ดูแลต้องเพิ่มคุณหรือทีมของคุณ จึงจะใช้พื้นที่นี้ได้',
+							'An administrator must add you or your team before you can access this workspace.'
 						)
 					: !toolingReady
 						? t(
@@ -198,37 +197,10 @@
 		<li>
 			<div class="step-head"><span>04</span><KeyRound size={20} aria-hidden="true" /></div>
 			<h3>{t('นำพื้นที่นี้ไปใช้กับ AI', 'Use this workspace with AI')}</h3>
-			<p>
-				{!isMember || !active
-					? t(
-							'เมื่อเปิดพื้นที่และได้รับสิทธิ์ คุณสร้างคีย์ของตัวเองไปตั้งค่าในแอป AI ได้',
-							'Once the workspace is active and you have access, create a personal key for your AI client.'
-						)
-					: keyState === 'loading'
-						? t('กำลังตรวจคีย์เชื่อมต่อของคุณ…', 'Checking your personal keys…')
-						: keyState === 'error'
-							? t(
-									'ยังตรวจรายการคีย์ไม่ได้ โหลดรายการอีกครั้งที่ส่วนเชื่อมแอป AI',
-									'Unable to check your keys. Reload the list in the AI connection section.'
-								)
-							: keyState === 'ready'
-								? t(
-										'มีคีย์ที่ยังไม่หมดอายุ นำไปตั้งค่าในแอป AI แล้วลองเรียกเครื่องมืออ่านข้อมูล',
-										'An unexpired key is available. Configure your AI client, then try calling a read tool.'
-									)
-								: t(
-										'สร้างคีย์ส่วนตัว แล้วนำ URL และคีย์ไปตั้งค่าในแอป AI ที่รองรับ',
-										'Create a personal key, then configure a supported AI client with the URL and key.'
-									)}
-			</p>
-			{#if isMember && active}<a href="#connect-ai"
-					>{keyState === 'ready'
-						? t('ดูขั้นตอนเชื่อม AI', 'View AI connection steps')
-						: t('ตั้งค่าคีย์เชื่อม AI', 'Set up your AI key')}<ArrowRight
-						size={15}
-						aria-hidden="true"
-					/></a
-				>{/if}
+			<p>{!isMember || !active
+                ? t('เมื่อเปิดพื้นที่และได้รับสิทธิ์ คุณเชื่อมแอป AI ด้วยบัญชี ORCA ได้', 'Once the workspace is active and you have access, connect your AI client with your ORCA account.')
+                : t('เพิ่ม URL ในแอป AI แล้วเข้าสู่ระบบ ORCA เพื่อยืนยันบัญชี', 'Add the URL to your AI app, then sign in to ORCA to confirm your account.')}</p>
+            {#if isMember && active}<a href="#connect-ai">{t('เชื่อมแอป AI', 'Connect AI')}<ArrowRight size={15} aria-hidden="true" /></a>{/if}
 		</li>
 	</ol>
 	{#if libraryError}<div class="readiness-error" role="alert">

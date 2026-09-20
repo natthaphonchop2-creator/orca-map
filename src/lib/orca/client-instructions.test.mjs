@@ -24,12 +24,12 @@ test('the setup prompt is English and client-neutral with safe connection instru
 	assert.doesNotMatch(prompt, /mcp_servers|mcpServers|```/);
 });
 
-test('a generic prompt checks actual client capabilities without promising OAuth', () => {
+test('optional key prompt checks client capabilities and points OAuth-only clients to sign-in', () => {
 	const prompt = gatewayClientInstructions(endpoint);
 	assert.match(prompt, /ask which app I use/);
 	assert.match(prompt, /supports Streamable HTTP with a custom Authorization header/);
 	assert.match(prompt, /only supports OAuth/);
-	assert.match(prompt, /cannot use that flow yet/);
+	assert.match(prompt, /switch to ORCA’s sign-in setup/);
 	assert.match(prompt, /cannot configure the app directly/);
 });
 
@@ -55,7 +55,7 @@ test('unified instructions describe only the Gateways the member is permitted to
 
 test('OAuth instructions verify client capability and use browser identity sign-in without issuing a key', () => {
   const prompt = gatewayClientInstructions(endpoint, 'gateway', true);
-  assert.match(prompt, /Authentication: OAuth using my organization account/);
+  assert.match(prompt, /Authentication: OAuth using my ORCA account/);
   assert.match(prompt, /verify that its MCP client supports Streamable HTTP and OAuth/);
   assert.match(prompt, /complete sign-in in the browser/);
   assert.match(prompt, /Do not require a manually issued API key/);

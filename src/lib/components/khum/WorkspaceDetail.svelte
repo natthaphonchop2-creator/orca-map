@@ -112,6 +112,13 @@
 	const canConnect = $derived(
 		isMember && hub.status === 'active' && workspaceToolingReady(hub, data.connections)
 	);
+	$effect(() => {
+		const requestedAccount = page.url.searchParams.get('account');
+		if (requestedAccount === null) return;
+		accountSourceID = canConnect && activeTab === 'connect' && sources.some((source) =>
+			source.connectionID === requestedAccount && source.ready
+		) ? requestedAccount : '';
+	});
 	const members = $derived(data.members.filter((item) => gatewayHasMember(hub, item.id)));
 	const used = $derived(hub.usedToday ?? 0);
 	const usagePercent = $derived(
@@ -468,13 +475,13 @@
 	aria-labelledby="connect-title"
 	style="scroll-margin-top:100px"
 >
-	{#if hub.userSourceID}<div class="k-panel">
+	<div class="k-panel">
 		<h2 id="connect-title">{t('เชื่อมแอป AI กับ Gateway นี้', 'Connect your AI to this Gateway')}</h2>
 		<GatewayClientSetup endpoint={hub.connectURL} ready={canConnect} oauth={true} />
-	</div>{:else}<div class="k-panel gateway-unified-intro">
+	</div><div class="k-panel gateway-unified-intro">
 		<div><h2>{t('เชื่อม AI กับ ORCA ครั้งเดียว', 'One connection to ORCA')}</h2><p class="k-muted">{t('ใช้เครื่องมือจากทุก Gateway ที่คุณได้รับสิทธิ์ รวมถึง Gateway นี้', 'Use tools from every Gateway you can access, including this one.')}</p></div>
 		<a class="k-button primary" href={localeHref('/app?view=settings&section=ai')}>{t('เชื่อม AI กับ ORCA', 'Connect AI to ORCA')}</a>
-	</div>{/if}
+	</div>
 	{#if canConnect}<div class="gateway-account-list">
 		{#each sources as source (source.connectionID)}
 			{#if source.connection}<details class="gateway-account" open={accountSourceID === source.connectionID} ontoggle={(event) => { if (event.currentTarget.open) accountSourceID = source.connectionID; else if (accountSourceID === source.connectionID) accountSourceID = ''; }}>
@@ -483,15 +490,15 @@
 			</details>{/if}
 		{/each}
 	</div>{/if}
-	<details class="gateway-guide"><summary>{hub.userSourceID ? t('API key (ทางเลือก)', 'API key (optional)') : t('เชื่อมเฉพาะ Gateway นี้', 'Connect only this Gateway')}</summary>
+	<details class="gateway-guide"><summary>{t('API key (ทางเลือก)', 'API key (optional)')}</summary>
 	<div class="k-section-title">
-		<h2 id={hub.userSourceID ? undefined : 'connect-title'}>
-			{hub.userSourceID ? t('API key', 'API key') : t('เชื่อมแอป AI กับ Gateway นี้', 'Connect your AI to this Gateway')}
+		<h2>
+			API key
 		</h2>
 		<KeyRound size={22} color="#5143e8" />
 	</div>
 	<div class="k-panel">
-		{#if !hub.userSourceID}<GatewayClientSetup endpoint={hub.connectURL} ready={canConnect} />{/if}
+		<GatewayClientSetup endpoint={hub.connectURL} ready={canConnect} oauth={false} />
 		{#if !isMember}<div class="k-banner">
 				<ShieldCheck size={20} />
 				<p>
@@ -699,7 +706,7 @@
 				<div class="gateway-identity-fields">
 					<div class="k-field"><label for="gateway-user-source">User source</label>
 						<select id="gateway-user-source" bind:value={userSourceID} disabled={archived || saving || identitySaving} onchange={() => identitySaved = false}>
-							<option value="">{t('บัญชี ORCA / API key', 'ORCA account / API key')}</option>
+							<option value="">{t('เข้าสู่ระบบ ORCA', 'ORCA sign-in')}</option>
 							{#if userSourceID && !selectedUserSource}<option value={userSourceID} disabled>{t('User source เดิม', 'Existing user source')}</option>{/if}
 							{#each userSources.filter((source) => source.enabled || source.id === userSourceID) as source (source.id)}<option value={source.id} disabled={!source.enabled}>{source.name}{source.enabled ? '' : t(' · ระงับแล้ว', ' · Disabled')}</option>{/each}
 							</select>
@@ -710,7 +717,7 @@
 			{#if loadingUserSources}<p role="status">{t('กำลังโหลด User sources…', 'Loading user sources…')}</p>{/if}
 			{#if userSourcesError}<div class="k-banner error" role="alert"><div>{userSourcesError}<button type="button" class="k-link-button" disabled={loadingUserSources || identitySaving} onclick={loadUserSources}>{t('โหลด User sources อีกครั้ง', 'Retry user sources')}</button></div></div>{/if}
 			{#if identitySaved}<div class="k-banner success" role="status"><Check size={18} />{t('บันทึกการยืนยันตัวตนแล้ว', 'Authentication saved')}</div>{/if}
-		{:else}<p>{hub.userSourceID ? t('บัญชีองค์กร', 'Organization sign-in') : t('บัญชี ORCA / API key', 'ORCA account / API key')}</p>{/if}
+		{:else}<p>{hub.userSourceID ? t('บัญชีองค์กร', 'Organization sign-in') : t('เข้าสู่ระบบ ORCA', 'ORCA sign-in')}</p>{/if}
 	</section>
 	<section class="k-panel" style="margin-top:0">
 		<div class="k-section-title">

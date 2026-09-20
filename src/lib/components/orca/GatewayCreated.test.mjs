@@ -24,13 +24,14 @@ test('OAuth Gateway shares the real MCP endpoint instead of sending employees to
   assert.match(input, /https:\/\/gateway.example.test\/api\/orca\/hubs\/hub-one\/mcp/);
   assert.doesNotMatch(input, /admin.example.test|view=hub/);
   assert.match(html, /MCP gateway URL/);
-  assert.match(html, /sign in with their organization account/);
+  assert.match(html, /sign in to ORCA to confirm their account/);
 });
 
-test('manual Gateway retains the member setup page and draft activation requirement', () => {
+test('ordinary Gateway shares the MCP endpoint without a custom IdP and keeps the draft requirement', () => {
   const html = render(Screen, { props: { hub: { ...hub, status: 'draft' } } }).body;
-  assert.match(html, /Member setup link/);
-  assert.match(html, /https:\/\/admin.example.test\/app\?view=hub/);
+  assert.match(html, /MCP gateway URL/);
+  assert.match(html, /https:\/\/gateway.example.test\/api\/orca\/hubs\/hub-one\/mcp/);
+  assert.doesNotMatch(html, /Member setup link|admin.example.test/);
   assert.match(html, /Activate this Gateway when you are ready/);
 });
 

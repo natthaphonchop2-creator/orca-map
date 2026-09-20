@@ -83,7 +83,7 @@
 	const selectedUserSource = $derived(userSources.find((source) => source.id === userSourceID));
 	const userSourceLabel = $derived(userSourceID
 		? selectedUserSource ? `${selectedUserSource.name}${selectedUserSource.enabled ? '' : t(' · ระงับแล้ว', ' · Disabled')}` : t('User source เดิม', 'Existing user source')
-		: t('บัญชี ORCA / API key', 'ORCA account / API key'));
+		: t('เข้าสู่ระบบ ORCA', 'ORCA sign-in'));
 	let unitIDs = $state<string[]>(untrack(() => [...(existing?.unitIDs ?? [])]));
 	let dailyLimit = $state<number | undefined>(untrack(() => existing?.dailyLimit ?? 100));
 	let status = $state<HubStatus>(untrack(() => existing?.status ?? 'active'));
@@ -779,7 +779,7 @@
 						<div class="k-field setup-identity">
 							<label for="hub-user-source">{t('การยืนยันตัวตน', 'Authentication')}</label>
 							<select id="hub-user-source" bind:value={userSourceID} onchange={() => reviewed = false}>
-								<option value="">{t('บัญชี ORCA / API key', 'ORCA account / API key')}</option>
+								<option value="">{t('เข้าสู่ระบบ ORCA', 'ORCA sign-in')}</option>
 								{#if userSourceID && !selectedUserSource}<option value={userSourceID} disabled>{t('User source เดิม', 'Existing user source')}</option>{/if}
 								{#each userSources.filter((source) => source.enabled || source.id === userSourceID) as source (source.id)}
 									<option value={source.id} disabled={!source.enabled}>{source.name}{source.enabled ? '' : t(' · ระงับแล้ว', ' · Disabled')}</option>

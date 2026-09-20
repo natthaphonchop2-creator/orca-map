@@ -293,14 +293,20 @@ test('component compiles without warnings and renders unified setup without pass
 	assert.match(html, /1 sources · 1 selected tools/);
 	assert.doesNotMatch(html, />private</);
 	assert.match(html, /No expiry/);
-	assert.equal(calls.length, 1);
+	assert.equal(calls.length, 2);
 	assert.equal(calls[0].endpoint, endpoint);
 	assert.equal(calls[0].scope, 'orca');
 	assert.equal(calls[0].ready, true);
 	assert.deepEqual(Object.keys(calls[0]).sort(), ['endpoint', 'oauth', 'ready', 'scope']);
-	assert.equal(calls[0].oauth, false);
+	assert.equal(calls[0].oauth, true);
+	assert.equal(calls[1].oauth, false);
+	assert.equal(calls[1].endpoint, endpoint);
+	const ordinaryOption = html.match(/<details([^>]*class="api-key-option[^>]*)>/);
+	assert.ok(ordinaryOption);
+	assert.doesNotMatch(ordinaryOption[1], /\bopen(?:\s|=|$)/);
 	const oauthHTML = render(Screen, { props: { data: bootstrap({ hubs: [hub('identity-gateway', { userSourceID: 'company-sso' })] }) } }).body;
-	assert.equal(calls[1].oauth, true);
+	assert.equal(calls[2].oauth, true);
+	assert.equal(calls[3].oauth, false);
 	const optional = oauthHTML.match(/<details([^>]*class="api-key-option[^>]*)>([\s\S]*?)<\/details>/);
 	assert.ok(optional);
 	assert.doesNotMatch(optional[1], /\bopen(?:\s|=|$)/);
@@ -308,15 +314,16 @@ test('component compiles without warnings and renders unified setup without pass
 	assert.match(optional[2], /Create a personal key/);
 	const unavailable = render(Screen, { props: { data: bootstrap({ unifiedConnectURL: undefined }) } }).body;
 	assert.match(unavailable, /ORCA MCP URL is not available yet/);
-	assert.equal(calls.length, 2);
+	assert.equal(calls.length, 4);
 });
 
 
-test('OAuth mode is chosen only from an accessible active Gateway with attached identity source', async (context) => {
+test('ORCA OAuth remains the default without custom IdP and access still gates readiness', async (context) => {
   const { view } = await setup(context, {}, bootstrap({ hubs: [hub('public'), hub('private', { memberIDs: ['someone-else'], userSourceID: 'idp' })] }));
-  assert.equal(view.state.oauth, false);
+  assert.equal(view.state.oauth, true);
   view.changeData({ ...view.data, hubs: [hub('allowed', { userSourceID: 'idp' })] });
   await settle(); assert.equal(view.state.oauth, true);
   view.changeData({ ...view.data, hubs: [hub('paused', { userSourceID: 'idp', status: 'paused' })] });
-  await settle(); assert.equal(view.state.oauth, false);
+  await settle(); assert.equal(view.state.oauth, true);
+  assert.equal(view.state.canCreate, false);
 });

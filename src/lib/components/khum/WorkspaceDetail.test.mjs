@@ -5,6 +5,7 @@ import { createRequire, stripTypeScriptTypes } from 'node:module';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { compile, compileModule } from 'svelte/compiler';
+import { render } from 'svelte/server';
 // eslint-disable-next-line svelte/no-svelte-internal -- Exercise the component's actual reactive script.
 import { effect_root, flush, untrack } from 'svelte/internal/client';
 
@@ -30,13 +31,15 @@ export function harness(testProps, OrcaService, personalKeyAvailable, workspaceT
 		setSources(value, connections) { hub = { ...hub, sources: value }; data = { ...data, connections }; },
 		reveal() { revealKey = true; },
 		changeActor(id) { data = { ...data, currentUserID: id }; },
+		setManager(value) { data = { ...data, canManage: value }; },
 		changeHub(id) { hub = { ...hub, id }; },
 		setMembership(direct, effective, teams = []) { hub = { ...hub, memberIDs: direct, effectiveMemberIDs: effective, accessUnitIDs: teams }; },
 		changeTab(tab) { page.url = new URL('https://orca.example.test/app?tab=' + tab); },
+		openAccount(connectionID) { page.url = new URL('https://orca.example.test/app?tab=connect&account=' + encodeURIComponent(connectionID)); },
 		pause() { hub = { ...hub, status: 'paused' }; },
 		archive() { hub = { ...hub, status: 'archived' }; },
 		remove() { hub = { ...hub, status: 'deleted' }; },
-		get state() { return { newKey, newKeyID, revealKey, keyError, archived, canConnect, activeTab, userSourceID, userSources, userSourcesError, identitySaved, selectedUserSource }; }
+		get state() { return { accountSourceID, newKey, newKeyID, revealKey, keyError, archived, canConnect, activeTab, userSourceID, userSources, userSourcesError, identitySaved, selectedUserSource }; }
 	};
 }`, { filename: 'workspace-detail-test.svelte.js', generate: 'client' }).js.code
 	.replaceAll('svelte/internal/client', pathToFileURL(require.resolve('svelte/internal/client')).href);
@@ -284,4 +287,76 @@ test('identity list failure permits explicit ORCA fallback and failed saves keep
   assert.equal(writes[0].userSourceID, '');
   assert.equal(view.state.userSourceID, '');
   assert.equal(view.state.userSourcesError, 'Save failed');
+});
+
+
+test('account deep link opens only a current permitted source and closes on revocation', (context) => {
+	const { view } = setup(context);
+	view.setManager(false);
+	view.openAccount('server-one');
+	flush();
+	assert.equal(view.state.accountSourceID, 'server-one');
+	view.openAccount('server-not-in-this-gateway');
+	flush();
+	assert.equal(view.state.accountSourceID, '');
+	view.openAccount('server-one');
+	view.setMembership(['member-one'], []);
+	flush();
+	assert.equal(view.state.accountSourceID, '', 'an explicit empty effective grant denies the deep link');
+	view.setMembership([], ['member-one']);
+	flush();
+	assert.equal(view.state.accountSourceID, 'server-one', 'current team membership grants the same personal setup');
+	view.pause();
+	flush();
+	assert.equal(view.state.accountSourceID, '');
+});
+
+test('account deep link cannot open a disabled source while another source remains available', (context) => {
+	const { view } = setup(context);
+	const connection = (id, enabled) => ({ id, enabled, reviewedTools: true, toolNames: ['read'], tools: [{ name: 'read' }] });
+	view.setSources([{connectionID: 'server-one', toolNames: ['read']}, {connectionID: 'server-two', toolNames: ['read']}], [connection('server-one', true), connection('server-two', false)]);
+	view.openAccount('server-two');
+	flush();
+	assert.equal(view.state.canConnect, true);
+	assert.equal(view.state.accountSourceID, '');
+	view.openAccount('server-one');
+	flush();
+	assert.equal(view.state.accountSourceID, 'server-one');
+});
+
+test('Gateway connect renders OAuth first for both ORCA and organization sign-in; keys stay optional', async () => {
+	const compiled = compile(component, { filename: 'WorkspaceDetail.svelte', generate: 'server' });
+	assert.deepEqual(compiled.warnings, []);
+	const code = compiled.js.code.replace(/^import[\s\S]*?;\n/gm, '').replace('export default function WorkspaceDetail', 'function WorkspaceDetail');
+	const imports = [...component.matchAll(/import\s*\{([^}]+)\}\s*from/g)].flatMap((match) =>
+		match[1].split(',').map((name) => name.trim()).filter((name) => name && !name.startsWith('type '))
+	);
+	const names = [...new Set([...imports, 'LifecycleActions', 'GatewayClientSetup', 'SourceSetup', 'WorkspaceReadiness', 'CatalogIcon'])];
+	const { screen } = await import(moduleURL(`import * as $ from ${JSON.stringify(pathToFileURL(require.resolve('svelte/internal/server')).href)};
+		export function screen(deps) { const { ${names.join(', ')} } = deps; ${code}; return WorkspaceDetail; }`));
+	const calls = [];
+	const deps = Object.fromEntries(names.map((name) => [name, () => {}]));
+	Object.assign(deps, {
+		page: { url: new URL('https://orca.example/app?tab=connect') }, orcaLocale: { value: 'en' },
+		t: (_th, en) => en, localeHref: (url) => url, untrack,
+		personalKeyAvailable, workspaceToolingReady, gatewaySources, gatewayToolCount, gatewayHasMember, gatewayMemberIDs,
+		matchesToolSearch, toolPresentation, statusLabels: { active: 'Active' },
+		GatewayClientSetup: (renderer, props) => { calls.push(props); renderer.push(`<div data-auth="${props.oauth ? 'oauth' : 'key'}"></div>`); }
+	});
+	const Screen = screen(deps);
+	for (const userSourceID of ['', 'company-idp']) {
+		calls.length = 0;
+		const html = render(Screen, { props: {
+			data: { currentUserID: 'member-one', canManage: false, members: [], connections: [{ id: 'server-one', enabled: true, reviewedTools: true, toolNames: ['read'], tools: [{ name: 'read' }] }] },
+			hub: { id: 'gateway-one', name: 'Team', connectionID: 'server-one', status: 'active', toolNames: ['read'], memberIDs: ['member-one'], dailyLimit: 100, connectURL: 'https://orca.example/api/orca/hubs/gateway-one/mcp', userSourceID },
+			onchanged: async () => {}
+		} }).body;
+		assert.deepEqual(calls.map((props) => props.oauth), [true, false]);
+		assert.equal(calls[0].endpoint, calls[1].endpoint);
+		const keyPanel = html.match(/<details([^>]*)><summary[^>]*>API key \(optional\)<\/summary>/);
+		assert.ok(keyPanel);
+		assert.doesNotMatch(keyPanel[1], /\bopen(?:\s|=|$)/);
+		assert.ok(html.indexOf('data-auth="oauth"') < html.indexOf(keyPanel[0]));
+		assert.ok(html.indexOf('data-auth="key"') > html.indexOf(keyPanel[0]));
+	}
 });

@@ -37,6 +37,7 @@ export interface PilotRequest extends Omit<
 }
 export interface OrcaOrganization {
   displayName: string;
+  logoDataURL?: string;
   timezone: string;
   version: number;
 }
@@ -262,10 +263,10 @@ export const OrcaService = {
       hubs: data.hubs ?? [],
     };
   },
-  organization: (displayName: string, version: number) =>
+  organization: (displayName: string, version: number, logoDataURL?: string) =>
     doPut(
       "/orca/organization",
-      { displayName, version },
+      { displayName, version, logoDataURL },
       options,
     ) as Promise<OrcaOrganization>,
   unit: (input: UnitInput, id?: string) =>

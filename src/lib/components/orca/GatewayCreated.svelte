@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { page } from '$app/state';
   import { localeHref, t } from '$lib/orca/locale.svelte';
   import { gatewayClientConfig } from '$lib/orca/client-config';
   import type { OrcaHub } from '$lib/services/orca';
@@ -9,9 +8,7 @@
   let copied = $state(false);
   let copyError = $state(false);
   const connectPath = $derived(localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}&tab=connect`));
-  const oauth = $derived(Boolean(hub.userSourceID));
   const shareURL = $derived.by(() => {
-    if (!oauth) return new URL(connectPath, page.url.origin).href;
     try { gatewayClientConfig(hub.connectURL, 'codex', true); return hub.connectURL; }
     catch { return ''; }
   });
@@ -30,15 +27,13 @@
     <p class="step-label">{t('ขั้นตอน 5 จาก 5 · เชื่อม AI', 'Step 5 of 5 · Connect AI')}</p>
     <h2 id="gateway-created-title">{t('สร้าง Gateway แล้ว', 'Gateway created')}: {hub.name}</h2>
     <p>{hub.status === 'active'
-      ? oauth
-        ? t('ส่ง URL นี้ให้พนักงานเพิ่มในแอป AI แล้วเข้าสู่ระบบด้วยบัญชีองค์กร', 'Share this MCP URL for employees to add to their AI app and sign in with their organization account.')
-        : t('ส่งลิงก์ให้สมาชิกที่ได้รับสิทธิ์ เพื่อเข้าสู่ระบบและดูวิธีเชื่อม AI ของตนเอง', 'Share this link with authorized members so they can sign in and connect their AI.')
+      ? t('ส่ง URL นี้ให้พนักงานเพิ่มในแอป AI แล้วเข้าสู่ระบบ ORCA เพื่อยืนยันบัญชี', 'Share this MCP URL for employees to add to their AI app and sign in to ORCA to confirm their account.')
       : t('บันทึกเป็นฉบับร่างแล้ว เปิดใช้งาน Gateway เมื่อพร้อมให้สมาชิกเชื่อม AI', 'Saved as a draft. Activate this Gateway when you are ready for members to connect their AI.')}</p>
     {#if shareURL}<div class="share-field">
-      <label for="gateway-share-link">{oauth ? t('URL ของ MCP Gateway', 'MCP gateway URL') : t('ลิงก์สำหรับสมาชิก', 'Member setup link')}</label>
+      <label for="gateway-share-link">{t('URL ของ MCP Gateway', 'MCP gateway URL')}</label>
       <div class="share-input">
         <input id="gateway-share-link" readonly value={shareURL} />
-        <button type="button" class="k-button" onclick={copyLink}><Copy size={16} />{oauth ? t('คัดลอก URL', 'Copy URL') : t('คัดลอกลิงก์', 'Copy link')}</button>
+        <button type="button" class="k-button" onclick={copyLink}><Copy size={16} />{t('คัดลอก URL', 'Copy URL')}</button>
       </div>
     </div>
     {:else}<p role="alert">{t('ยังไม่มี URL สำหรับเชื่อมต่อ', 'A connection URL is not available yet.')}</p>{/if}
