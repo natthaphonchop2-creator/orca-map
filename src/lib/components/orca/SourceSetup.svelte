@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { oauthProviderSetup } from "$lib/orca/oauth-provider-setup";
   import CatalogIcon from "$lib/orca/CatalogIcon.svelte";
   import { apiConnectorSetup, apiConnectorError } from "$lib/orca/api-connector-setup";
-  import { catalogSourceDisplayName, googleDriveProvider } from "$lib/orca/catalog";
+  import { catalogSourceDisplayName, catalogSourceProvider } from "$lib/orca/catalog";
   import { providerGuide } from "$lib/orca/provider-guides";
   import { t } from "$lib/orca/locale.svelte";
   import {
@@ -50,7 +51,7 @@
   let values = $state<Record<string, string>>({});
   let loading = $state(false);
   let action = $state<
-    "" | "create" | "configure" | "check" | "return" | "oauth" | "disconnect"
+    "" | "create" | "configure" | "check" | "return" | "oauth" | "disconnect" | "client"
   >("");
   let error = $state("");
   let notice = $state("");
@@ -61,15 +62,24 @@
   let oauthRequired = $state(false);
   let editing = $state(false);
   let sourceEndpoint = $state("");
+  let clientFormOpen = $state(false);
+  let clientID = $state("");
+  let clientSecret = $state("");
+  const needsOAuthClient = $derived(Boolean(setup?.oauthClientRequired && !setup.oauthClientConfigured));
+  const providerSetup = $derived(oauthProviderSetup(sourceID, setup?.endpointHost || endpointHost, setup ? setup.managedProvider : managedProvider));
+  const providerReviewRequired = $derived(Boolean(
+    (setup?.setupStatus === "review_required" && !setup.configured) ||
+    (providerSetup?.vendorConfirmationRequired && needsOAuthClient)
+  ));
+  const appSetupRequired = $derived(needsOAuthClient || providerReviewRequired);
+  const canConfigureClient = $derived(Boolean(setup?.oauthClientCanConfigure) && !providerReviewRequired);
+  const slackAppURL = $derived(slackAppSetupURL());
   let generation = 0;
   let active = true;
   const fields = $derived(setup?.fields ?? []);
   const apiGuide = $derived(apiConnectorSetup(sourceID));
   const configured = $derived(Boolean(setup?.configured));
   const requiresURL = $derived(Boolean(setup?.requiresURL));
-  const needsOAuthClient = $derived(
-    Boolean(setup?.oauthClientRequired && !setup.oauthClientConfigured),
-  );
   const directSignIn = $derived(
     Boolean(setup && !requiresURL && !fields.some((field) => field.required)),
   );
@@ -79,7 +89,8 @@
     endpointHost: providerHost,
     managedProvider: setup ? setup.managedProvider : managedProvider,
   });
-  const providerKind = $derived(googleDriveProvider(providerMetadata));
+  const providerIdentity = $derived(catalogSourceProvider(providerMetadata));
+  const providerKind = $derived(providerIdentity?.provider);
   const providerName = $derived(
     catalogSourceDisplayName({
       name:
@@ -101,7 +112,7 @@
     ),
   );
   const primaryState = $derived(
-    needsOAuthClient
+    appSetupRequired
       ? "unavailable"
       : editing || (!configured && !directSignIn)
         ? "configure"
@@ -137,7 +148,13 @@
     const translated = apiGuide ? apiConnectorError(message) : undefined;
     return translated ? t(...translated) : message;
   }
+  function clearClientFields() {
+    clientID = "";
+    clientSecret = "";
+    clientFormOpen = false;
+  }
   function clearFields() {
+    clearClientFields();
     values = {};
     sourceEndpoint = "";
   }
@@ -204,7 +221,10 @@
     }
     try {
       const response = await OrcaService.sourceSetup(id);
-      if (isCurrent(request)) setup = response;
+      if (isCurrent(request)) {
+        setup = response;
+        clientFormOpen = response.sourceID === request.sourceID && needsOAuthClient && canConfigureClient;
+      }
     } catch (cause) {
       if (isCurrent(request)) error = connectionError(cause);
     } finally {
@@ -422,7 +442,7 @@
       );
       return;
     }
-    if (!setup?.oauthSupported || needsOAuthClient) return;
+    if (!setup?.oauthSupported || appSetupRequired) return;
     const result = await OrcaService.startSourceOAuth(request.sourceID);
     if (!isCurrent(request)) return;
     if (!result.oauthURL) {
@@ -442,7 +462,7 @@
     }
   }
   async function configure() {
-    if (busy || !setup || setup.sourceID !== sourceID || needsOAuthClient)
+    if (busy || !setup || setup.sourceID !== sourceID || appSetupRequired)
       return;
     if (requiresURL && !validEndpoint(sourceEndpoint.trim())) {
       error = t(
@@ -491,7 +511,7 @@
       setup.sourceID !== sourceID ||
       (!configured && !directSignIn) ||
       editing ||
-      needsOAuthClient
+      appSetupRequired
     )
       return;
     const popup = reserveSignInWindow();
@@ -526,7 +546,7 @@
       !setup?.oauthSupported ||
       setup.sourceID !== sourceID ||
       editing ||
-      needsOAuthClient
+      appSetupRequired
     )
       return;
     const request = requestContext();
@@ -542,7 +562,7 @@
         !latest.oauthConnected ||
         !latest.configured ||
         !latest.oauthSupported ||
-        needsOAuthClient
+        appSetupRequired
       )
         return;
       oauthURL = "";
@@ -554,6 +574,74 @@
       if (isCurrent(request)) action = "";
     }
   }
+  function slackAppSetupURL() {
+    if (
+      (setup?.endpointHost || endpointHost) !== 'mcp.slack.com' ||
+      !setup?.oauthRedirectURL ||
+      !validEndpoint(setup.oauthRedirectURL)
+    )
+      return '';
+    const manifest = {
+      display_information: { name: 'ORCA', description: 'Connect your Slack workspace to ORCA' },
+      oauth_config: {
+        redirect_urls: [setup.oauthRedirectURL],
+        pkce_enabled: true,
+        scopes: {
+          user: [
+            'search:read.public',
+            'channels:history',
+            'channels:read',
+            'users:read',
+            'emoji:read'
+          ]
+        }
+      },
+      settings: {
+        is_mcp_enabled: true,
+        org_deploy_enabled: false,
+        socket_mode_enabled: false,
+        token_rotation_enabled: false
+      }
+    };
+    return (
+      'https://api.slack.com/apps?new_app=1&manifest_json=' +
+      encodeURIComponent(JSON.stringify(manifest))
+    );
+  }
+  async function configureOAuthClient() {
+    if (busy || !setup || setup.sourceID !== sourceID || !appSetupRequired || !canConfigureClient)
+      return;
+    if (!clientID.trim() || !clientSecret.trim()) return;
+    const request = requestContext();
+    const id = clientID.trim();
+    const secret = clientSecret.trim();
+    clearClientFields();
+    action = 'client';
+    error = '';
+    notice = '';
+    try {
+      const scopeProfile = setup.endpointHost === 'mcp.slack.com' ? 'slack-public-read-v1' : undefined;
+      const response = await OrcaService.configureSourceOAuthClient(request.sourceID, id, secret, scopeProfile);
+      if (!isCurrent(request)) return;
+      if (scopeProfile && response.oauthScopeProfile !== scopeProfile) throw new Error('scope profile not confirmed');
+      setup = response;
+      if (!response.oauthClientConfigured) throw new Error('not configured');
+      notice = t(
+        'ตั้งค่าแอปแล้ว กดเชื่อมบัญชีเพื่ออนุญาตการใช้งาน',
+        'App configured. Connect your account to authorize access.'
+      );
+    } catch {
+      if (isCurrent(request)) {
+        clientFormOpen = true;
+        error = t(
+          'บันทึกแอปไม่สำเร็จ ตรวจสอบสิทธิ์ผู้ดูแลและโหลดสถานะล่าสุดก่อนลองอีกครั้ง',
+          'Could not save the app. Check your administrator access and reload the status before retrying.'
+        );
+      }
+    } finally {
+      if (isCurrent(request)) action = '';
+    }
+  }
   async function startOAuth() {
     if (
       busy ||
@@ -562,7 +650,7 @@
       setup.sourceID !== sourceID ||
       (!configured && !directSignIn) ||
       editing ||
-      needsOAuthClient
+      appSetupRequired
     )
       return;
     const popup = reserveSignInWindow();
@@ -581,7 +669,7 @@
         if (
           !prepared.configured ||
           !prepared.oauthSupported ||
-          needsOAuthClient
+          appSetupRequired
         ) {
           error = t(
             `ยังเชื่อมต่อ ${providerName} ไม่ได้ กรุณาโหลดสถานะอีกครั้ง หรือติดต่อทีม ORCA`,
@@ -643,6 +731,21 @@
     editing = value;
   }
 </script>
+
+{#snippet oauthAppHelp()}
+  {#if providerSetup}
+    <details class="client-provider-help">
+      <summary>{t('วิธีตั้งค่าแอป', 'App setup instructions')}</summary>
+      <p><strong>{t('ประเภทแอป', 'App type')}:</strong> {providerSetup.appType}</p>
+      <ol>{#each providerSetup.steps as step}<li>{t(...step)}</li>{/each}</ol>
+      <a href={providerSetup.documentationURL} target="_blank" rel="noopener noreferrer"
+        >{t('คู่มือจากผู้ให้บริการ', 'Provider documentation')} <ExternalLink size={14} /></a>
+      {#if slackAppURL}<a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer"
+        >{t('มีแอปแล้ว: เปิดหน้าตั้งค่า Slack App', 'Already have an app? Open Slack app settings')}</a>{/if}
+    </details>
+  {/if}
+{/snippet}
+
 
 <section class="k-panel source-setup">
   <div class="k-section-title">
@@ -753,27 +856,104 @@
           </p>
         </div>
       </div>
-    {:else if primaryState === "unavailable"}
+    {:else if primaryState === 'unavailable'}
       <div class="k-banner">
         <Info size={18} />
         <div>
           <strong
             >{t(
-              `${providerName} ยังไม่พร้อมเชื่อมต่อ`,
-              `${providerName} connection unavailable`,
+              providerReviewRequired ? `ต้องตรวจสอบการเชื่อมต่อ ${providerName}` : `ยังไม่ได้เปิดเชื่อมต่อ ${providerName}`,
+              providerReviewRequired ? `${providerName} needs provider review` : `${providerName} needs app setup`
             )}</strong
           >
           <p>
-            {t(
-              "ติดต่อผู้ดูแลเพื่อเปิดใช้งานการเชื่อมต่อนี้",
-              "Ask an administrator to enable this connection.",
-            )}
+            {providerReviewRequired
+              ? t('ผู้ดูแล ORCA ต้องยืนยันวิธีเชื่อมต่อกับผู้ให้บริการก่อน', 'An ORCA administrator must confirm the provider connection requirements first.')
+              : canConfigureClient
+              ? t(
+                  'ตั้งค่าแอปของ ORCA ครั้งแรก แล้วสมาชิกจึงเชื่อมบัญชีได้',
+                  'Set up the ORCA app once so members can connect their accounts.'
+                )
+              : t(
+                  'ผู้ดูแลระบบ ORCA ต้องตั้งค่าแอปก่อน คุณจึงจะเชื่อมบัญชีได้',
+                  'An ORCA platform administrator must set up the app before you can connect.'
+                )}
           </p>
         </div>
       </div>
-      <button class="k-button primary" disabled={busy} onclick={() => load()}
-        >{t("ตรวจสอบสถานะอีกครั้ง", "Refresh connection status")}</button
-      >
+      <div class="client-actions">
+        {#if providerReviewRequired && providerSetup}
+          <a class="k-button" href={providerSetup.actionURL} target="_blank" rel="noopener noreferrer"
+            >{t(...providerSetup.action)} <ExternalLink size={16} /></a>
+        {/if}
+        {#if canConfigureClient && !clientFormOpen}
+          <button class="k-button primary" disabled={busy} onclick={() => (clientFormOpen = true)}
+            >{t('ตั้งค่าแอป', 'Set up app')}</button
+          >
+        {/if}
+        <button class="k-button" disabled={busy} onclick={() => load()}
+          >{t('ตรวจสอบสถานะอีกครั้ง', 'Refresh status')}</button
+        >
+      </div>
+      {#if providerReviewRequired}{@render oauthAppHelp()}{/if}
+      {#if canConfigureClient && clientFormOpen}
+        <form
+          class="client-setup"
+          onsubmit={(event) => {
+            event.preventDefault();
+            void configureOAuthClient();
+          }}
+        >
+          <fieldset disabled={busy}>
+            {#if providerSetup}
+              <a class="k-button" href={slackAppURL || providerSetup.actionURL} target="_blank" rel="noopener noreferrer"
+                >{slackAppURL ? t('สร้าง Slack App สำหรับ ORCA', 'Create ORCA Slack app') : t(...providerSetup.action)}
+                <ExternalLink size={16} /></a>
+              {@render oauthAppHelp()}
+            {/if}
+            {#if setup.endpointHost === 'mcp.slack.com'}
+              <div class="k-field">
+                <label for="source-client-permissions">{t('สิทธิ์ที่ขอจาก Slack', 'Slack permissions')}</label>
+                <input id="source-client-permissions" readonly value={t('อ่านช่องสาธารณะ', 'Public channels · Read-only')} />
+              </div>
+            {/if}
+            <div class="k-field">
+              <label for="source-client-callback">Callback URL</label>
+              <input id="source-client-callback" readonly value={setup.oauthRedirectURL} />
+            </div>
+
+            <div class="k-field">
+              <label for="source-client-id">Client ID</label>
+              <input
+                id="source-client-id"
+                bind:value={clientID}
+                required
+                maxlength="8192"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+            <div class="k-field">
+              <label for="source-client-secret">Client Secret</label>
+              <input
+                id="source-client-secret"
+                type="password"
+                bind:value={clientSecret}
+                required
+                maxlength="8192"
+                autocomplete="new-password"
+                spellcheck="false"
+              />
+            </div>
+            <div class="client-actions">
+              <button class="k-button primary" type="submit">{t('บันทึกแอป', 'Save app')}</button>
+              <button class="k-button" type="button" onclick={clearClientFields}
+                >{t('ยกเลิก', 'Cancel')}</button
+              >
+            </div>
+          </fieldset>
+        </form>
+      {/if}
     {:else if primaryState === "configure"}
       <form
         onsubmit={(event) => {
@@ -942,25 +1122,25 @@
         {/if}
       </div>
     {/if}
-    {#if !editing && (configured || oauthURL || setup.oauthConnected || fields.length) && (!needsOAuthClient || setup.oauthConnected || oauthURL)}
+    {#if !editing && (configured || oauthURL || setup.oauthConnected || fields.length) && (!appSetupRequired || setup.oauthConnected || oauthURL)}
       <details style="margin-top:16px">
         <summary class="k-small k-muted"
           >{t("จัดการการเชื่อมต่อ", "Manage connection")}</summary
         >
         <div class="k-actions" style="margin-top:12px">
-          {#if configured && !needsOAuthClient && (oauthURL || connectionReady)}
+          {#if configured && !appSetupRequired && (oauthURL || connectionReady)}
             <button class="k-button" disabled={busy} onclick={verify}
               ><RefreshCw size={16} />{oauthURL
                 ? t("ตรวจสอบหลังเข้าสู่ระบบ", "Check after sign-in")
                 : t("ตรวจสอบอีกครั้ง", "Check again")}</button
             >
           {/if}
-          {#if setup.oauthSupported && !needsOAuthClient && !setup.oauthConnected && oauthURL}
+          {#if setup.oauthSupported && !appSetupRequired && !setup.oauthConnected && oauthURL}
             <button class="k-button quiet" disabled={busy} onclick={startOAuth}
               >{t("เริ่มเข้าสู่ระบบใหม่", "Restart sign-in")}</button
             >
           {/if}
-          {#if (requiresURL || fields.length) && !needsOAuthClient}
+          {#if (requiresURL || fields.length) && !appSetupRequired}
             <button
               class="k-button quiet"
               disabled={busy}
@@ -1030,18 +1210,10 @@
         {/if}
       {/each}
       {#if providerKind === "orca"}
-        <p class="k-small k-muted">
-          {t(
-            "ORCA ให้บริการ connector ที่เรียก Google Drive API และจัดการ OAuth ผ่าน Google Cloud project ที่ตั้งค่าให้ระบบนี้",
-            "ORCA hosts the connector that calls the Google Drive API and manages OAuth through the Google Cloud project configured for this installation.",
-          )}
-        </p>
-        <p class="k-small k-muted">
-          {t(
-            "ชื่อแอปบนหน้าขอสิทธิ์ของ Google ขึ้นอยู่กับการตั้งค่า OAuth ของ project นั้น บัญชีที่เคยเชื่อมกับผู้ให้บริการอื่นต้องเชื่อมใหม่แยกกัน",
-            "The project’s OAuth configuration determines the app name on Google’s consent page. Accounts connected through another provider require a separate sign-in.",
-          )}
-        </p>
+        <p class="k-small k-muted">{t(
+          `ลงชื่อเข้าใช้บัญชี ${providerName} ของคุณ แล้วอนุญาต ORCA บัญชีที่เชื่อมผ่านผู้ให้บริการอื่นต้องลงชื่อเข้าใช้ใหม่`,
+          `Sign in to your own ${providerName} account and authorize ORCA. Accounts connected through another provider require a separate sign-in.`,
+        )}</p>
       {:else if providerKind === "obot"}
         <p class="k-small k-muted">
           {t(
@@ -1057,14 +1229,14 @@
           )}
         </p>
       {/if}
-      {#if providerHost && !apiGuide}<p class="k-small k-muted">
+      {#if providerHost && !apiGuide && providerKind !== "orca"}<p class="k-small k-muted">
         {t("เซิร์ฟเวอร์ต้นทาง", "Source server")}: <code>{providerHost}</code>
       </p>{/if}
       {#if providerKind === "obot" || providerKind === "google"}
         <p class="k-small k-muted">
           {t(
-            "ชื่อแอปบนหน้าขอสิทธิ์ของ Google เป็นไปตามการตั้งค่าของผู้ให้บริการ",
-            "The provider’s configuration determines the app name shown on Google’s consent page.",
+            "ชื่อแอปบนหน้าขอสิทธิ์เป็นไปตามการตั้งค่าของผู้ให้บริการ",
+            "The provider’s configuration determines the app name shown on the consent page.",
           )}
         </p>
       {/if}
@@ -1073,6 +1245,29 @@
 </section>
 
 <style>
+  .client-provider-help { margin: 18px 0; border-top: 1px solid var(--k-line); padding-top: 14px; }
+  .client-provider-help summary { cursor: pointer; font-weight: 600; }
+  .client-provider-help p { margin: 14px 0; }
+  .client-provider-help ol { padding-left: 24px; margin: 14px 0; }
+  .client-provider-help li { margin: 10px 0; line-height: 1.6; }
+  .client-provider-help a { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+
+  .client-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .client-setup {
+    margin-top: 20px;
+  }
+  .client-setup .k-field {
+    margin-top: 16px;
+  }
+  .client-setup p {
+    margin: 12px 0;
+  }
+
   .api-onboarding { margin: 18px 0; }
   .api-onboarding ol { display: flex; flex-wrap: wrap; gap: 10px 24px; list-style-position: inside; padding: 0; margin: 16px 0; color: var(--k-muted); font-size: 13px; }
   .api-onboarding li.current { color: var(--k-text); font-weight: 650; }

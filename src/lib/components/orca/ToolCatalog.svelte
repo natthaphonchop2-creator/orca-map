@@ -4,6 +4,7 @@
   import {
     catalogSetupHref,
     catalogDirectory,
+    catalogSetupState,
     filterCatalog,
     googleDriveProvider,
     groupCatalog,
@@ -46,17 +47,19 @@
   let query = $state("");
   let category = $state("all");
   let protocol = $state<"all" | "MCP" | "API">("all");
-  let tab = $state<"apps" | "tools">("apps");
+  let tab = $state<"apps" | "tools" | "guides">("apps");
   let generation = 0;
   let catalogToolbar = $state<HTMLDivElement>();
-  const directory = $derived(data.canManage ? catalogDirectory(sources) : sources);
-  const allSources = $derived(filterCatalog(directory));
-  const protocolSources = $derived(allSources.filter((source) => protocol === "all" || source.protocol === protocol));
+  const directory = $derived(filterCatalog(data.canManage ? catalogDirectory(sources) : sources));
+  const allSources = $derived(directory.filter((source) => !source.guideOnly));
+  const guideSources = $derived(directory.filter((source) => source.guideOnly));
+  const activeSources = $derived(tab === "guides" ? guideSources : allSources);
+  const protocolSources = $derived(activeSources.filter((source) => protocol === "all" || source.protocol === protocol));
   const matches = $derived(filterCatalog(protocolSources, query, category));
   const groupedMatches = $derived(groupCatalog(matches));
   const popular = $derived(popularCatalog(allSources, data));
   const starters = $derived(starterCatalog(allSources));
-  const isOverview = $derived(category === "all" && protocol === "all" && !query.trim());
+  const isOverview = $derived(tab === "apps" && category === "all" && protocol === "all" && !query.trim());
   const inventory = $derived(selectedToolInventory(data));
   const selectedTools = $derived(
     inventory.filter(({ connection, tool }) =>
@@ -87,7 +90,7 @@
       if (current === generation) loading = false;
     }
   }
-  function changeTab(next: "apps" | "tools") {
+  function changeTab(next: "apps" | "tools" | "guides") {
     tab = next;
     query = "";
     category = "all";
@@ -132,6 +135,9 @@
         : catalogSetupHref(source.id),
     );
   }
+  function openSetup(source: CatalogTool) {
+    if (!source.guideOnly && catalogSetupState(source).canStart) setupSourceID = source.id;
+  }
   async function setupCompleted() {
     await onchanged();
     setupSourceID = null;
@@ -171,6 +177,7 @@
 
 {#snippet sourceRow(source: CatalogTool)}
   {@const connection = sourceConnection(source)}
+  {@const readiness = catalogSetupState(source)}
   {@const otherConnections = otherDriveConnections(source)}
   {@const provider = googleDriveProvider(source)}
   <details class="source-row">
@@ -182,7 +189,7 @@
             source.descriptionTh,
             source.descriptionEn || source.description || source.descriptionTh,
           )}</span
-      >{@render authBadges(source)}{#if source.guideOnly}<span class="guide-status">{t("ยังไม่เปิดให้เชื่อมโดยตรง", "Direct connection not available yet")}</span>{/if}</span
+      >{@render authBadges(source)}{#if readiness.label}<span class="setup-status" class:review={readiness.kind === "unknown" || readiness.kind === "review_required"}>{t(readiness.labelTh, readiness.label)}</span>{/if}</span
       ><span class="source-type">{source.protocol}</span>{#if connection}<span
           class="saved-dot"
           title={t("มีการตั้งค่าในองค์กร", "Configured in your organization")}
@@ -244,12 +251,12 @@
           class="k-button"
           href={sourceHref(source)}
           >{t("ตั้งค่า Server", "Server settings")}<ArrowRight size={15} /></a>
-        {:else}<button type="button" class="k-button" onclick={() => setupSourceID = source.id}>
-          {provider === "orca" ? t("เชื่อมต่อผ่าน ORCA", "Connect with ORCA") : t("เชื่อมต่อแอป", "Connect app")}<ArrowRight size={15} />
+        {:else}<button type="button" class="k-button" disabled={!readiness.canStart} onclick={() => openSetup(source)}>
+          {t(readiness.actionTh, readiness.action)}{#if readiness.canStart}<ArrowRight size={15} />{/if}
         </button>{/if}
       </div>
       {:else}<div class="source-actions guide-actions">
-        <span>{t("ต้องมี URL ของ MCP", "Requires an MCP URL")}</span>
+        <span>{t("ต้องมี URL ของ MCP ที่รันอยู่แล้ว", "Requires an existing MCP server URL")}</span>
         <a class="k-button" href={sourceHref(source)}>{source.protocol === "API"
           ? t("เชื่อมผ่าน MCP ของคุณ", "Connect your own MCP")
           : t("เพิ่ม MCP ขององค์กร", "Add organization MCP")}<ArrowRight size={15} /></a>
@@ -306,6 +313,11 @@
           >{inventory.length}</span
         ></button
       >
+      <button
+        class:chosen={tab === "guides"}
+        aria-pressed={tab === "guides"}
+        onclick={() => changeTab("guides")}
+        >{t("คู่มือตัวเชื่อมอื่น", "Other connector guides")}<span>{loading ? "…" : guideSources.length}</span></button>
     </nav>
     <div class="catalog-toolbar" bind:this={catalogToolbar}>
       <div class="catalog-search">
@@ -313,7 +325,7 @@
           type="search"
           bind:value={query}
           aria-label={t("ค้นหาเครื่องมือ", "Search tools")}
-          placeholder={tab === "apps"
+          placeholder={tab !== "tools"
             ? t("ค้นหาแอป MCP หรือ API…", "Search apps, MCP servers or APIs…")
             : t("ค้นหาชื่อเครื่องมือหรือระบบ…", "Search tools or connections…")}
         />{#if query}<button
@@ -322,16 +334,16 @@
           >{/if}
       </div>
       <span class="result-count" role="status"
-        >{tab === "apps" ? matches.length : selectedTools.length}
+        >{tab !== "tools" ? matches.length : selectedTools.length}
         {t("รายการ", "results")}</span
       >
     </div>
-    {#if tab === "apps"}
+    {#if tab !== "tools"}
       <div class="protocol-filter" role="group" aria-label={t("วิธีเชื่อม", "Integration protocol")}>
         {#each ["all", "MCP", "API"] as option}
           <button class:chosen={protocol === option} aria-pressed={protocol === option} onclick={() => { protocol = option as typeof protocol; category = "all"; }}>
             {option === "all" ? t("ทั้งหมด", "All") : option}
-            <span>{option === "all" ? allSources.length : allSources.filter((source) => source.protocol === option).length}</span>
+            <span>{option === "all" ? activeSources.length : activeSources.filter((source) => source.protocol === option).length}</span>
           </button>
         {/each}
       </div>
@@ -597,7 +609,9 @@
   .protocol-filter button { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border: 1px solid var(--o-line, #dce1e9); border-radius: 8px; background: white; color: var(--o-ink-soft, #526070); font: inherit; font-size: 13px; cursor: pointer; }
   .protocol-filter button.chosen { background: #edf6d9; border-color: #99b85f; color: #354c1d; }
   .protocol-filter button span { font-size: 11px; font-variant-numeric: tabular-nums; }
-  .guide-status { display: block; color: #795421; font-size: 11px; margin-top: 7px; }
+  .setup-status { display: inline-flex; width: fit-content; padding: 3px 8px; border-radius: 5px; background: #fff3de; color: #795421; font-size: 12px; font-weight: 600; margin-top: 8px; }
+  .setup-status.review { background: #eef0f4; color: #526070; }
+  .source-actions button:disabled { cursor: not-allowed; opacity: 0.65; }
   .integration-guide { border: 1px solid var(--o-line, #dce1e9); border-radius: 9px; background: #f8faf5; }
   .integration-guide > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 16px; font-size: 12px; color: #526070; }
   .integration-guide[open] > summary > :global(svg) { transform: rotate(180deg); }
@@ -626,6 +640,7 @@
   }
   .catalog-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 24px;
     border-bottom: 1px solid #e3e7eb;
     margin-bottom: 18px;

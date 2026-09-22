@@ -141,6 +141,10 @@ export interface OrcaCandidate {
   protocol?: "MCP" | "API";
   /** Confirmed source authentication capabilities; absent/empty means unknown. */
   authMethods?: ("oauth" | "secrets" | "none")[];
+  /** Setup availability only; never an authenticated connection health claim. */
+  setupStatus?: "available" | "admin_setup_required" | "review_required" | "unknown";
+  setupCanConfigure?: boolean;
+  setupReason?: string;
 }
 
 export interface OrcaSourceSetup {
@@ -165,6 +169,10 @@ export interface OrcaSourceSetup {
   oauthConnected: boolean;
   oauthClientRequired: boolean;
   oauthClientConfigured: boolean;
+  oauthClientCanConfigure?: boolean;
+  oauthScopeProfile?: 'slack-public-read-v1';
+  setupStatus?: string;
+  setupReason?: string;
   oauthRedirectURL: string;
 }
 
@@ -363,6 +371,12 @@ export const OrcaService = {
       ready: boolean;
       oauthRequired: boolean;
     }>,
+  configureSourceOAuthClient: (id: string, clientID: string, clientSecret: string, scopeProfile?: OrcaSourceSetup['oauthScopeProfile']) =>
+    doPost(
+      `/orca/sources/${part(id)}/oauth/client`,
+      { clientID, clientSecret, ...(scopeProfile ? { scopeProfile } : {}) },
+      options,
+    ) as Promise<OrcaSourceSetup>,
   startSourceOAuth: (id: string) =>
     doPost(`/orca/sources/${part(id)}/oauth`, {}, options) as Promise<{
       oauthURL: string;

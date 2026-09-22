@@ -11,9 +11,11 @@ import { render } from 'svelte/server';
 
 // Compile the real component's script and run its Svelte state/effects. Only
 // props and imported services are injected; no production logic is reimplemented.
+const providerSetupURL = new URL('../../orca/oauth-provider-setup.ts', import.meta.url).href;
+const { oauthProviderSetup } = await import(providerSetupURL);
 const component = await readFile(new URL('./SourceSetup.svelte', import.meta.url), 'utf8');
 const catalogURL = await typescriptModuleURL(new URL('../../orca/catalog.ts', import.meta.url));
-const { catalogSourceDisplayName, googleDriveProvider } = await import(catalogURL);
+const { catalogSourceDisplayName, catalogSourceProvider } = await import(catalogURL);
 const { providerGuide } = await import(new URL('../../orca/provider-guides.ts', import.meta.url).href);
 const apiSetupURL = await typescriptModuleURL(new URL('../../orca/api-connector-setup.ts', import.meta.url));
 const { apiConnectorSetup, apiConnectorError } = await import(apiSetupURL);
@@ -22,22 +24,25 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 	.replace('$props()', '$state(testProps)');
 const require = createRequire(import.meta.url);
 const compiled = compileModule(
-	`export function harness(testProps, OrcaService, onDestroy, untrack, t, orcaError, window, document, catalogSourceDisplayName, googleDriveProvider, providerGuide, apiConnectorSetup, apiConnectorError) {
+	`export function harness(testProps, OrcaService, onDestroy, untrack, t, orcaError, window, document, catalogSourceDisplayName, catalogSourceProvider, providerGuide, apiConnectorSetup, apiConnectorError, oauthProviderSetup) {
 		${script}
 		return {
 			safeOAuthURL, createSource, configure,
+			configureOAuthClient, clearClientFields, slackAppSetupURL,
 			startOAuth, disconnectOAuth, verify, editConfiguration, checkOAuthReturn,
 			get state() {
 				return { setup, error, notice, connectionReady, oauthRequired, oauthURL,
-					oauthWindowOpened, values, sourceEndpoint };
+					oauthWindowOpened, values, sourceEndpoint, clientID, clientSecret, clientFormOpen };
 			},
 			setContext(id, manager = canCreate) { sourceID = id; canCreate = manager; },
 			get providerName() { return providerName; },
+      get providerSetup() { return providerSetup; },
 			get providerKind() { return providerKind; },
 			get providerHost() { return providerHost; },
 			get primaryState() { return primaryState; },
 			get busy() { return busy; },
 			setAccount(input) { values = input; },
+			setClient(id, secret) { clientID = id; clientSecret = secret; clientFormOpen = true; },
 			setCreate(sourceName, url, auth) { name = sourceName; endpoint = url; authKind = auth; }
 		};
 	}`,
@@ -139,10 +144,11 @@ async function setupHarness(context, methods = {}, props = {}) {
 			windowEvents,
 			documentEvents,
 			catalogSourceDisplayName,
-			googleDriveProvider,
+			catalogSourceProvider,
 			providerGuide,
 			apiConnectorSetup,
-			apiConnectorError
+			apiConnectorError,
+			oauthProviderSetup
 		);
 	});
 	const destroy = () => {
@@ -1180,7 +1186,7 @@ test('unmount during a connection check closes the reserved popup and prevents l
 	assert.equal(view.state.oauthURL, '');
 });
 
-test('the rendered source header uses the real Google Drive logo and keeps provider details collapsed', async () => {
+test('source setup renders provider branding, native API fields and permission-gated OAuth setup', async () => {
 	const moduleURL = (code) => 'data:text/javascript;base64,' + Buffer.from(code).toString('base64');
 	const iconsURL = moduleURL(
 		'export const Check = () => {}, ExternalLink = () => {}, Info = () => {}, KeyRound = () => {}, Plug = () => {}, RefreshCw = () => {}, Unplug = () => {};'
@@ -1191,6 +1197,7 @@ test('the rendered source header uses the real Google Drive logo and keeps provi
 			'svelte/internal/server': pathToFileURL(require.resolve('svelte/internal/server')).href,
 			svelte: pathToFileURL(require.resolve('svelte')).href,
 			'@lucide/svelte': iconsURL,
+      '$lib/orca/oauth-provider-setup': providerSetupURL,
 			...aliases
 		})) {
 			code = code
@@ -1216,6 +1223,70 @@ test('the rendered source header uses the real Google Drive logo and keeps provi
 			)
 		})
 	);
+  for (const [id, host, review] of [
+    ['default-asana-877addce', 'mcp.asana.com', false],
+    ['default-harvey-3c6d44ac', 'api.harvey.ai', true],
+    ['default-dropbox-8dc6ea2b', 'mcp.dropbox.com', true],
+  ]) {
+    const seeded = component
+      .replace('let setup = $state<OrcaSourceSetup>();', `let setup = $state<OrcaSourceSetup>(${JSON.stringify(source(id, {
+        configured: false, oauthClientRequired: id.includes('dropbox') ? false : true,
+        oauthClientCanConfigure: true, endpointHost: host,
+        setupStatus: review ? 'review_required' : 'admin_setup_required',
+      }))});`)
+      .replace(/let clientFormOpen = \$state\(false\);/, 'let clientFormOpen = $state(true);');
+    const { default: ProviderSetup } = await import(serverModule(seeded, `ProviderSetup-${id}.svelte`, {
+      '$lib/orca/CatalogIcon.svelte': iconURL,
+      '$lib/orca/catalog': catalogURL,
+      '$lib/orca/api-connector-setup': apiSetupURL,
+      '$lib/orca/provider-guides': new URL('../../orca/provider-guides.ts', import.meta.url).href,
+      '$lib/orca/locale.svelte': moduleURL('export const t = (_th, en) => en;'),
+      '$lib/services/orca': moduleURL('export const OrcaService = {}; export const orcaError = (error) => error.message;'),
+    }));
+    const body = render(ProviderSetup, { props: { sourceID: id, canCreate: true } }).body;
+    const profile = oauthProviderSetup(id, host);
+    assert.ok(body.includes(profile.actionURL));
+    assert.ok(body.includes(profile.appType));
+    const help = body.match(/<details([^>]*class="client-provider-help[^"]*"[^>]*)>([\s\S]*?)<\/details>/);
+    assert.ok(help, 'provider instructions are grouped in a disclosure');
+    assert.doesNotMatch(help[1], /\bopen(?:\s|=|$)/);
+    assert.match(help[2], /App setup instructions/);
+    if (review) {
+      assert.match(body, /needs provider review/);
+      assert.doesNotMatch(body, /id="source-client-secret"|Save app/);
+    } else {
+      assert.match(body, /Open Asana Developer Console/);
+      assert.match(body, /id="source-client-secret"[^>]*type="password"/);
+    }
+  }
+
+  for (const [provider, name, logo] of [
+    ['gmail', 'Gmail', '/orca/catalog/gmail.svg'],
+    ['microsoft-outlook', 'Microsoft Outlook', '/orca/catalog/outlook.svg'],
+    ['microsoft-calendar', 'Microsoft Calendar', '/orca/catalog/calendar.svg'],
+    ['microsoft-contacts', 'Microsoft Contacts', '/orca/catalog/contact.svg'],
+  ]) {
+    const id = `default-orca-managed-${provider}`;
+    const seeded = component.replace('let setup = $state<OrcaSourceSetup>();',
+      `let setup = $state<OrcaSourceSetup>(${JSON.stringify(source(id, {
+        name: 'Backend label', endpointHost: '127.0.0.1', managedProvider: provider,
+        oauthClientRequired: true, oauthClientConfigured: true, oauthClientCanConfigure: false,
+      }))});`);
+    const { default: ManagedSetup } = await import(serverModule(seeded, `ManagedSetup-${provider}.svelte`, {
+      '$lib/orca/CatalogIcon.svelte': iconURL,
+      '$lib/orca/catalog': catalogURL,
+      '$lib/orca/api-connector-setup': apiSetupURL,
+      '$lib/orca/provider-guides': new URL('../../orca/provider-guides.ts', import.meta.url).href,
+      '$lib/orca/locale.svelte': moduleURL('export const t = (_th, en) => en;'),
+      '$lib/services/orca': moduleURL('export const OrcaService = {}; export const orcaError = (error) => error.message;'),
+    }));
+    const body = render(ManagedSetup, { props: { sourceID: id } }).body;
+    assert.ok(body.includes(`Connect ${name}`));
+    assert.ok(body.includes(`src="${logo}"`));
+    assert.ok(body.includes(`Sign in to your own ${name} account and authorize ORCA`));
+    assert.doesNotMatch(body, /127\.0\.0\.1|Obot|Client Secret|source-client-id|Open Microsoft Entra|Open Google Auth Platform/);
+  }
+
 	for (const endpointHost of ['drivemcp.googleapis.com', 'google-drive-mcp.obot.ai']) {
 		const { body } = render(SourceSetup, {
 			props: { sourceID: 'exact-source', sourceLabel: 'Google Drive · ORCA', endpointHost }
@@ -1247,8 +1318,8 @@ test('the rendered source header uses the real Google Drive logo and keeps provi
 	}).body;
 	assert.match(managed, /<h3[^>]*>Connect Google Drive<\/h3>/);
 	assert.match(managed, /src="\/orca\/tools\/google-drive\.svg"/);
-	assert.match(managed, /ORCA hosts the connector that calls the Google Drive API/);
-	assert.match(managed, /project configured for this installation/);
+	assert.match(managed, /Sign in to your own Google Drive account and authorize ORCA/);
+	assert.doesNotMatch(managed, /127\.0\.0\.1|Google Cloud project/);
 	assert.match(managed, /Accounts connected through another provider require a separate sign-in/);
 	assert.doesNotMatch(managed, /Obot|Google’s Google Drive service/);
 	for (const [id, fields, label] of [
@@ -1289,6 +1360,37 @@ test('the rendered source header uses the real Google Drive logo and keeps provi
     assert.doesNotMatch(native, /API adapter|ติดตั้งตัวเชื่อม|เปิดหน้าขอสิทธิ์ให้เมื่อจำเป็น/);
     if (fields.length > 1) assert.match(native, /inputmode="numeric"/);
   }
+	for (const [canConfigure, formOpen] of [[false, true], [true, false], [true, true]]) {
+		const seeded = component
+			.replace('let setup = $state<OrcaSourceSetup>();',
+				`let setup = $state<OrcaSourceSetup>(${JSON.stringify(source('slack', {
+					oauthClientRequired: true, oauthClientCanConfigure: canConfigure,
+					endpointHost: 'mcp.slack.com'
+				}))});`)
+			.replace('let clientFormOpen = $state(false);', `let clientFormOpen = $state(${formOpen});`);
+		const { default: OAuthSetup } = await import(serverModule(seeded, 'OAuthSourceSetup.svelte', {
+			'$lib/orca/CatalogIcon.svelte': iconURL,
+			'$lib/orca/catalog': catalogURL,
+			'$lib/orca/api-connector-setup': apiSetupURL,
+			'$lib/orca/provider-guides': new URL('../../orca/provider-guides.ts', import.meta.url).href,
+			'$lib/orca/locale.svelte': moduleURL('export const t = (_th, en) => en;'),
+			'$lib/services/orca': moduleURL('export const OrcaService = {}; export const orcaError = (error) => error.message;')
+		}));
+		const body = render(OAuthSetup, { props: { sourceID: 'slack', sourceLabel: 'Slack Workspace', canCreate: true } }).body;
+		if (!canConfigure) {
+			assert.match(body, /An ORCA platform administrator must set up the app/);
+			assert.doesNotMatch(body, /Set up app|Client Secret|Create ORCA Slack app/);
+		} else if (!formOpen) {
+			assert.match(body, /Set up app/);
+			assert.doesNotMatch(body, /Client Secret|Create ORCA Slack app/);
+		} else {
+			assert.match(body, /Create ORCA Slack app/);
+			assert.match(body, /Public channels · Read-only/);
+			assert.match(body, /id="source-client-secret"[^>]*type="password"/);
+			assert.match(body, /id="source-client-callback"[^>]*readonly[^>]*value="https:\/\/orca.example.test\/oauth\/callback"/);
+			assert.match(body, /Save app/);
+		}
+	}
 	const localCustom = render(SourceSetup, {
 		props: { sourceID: 'custom-local', sourceLabel: 'Custom files', endpointHost: '127.0.0.1' }
 	}).body;
@@ -1360,4 +1462,259 @@ test('a rejected native API account stays editable and never advances to tools',
   assert.equal(ready, 0);
   assert.equal(popups.length, 0);
   assert.deepEqual(view.state.values, {});
+});
+
+test('platform owner can configure the app without falsely marking the personal account connected', async (context) => {
+	const calls = [];
+	const initial = (id) =>
+		source(id, { configured: false, oauthClientRequired: true, oauthClientCanConfigure: true });
+	const { view } = await setupHarness(context, {
+		sourceSetup: async (id) => initial(id),
+		configureSourceOAuthClient: async (id, clientID, clientSecret) => {
+			calls.push({ id, clientID, clientSecret });
+			assert.equal(view.state.clientSecret, '');
+			return { ...initial(id), oauthClientConfigured: true };
+		}
+	});
+	assert.equal(view.primaryState, 'unavailable');
+	view.setClient(' fixture-id ', ' fixture-secret ');
+	await view.configureOAuthClient();
+	assert.deepEqual(calls, [
+		{ id: 'source-one', clientID: 'fixture-id', clientSecret: 'fixture-secret' }
+	]);
+	assert.equal(view.state.clientSecret, '');
+	assert.equal(view.primaryState, 'connect');
+	assert.equal(view.state.connectionReady, false);
+	assert.equal(view.state.setup.oauthConnected, false);
+});
+
+test('organization manager UI cannot configure global app credentials without server capability', async (context) => {
+	let calls = 0;
+	const { view } = await setupHarness(
+		context,
+		{
+			sourceSetup: async (id) => source(id, { oauthClientRequired: true }),
+			configureSourceOAuthClient: async () => {
+				calls++;
+			}
+		},
+		{ canCreate: true }
+	);
+	view.setClient('fixture-id', 'fixture-secret');
+	await view.configureOAuthClient();
+	assert.equal(calls, 0);
+});
+
+test('app credential failures do not echo secrets and late responses cannot change another source', async (context) => {
+	const pending = deferred();
+	let fail = true;
+	const { view } = await setupHarness(context, {
+		sourceSetup: async (id) =>
+			source(id, { oauthClientRequired: true, oauthClientCanConfigure: true }),
+		configureSourceOAuthClient: async () => {
+			if (fail) throw new Error('provider error fixture-secret');
+			return pending.promise;
+		}
+	});
+	view.setClient('fixture-id', 'fixture-secret');
+	await view.configureOAuthClient();
+	assert.equal(view.state.clientSecret, '');
+	assert.doesNotMatch(view.state.error, /fixture-secret/);
+	fail = false;
+	view.setClient('fixture-id', 'fixture-secret');
+	const saving = view.configureOAuthClient();
+	view.setContext('source-two');
+	await settle();
+	pending.resolve(source('source-one', { oauthClientConfigured: true }));
+	await saving;
+	assert.equal(view.state.setup.sourceID, 'source-two');
+	assert.equal(view.state.setup.oauthClientConfigured, false);
+	assert.equal(view.state.clientSecret, '');
+});
+
+test('Slack setup manifest uses the server callback, ORCA branding and public read scopes', async (context) => {
+	const { view } = await setupHarness(context, {
+		sourceSetup: async (id) =>
+			source(id, { endpointHost: 'mcp.slack.com', oauthClientRequired: true })
+	});
+	const url = new URL(view.slackAppSetupURL());
+	assert.equal(url.origin, 'https://api.slack.com');
+	const manifest = JSON.parse(url.searchParams.get('manifest_json'));
+	assert.equal(manifest.display_information.name, 'ORCA');
+	assert.equal(manifest.settings.is_mcp_enabled, true);
+	assert.equal(manifest.oauth_config.pkce_enabled, true);
+	assert.deepEqual(manifest.oauth_config.redirect_urls, [
+		'https://orca.example.test/oauth/callback'
+	]);
+	assert.ok(manifest.oauth_config.scopes.user.includes('search:read.public'));
+	assert.ok(
+		manifest.oauth_config.scopes.user.every((s) => !s.includes('write') && !s.includes('private'))
+	);
+});
+
+
+test('provider review blocks new OAuth and credential writes without hiding existing-account checks', async (context) => {
+  for (const entry of [
+    { sourceID: 'default-harvey-3c6d44ac', endpointHost: 'api.harvey.ai', oauthClientRequired: true },
+    { sourceID: 'default-dropbox-8dc6ea2b', endpointHost: 'mcp.dropbox.com', oauthClientRequired: false },
+  ]) {
+    let oauthStarts = 0;
+    let writes = 0;
+    const { view } = await setupHarness(context, {
+      sourceSetup: async (id) => source(id, { ...entry, configured: false, setupStatus: 'review_required', setupReason: 'provider_review', oauthClientCanConfigure: true }),
+      configureSourceOAuthClient: async () => { writes++; },
+      configureSource: async () => { writes++; },
+      startSourceOAuth: async () => { oauthStarts++; },
+    }, { sourceID: entry.sourceID, canCreate: true });
+    assert.equal(view.primaryState, 'unavailable');
+    assert.ok(view.providerSetup.actionURL.startsWith('https://'));
+    view.setClient('synthetic-client', 'synthetic-secret');
+    await view.configureOAuthClient();
+    await view.startOAuth();
+    await view.configure();
+    assert.equal(writes, 0);
+    assert.equal(oauthStarts, 0);
+  }
+  let checks = 0;
+  const { view } = await setupHarness(context, {
+    sourceSetup: async (id) => source(id, { configured: true, setupStatus: 'review_required', oauthConnected: true }),
+    checkSource: async () => { checks++; return { ready: true, oauthRequired: false }; },
+  });
+  assert.equal(view.primaryState, 'check');
+  await view.verify();
+  assert.equal(checks, 1);
+  assert.equal(view.primaryState, 'ready');
+});
+
+test('provider instructions follow the current source and never a lookalike display name', async (context) => {
+  const { view } = await setupHarness(context, {
+    sourceSetup: async (id) => source(id, {
+      name: 'Asana', endpointHost: id === 'source-one' ? 'mcp.asana.com' : 'mcp.asana.com.evil.test',
+      oauthClientRequired: true, oauthClientCanConfigure: id === 'source-one',
+    }),
+  });
+  assert.equal(view.providerSetup.appType, 'MCP app');
+  view.setClient('synthetic-id', 'synthetic-secret');
+  view.setContext('other-source');
+  await settle();
+  assert.equal(view.providerSetup, undefined);
+  assert.equal(view.state.clientSecret, '');
+  assert.equal(view.state.clientFormOpen, false);
+});
+
+
+test('opening app setup shows fields immediately only after current backend authorization', async (context) => {
+  const states = [
+    { oauthClientRequired: true, oauthClientCanConfigure: true, expectOpen: true },
+    { oauthClientRequired: true, oauthClientCanConfigure: false, expectOpen: false },
+    { oauthClientRequired: true, oauthClientCanConfigure: true, oauthClientConfigured: true, expectOpen: false },
+    { oauthClientRequired: false, oauthClientCanConfigure: true, expectOpen: false },
+    { oauthClientRequired: true, oauthClientCanConfigure: true, endpointHost: 'api.harvey.ai', setupStatus: 'review_required', expectOpen: false },
+  ];
+  for (const { expectOpen, ...state } of states) {
+    const { view } = await setupHarness(context, {
+      sourceSetup: async (id) => source(id, { configured: false, endpointHost: 'mcp.slack.com', ...state }),
+    }, { canCreate: true });
+    assert.equal(view.state.clientFormOpen, expectOpen);
+    assert.equal(view.state.clientSecret, '');
+  }
+  const pending = deferred();
+  const { view } = await setupHarness(context, {
+    sourceSetup: async (id) => id === 'source-one' ? pending.promise : source(id, { oauthClientRequired: true, oauthClientCanConfigure: false }),
+  }, { canCreate: true });
+  assert.equal(view.state.clientFormOpen, false, 'the loading state cannot infer owner access');
+  view.setContext('other-source');
+  await settle();
+  pending.resolve(source('source-one', { oauthClientRequired: true, oauthClientCanConfigure: true }));
+  await settle();
+  assert.equal(view.state.setup.sourceID, 'other-source');
+  assert.equal(view.state.clientFormOpen, false, 'a stale owner response must not open another source form');
+});
+
+
+test('Slack app setup requests the public read profile and requires backend confirmation', async (context) => {
+  for (const confirmed of [true, false]) {
+    const calls = [];
+    const initial = (id) => source(id, {
+      endpointHost: 'mcp.slack.com', configured: false,
+      oauthClientRequired: true, oauthClientCanConfigure: true,
+    });
+    const { view } = await setupHarness(context, {
+      sourceSetup: async (id) => initial(id),
+      configureSourceOAuthClient: async (id, clientID, clientSecret, scopeProfile) => {
+        calls.push({ id, scopeProfile });
+        assert.equal(view.state.clientSecret, '');
+        return { ...initial(id), oauthClientConfigured: true,
+          ...(confirmed ? { oauthScopeProfile: scopeProfile } : {}) };
+      },
+    });
+    view.setClient('fixture-id', 'fixture-secret');
+    await view.configureOAuthClient();
+    assert.deepEqual(calls, [{ id: 'source-one', scopeProfile: 'slack-public-read-v1' }]);
+    assert.equal(view.state.setup.oauthClientConfigured, confirmed);
+    assert.equal(view.state.setup.oauthConnected, false);
+    assert.equal(view.state.connectionReady, false);
+    assert.equal(view.state.clientSecret, '');
+    assert.equal(view.primaryState, confirmed ? 'connect' : 'unavailable');
+    assert.equal(Boolean(view.state.error), !confirmed);
+  }
+});
+
+test('Slack scope profile does not carry into a different provider after changing sources', async (context) => {
+  const calls = [];
+  const initial = (id) => source(id, {
+    endpointHost: id === 'source-one' ? 'mcp.slack.com' : 'mcp.asana.com',
+    configured: false, oauthClientRequired: true, oauthClientCanConfigure: true,
+  });
+  const { view } = await setupHarness(context, {
+    sourceSetup: async (id) => initial(id),
+    configureSourceOAuthClient: async (id, clientID, clientSecret, scopeProfile) => {
+      calls.push({ id, scopeProfile });
+      return { ...initial(id), oauthClientConfigured: true };
+    },
+  });
+  view.setContext('source-two');
+  await settle();
+  view.setClient('fixture-id', 'fixture-secret');
+  await view.configureOAuthClient();
+  assert.deepEqual(calls, [{ id: 'source-two', scopeProfile: undefined }]);
+  assert.equal(view.primaryState, 'connect');
+  assert.equal(view.state.setup.oauthConnected, false);
+});
+
+
+test('managed Gmail and Microsoft operator setup does not alter member sign-in or infer identity from localhost', async (context) => {
+  for (const provider of ['gmail', 'microsoft-outlook', 'microsoft-excel']) {
+    const id = `default-orca-managed-${provider}`;
+    const { view } = await setupHarness(context, {
+      sourceSetup: async (sourceID) => source(sourceID, { name: 'Managed provider', endpointHost: '127.0.0.1', managedProvider: provider, oauthClientRequired: true, oauthClientConfigured: false, oauthClientCanConfigure: false })
+    }, { sourceID: id });
+    assert.equal(view.primaryState, 'unavailable');
+    assert.equal(view.providerSetup.key, `managed-${provider}`);
+    assert.equal(view.state.clientFormOpen, false);
+    assert.equal(view.state.oauthURL, '');
+  }
+  const configured = await setupHarness(context, {
+    sourceSetup: async (sourceID) => source(sourceID, { name: 'Managed provider', endpointHost: '127.0.0.1', managedProvider: 'gmail', oauthClientRequired: true, oauthClientConfigured: true })
+  }, { sourceID: 'default-orca-managed-gmail' });
+  assert.equal(configured.view.providerName, 'Gmail');
+  assert.equal(configured.view.primaryState, 'connect');
+  assert.equal(configured.view.state.clientFormOpen, false);
+});
+
+test('managed operator guides require exact source and trusted metadata and distinguish API scopes', () => {
+  for (const provider of ['google-drive', 'gmail', 'google-calendar', 'google-docs', 'google-sheets', 'google-search-console', 'microsoft-outlook', 'microsoft-calendar', 'microsoft-contacts', 'microsoft-onedrive', 'microsoft-excel', 'microsoft-word']) {
+    const id = `default-orca-managed-${provider}`;
+    assert.equal(oauthProviderSetup(id, '127.0.0.1'), undefined);
+    assert.equal(oauthProviderSetup('custom', '127.0.0.1', provider), undefined);
+    assert.equal(oauthProviderSetup(id, '127.0.0.1', 'unknown'), undefined);
+    const guide = oauthProviderSetup(id, '127.0.0.1', provider);
+    assert.equal(guide.key, `managed-${provider}`);
+    assert.equal(new URL(guide.actionURL).protocol, 'https:');
+    assert.doesNotMatch(JSON.stringify(guide), /MCP Tool User|obot|service account|Application permission/);
+    assert.match(JSON.stringify(guide), /ORCA/);
+  }
+  const excel = oauthProviderSetup('default-orca-managed-microsoft-excel', '127.0.0.1', 'microsoft-excel');
+  assert.match(JSON.stringify(excel.steps), /Files.ReadWrite/);
+  assert.match(JSON.stringify(excel.steps), /only reads data/);
 });

@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 // Run the shipped module with Node's native type stripping. Resolve its single
 // extensionless application import without changing browser compiler settings.
-const { catalogAuthTags, catalogSetupHref, catalogSource, catalogSourceDisplayName, filterCatalog, googleDriveProvider, groupCatalog, popularCatalog, starterCatalog } = await importTypeScript(new URL('./catalog.ts', import.meta.url));
+const { catalogAuthTags, catalogSetupState, catalogSetupHref, catalogSource, catalogSourceDisplayName, filterCatalog, googleDriveProvider, groupCatalog, popularCatalog, starterCatalog } = await importTypeScript(new URL('./catalog.ts', import.meta.url));
 
 test('catalog authentication tags use explicit methods, preserve combinations, and never claim account readiness', () => {
 	for (const [methods, expected] of [
@@ -217,8 +217,8 @@ test('provider naming depends on exact endpoint hosts rather than custom names o
 });
 
 const thaiSources = [
-	{ id: 'flow-account & account=other', name: 'FlowAccount' },
-	{ id: 'peak-thai', name: 'PEAK' },
+	{ id: 'flow-account & account=other', name: 'FlowAccount', setupStatus: 'available' },
+	{ id: 'peak-thai', name: 'PEAK', setupStatus: 'available' },
 	{ id: 'market', name: 'Alpha Vantage' },
 ];
 
@@ -386,4 +386,126 @@ test('new organizations have no popularity claim; starter picks are curated from
 		[],
 	);
 	assert.deepEqual(starterCatalog([]), []);
+});
+
+test('catalog readiness separates OAuth capability, platform setup and live account state', () => {
+  const oauth = { authMethods: ['oauth'], name: 'Slack Workspace' };
+  assert.equal(catalogSetupState(oauth).kind, 'unknown');
+  assert.equal(catalogSetupState(oauth).action, 'Check setup');
+  const missing = { ...oauth, setupStatus: 'admin_setup_required', setupReason: 'oauth_client_missing' };
+  for (const setupCanConfigure of [undefined, false, 'true', 1]) {
+    const state = catalogSetupState({ ...missing, setupCanConfigure });
+    assert.equal(state.canStart, false);
+    assert.equal(state.action, 'Administrator required');
+  }
+  const owner = catalogSetupState({ ...missing, setupCanConfigure: true });
+  assert.equal(owner.canStart, true);
+  assert.equal(owner.action, 'Set up app');
+  const available = catalogSetupState({ ...oauth, setupStatus: 'available' });
+  assert.equal(available.canStart, true);
+  assert.equal(available.action, 'Connect app');
+  assert.doesNotMatch(JSON.stringify(available), /connected|verified|healthy/i);
+});
+
+test('review gates and unknown metadata offer inspection without claiming availability', () => {
+  for (const setupReason of ['provider_review', 'url_review']) {
+    const state = catalogSetupState({ setupStatus: 'review_required', setupReason, setupCanConfigure: true });
+    assert.equal(state.kind, 'review_required');
+    assert.equal(state.canStart, true);
+    assert.equal(state.action, 'Check setup');
+    assert.match(state.label, /review required/i);
+  }
+  for (const setupStatus of [undefined, 'unknown', 'future-status', 'connected']) {
+    const state = catalogSetupState({ setupStatus });
+    assert.equal(state.kind, 'unknown');
+    assert.equal(state.action, 'Check setup');
+  }
+  const guide = catalogSetupState({ guideOnly: true, setupStatus: 'available', setupCanConfigure: true });
+  assert.equal(guide.kind, 'guide');
+  assert.equal(guide.canStart, false);
+  assert.equal(guide.action, 'Add your own MCP');
+});
+
+test('guides never enter adoption or starters and starters exclude known blockers and unknown setup', () => {
+  const rows = filterCatalog([
+    { id: 'guide-flow', name: 'FlowAccount', guideOnly: true, setupStatus: 'available' },
+    { id: 'blocked-slack', name: 'Slack Workspace', setupStatus: 'admin_setup_required', setupCanConfigure: true },
+    { id: 'unchecked-peak', name: 'PEAK' },
+    { id: 'drive', name: 'Google Drive', setupStatus: 'available' },
+  ]);
+  assert.deepEqual(starterCatalog(rows).map(row => row.id), ['drive']);
+  const adoption = {
+    connections: [connection('guide-connection', 'guide-flow')],
+    hubs: [hub('guide-gateway', 'guide-connection')],
+  };
+  assert.deepEqual(popularCatalog(rows, adoption), []);
+});
+
+
+test('managed BigQuery display name preserves its icon, work category and historical search name', () => {
+  const source = { id: 'same-bigquery-id', name: 'BigQuery MCP', endpointHost: 'bigquery.googleapis.com' };
+  const renamed = catalogSource(source);
+  const previous = catalogSource({ ...source, name: 'BigQuery Toolbox' });
+  assert.equal(renamed.id, source.id);
+  assert.equal(renamed.icon, previous.icon);
+  assert.equal(renamed.categoryId, 'data-analytics');
+  assert.deepEqual(filterCatalog([source], 'BigQuery Toolbox').map(row => row.id), [source.id]);
+});
+
+const managedFamilies = [
+  ['google-drive', 'Google Drive', 'google-drive-mcp.obot.ai', 'productivity', '/orca/tools/google-drive.svg'],
+  ['gmail', 'Gmail', 'gmail-mcp.obot.ai', 'communication', '/orca/catalog/gmail.svg'],
+  ['google-calendar', 'Google Calendar', 'google-calendar-mcp.obot.ai', 'communication', '/orca/catalog/google-calendar.svg'],
+  ['google-docs', 'Google Docs', 'google-docs-mcp.obot.ai', 'productivity', '/orca/tools/google-docs.svg'],
+  ['google-sheets', 'Google Sheets', 'google-sheets-mcp.obot.ai', 'data-analytics', '/orca/tools/google-sheets.svg'],
+  ['google-search-console', 'Google Search Console', 'google-search-console-mcp.obot.ai', 'marketing', '/orca/catalog/google-search-console.svg'],
+  ['microsoft-outlook', 'Microsoft Outlook', 'outlook-mcp.obot.ai', 'communication', '/orca/catalog/outlook.svg'],
+  ['microsoft-calendar', 'Microsoft Calendar', 'm365-calendar-mcp.obot.ai', 'communication', '/orca/catalog/calendar.svg'],
+  ['microsoft-contacts', 'Microsoft Contacts', 'm365-contact-mcp.obot.ai', 'crm-sales', '/orca/catalog/contact.svg'],
+  ['microsoft-onedrive', 'OneDrive', 'm365-onedrive-mcp.obot.ai', 'productivity', '/orca/catalog/onedrive.svg'],
+  ['microsoft-excel', 'Excel', 'm365-excel-mcp.obot.ai', 'data-analytics', '/orca/catalog/excel.svg'],
+  ['microsoft-word', 'Word', 'm365-word-mcp.obot.ai', 'productivity', '/orca/catalog/word.svg'],
+];
+
+test('managed Google and Microsoft products replace only the catalog default, never exact existing selections', () => {
+  for (const [key, name, endpointHost, category, icon] of managedFamilies) {
+    const legacy = { id: `legacy-${key}`, name, endpointHost, authMethods: ['secrets'], setupStatus: 'available' };
+    const managed = { id: `default-orca-managed-${key}`, name: 'Backend label', managedProvider: key, endpointHost: '127.0.0.1', authMethods: ['oauth'], setupStatus: 'admin_setup_required' };
+    const custom = { id: `custom-${key}`, name: `${name} · My company`, endpointHost: `${endpointHost}.example.test` };
+    const all = [legacy, custom, managed];
+    const before = structuredClone(all);
+    const defaults = filterCatalog(all);
+    assert.deepEqual(new Set(defaults.map(item => item.id)), new Set([custom.id, managed.id]));
+    const row = defaults.find(item => item.id === managed.id);
+    assert.equal(row.name, name);
+    assert.equal(row.categoryId, category);
+    assert.equal(row.icon, icon);
+    assert.equal(row.setupStatus, 'admin_setup_required');
+    assert.match(row.descriptionEn, /read|Read/);
+    assert.doesNotMatch(row.descriptionEn, /send|create|write|edit/i);
+    assert.equal(catalogSetupState(row).kind, 'admin_setup_required');
+    for (const selected of [legacy, managed]) {
+      const results = filterCatalog(all, '', 'all', selected.id);
+      const result = results.find(item => item.id === selected.id);
+      assert.ok(result);
+      assert.deepEqual(result.authMethods, selected.authMethods);
+      assert.equal(result.setupStatus, selected.setupStatus);
+      assert.equal(results.some(item => item.id === (selected === legacy ? managed.id : legacy.id)), false);
+      assert.equal(new URL(catalogSetupHref(result.id), 'https://orca.example').searchParams.get('source'), selected.id);
+    }
+    assert.deepEqual(filterCatalog([legacy]).map(item => item.id), [legacy.id]);
+    assert.deepEqual(all, before);
+  }
+});
+
+test('managed recognition never follows a display name, a reserved-looking source ID or an unrelated API', () => {
+  for (const [key, name] of managedFamilies) {
+    const managed = { id: `managed-${key}`, name, managedProvider: key };
+    const custom = { id: `default-orca-managed-${key}`, name: 'Custom source', endpointHost: '127.0.0.1', oauthProvider: key.startsWith('microsoft-') ? 'microsoft' : 'google' };
+    assert.equal(catalogSourceDisplayName(custom), 'Custom source');
+    assert.deepEqual(new Set(filterCatalog([managed, custom]).map(item => item.id)), new Set([managed.id, custom.id]));
+    const api = { ...custom, id: `api-${key}`, managedProvider: key, protocol: 'API' };
+    assert.equal(catalogSourceDisplayName(api), 'Custom source');
+    assert.equal(filterCatalog([managed, api]).length, 2);
+  }
 });

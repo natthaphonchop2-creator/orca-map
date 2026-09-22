@@ -51,19 +51,20 @@
 		oncompleted?: (connection: OrcaConnection) => Promise<void>;
 		onbusychange?: (busy: boolean) => void;
 	} = $props();
+	const addSourceFlow = $derived(initiallyAddSource && !initialConnectionID);
 	let alive = true;
 	let initialSelectionApplied = false;
 	let discoveryGeneration = 0;
 	let candidates = $state<OrcaCandidate[]>([]);
 	let tools = $state<OrcaTool[]>([]);
 	let editing = $state<OrcaConnection>();
-	let formOpen = $state(false);
+	let formOpen = $state(untrack(() => addSourceFlow && data.canManage));
 	let step = $state<1 | 2 | 3>(1);
 	let creatingSource = $state(false);
 	let sourceReady = $state(false);
 	let setupBusy = $state(false);
 	let suggestedName = $state('');
-	let loading = $state(false);
+	let loading = $state(untrack(() => addSourceFlow && data.canManage));
 	let discovering = $state(false);
 	let saving = $state(false);
 	let error = $state('');
@@ -545,7 +546,7 @@
 					'To use a different source system, add a new server.'
 				)}
 			</p>{/if}
-		{#if loading}<p class="k-muted k-small">{t('กำลังโหลดรายชื่อระบบ…', 'Loading systems…')}</p>
+		{#if loading}<p class="k-muted k-small" role="status">{t('กำลังโหลดรายชื่อระบบ…', 'Loading systems…')}</p>
 		{:else if !selectableCandidates.length}<p class="k-muted k-small">
 				{t(
 					'ยังไม่มีระบบในรายการ เพิ่มระบบของคุณได้ที่ “ตัวเลือกเพิ่มเติม” ด้านล่าง',
@@ -827,12 +828,14 @@
 		</form>
 	{:else if !embedded}
 		<div class="k-wizard-actions">
-			<button class="k-link-button" type="button" disabled={busy || setupBusy} onclick={closeForm}
+			{#if addSourceFlow}<a class="k-link-button" style="display:inline-flex;align-items:center;gap:6px" href={localeHref('/app?view=servers')}
+				><ChevronLeft size={17} />{t('กลับไป Servers', 'Back to Servers')}</a
+			>{:else}<button class="k-link-button" type="button" disabled={busy || setupBusy} onclick={closeForm}
 				><ChevronLeft size={17} />{t('กลับไป Servers', 'Back to Servers')}</button
-			>
+			>{/if}
 		</div>
 	{/if}
-{:else if !policyMode && !embedded}
+{:else if !policyMode && !embedded && !addSourceFlow}
 	{#if data.connections.length > 4}<div class="k-field" style="max-width:440px;margin-bottom:20px">
 			<label for="connection-search">{t('ค้นหาระบบ', 'Search sources')}</label><input
 				id="connection-search"

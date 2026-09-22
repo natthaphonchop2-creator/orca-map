@@ -4,7 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { createRequire, stripTypeScriptTypes } from 'node:module';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { compileModule } from 'svelte/compiler';
+import { compile, compileModule } from 'svelte/compiler';
+import { render } from 'svelte/server';
 // eslint-disable-next-line svelte/no-svelte-internal -- Exercise the real component script with its matching Svelte runtime.
 import { effect_root, flush, untrack } from 'svelte/internal/client';
 
@@ -18,7 +19,7 @@ const compiled = compileModule(
 	`export function harness(testProps, OrcaService, onMount, onDestroy, tick, t, orcaError, window, filterCatalog, catalogSourceDisplayName, untrack) {
 		${script}
 		return {
-			openForm, closeForm, toggleEnabled, applyInitialSelection, sourceChanged, sourceAccountReady, sourceStateChanged, discover, save,
+			loadCandidates, openForm, closeForm, toggleEnabled, applyInitialSelection, sourceChanged, sourceAccountReady, sourceStateChanged, discover, save,
 			setCandidates(items) { candidates = items; },
 			setManager(value) { data = { ...data, canManage: value }; },
 			select(id) { mcpID = id; sourceChanged(); },
@@ -30,7 +31,7 @@ const compiled = compileModule(
 				if (input.readOnly !== undefined) { readOnly = input.readOnly; reviewedTools = false; }
 				if (input.step !== undefined) step = input.step;
 			},
-			get state() { return { step, mcpID, tools, discoveredID, toolNames, readOnly, reviewedTools, toolsReviewed, formOpen, sourceReady, setupBusy, discovering, error, name, selectableCandidates, sourceLabel }; }
+			get state() { return { step, mcpID, tools, discoveredID, toolNames, readOnly, reviewedTools, toolsReviewed, formOpen, sourceReady, setupBusy, loading, discovering, error, name, selectableCandidates, sourceLabel }; }
 		};
 	}`,
 	{ filename: 'connections-test.svelte.js', generate: 'client' }
@@ -49,8 +50,8 @@ function deferred() {
 	});
 	return { promise, resolve, reject };
 }
-async function setup(context, methods = {}, props = {}) {
-	let view, teardown;
+async function setup(context, methods = {}, props = {}, prepare = true) {
+	let view, teardown, mount;
 	let writes = [],
 		refreshes = 0;
 	const stop = effect_root(() => {
@@ -63,6 +64,7 @@ async function setup(context, methods = {}, props = {}) {
 				...props
 			},
 			{
+				candidates: async () => [{ id: 'a', name: 'Source A' }, { id: 'b', name: 'Source B' }],
 				discover: async () => [{ name: 'search', description: 'Search documents' }],
 				connection: async (payload, id) => {
 					writes.push({ payload, id });
@@ -70,7 +72,7 @@ async function setup(context, methods = {}, props = {}) {
 				},
 				...methods
 			},
-			() => {},
+			(fn) => { mount = fn; },
 			(fn) => {
 				teardown = fn;
 			},
@@ -87,14 +89,16 @@ async function setup(context, methods = {}, props = {}) {
 		teardown();
 		stop();
 	});
-	view.setCandidates([
-		{ id: 'a', name: 'Source A' },
-		{ id: 'b', name: 'Source B' }
-	]);
-	await view.openForm();
-	view.select('a');
+	if (prepare) {
+		view.setCandidates([
+			{ id: 'a', name: 'Source A' },
+			{ id: 'b', name: 'Source B' }
+		]);
+		await view.openForm();
+		view.select('a');
+	}
 	flush();
-	return { view, writes, refreshes: () => refreshes };
+	return { view, writes, mount, refreshes: () => refreshes };
 }
 
 test('discovery from an old source cannot advance or overwrite a new source', async (context) => {
@@ -438,4 +442,97 @@ test('embedded completion retry does not create a second connection after a succ
   assert.equal(writes.length, 1);
   assert.equal(completeAttempts, 2);
   assert.equal(refreshes(), 2);
+});
+
+
+const serverCode = compile(component, { filename: 'Connections.svelte', generate: 'server' }).js.code
+  .replace(/^import[\s\S]*?;\n/gm, '')
+  .replace('export default function Connections', 'function Connections');
+const serverModule = `import * as $ from ${JSON.stringify(pathToFileURL(require.resolve('svelte/internal/server')).href)};
+  export function component(deps) {
+    const { SourceSetup, connectionReady, catalogSourceDisplayName, filterCatalog, t, localeHref,
+      OrcaService, orcaError, statusLabels, Check, ArrowUpRight, ChevronLeft, Info, Folder,
+      LoaderCircle, Pause, Pencil, Play, Plug, Plus, onMount, onDestroy, tick, untrack,
+      toolPresentation, orcaLocale, gatewayUsesConnection } = deps;
+    ${serverCode}
+    return Connections;
+  }`;
+const { component: serverComponent } = await import('data:text/javascript;base64,' + Buffer.from(serverModule).toString('base64'));
+const existingServer = { id: 'existing', mcpID: 'a', name: 'Existing finance account', description: '', scopeNote: '', enabled: true, tools: [], toolNames: [], version: 4 };
+function initialScreen(props = {}) {
+  const noop = () => {};
+  const view = serverComponent({
+    SourceSetup: noop, connectionReady: () => false, catalogSourceDisplayName, filterCatalog,
+    t: (_th, en) => en, localeHref: value => value, OrcaService: {}, orcaError: error => error.message,
+    statusLabels: {}, Check: noop, ArrowUpRight: noop, ChevronLeft: noop, Info: noop, Folder: noop,
+    LoaderCircle: noop, Pause: noop, Pencil: noop, Play: noop, Plug: noop, Plus: noop,
+    onMount: noop, onDestroy: noop, tick: async () => {}, untrack,
+    toolPresentation: tool => ({ label: tool.name }), orcaLocale: { value: 'en' }, gatewayUsesConnection: () => false,
+  });
+  return render(view, { props: { data: { canManage: true, connections: [existingServer], hubs: [] }, onchanged: async () => {}, ...props } }).body;
+}
+const settleMount = () => new Promise(resolve => setImmediate(resolve));
+
+test('Add Server first render shows the loading picker instead of existing account cards', () => {
+  const html = initialScreen({ initiallyAddSource: true });
+  assert.match(html, /id="candidate"[^>]*disabled/);
+  assert.match(html, /role="status"[^>]*>Loading systems/);
+  assert.doesNotMatch(html, /Existing finance account/);
+  assert.match(initialScreen(), /Existing finance account/);
+});
+
+test('Add Server remains in setup while catalog loads and does not select an existing account', async context => {
+  const pending = deferred();
+  const { view, writes, mount } = await setup(context, { candidates: () => pending.promise }, {
+    initiallyAddSource: true,
+    data: { canManage: true, connections: [existingServer], hubs: [] },
+  }, false);
+  assert.equal(view.state.formOpen, true);
+  assert.equal(view.state.loading, true);
+  mount();
+  assert.equal(view.state.formOpen, true);
+  pending.resolve([{ id: 'new-app', name: 'New app' }]);
+  await settleMount();
+  assert.equal(view.state.formOpen, true);
+  assert.equal(view.state.loading, false);
+  assert.equal(view.state.mcpID, '');
+  assert.equal(view.state.name, '');
+  assert.deepEqual(view.state.selectableCandidates.map(item => item.id), ['new-app']);
+  assert.deepEqual(writes, []);
+});
+
+test('Add Server catalog failure stays in setup and retry restores choices without writing', async context => {
+  let attempts = 0;
+  const { view, writes, mount } = await setup(context, {
+    candidates: async () => {
+      if (++attempts === 1) throw new Error('Catalog unavailable');
+      return [{ id: 'retry-app', name: 'Recovered app' }];
+    },
+  }, { initiallyAddSource: true, data: { canManage: true, connections: [existingServer], hubs: [] } }, false);
+  mount();
+  await settleMount();
+  assert.equal(view.state.formOpen, true);
+  assert.equal(view.state.loading, false);
+  assert.equal(view.state.error, 'Catalog unavailable');
+  assert.equal(view.state.mcpID, '');
+  await view.loadCandidates();
+  await view.applyInitialSelection();
+  assert.equal(view.state.formOpen, true);
+  assert.equal(view.state.error, '');
+  assert.deepEqual(view.state.selectableCandidates.map(item => item.id), ['retry-app']);
+  assert.deepEqual(writes, []);
+});
+
+test('an explicit existing Server wins over add-source intent and retains its source', async context => {
+  const { view, writes, mount } = await setup(context, {}, {
+    initiallyAddSource: true, initialConnectionID: existingServer.id,
+    data: { canManage: true, connections: [existingServer], hubs: [] },
+  }, false);
+  assert.equal(view.state.formOpen, false);
+  mount();
+  await settleMount();
+  assert.equal(view.state.formOpen, true);
+  assert.equal(view.state.mcpID, existingServer.mcpID);
+  assert.equal(view.state.name, existingServer.name);
+  assert.deepEqual(writes, []);
 });

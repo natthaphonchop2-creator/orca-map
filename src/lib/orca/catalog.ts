@@ -13,6 +13,39 @@ export interface CatalogSource {
 	authMethods?: CatalogAuthMethod[];
 	protocol?: 'MCP' | 'API';
 	guideOnly?: boolean;
+	setupStatus?: 'available' | 'admin_setup_required' | 'review_required' | 'unknown';
+	setupCanConfigure?: boolean;
+	setupReason?: string;
+}
+
+/** Current setup prerequisites; OAuth labels do not imply the app is configured. */
+export function catalogSetupState(source: Pick<CatalogSource, 'guideOnly' | 'setupStatus' | 'setupCanConfigure' | 'setupReason'>) {
+	if (source.guideOnly) return {
+		kind: 'guide' as const, canStart: false,
+		labelTh: 'ต้องมีตัวเชื่อมของคุณ', label: 'Bring your own connector',
+		actionTh: 'เพิ่ม MCP ของคุณ', action: 'Add your own MCP'
+	};
+	if (source.setupStatus === 'admin_setup_required') return {
+		kind: 'admin_setup_required' as const, canStart: source.setupCanConfigure === true,
+		labelTh: 'ผู้ดูแลต้องเปิดใช้', label: 'Administrator setup required',
+		actionTh: source.setupCanConfigure === true ? 'ตั้งค่าแอป' : 'รอผู้ดูแลเปิดใช้',
+		action: source.setupCanConfigure === true ? 'Set up app' : 'Administrator required'
+	};
+	if (source.setupStatus === 'review_required') return {
+		kind: 'review_required' as const, canStart: true,
+		labelTh: source.setupReason === 'provider_review' ? 'รอยืนยันจากผู้ให้บริการ' : 'กำลังตรวจวิธีเชื่อม',
+		label: source.setupReason === 'provider_review' ? 'Provider review required' : 'Connection review required',
+		actionTh: 'ตรวจการตั้งค่า', action: 'Check setup'
+	};
+	if (source.setupStatus === 'available') return {
+		kind: 'available' as const, canStart: true,
+		labelTh: '', label: '', actionTh: 'เชื่อมต่อแอป', action: 'Connect app'
+	};
+	return {
+		kind: 'unknown' as const, canStart: true,
+		labelTh: 'ต้องตรวจการตั้งค่า', label: 'Setup not checked',
+		actionTh: 'ตรวจการตั้งค่า', action: 'Check setup'
+	};
 }
 
 export type CatalogAuthMethod = 'oauth' | 'secrets' | 'none';
@@ -75,28 +108,62 @@ export function catalogAuthTags(source: Pick<CatalogSource, 'authMethods'>) {
 		.map((method) => catalogAuthDescriptions[method]);
 }
 
-const googleDriveHosts = {
-	obot: 'google-drive-mcp.obot.ai',
-	google: 'drivemcp.googleapis.com'
-};
+type ProductSource = { endpointHost?: string; managedProvider?: string; protocol?: 'MCP' | 'API' };
 
-export function googleDriveProvider(
-	source: Pick<CatalogSource, 'endpointHost' | 'managedProvider'>
-): 'orca' | 'google' | 'obot' | undefined {
-	if (source.managedProvider === 'google-drive') return 'orca';
+const managedProducts = {
+	'google-drive': { name: 'Google Drive', host: 'google-drive-mcp.obot.ai', th: 'ค้นหาและอ่านไฟล์ใน Google Drive', en: 'Search and read files in Google Drive.' },
+	gmail: { name: 'Gmail', host: 'gmail-mcp.obot.ai', th: 'ค้นหาและอ่านอีเมลใน Gmail', en: 'Search and read messages in Gmail.' },
+	'google-calendar': { name: 'Google Calendar', host: 'google-calendar-mcp.obot.ai', th: 'ดูปฏิทินและนัดหมายใน Google Calendar', en: 'Read calendars and events in Google Calendar.' },
+	'google-docs': { name: 'Google Docs', host: 'google-docs-mcp.obot.ai', th: 'อ่านเอกสารใน Google Docs', en: 'Read documents in Google Docs.' },
+	'google-sheets': { name: 'Google Sheets', host: 'google-sheets-mcp.obot.ai', th: 'อ่านสเปรดชีตและข้อมูลเซลล์ใน Google Sheets', en: 'Read spreadsheets and cell values in Google Sheets.' },
+	'google-search-console': { name: 'Google Search Console', host: 'google-search-console-mcp.obot.ai', th: 'ดูเว็บไซต์และผลการค้นหาใน Google Search Console', en: 'Read sites and search performance in Google Search Console.' },
+	'microsoft-outlook': { name: 'Microsoft Outlook', host: 'outlook-mcp.obot.ai', th: 'ดูรายการและอ่านอีเมลใน Outlook', en: 'List and read messages in Outlook.' },
+	'microsoft-calendar': { name: 'Microsoft Calendar', host: 'm365-calendar-mcp.obot.ai', th: 'ดูปฏิทินและนัดหมายใน Microsoft 365', en: 'Read calendars and events in Microsoft 365.' },
+	'microsoft-contacts': { name: 'Microsoft Contacts', host: 'm365-contact-mcp.obot.ai', th: 'อ่านรายชื่อติดต่อใน Microsoft 365', en: 'Read contacts in Microsoft 365.' },
+	'microsoft-onedrive': { name: 'OneDrive', host: 'm365-onedrive-mcp.obot.ai', th: 'ดูรายการและข้อมูลไฟล์ใน OneDrive', en: 'List files and read file details in OneDrive.' },
+	'microsoft-excel': { name: 'Excel', host: 'm365-excel-mcp.obot.ai', th: 'อ่านชีตและข้อมูลเซลล์ใน Microsoft Excel', en: 'Read worksheets and cell values in Microsoft Excel.' },
+	'microsoft-word': { name: 'Word', host: 'm365-word-mcp.obot.ai', th: 'ดูรายการและข้อมูลเอกสาร Word', en: 'List Word documents and read document details.' },
+} as const;
+
+/** This is presentation only. Authorization and recognized managed metadata come from the backend. */
+export function catalogSourceProvider(source: ProductSource) {
+	if (source.protocol && source.protocol !== 'MCP') return undefined;
+	const managed = Object.entries(managedProducts).find(([key]) => key === source.managedProvider);
+	if (managed) return { key: managed[0], product: managed[1], provider: 'orca' as const };
 	const host = source.endpointHost?.toLowerCase();
-	if (host === googleDriveHosts.google) return 'google';
-	if (host === googleDriveHosts.obot) return 'obot';
-	return undefined;
+	if (host === 'drivemcp.googleapis.com') return { key: 'google-drive', product: managedProducts['google-drive'], provider: 'google' as const };
+	const legacy = Object.entries(managedProducts).find(([, product]) => product.host === host);
+	return legacy ? { key: legacy[0], product: legacy[1], provider: 'obot' as const } : undefined;
 }
 
-export function catalogSourceDisplayName(
-	source: Pick<CatalogSource, 'name' | 'endpointHost' | 'managedProvider'>
-): string {
-	return googleDriveProvider(source) ? 'Google Drive' : source.name;
+export function googleDriveProvider(source: ProductSource): 'orca' | 'google' | 'obot' | undefined {
+	const identity = catalogSourceProvider(source);
+	return identity?.key === 'google-drive' ? identity.provider : undefined;
+}
+
+export function catalogSourceDisplayName(source: ProductSource & { name: string }): string {
+	return catalogSourceProvider(source)?.product.name ?? source.name;
+}
+
+/** Preserve exact saved selections; new selections prefer ORCA, then the vendor, then legacy. */
+function preferredProductSources(sources: CatalogSource[], selectedSourceID: string) {
+	const winners = new Map<string, { source: CatalogSource; rank: number }>();
+	for (const source of sources) {
+		const identity = catalogSourceProvider(source);
+		if (!identity) continue;
+		const rank = source.id === selectedSourceID ? -1 : identity.provider === 'orca' ? 0 : identity.provider === 'google' ? 1 : 2;
+		const current = winners.get(identity.key);
+		if (!current || rank < current.rank) winners.set(identity.key, { source, rank });
+	}
+	return sources.filter((source) => {
+		const identity = catalogSourceProvider(source);
+		return !identity || winners.get(identity.key)?.source === source;
+	});
 }
 
 export function catalogSource(source: CatalogSource) {
+	const identity = catalogSourceProvider(source);
+	const managedCopy = identity?.provider === 'orca' ? { descriptionTh: identity.product.th, descriptionEn: identity.product.en } : {};
 	const reference = integrationReference(installedAPIReference(source) || source.id);
 	return {
 		...source,
@@ -105,7 +172,8 @@ export function catalogSource(source: CatalogSource) {
 		reference,
 		name: catalogSourceDisplayName(source),
 		authTags: catalogAuthTags(source),
-		...getCatalogPresentation(catalogSourceDisplayName(source), source.description)
+		...getCatalogPresentation(catalogSourceDisplayName(source), source.description),
+		...managedCopy
 	};
 }
 
@@ -140,15 +208,7 @@ export function filterCatalog(
 	selectedSourceID = ''
 ) {
 	const words = query.normalize('NFKC').trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-	// A product has one default choice. An explicitly selected or saved source
-	// keeps its own identity, including a legacy provider and its separate grant.
-	const googleDrive =
-		sources.find((source) => source.id === selectedSourceID && googleDriveProvider(source)) ??
-		sources.find((source) => googleDriveProvider(source) === 'orca') ??
-		sources.find((source) => googleDriveProvider(source) === 'google') ??
-		sources.find((source) => googleDriveProvider(source) === 'obot');
-	return sources
-		.filter((source) => !googleDriveProvider(source) || source === googleDrive)
+	return preferredProductSources(sources, selectedSourceID)
 		.map(catalogSource)
 		.filter((source) => {
 			if (category !== 'all' && source.categoryId !== category) return false;
@@ -216,6 +276,7 @@ export function popularCatalog(
 	limit = 4,
 ) {
 	return sources
+		.filter((source) => !source.guideOnly)
 		.map((source) => {
 			const connections = data.connections.filter(
 				(connection) =>
@@ -254,7 +315,7 @@ export function starterCatalog(sources: CatalogTool[], limit = 4) {
 	const names = ['FlowAccount', 'PEAK', 'Google Drive', 'Slack Workspace'];
 	return names
 		.flatMap((name) => {
-			const source = sources.find((candidate) => candidate.name === name);
+			const source = sources.find((candidate) => candidate.name === name && !candidate.guideOnly && catalogSetupState(candidate).kind === 'available');
 			return source ? [source] : [];
 		})
 		.slice(0, Math.max(0, limit));

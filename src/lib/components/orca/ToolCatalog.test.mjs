@@ -24,13 +24,13 @@ const script = stripTypeScriptTypes(
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(testProps, dependencies) {
-  const { OrcaService, onMount, onDestroy, catalogDirectory, filterCatalog, googleDriveProvider, groupCatalog, popularCatalog, starterCatalog, catalogSetupHref, catalogCategories, selectedToolInventory, orcaError, localeHref } = dependencies;
+  const { OrcaService, onMount, onDestroy, catalogDirectory, catalogSetupState, filterCatalog, googleDriveProvider, groupCatalog, popularCatalog, starterCatalog, catalogSetupHref, catalogCategories, selectedToolInventory, orcaError, localeHref } = dependencies;
   ${script}
   return {
-    load, otherDriveConnections, driveProviderLabel, sourceHref, sourceConnection, changeTab,
+    load, otherDriveConnections, driveProviderLabel, sourceHref, sourceConnection, changeTab, openSetup,
     setQuery(value) { query = value; }, setCategory(value) { category = value; }, setProtocol(value) { protocol = value; },
     get matches() { return matches; },
-    get allSources() { return allSources; }, get groupedMatches() { return groupedMatches; },
+    get allSources() { return allSources; }, get guideSources() { return guideSources; }, get setupSourceID() { return setupSourceID; }, get groupedMatches() { return groupedMatches; },
     get popular() { return popular; }, get starters() { return starters; },
     get isOverview() { return isOverview; }, get selectedTools() { return selectedTools; }
   };
@@ -64,6 +64,8 @@ test('protocol selection intersects with search and guides do not become configu
   });
   try {
     await view.load();
+    assert.equal(view.allSources.some((row) => row.guideOnly), false);
+    view.changeTab('guides');
     view.setQuery('LINE');
     view.setProtocol('API');
     flush();
@@ -90,7 +92,7 @@ test('unavailable integrations open the real add-MCP flow without sending a guid
     await view.load();
     flush();
     for (const id of ['guide-shopee-seller-api', 'guide-line-bot-mcp']) {
-      const source = view.allSources.find((row) => row.id === id);
+      const source = view.guideSources.find((row) => row.id === id);
       assert.ok(source.guideOnly);
       const href = new URL(view.sourceHref(source), 'https://orca.test');
       assert.equal(href.searchParams.get('view'), 'servers');
@@ -165,9 +167,9 @@ test("managed catalog choice keeps existing provider connections distinct and av
 });
 
 test("catalog category, search, and selected tools remain independent and links keep provider identity", async () => {
-  const flow = { id: "flow & account=other", name: "FlowAccount" };
-  const peak = { id: "peak", name: "PEAK" };
-  const slack = { id: "slack", name: "Slack Workspace" };
+  const flow = { id: "flow & account=other", name: "FlowAccount", setupStatus: "available" };
+  const peak = { id: "peak", name: "PEAK", setupStatus: "available" };
+  const slack = { id: "slack", name: "Slack Workspace", setupStatus: "available" };
   const connections = [
     { id: "old-flow", mcpID: flow.id, archivedAt: "2026-09-19" },
     {
@@ -271,9 +273,9 @@ test("members without management permission do not fetch the admin catalog", asy
 });
 
 test("loaded catalog auth metadata remains attached to each source through grouping, recommendations, and search", async () => {
-  const oauth = { id: "flow", name: "FlowAccount", authMethods: ["oauth"] };
-  const secrets = { id: "peak", name: "PEAK", authMethods: ["secrets"] };
-  const both = { id: "slack", name: "Slack Workspace", authMethods: ["oauth", "secrets"] };
+  const oauth = { id: "flow", name: "FlowAccount", setupStatus: "available", authMethods: ["oauth"] };
+  const secrets = { id: "peak", name: "PEAK", setupStatus: "available", authMethods: ["secrets"] };
+  const both = { id: "slack", name: "Slack Workspace", setupStatus: "available", authMethods: ["oauth", "secrets"] };
   const unknown = { id: "custom", name: "Custom MCP", oauthProvider: "custom" };
   let view;
   const stop = effect_root(() => {
@@ -299,4 +301,53 @@ test("loaded catalog auth metadata remains attached to each source through group
   } finally {
     stop();
   }
+});
+
+test('catalog blocks member setup of missing OAuth apps, permits owner setup, and keeps saved settings accessible', async () => {
+  const blocked = { id: 'slack', name: 'Slack Workspace', authMethods: ['oauth'], setupStatus: 'admin_setup_required' };
+  const owner = { ...blocked, id: 'owner-slack', setupCanConfigure: true };
+  const reviewed = { id: 'review', name: 'Provider app', setupStatus: 'review_required', setupReason: 'provider_review' };
+  let view;
+  const stop = effect_root(() => {
+    view = harness({ data: { canManage: true, connections: [{ id: 'saved-slack', mcpID: blocked.id }], hubs: [] } }, dependencies(async () => [blocked, owner, reviewed]));
+  });
+  try {
+    await view.load();
+    flush();
+    view.openSetup(catalog.catalogSource(blocked));
+    assert.equal(view.setupSourceID, null);
+    assert.equal(new URL(view.sourceHref(catalog.catalogSource(blocked)), 'https://orca.test').searchParams.get('connection'), 'saved-slack');
+    view.openSetup(catalog.catalogSource(owner));
+    assert.equal(view.setupSourceID, owner.id);
+    view.openSetup(catalog.catalogSource(reviewed));
+    assert.equal(view.setupSourceID, reviewed.id);
+    view.openSetup(catalog.catalogSource({ ...owner, guideOnly: true }));
+    assert.equal(view.setupSourceID, reviewed.id);
+    assert.deepEqual(view.starters, []);
+  } finally { stop(); }
+});
+
+test('guide directory is secondary, searchable and does not change the actual app count', async () => {
+  const api = { id: 'default-orca-api-line-messaging', name: 'LINE Messaging API', protocol: 'API', managedProvider: 'line-messaging', authMethods: ['secrets'], setupStatus: 'available' };
+  let view;
+  const stop = effect_root(() => {
+    view = harness({ data: { canManage: true, connections: [], hubs: [] } }, dependencies(async () => [api]));
+  });
+  try {
+    await view.load();
+    flush();
+    assert.equal(view.allSources.length, 1);
+    assert.ok(view.allSources.every(row => !row.guideOnly));
+    assert.ok(view.guideSources.length > 0);
+    assert.ok(view.guideSources.every(row => row.guideOnly));
+    view.changeTab('guides');
+    view.setQuery('Shopee');
+    view.setProtocol('API');
+    flush();
+    assert.equal(view.isOverview, false);
+    assert.deepEqual(view.matches.map(row => row.id), ['guide-shopee-seller-api']);
+    view.changeTab('apps');
+    flush();
+    assert.deepEqual(view.matches.map(row => row.id), [api.id]);
+  } finally { stop(); }
 });

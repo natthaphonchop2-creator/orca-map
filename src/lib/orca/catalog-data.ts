@@ -243,7 +243,7 @@ const presentations: Record<string, CatalogPresentation> = {
 		categoryId: 'data-analytics',
 		descriptionTh: 'สำรวจข้อมูลและเรียกใช้ SQL ใน Google BigQuery',
 		icon: '/orca/catalog/google-compute-engine.svg',
-		aliases: ['Google Cloud', 'SQL', 'คลังข้อมูล']
+		aliases: ['BigQuery MCP', 'BigQuery Toolbox', 'Google Cloud', 'SQL', 'คลังข้อมูล']
 	},
 	'bigdata-com': {
 		categoryId: 'finance',
@@ -1220,7 +1220,11 @@ const presentations: Record<string, CatalogPresentation> = {
 export function getCatalogPresentation(name: string, description = ''): CatalogPresentation {
 	const integration = integrationPresentation(name);
 	if (integration) return integration;
-	const presentation = presentations[normalizeCatalogName(name)];
+	const key = normalizeCatalogName(name);
+	const presentation = presentations[({
+		'microsoft-outlook': 'outlook', 'microsoft-calendar': 'calendar', 'microsoft-contacts': 'contact',
+		'bigquery-mcp': 'bigquery-toolbox'
+	} as Record<string, string>)[key] || key];
 	if (presentation) return presentation;
 
 	return {
