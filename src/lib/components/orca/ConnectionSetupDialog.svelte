@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Connections from '$lib/components/khum/Connections.svelte';
+  import Connections from '$lib/components/orca/Connections.svelte';
   import { t } from '$lib/orca/locale.svelte';
   import { OrcaService, type OrcaBootstrap, type OrcaConnection } from '$lib/services/orca';
   import { X } from '@lucide/svelte';

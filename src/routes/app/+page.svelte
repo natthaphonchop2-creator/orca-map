@@ -1,13 +1,13 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import Audit from "$lib/components/khum/Audit.svelte";
-  import OrganizationSettings from "$lib/components/khum/OrganizationSettings.svelte";
-  import WorkspaceDetail from "$lib/components/khum/WorkspaceDetail.svelte";
-  import WorkspaceWizard from "$lib/components/khum/WorkspaceWizard.svelte";
+  import Audit from "$lib/components/orca/Audit.svelte";
+  import OrganizationSettings from "$lib/components/orca/OrganizationSettings.svelte";
+  import WorkspaceDetail from "$lib/components/orca/WorkspaceDetail.svelte";
+  import WorkspaceWizard from "$lib/components/orca/WorkspaceWizard.svelte";
   import GatewayCreated from "$lib/components/orca/GatewayCreated.svelte";
-  import notoLicenseURL from "$lib/components/khum/assets/noto-sans-thai-OFL.txt?url";
-  import "$lib/components/khum/khum.css";
+  import notoLicenseURL from "$lib/components/orca/assets/noto-sans-thai-OFL.txt?url";
+  import "$lib/components/orca/workspace-base.css";
   import WorkspaceDashboard from "$lib/components/orca/WorkspaceDashboard.svelte";
   import AppOverview from "$lib/components/orca/AppOverview.svelte";
   import AppShell from "$lib/components/orca/AppShell.svelte";

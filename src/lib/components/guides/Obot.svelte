@@ -76,7 +76,7 @@
 <div
 	in:fade={{ duration: fadeIn ? 400 : 0 }}
 	out:fade={{ duration: 100 }}
-	class="guide-khum relative flex items-center justify-center {klass}"
+	class="guide-orca relative flex items-center justify-center {klass}"
 	style:width="{size}px"
 	style:height="{size}px"
 	role="img"

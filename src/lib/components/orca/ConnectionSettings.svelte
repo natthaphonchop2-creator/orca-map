@@ -5,7 +5,7 @@
   import { goto } from "$app/navigation";
   import LifecycleActions from "./LifecycleActions.svelte";
   import { page } from "$app/state";
-  import Connections from "$lib/components/khum/Connections.svelte";
+  import Connections from "$lib/components/orca/Connections.svelte";
   import ConnectionMembers from "./ConnectionMembers.svelte";
   import SourceSetup from "./SourceSetup.svelte";
   import CatalogIcon from "$lib/orca/CatalogIcon.svelte";

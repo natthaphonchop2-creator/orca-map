@@ -349,12 +349,12 @@
 {/snippet}
 
 <div
-  class="orca khum orca-app orca-workspace"
+  class="orca orca-app orca-workspace"
   class:sidebar-collapsed={collapsed}
   lang={orcaLocale.value}
   bind:this={shell}
 >
-  <a href="#khum-main" class="k-skip"
+  <a href="#orca-main" class="k-skip"
     >{t("ข้ามไปยังเนื้อหา", "Skip to content")}</a
   >
   <aside
@@ -406,7 +406,7 @@
         >
       </div>
     </header>
-    <main class="workspace-main" id="khum-main" tabindex="-1">
+    <main class="workspace-main" id="orca-main" tabindex="-1">
       {@render children()}
     </main>
   </div>

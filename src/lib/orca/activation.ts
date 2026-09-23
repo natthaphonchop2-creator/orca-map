@@ -1,4 +1,4 @@
-import type { OrcaConnection, OrcaHub, OrcaKey } from '../services/khum';
+import type { OrcaConnection, OrcaHub, OrcaKey } from '../services/orca';
 import { gatewaySources } from './gateway-sources';
 
 function validNames(names: string[]) {

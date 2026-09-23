@@ -16,7 +16,7 @@
 		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
 		U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
-.khum {
+.orca-workspace {
 	--k-ink: #111a3d;
 	--k-muted: #6b7490;
 	--k-accent: #5143e8;
@@ -33,84 +33,84 @@
 	line-height: 1.65;
 	color-scheme: light;
 }
-.khum * {
+.orca-workspace * {
 	box-sizing: border-box;
 }
-.khum h1,
-.khum h2,
-.khum h3,
-.khum p {
+.orca-workspace h1,
+.orca-workspace h2,
+.orca-workspace h3,
+.orca-workspace p {
 	margin: 0;
 }
-.khum h1 {
+.orca-workspace h1 {
 	font-size: clamp(28px, 3.4vw, 46px);
 	letter-spacing: -0.035em;
 	font-weight: 700;
 	line-height: 1.35;
 }
-.khum h2 {
+.orca-workspace h2 {
 	font-size: 21px;
 	font-weight: 650;
 	line-height: 1.5;
 }
-.khum h3 {
+.orca-workspace h3 {
 	font-size: 17px;
 	font-weight: 600;
 }
-.khum button,
-.khum input,
-.khum textarea,
-.khum select {
+.orca-workspace button,
+.orca-workspace input,
+.orca-workspace textarea,
+.orca-workspace select {
 	font: inherit;
 }
-.khum input::placeholder,
-.khum textarea::placeholder {
+.orca-workspace input::placeholder,
+.orca-workspace textarea::placeholder {
 	color: var(--k-muted);
 	opacity: 1;
 }
-.khum button,
-.khum a {
+.orca-workspace button,
+.orca-workspace a {
 	-webkit-tap-highlight-color: transparent;
 }
-.khum a {
+.orca-workspace a {
 	color: var(--k-accent);
 	text-decoration: none;
 }
-.khum a:hover {
+.orca-workspace a:hover {
 	text-decoration: underline;
 }
-.khum button {
+.orca-workspace button {
 	cursor: pointer;
 }
-.khum button:disabled {
+.orca-workspace button:disabled {
 	cursor: not-allowed;
 	opacity: 0.48;
 }
-.khum a:focus-visible,
-.khum button:focus-visible,
-.khum input:focus-visible,
-.khum select:focus-visible,
-.khum textarea:focus-visible {
+.orca-workspace a:focus-visible,
+.orca-workspace button:focus-visible,
+.orca-workspace input:focus-visible,
+.orca-workspace select:focus-visible,
+.orca-workspace textarea:focus-visible {
 	outline: 3px solid #b6abff;
 	outline-offset: 3px;
 }
-.khum [tabindex='-1']:focus {
+.orca-workspace [tabindex='-1']:focus {
 	outline: none;
 }
-.khum svg {
+.orca-workspace svg {
 	flex-shrink: 0;
 }
-.khum fieldset {
+.orca-workspace fieldset {
 	margin: 0;
 	padding: 0;
 	border: 0;
 	min-width: 0;
 }
-.khum legend {
+.orca-workspace legend {
 	font-weight: 600;
 	margin-bottom: 12px;
 }
-.khum code {
+.orca-workspace code {
 	font-family: ui-monospace, SFMono-Regular, monospace;
 	font-size: 0.86em;
 	overflow-wrap: anywhere;
@@ -388,8 +388,8 @@
 .k-field input[readonly] {
 	background: #f7f8fb;
 }
-.khum input[type='checkbox'],
-.khum input[type='radio'] {
+.orca-workspace input[type='checkbox'],
+.orca-workspace input[type='radio'] {
 	appearance: auto;
 	width: 21px;
 	height: 21px;
@@ -742,7 +742,7 @@
 	}
 }
 @media (max-width: 1180px) {
-	.khum {
+	.orca-workspace {
 		--k-rail: 145px;
 	}
 	.k-rail a {
@@ -787,7 +787,7 @@
 	}
 }
 @media (max-width: 680px) {
-	.khum {
+	.orca-workspace {
 		--k-header: 68px;
 		--k-rail: 0px;
 		font-size: 15px;
