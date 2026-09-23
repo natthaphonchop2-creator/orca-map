@@ -99,7 +99,7 @@
 
 <div class="connection-heading">
   <div>
-    <h1>Connected users</h1>
+    <h1>{t("ผู้ใช้ที่เชื่อมบัญชี", "Connected users")}</h1>
     <p>
       {t(
         "ดูสมาชิกที่มีการอนุญาต OAuth บันทึกไว้ แยกตามระบบต้นทาง",

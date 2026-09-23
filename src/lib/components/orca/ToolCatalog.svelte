@@ -268,7 +268,7 @@
 <section class="tool-library" aria-label={t("คลังเครื่องมือ", "Tool catalog")}>
   <header class="catalog-heading">
     <div>
-      <h1>Tool Catalog</h1>
+      <h1>{t("เพิ่มระบบใหม่", "Add a system")}</h1>
     </div>
     {#if data.canManage}<a
         class="k-button"

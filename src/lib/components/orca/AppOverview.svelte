@@ -68,7 +68,7 @@
 <div class="workspace-home">
 	<header class="home-heading">
 		<div>
-			<h1>{t('MCP Gateways', 'MCP Gateways')}</h1>
+			<h1>{t('พื้นที่ทำงาน AI', 'AI workspaces')}</h1>
 			<p>
 				{data.canManage
 					? t(
@@ -83,7 +83,7 @@
 		</div>
 		<div class="k-actions"><a class="home-button" href={localeHref("/app?view=settings&section=ai")}>{t("เชื่อม AI กับ ORCA", "Connect AI to ORCA")}</a>
 		{#if data.canManage}<a class="home-button primary" href={localeHref(createWorkspaceHref)}
-				><Plus size={19} aria-hidden="true" />{t('สร้าง Gateway', 'Create Gateway')}</a
+				><Plus size={19} aria-hidden="true" />{t('สร้างพื้นที่ทำงาน AI', 'New AI workspace')}</a
 			>{/if}</div>
 	</header>
 	{#if notice}<div class="k-banner success" role="status">{notice}</div>{/if}
@@ -174,7 +174,7 @@
 					>
 					<h3>
 						{data.canManage
-							? t('สร้าง Gateway แรกของทีม', 'Create your team’s first Gateway')
+							? t('สร้างพื้นที่ทำงาน AI แรกของทีม', 'Create your team’s first AI workspace')
 							: t('Gateway ของคุณจะแสดงที่นี่', 'Your Gateways will appear here')}
 					</h3>
 					<p>
@@ -199,8 +199,8 @@
 								class:secondary={readyConnections.length === 0}
 								href={localeHref(createWorkspaceHref)}
 								><Plus size={18} aria-hidden="true" />{t(
-									'สร้าง Gateway',
-									'Create Gateway'
+									'สร้างพื้นที่ทำงาน AI',
+									'New AI workspace'
 								)}</a
 							>
 						</div>{/if}
@@ -286,7 +286,7 @@
 									)}
 						</p>
 						{#if data.canManage}<a class="panel-link" href={localeHref('/app?view=servers')}
-								>{t('เพิ่ม Server', 'Add server')}<ArrowRight
+								>{t('เพิ่มระบบ', 'Add a system')}<ArrowRight
 									size={16}
 									aria-hidden="true"
 								/></a

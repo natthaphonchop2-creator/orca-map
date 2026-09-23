@@ -48,6 +48,8 @@ export function activeNavigationView(view: string) {
   if (["overview", "new", "hub", "workspaces"].includes(view))
     return "workspaces";
   if (view === "connections") return "connected-apps";
-  if (["pilots", "knowledge"].includes(view)) return "settings";
+  // Admin audit and tool executions are one "Activity" destination with two tabs.
+  if (view === "audit") return "executions";
+  if (view === "pilots") return "settings";
   return view;
 }

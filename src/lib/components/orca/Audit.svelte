@@ -59,11 +59,8 @@
   let requestNumber = 0,
     previousFilters = "";
   let previousMode: AuditMode | undefined;
-  const title = $derived(
-    mode === "executions"
-      ? t("การเรียกใช้เครื่องมือ", "Tool Executions")
-      : t("ประวัติการจัดการ", "Audit Logs"),
-  );
+  // One "Activity" page; the tabs tell tool use apart from admin changes.
+  const title = $derived(t("ประวัติการใช้งาน", "Activity"));
   const labels: Record<string, string> = $derived({
     admitted: t("รับคำขอแล้ว", "Admitted"),
     success: t("สำเร็จ", "Succeeded"),
@@ -253,7 +250,6 @@
 <section class="observability" aria-labelledby="audit-title">
   <header class="audit-heading">
     <div>
-      <p class="eyebrow">OBSERVABILITY</p>
       <h1 id="audit-title">{title}</h1>
       <p class="subtitle">
         {mode === "executions"
@@ -289,13 +285,13 @@
       aria-current={mode === "executions" ? "page" : undefined}
       href={localeHref(
         `/app?view=executions${selectedHubID ? `&hub=${encodeURIComponent(selectedHubID)}` : ""}`,
-      )}>{t("การเรียกเครื่องมือ", "Tool Executions")}</a
+      )}>{t("การใช้งานเครื่องมือ", "Tool use")}</a
     ><a
       class:active={mode === "administration"}
       aria-current={mode === "administration" ? "page" : undefined}
       href={localeHref(
         `/app?view=audit${selectedHubID ? `&hub=${encodeURIComponent(selectedHubID)}` : ""}`,
-      )}>{t("ประวัติการจัดการ", "Audit Logs")}</a
+      )}>{t("การเปลี่ยนแปลงโดยผู้ดูแล", "Admin changes")}</a
     >
   </nav>
   <div class="filters">
@@ -664,12 +660,6 @@
     align-items: center;
     gap: 20px;
     margin-bottom: 20px;
-  }
-  .eyebrow {
-    margin: 0 0 7px;
-    color: var(--k-muted, #748078);
-    font-size: 10px;
-    letter-spacing: 0.1em;
   }
   h1 {
     margin: 0;

@@ -173,7 +173,7 @@
 
 <section class="user-sources" aria-label="User sources">
   <header class="source-heading">
-    <h1>User sources</h1>
+    <h1>{t("การเข้าสู่ระบบองค์กร", "Sign-in sources")}</h1>
     {#if data.canManage && editing === undefined}
       <div class="source-actions">
         <button class="k-button" disabled={busy || loading} onclick={refresh} aria-label={t("โหลดใหม่", "Refresh")}><RefreshCw size={17} class={loading ? "k-spin" : ""} /></button>

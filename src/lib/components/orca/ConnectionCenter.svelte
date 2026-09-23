@@ -87,7 +87,7 @@
 
 <div class="connection-heading connections-section-heading">
   <div>
-    <h1>Servers</h1>
+    <h1>{t("ระบบที่เชื่อมต่อ", "Connected systems")}</h1>
     <p>
       {t(
         "ตั้งค่าระบบต้นทางและขอบเขตเครื่องมือที่องค์กรอนุญาต",
@@ -98,7 +98,7 @@
   {#if data.canManage}<a
       class="k-button primary"
       href={localeHref("/app?view=servers&add=source")}
-      ><Plus size={19} />{t("เพิ่ม Server", "Add server")}</a
+      ><Plus size={19} />{t("เพิ่มระบบ", "Add a system")}</a
     >{/if}
 </div>
 {#if notice}<div class="k-banner success" role="status">{notice}</div>{/if}

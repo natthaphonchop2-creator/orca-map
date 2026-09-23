@@ -114,7 +114,7 @@
 
 <svelte:head
   ><title
-    >{t("ORCA · เครื่องมือและ MCP Gateways", "ORCA · Tools & MCP Gateways")}</title
+    >{t("ORCA · พื้นที่ทำงาน", "ORCA · Workspace")}</title
   ><meta
     name="description"
     content={t(
@@ -147,8 +147,8 @@
         <Folder size={34} />
         <h1>
           {t(
-            "คุณยังไม่มีสิทธิ์จัดการ MCP Gateways",
-            "This account cannot manage MCP Gateways.",
+            "คุณยังไม่มีสิทธิ์จัดการพื้นที่ทำงาน AI",
+            "This account cannot manage AI workspaces.",
           )}
         </h1>
         <p>
@@ -158,20 +158,20 @@
           )}
         </p>
         <a href={localeHref("/app?view=workspaces")} class="k-button"
-          >{t("กลับไป MCP Gateways", "Back to MCP Gateways")}</a
+          >{t("กลับไปพื้นที่ทำงาน AI", "Back to AI workspaces")}</a
         >
       </div>
     {:else if editID && !editingHub}<div class="k-empty">
         <Info size={34} />
-        <h1>{t("ไม่พบ MCP Gateway นี้", "MCP Gateway not found")}</h1>
+        <h1>{t("ไม่พบพื้นที่ทำงาน AI นี้", "AI workspace not found")}</h1>
         <p>
           {t(
-            "Gateway อาจมีการเปลี่ยนแปลง หรือบัญชีของคุณไม่มีสิทธิ์เข้าถึง กรุณาติดต่อผู้ดูแลองค์กร",
-            "This gateway may have changed, or your account cannot access it.",
+            "พื้นที่ทำงานนี้อาจมีการเปลี่ยนแปลง หรือบัญชีของคุณไม่มีสิทธิ์เข้าถึง กรุณาติดต่อผู้ดูแลองค์กร",
+            "This workspace may have changed, or your account cannot access it.",
           )}
         </p>
         <a href={localeHref("/app?view=workspaces")} class="k-button"
-          >{t("กลับไป MCP Gateways", "Back to MCP Gateways")}</a
+          >{t("กลับไปพื้นที่ทำงาน AI", "Back to AI workspaces")}</a
         >
       </div>
     {:else}{#key `${editID}:${wizardRevision}:${page.url.searchParams.get('step')}`}<WorkspaceWizard
@@ -189,15 +189,15 @@
           onchanged={refresh}
         />{/key}{:else}<div class="k-empty">
         <Info size={34} />
-        <h1>{t("ไม่พบ MCP Gateway นี้", "MCP Gateway not found")}</h1>
+        <h1>{t("ไม่พบพื้นที่ทำงาน AI นี้", "AI workspace not found")}</h1>
         <p>
           {t(
-            "Gateway อาจมีการเปลี่ยนแปลง หรือบัญชีของคุณไม่มีสิทธิ์เข้าถึง กรุณาติดต่อผู้ดูแลองค์กร",
-            "This gateway may have changed, or your account cannot access it.",
+            "พื้นที่ทำงานนี้อาจมีการเปลี่ยนแปลง หรือบัญชีของคุณไม่มีสิทธิ์เข้าถึง กรุณาติดต่อผู้ดูแลองค์กร",
+            "This workspace may have changed, or your account cannot access it.",
           )}
         </p>
         <a href={localeHref("/app?view=workspaces")} class="k-button"
-          >{t("กลับไป MCP Gateways", "Back to MCP Gateways")}</a
+          >{t("กลับไปพื้นที่ทำงาน AI", "Back to AI workspaces")}</a
         >
       </div>{/if}
   {:else if view === "knowledge"}<KnowledgeLibrary
@@ -222,19 +222,19 @@
   {:else if view === "connected-users"}<ConnectedUsers data={currentData!} />
   {:else if view === "organization"}
     <header class="connection-heading"><div>
-      <h1>Organization</h1>
+      <h1>{t("ข้อมูลองค์กร", "Organization")}</h1>
       <p>{t("จัดการข้อมูลองค์กรและโครงสร้างหน่วยงาน", "Manage organization details and organizational units.")}</p>
     </div></header>
     <div class="arcade-embedded"><OrganizationSettings data={currentData!} onchanged={refresh} /></div>
   {:else if view === "members"}
     <header class="connection-heading"><div>
-      <h1>Members &amp; departments</h1>
+      <h1>{t("สมาชิกและแผนก", "Members & departments")}</h1>
       <p>{t("จัดการสมาชิก บทบาท และแผนกตามสิทธิ์ของคุณ", "Manage members, roles and departments according to your permissions.")}</p>
     </div></header>
     <div class="arcade-embedded"><TeamAccess {data} onchanged={refresh} /></div>
   {:else if view === "api-keys"}
     <header class="connection-heading"><div>
-      <h1>API keys</h1>
+      <h1>{t("เชื่อม AI กับ ORCA", "Connect AI to ORCA")}</h1>
       <p>{t("จัดการคีย์ส่วนตัวสำหรับเชื่อมแอป AI กับ ORCA", "Manage personal keys for connecting AI clients to ORCA.")}</p>
     </div></header>
     <section class="connection-detail-panel">
@@ -253,7 +253,7 @@
           <span><strong>{item.name}</strong><small>{t("จัดการคีย์ส่วนตัว", "Manage personal keys")}</small></span>
           <ArrowRight size={17} />
         </a>
-      {:else}<p>{t("คุณยังไม่ได้เป็นสมาชิกของ MCP Gateway", "You do not belong to an MCP Gateway yet.")}</p>{/each}
+      {:else}<p>{t("คุณยังไม่ได้อยู่ในพื้นที่ทำงาน AI", "You are not in an AI workspace yet.")}</p>{/each}
     </section>
   {:else if view === "user-sources"}<UserSources data={currentData!} />
   {:else if plannedFeature}<FeatureScaffold feature={plannedFeature} />
@@ -265,7 +265,7 @@
   {:else if view === "help"}
     <div class="k-breadcrumb">
       <a href={localeHref("/app?view=workspaces")}
-        >MCP Gateways</a
+        >{t("พื้นที่ทำงาน AI", "AI workspaces")}</a
       ><span>/</span><span>{t("ช่วยเหลือ", "Help")}</span>
     </div>
     <div class="k-intro">
@@ -281,8 +281,8 @@
     <div class="k-banner">
       <Info size={20} />
       <p>{t(
-        "MVP ปัจจุบัน: ค้นหาเครื่องมือใน Tool Catalog → ตั้งค่าระบบและขอบเขตเครื่องมือใน Servers → สร้าง MCP Gateway ให้สมาชิกใช้งาน ส่วน My accounts อยู่ในเมนูบัญชีส่วนตัว หัวข้อที่ระบุว่ายังไม่เปิดใช้งานเป็นหน้าบอกขอบเขตสำหรับการพัฒนาต่อ",
-        "Current MVP: find tools in Tool Catalog → configure upstream systems and tool scope in Servers → create an MCP Gateway for members. My accounts is in your account menu. Pages marked Not available yet describe the scope of future work.",
+        "ขั้นตอนหลัก: เลือกระบบในหน้าเพิ่มระบบใหม่ → ตั้งค่าและเลือกเครื่องมือในหน้าระบบที่เชื่อมต่อ → สร้างพื้นที่ทำงาน AI ให้สมาชิกใช้ ส่วนบัญชีที่เชื่อมไว้อยู่ในเมนูบัญชีของคุณ",
+        "The main flow: pick a system in Add a system → set it up and choose tools in Connected systems → create an AI workspace for members. Your connected accounts are in your account menu.",
       )}</p>
     </div>
     <div class="k-panel">

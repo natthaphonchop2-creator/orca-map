@@ -27,7 +27,7 @@
 
 <div class="connection-heading">
   <div>
-    <h1>Settings</h1>
+    <h1>{t("ตั้งค่า", "Settings")}</h1>
     <p>
       {t(
         "เลือกภาษาและจัดการการตั้งค่าบัญชีของคุณ",

@@ -195,7 +195,7 @@
 <section class="my-connections" aria-labelledby="accounts-title">
   <header class="accounts-heading">
     <div>
-      <h1 id="accounts-title">{t("บัญชีของฉัน", "My accounts")}</h1>
+      <h1 id="accounts-title">{t("บัญชีที่เชื่อมไว้", "My accounts")}</h1>
       <p>
         {t(
           "จัดการบัญชีส่วนตัวของคุณสำหรับระบบที่ใช้ผ่าน MCP Gateways ที่คุณเป็นสมาชิก",

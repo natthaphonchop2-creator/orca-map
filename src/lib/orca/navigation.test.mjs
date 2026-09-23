@@ -79,8 +79,12 @@ test("planned headings retain distinct routes while Knowledge and Playground kee
     assert.equal(activeNavigationView(view), view);
   }
   assert.equal(resolve("view=knowledge&hub=my-hub").view, "knowledge");
-  assert.equal(activeNavigationView("knowledge"), "settings");
+  // Knowledge (Orca Cloud) is its own destination in the navigation.
+  assert.equal(activeNavigationView("knowledge"), "knowledge");
   assert.equal(activeNavigationView("pilots"), "settings");
+  // Admin audit sits under the same Activity destination as tool executions.
+  assert.equal(activeNavigationView("audit"), "executions");
+  assert.equal(activeNavigationView("executions"), "executions");
   assert.equal(resolve("view=playground").view, "dashboard");
   assert.equal(resolve("").view, "dashboard");
 });
