@@ -22,42 +22,132 @@
 </script>
 
 <section class="gateway-created" aria-labelledby="gateway-created-title">
-  <div class="complete-icon"><Check size={24} /></div>
+  <div class="complete-icon" aria-hidden="true"><Check size={16} /></div>
   <div class="complete-content">
-    <p class="step-label">{t('ขั้นตอน 5 จาก 5 · เชื่อม AI', 'Step 5 of 5 · Connect AI')}</p>
-    <h2 id="gateway-created-title">{t('สร้าง Gateway แล้ว', 'Gateway created')}: {hub.name}</h2>
+    <h2 id="gateway-created-title">{t('สร้างพื้นที่ทำงาน AI แล้ว', 'AI workspace created')}: {hub.name}</h2>
+    <p class="step-label">{t('ขั้นตอนที่ 5 จาก 5 · เชื่อมแอป AI', 'Step 5 of 5 · Connect an AI app')}</p>
     <p>{hub.status === 'active'
-      ? t('ส่ง URL นี้ให้พนักงานเพิ่มในแอป AI แล้วเข้าสู่ระบบ ORCA เพื่อยืนยันบัญชี', 'Share this MCP URL for employees to add to their AI app and sign in to ORCA to confirm their account.')
-      : t('บันทึกเป็นฉบับร่างแล้ว เปิดใช้งาน Gateway เมื่อพร้อมให้สมาชิกเชื่อม AI', 'Saved as a draft. Activate this Gateway when you are ready for members to connect their AI.')}</p>
+      ? t('ส่งลิงก์เชื่อม AI นี้ให้สมาชิกเพิ่มในแอป AI ของตน จากนั้นสมาชิกแต่ละคนเข้าสู่ระบบด้วยบัญชี ORCA ของตนเองเพื่อยืนยันตัวตน', 'Share this AI connection link with members. Each member adds it to their AI app and signs in with their own ORCA account.')
+      : t('บันทึกเป็นฉบับร่างแล้ว เปิดใช้งานพื้นที่ทำงาน AI นี้เมื่อพร้อมให้สมาชิกเชื่อมแอป AI', 'Saved as a draft. Activate this AI workspace when you are ready for members to connect their AI apps.')}</p>
     {#if shareURL}<div class="share-field">
-      <label for="gateway-share-link">{t('URL ของ MCP Gateway', 'MCP gateway URL')}</label>
+      <label for="gateway-share-link">{t('ลิงก์เชื่อม AI (MCP URL)', 'AI connection link (MCP URL)')}</label>
       <div class="share-input">
         <input id="gateway-share-link" readonly value={shareURL} />
-        <button type="button" class="k-button" onclick={copyLink}><Copy size={16} />{t('คัดลอก URL', 'Copy URL')}</button>
+        <button type="button" class="k-button" onclick={copyLink}><Copy size={16} aria-hidden="true" />{t('คัดลอกลิงก์', 'Copy link')}</button>
       </div>
     </div>
-    {:else}<p role="alert">{t('ยังไม่มี URL สำหรับเชื่อมต่อ', 'A connection URL is not available yet.')}</p>{/if}
+    {:else}<p class="copy-error" role="alert">{t('ยังไม่มีลิงก์เชื่อม AI สำหรับพื้นที่ทำงานนี้ กรุณาเปิดพื้นที่ทำงานเพื่อตรวจสอบอีกครั้ง', 'The AI connection link for this workspace is not available yet. Open the workspace to check again.')}</p>{/if}
     <div class="complete-actions">
-      <a class="k-button primary" href={localeHref('/app?view=settings&section=ai')}>{t('ดูวิธีเชื่อม AI กับ ORCA', 'Connect your AI to ORCA')}<ArrowRight size={16} /></a>
-      <a class="k-button" href={connectPath}>{t('ไปที่ Gateway', 'Open Gateway')}</a>
+      <a class="k-button primary" href={localeHref('/app?view=settings&section=ai')}>{t('ดูวิธีเชื่อม AI กับ ORCA', 'How to connect AI to ORCA')}<ArrowRight size={16} aria-hidden="true" /></a>
+      <a class="k-button" href={connectPath}>{t('เปิดพื้นที่ทำงาน AI', 'Open AI workspace')}</a>
     </div>
     {#if copied}<p class="copy-status" role="status">{t('คัดลอกลิงก์แล้ว', 'Link copied')}</p>{/if}
-    {#if copyError}<p role="alert">{t('เลือกและคัดลอกลิงก์ในช่องด้านบนได้เลย', 'Select and copy the link from the field above.')}</p>{/if}
+    {#if copyError}<p class="copy-error" role="alert">{t('คัดลอกอัตโนมัติไม่สำเร็จ กรุณาเลือกและคัดลอกลิงก์จากช่องด้านบน', 'The link could not be copied automatically. Select and copy it from the field above.')}</p>{/if}
   </div>
 </section>
 
 <style>
-  .gateway-created { display:flex; align-items:flex-start; gap:18px; padding:24px; margin-bottom:28px; border:1px solid #d8e6b9; border-radius:12px; background:#f8fbed; }
-  .complete-icon { flex:none; display:grid; place-items:center; width:44px; height:44px; border-radius:50%; color:#47681c; background:#e5f3c7; }
-  .complete-content { min-width:0; flex:1; }
-  .step-label { color:#526b30; font-size:12px; font-weight:600; margin:0 0 6px; }
-  h2 { margin:0; font-size:20px; overflow-wrap:anywhere; }
-  p { margin:10px 0 0; font-size:14px; line-height:1.7; color:#536078; }
-  .share-field { margin-top:20px; }
-  label { display:block; font-size:13px; font-weight:600; margin-bottom:6px; }
-  .share-input { display:flex; gap:8px; }
-  input { min-width:0; width:100%; flex:1; background:white; border:1px solid #cdd7bb; border-radius:6px; padding:10px 12px; font:inherit; font-size:14px; }
-  .complete-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
-  .copy-status { color:#47681c; }
-  @media (max-width:640px) { .gateway-created { padding:18px; gap:12px; } .complete-icon { width:32px; height:32px; } .share-input { flex-direction:column; } input { font-size:16px; } .complete-actions a { width:100%; justify-content:center; } }
+  .gateway-created {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding: 16px 18px 18px;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius-lg);
+    background: var(--orca-surface);
+    color: var(--orca-ink);
+  }
+  .complete-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--orca-ok-bg);
+    color: var(--orca-ok);
+  }
+  .complete-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .complete-content h2 {
+    margin: 0;
+    padding-top: 3px;
+    overflow-wrap: anywhere;
+  }
+  .complete-content p {
+    margin: 8px 0 0;
+    color: var(--orca-muted);
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .complete-content p.step-label {
+    margin-top: 2px;
+    font-size: 13px;
+  }
+  .share-field {
+    display: grid;
+    gap: 6px;
+    margin-top: 16px;
+  }
+  .share-field label {
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+  /* The link and its copy button stay on one line; the link shortens with an ellipsis. */
+  .share-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 760px;
+    min-width: 0;
+  }
+  .share-input input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 36px;
+    padding: 0 11px;
+    border: 1px solid var(--orca-line-strong);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface-2);
+    color: var(--orca-ink);
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 13px;
+    text-overflow: ellipsis;
+  }
+  .share-input input:focus-visible {
+    outline: none;
+    border-color: var(--orca-ink);
+    box-shadow: 0 0 0 3px rgba(21, 24, 35, 0.1);
+  }
+  .share-input .k-button {
+    flex: none;
+    white-space: nowrap;
+  }
+  .complete-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .complete-content p.copy-status {
+    color: var(--orca-ok);
+    font-size: 13px;
+  }
+  .complete-content p.copy-error {
+    color: var(--orca-deny);
+    font-size: 13px;
+  }
+  @media (max-width: 640px) {
+    .gateway-created {
+      padding: 14px;
+      gap: 12px;
+    }
+    .complete-actions a {
+      flex: 1 1 auto;
+      justify-content: center;
+    }
+  }
 </style>

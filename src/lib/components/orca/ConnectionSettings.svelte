@@ -78,10 +78,10 @@
     { id: "overview", name: t("ภาพรวม", "Overview") },
     ...(!connection?.archivedAt ? [
       { id: "account", name: t("บัญชี", "Account") },
-      { id: "tools", name: t("เครื่องมือและสิทธิ์", "Tools & permissions") }
+      { id: "tools", name: t("เครื่องมือและสิทธิ์", "Tools and permissions") }
     ] : []),
-    { id: "workspaces", name: "MCP Gateways" },
-    { id: "activity", name: t("กิจกรรม", "Activity") },
+    { id: "workspaces", name: t("พื้นที่ทำงาน AI", "AI workspaces") },
+    { id: "activity", name: t("ประวัติการใช้งาน", "Activity") },
   ]);
   let events = $state<OrcaAuditEvent[]>([]);
   let loading = $state(false);
@@ -125,35 +125,41 @@
   });
 </script>
 
-<a class="connection-back" href={localeHref("/app?view=servers")}
-  ><ArrowLeft size={16} />{t("กลับไป Servers", "Back to Servers")}</a
+<div class="detail">
+<a class="detail-back" href={localeHref("/app?view=servers")}
+  ><ArrowLeft size={16} aria-hidden="true" />{t("กลับไปที่ระบบที่เชื่อมต่อ", "Back to connected systems")}</a
 >
-<div class="connection-heading connection-detail-heading">
-  <div class="connection-detail-name">
-    {#if connection}<CatalogIcon
-        name={catalogNames[connection.mcpID] || connection.name}
-        size={42}
-      />{/if}
-    <div>
-      <h1>{connection?.name || t("เพิ่ม Server", "Add server")}</h1>
-      {#if connection?.description}<p>{connection.description}</p>{/if}
+<header class="detail-head">
+  <div class="detail-title">
+    {#if connection}<span class="detail-logo"
+        ><CatalogIcon
+          name={catalogNames[connection.mcpID] || connection.name}
+          size={24}
+        /></span
+      >{/if}
+    <div class="detail-title-copy">
+      <div class="detail-title-row">
+        <h1>{connection?.name || t("เพิ่มระบบ", "Add a system")}</h1>
+        {#if connection}<span
+            class="k-badge"
+            class:active={connectionReady(connection)}
+            class:paused={!connection.archivedAt && !connectionReady(connection)}
+            >{connection.archivedAt ? t("จัดเก็บแล้ว", "Archived") : connectionReady(connection)
+              ? t("ตรวจสอบเครื่องมือแล้ว", "Tools reviewed")
+              : !connection.enabled
+                ? t("ระงับ", "Paused")
+                : t("รอตรวจสอบ", "Needs review")}</span
+          >{/if}
+      </div>
+      {#if connection?.description}<p class="k-subtitle">{connection.description}</p>{/if}
     </div>
   </div>
-  {#if connection}<span
-      class="connection-status"
-      class:reviewed={connectionReady(connection)}
-      >{connection.archivedAt ? t("จัดเก็บแล้ว", "Archived") : connectionReady(connection)
-        ? t("ตรวจเครื่องมือแล้ว", "Tools reviewed")
-        : !connection.enabled
-          ? t("ระงับแล้ว", "Paused")
-          : t("รอตรวจสอบ", "Review needed")}</span
-    >{/if}
-</div>
-{#if connection && data.canManage}<div class="server-detail-lifecycle"><LifecycleActions entity={connection} kind="server" archived={Boolean(connection.archivedAt)} canManage={data.canManage} affectedGateways={workspaces} onchanged={lifecycleChanged} onreload={onchanged} /></div>{/if}
-{#if connection?.archivedAt}<div class="k-banner" role="status"><Info size={20} /><p>{t('Server นี้จัดเก็บแล้ว ทุก Gateway ที่ใช้ Server นี้จะเรียกเครื่องมือไม่ได้ กู้คืนเพื่อแก้ไขและเปิดใช้งานใหม่ คีย์ Gateway เดิมถูกยกเลิกแล้ว', 'This server is archived. Gateways using it cannot call tools. Restore it before changing settings and enabling it. Previous Gateway keys are revoked.')}</p></div>{/if}
+  {#if connection && data.canManage}<div class="detail-actions"><LifecycleActions entity={connection} kind="server" archived={Boolean(connection.archivedAt)} canManage={data.canManage} affectedGateways={workspaces} onchanged={lifecycleChanged} onreload={onchanged} /></div>{/if}
+</header>
+{#if connection?.archivedAt}<div class="k-banner detail-banner" role="status"><Info size={16} aria-hidden="true" /><p>{t('ระบบนี้ถูกจัดเก็บแล้ว พื้นที่ทำงาน AI ที่ใช้ระบบนี้จะเรียกใช้เครื่องมือไม่ได้ กู้คืนระบบก่อนแก้ไขการตั้งค่าหรือเปิดใช้งานอีกครั้ง คีย์เดิมของพื้นที่ทำงานถูกเพิกถอนแล้ว', 'This system is archived. AI workspaces that use it cannot call its tools. Restore it before changing settings or resuming it. Previous workspace keys have been revoked.')}</p></div>{/if}
 {#if connection}<nav
-    class="connection-detail-tabs"
-    aria-label={t("การตั้งค่า Server", "Server settings")}
+    class="detail-tabs"
+    aria-label={t("การตั้งค่าระบบ", "System settings")}
   >
     {#each tabs as item}<a
         href={href(item.id)}
@@ -165,14 +171,14 @@
       >{/each}
   </nav>{/if}
 {#if connection?.archivedAt && tab === 'overview'}
-  <section class="connection-detail-panel"><h2>{t('รายละเอียด Server ที่จัดเก็บ', 'Archived server details')}</h2><p class="connection-empty-copy">{connection.toolNames.length} {t('เครื่องมือ', 'tools')} · {workspaces.length} MCP Gateways</p><p class="connection-empty-copy">{t('การตั้งค่าและบัญชีที่เชื่อมไว้ยังคงอยู่ กู้คืนแล้วตรวจสอบก่อนเปิดให้ทีมใช้งานอีกครั้ง', 'Settings and connected accounts are retained. Restore and review this server before enabling team access again.')}</p></section>
+  <section class="detail-card"><header class="detail-card-head"><h2>{t('รายละเอียดระบบที่จัดเก็บแล้ว', 'Archived system details')}</h2></header><p class="detail-note">{connection.toolNames.length} {t('เครื่องมือ', 'tools')} · {workspaces.length} {t('พื้นที่ทำงาน AI', 'AI workspaces')}</p><p class="detail-note">{t('การตั้งค่าและบัญชีที่เชื่อมไว้ยังคงอยู่ กู้คืนและตรวจสอบระบบก่อนเปิดให้ทีมใช้งานอีกครั้ง', 'Settings and connected accounts are retained. Restore and review this system before giving your team access again.')}</p></section>
 {:else if tab === "account" && connection && !data.canManage}
-  <section class="connection-detail-panel">
-    <h2>{t("บัญชีของระบบต้นทาง", "Source account")}</h2>
-    <p class="connection-empty-copy">
+  <section class="detail-card">
+    <header class="detail-card-head"><h2>{t("บัญชีของระบบ", "System account")}</h2></header>
+    <p class="detail-note">
       {t(
-        "ติดต่อผู้ดูแลองค์กรเพื่อตรวจสอบหรือตั้งค่าบัญชีของระบบนี้",
-        "Contact your organization administrator to review or configure this source account.",
+        "ติดต่อผู้ดูแลระบบขององค์กรเพื่อตรวจสอบหรือตั้งค่าบัญชีของระบบนี้",
+        "Contact your administrator to review or set up the account for this system.",
       )}
     </p>
   </section>
@@ -184,7 +190,7 @@
     managedProvider={catalogProviders[connection.mcpID]}
     canCreate={data.canManage}
   />
-  <a class="connection-help-link" href={href("tools")}>{t("จัดการเครื่องมือและสิทธิ์", "Manage tools & permissions")}<ArrowRight size={16} /></a>
+  <a class="detail-next" href={href("tools")}>{t("จัดการเครื่องมือและสิทธิ์", "Manage tools and permissions")}<ArrowRight size={16} aria-hidden="true" /></a>
 {:else if !connection}
   <div class="connection-editor">
     <Connections
@@ -202,163 +208,167 @@
     <Connections data={editableData} {onchanged} {initialConnectionID} mode="policy" />
   </div>
 {:else if tab === "tools"}
-  <section class="connection-detail-panel">
-    <div class="connection-section-heading">
+  <section class="detail-card">
+    <header class="detail-card-head">
       <div>
-        <h2>{t("เครื่องมือที่อนุญาต", "Approved tools")}</h2>
+        <h2>{t("เครื่องมือที่อนุญาต", "Allowed tools")}</h2>
       </div>
-    </div>
+    </header>
     {#each connection.tools.filter( (tool) => connection.toolNames.includes(tool.name), ) as tool}<div
-        class="connection-tool-row"
+        class="detail-tool"
       >
-        <Check size={17} />
+        <Check size={16} aria-hidden="true" />
         <div>
           <strong>{toolPresentation(tool, orcaLocale.value).label}</strong>
-          <small class="k-muted">{tool.name}</small>
+          <small>{tool.name}</small>
           {#if tool.description}<p>{tool.description}</p>{/if}
         </div>
-      </div>{:else}<p class="connection-empty-copy">
-        {t("ยังไม่มีเครื่องมือที่บันทึกไว้", "No approved tools saved yet.")}
+      </div>{:else}<p class="detail-note">
+        {t("ยังไม่มีเครื่องมือที่อนุญาต", "No allowed tools yet.")}
       </p>{/each}
-    {#if connection.scopeNote}<div class="connection-scope">
+    {#if connection.scopeNote}<div class="detail-scope">
         <h3>{t("ขอบเขตข้อมูล", "Data scope")}</h3>
         <p>{connection.scopeNote}</p>
       </div>{/if}
   </section>
 {:else if tab === "workspaces"}
-  <section class="connection-detail-panel">
-    <div class="connection-section-heading">
+  <section class="detail-card">
+    <header class="detail-card-head">
       <div>
         <h2>
-          {t("MCP Gateways ที่ใช้ Server นี้", "MCP Gateways using this server")}
+          {t("พื้นที่ทำงาน AI ที่ใช้ระบบนี้", "AI workspaces using this system")}
         </h2>
       </div>
       {#if data.canManage && !connection.archivedAt && connectionReady(connection)}<a
-          class="k-button primary"
+          class="k-button primary small"
           href={localeHref(
             `/app?view=new&connection=${encodeURIComponent(connection.id)}`,
-          )}><Plus size={17} />{t("สร้าง MCP Gateway", "Create MCP Gateway")}</a
+          )}><Plus size={16} aria-hidden="true" />{t("สร้างพื้นที่ทำงาน AI", "Create an AI workspace")}</a
         >{/if}
-    </div>
+    </header>
     {#each workspaces as workspace}<a
-        class="connection-workspace-row"
+        class="detail-row"
         href={localeHref(
           `/app?view=hub&hub=${encodeURIComponent(workspace.id)}`,
         )}
-        ><Folder size={21} /><span
+        ><span class="detail-row-icon" aria-hidden="true"><Folder size={16} /></span><span class="detail-row-copy"
           ><strong>{workspace.name}</strong><small
             >{gatewayToolCount(workspace)}
             {t("เครื่องมือ", "tools")} · {gatewayMemberIDs(workspace).length}
             {t("สมาชิก", "members")}</small
           ></span
-        ><span class="connection-status">{statusLabels[workspace.status]}</span
-        ><ArrowRight size={17} /></a
-      >{:else}<p class="connection-empty-copy">
+        ><span
+          class="k-badge"
+          class:active={workspace.status === "active"}
+          class:paused={workspace.status === "paused"}>{statusLabels[workspace.status]}</span
+        ><ArrowRight size={16} aria-hidden="true" /></a
+      >{:else}<p class="detail-note">
         {t(
-          "ยังไม่มี MCP Gateway ที่ใช้ Server นี้",
-          "No MCP Gateways use this server yet.",
+          "ยังไม่มีพื้นที่ทำงาน AI ที่ใช้ระบบนี้",
+          "No AI workspaces use this system yet.",
         )}
       </p>{/each}
   </section>
 {:else if tab === "activity"}
-  <section class="connection-detail-panel">
-    <div class="connection-section-heading">
+  <section class="detail-card">
+    <header class="detail-card-head">
       <div>
-        <h2>{t("กิจกรรมของ Server", "Server activity")}</h2>
+        <h2>{t("ประวัติการใช้งานของระบบ", "System activity")}</h2>
       </div>
       <button
-        class="k-button"
+        class="k-button small"
         disabled={loading}
         onclick={() => loadActivity(initialConnectionID)}
         >{t("โหลดข้อมูลล่าสุด", "Refresh")}</button
       >
-    </div>
-    {#if error}<div class="k-banner error" role="alert">
-        <Info size={18} />{error}
-      </div>{:else if loading}<p class="connection-empty-copy" role="status">
-        {t("กำลังโหลดกิจกรรม…", "Loading activity…")}
-      </p>{:else}{#each events as event}<div class="connection-event-row">
+    </header>
+    {#if error}<div class="k-banner error detail-card-banner" role="alert">
+        <Info size={16} aria-hidden="true" />{error}
+      </div>{:else if loading}<p class="detail-note" role="status">
+        {t("กำลังโหลดประวัติการใช้งาน…", "Loading activity…")}
+      </p>{:else}{#each events as event}<div class="detail-event">
           <span
             ><strong
               >{event.toolName ||
                 event.action ||
                 event.method ||
-                t("กิจกรรม", "Activity")}</strong
+                t("การใช้งาน", "Activity")}</strong
             ><small>{displayDate(event.createdAt)}</small></span
-          ><span>{event.outcome}</span>
-        </div>{:else}<p class="connection-empty-copy">
+          ><span class="k-badge">{event.outcome}</span>
+        </div>{:else}<p class="detail-note">
           {t(
-            "ยังไม่มีกิจกรรมที่บันทึกไว้สำหรับ Server นี้",
-            "No activity recorded for this server yet.",
+            "ยังไม่มีประวัติการใช้งานของระบบนี้",
+            "No activity has been recorded for this system yet.",
           )}
         </p>{/each}{/if}
   </section>
 {:else}
-  <section class="connection-detail-panel">
-    <div class="connection-section-heading">
+  <section class="detail-card">
+    <header class="detail-card-head">
       <div>
-        <h2>{t("ตั้งค่า Server", "Server setup")}</h2>
+        <h2>{t("การตั้งค่าระบบ", "System setup")}</h2>
       </div>
-      <ShieldCheck size={25} />
-    </div>
-    <ol class="connection-setup-checklist">
+      <ShieldCheck size={18} aria-hidden="true" />
+    </header>
+    <ol class="detail-steps">
       <li>
-        <span>1</span>
+        <span class="detail-step-number">1</span>
         <div>
-          <strong>{t("บัญชีของระบบต้นทาง", "Source account")}</strong>
+          <strong>{t("บัญชีของระบบ", "System account")}</strong>
         </div>
-        <a href={href("account")}
-          >{t("จัดการบัญชี", "Manage account")}<ArrowRight size={16} /></a
+        <a class="k-button small" href={href("account")}
+          >{t("จัดการบัญชี", "Manage account")}<ArrowRight size={16} aria-hidden="true" /></a
         >
       </li>
       <li>
-        <span>2</span>
+        <span class="detail-step-number">2</span>
         <div>
           <strong>{t("เครื่องมือและสิทธิ์", "Tools and permissions")}</strong>
           <p>
             {connection.toolNames.length}
-            {t("เครื่องมือที่เลือก", "selected tools")} · {connection.reviewedReadOnly
+            {t("เครื่องมือที่อนุญาต", "allowed tools")} · {connection.reviewedReadOnly
               ? t(
-                  "ผู้ดูแลตรวจเครื่องมืออ่านข้อมูลแล้ว",
-                  "Read-only tool review saved",
+                  "ตรวจสอบแล้ว (อ่านข้อมูลเท่านั้น)",
+                  "Reviewed (read-only)",
                 )
               : connection.reviewedTools
-                ? t("ใช้งานตามเครื่องมือที่เลือก", "Selected tools approved")
-                : t("ยังไม่ผ่านการตรวจสอบ", "Review required")}
+                ? t("ตรวจสอบและอนุญาตแล้ว", "Reviewed and allowed")
+                : t("รอตรวจสอบ", "Needs review")}
           </p>
         </div>
-        <a href={href("tools")}
-          >{t("ดูเครื่องมือ", "View tools")}<ArrowRight size={16} /></a
+        <a class="k-button small" href={href("tools")}
+          >{t("ดูเครื่องมือ", "View tools")}<ArrowRight size={16} aria-hidden="true" /></a
         >
       </li>
       <li>
-        <span>3</span>
+        <span class="detail-step-number">3</span>
         <div>
           <strong
-            >{t("MCP Gateways และแอป AI", "MCP Gateways and AI apps")}</strong
+            >{t("พื้นที่ทำงาน AI", "AI workspaces")}</strong
           >
           <p>
+            {t("พื้นที่ทำงาน AI ที่ใช้ระบบนี้", "AI workspaces using this system")}:
             {workspaces.length}
-            {t("MCP Gateways ใช้ Server นี้", "MCP Gateways use this server")}
           </p>
         </div>
-        <a href={href("workspaces")}
-          >{t("ดู MCP Gateways", "View MCP Gateways")}<ArrowRight
+        <a class="k-button small" href={href("workspaces")}
+          >{t("ดูพื้นที่ทำงาน AI", "View AI workspaces")}<ArrowRight
             size={16}
+            aria-hidden="true"
           /></a
         >
       </li>
     </ol>
   </section>
-  <section class="connection-detail-panel">
-    <h2>{t("รายละเอียด", "Details")}</h2>
-    <dl class="connection-details">
+  <section class="detail-card">
+    <header class="detail-card-head"><h2>{t("รายละเอียด", "Details")}</h2></header>
+    <dl class="detail-list">
       <div>
-        <dt>{t("สถานะการใช้งาน", "Availability")}</dt>
+        <dt>{t("สถานะ", "Status")}</dt>
         <dd>
           {connection.enabled
-            ? t("เปิดใช้งาน", "Enabled")
-            : t("ระงับแล้ว", "Paused")}
+            ? t("เปิดใช้งาน", "Active")
+            : t("ระงับ", "Paused")}
         </dd>
       </div>
       <div>
@@ -372,3 +382,369 @@
     </dl>
   </section>
 {/if}
+</div>
+
+<style>
+  .detail {
+    min-width: 0;
+    color: var(--orca-ink);
+  }
+  .detail-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+    color: var(--orca-muted);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .detail-back:hover {
+    color: var(--orca-ink);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .detail-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px 24px;
+    margin-bottom: 20px;
+  }
+  .detail-title {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    min-width: 0;
+  }
+  .detail-logo {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex: none;
+    margin-top: 1px;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface);
+    overflow: hidden;
+  }
+  .detail-title-copy {
+    min-width: 0;
+  }
+  .detail-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+  }
+  .detail-title-row h1 {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .detail-actions {
+    flex: none;
+  }
+  .detail .detail-banner {
+    margin: 0 0 16px;
+  }
+  .detail-banner p {
+    margin: 0;
+  }
+  .detail-tabs {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--orca-line);
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .detail-tabs a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: -1px;
+    padding: 10px 0 11px;
+    border-bottom: 2px solid transparent;
+    color: var(--orca-muted);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .detail-tabs a:hover {
+    color: var(--orca-ink);
+  }
+  .detail-tabs a.chosen {
+    border-bottom-color: var(--orca-ink);
+    color: var(--orca-ink);
+    font-weight: 600;
+  }
+  .detail-tabs a > span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    padding: 0 6px;
+    border-radius: var(--orca-radius-sm);
+    background: var(--orca-secondary);
+    color: var(--orca-nav);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .detail-card {
+    min-width: 0;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius-lg);
+    background: var(--orca-surface);
+    overflow: hidden;
+  }
+  .detail-card + .detail-card {
+    margin-top: 16px;
+  }
+  .detail-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px 12px;
+    color: var(--orca-subtle);
+  }
+  .detail-card-head h2 {
+    margin: 0;
+    color: var(--orca-ink);
+  }
+  .detail-card-head :global(.k-button) {
+    flex: none;
+  }
+  .detail-note {
+    margin: 0;
+    padding: 0 18px 16px;
+    color: var(--orca-muted);
+    font-size: 14px;
+  }
+  .detail-note + .detail-note {
+    margin-top: -8px;
+  }
+  .detail .detail-card-banner {
+    margin: 0 18px 16px;
+  }
+  .detail-steps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .detail-steps li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    border-top: 1px solid #eff0f2;
+  }
+  .detail-steps li > div {
+    flex: 1;
+    min-width: 0;
+  }
+  .detail-steps strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .detail-steps p {
+    margin: 2px 0 0;
+    color: var(--orca-muted);
+    font-size: 13px;
+  }
+  .detail-step-number {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    flex: none;
+    border: 1px solid var(--orca-line-strong);
+    border-radius: 50%;
+    background: var(--orca-surface);
+    color: var(--orca-ink);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .detail-steps li > :global(.k-button) {
+    flex: none;
+  }
+  .detail-list {
+    margin: 0;
+  }
+  .detail-list > div {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 16px;
+    padding: 10px 18px;
+    border-top: 1px solid #eff0f2;
+    font-size: 14px;
+  }
+  .detail-list dt {
+    color: var(--orca-muted);
+    font-size: 13px;
+  }
+  .detail-list dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .detail-tool {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 18px;
+    border-top: 1px solid #eff0f2;
+    color: var(--orca-ok);
+  }
+  .detail-tool :global(svg) {
+    flex: none;
+    margin-top: 3px;
+  }
+  .detail-tool > div {
+    min-width: 0;
+    color: var(--orca-ink);
+  }
+  .detail-tool strong {
+    font-size: 14px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .detail-tool small {
+    display: block;
+    color: var(--orca-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  .detail-tool p {
+    margin: 4px 0 0;
+    color: var(--orca-muted);
+    font-size: 13px;
+  }
+  .detail-scope {
+    padding: 12px 18px 16px;
+    border-top: 1px solid var(--orca-line);
+  }
+  .detail-scope h3 {
+    margin: 0;
+  }
+  .detail-scope p {
+    margin: 4px 0 0;
+    color: var(--orca-muted);
+    font-size: 13px;
+    white-space: pre-wrap;
+  }
+  .detail-row {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) auto 16px;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    border-top: 1px solid #eff0f2;
+    color: var(--orca-ink);
+    text-decoration: none;
+  }
+  .detail-row:hover {
+    background: var(--orca-surface-2);
+  }
+  .detail-row > :global(svg) {
+    color: var(--orca-subtle);
+  }
+  .detail-row-icon {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--orca-radius);
+    background: var(--orca-secondary);
+    color: var(--orca-nav);
+  }
+  .detail-row-copy {
+    min-width: 0;
+  }
+  .detail-row-copy strong,
+  .detail-row-copy small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .detail-row-copy strong {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .detail-row-copy small {
+    color: var(--orca-muted);
+    font-size: 13px;
+  }
+  .detail-event {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 18px;
+    border-top: 1px solid #eff0f2;
+    font-size: 14px;
+  }
+  .detail-event > span:first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .detail-event strong {
+    font-weight: 600;
+  }
+  .detail-event small {
+    display: block;
+    color: var(--orca-muted);
+    font-size: 13px;
+  }
+  .detail :global(.source-setup) {
+    margin-bottom: 0;
+  }
+  .detail-next {
+    display: flex;
+    width: fit-content;
+    align-items: center;
+    gap: 6px;
+    margin-top: 16px;
+    color: var(--orca-ink);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+  @media (max-width: 760px) {
+    .detail-head {
+      flex-direction: column;
+    }
+    .detail-tabs {
+      gap: 20px;
+    }
+    .detail-steps li {
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+    .detail-steps li > div {
+      flex-basis: calc(100% - 36px);
+    }
+    .detail-steps li > :global(.k-button) {
+      margin-left: 36px;
+    }
+    .detail-list > div {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2px;
+    }
+    .detail-row {
+      grid-template-columns: 32px minmax(0, 1fr) 16px;
+    }
+    .detail-row .k-badge {
+      grid-column: 2;
+      grid-row: 2;
+      justify-self: start;
+    }
+  }
+</style>

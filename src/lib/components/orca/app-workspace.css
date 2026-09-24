@@ -1060,17 +1060,9 @@
 .orca-workspace .settings-embedded > .k-intro > .k-heading-row {
   justify-content: flex-end;
 }
-.orca-workspace .arcade-embedded > .k-breadcrumb,
-.orca-workspace .arcade-embedded > .k-intro > h1,
-.orca-workspace .arcade-embedded > .k-intro > .k-heading-row > h1,
-.orca-workspace .arcade-embedded > .k-intro > .k-subtitle {
+/* Members and organization render their own page header; the top bar already shows the location. */
+.orca-workspace .arcade-embedded > .k-breadcrumb {
   display: none;
-}
-.orca-workspace .arcade-embedded > .k-intro {
-  margin-bottom: 16px;
-}
-.orca-workspace .arcade-embedded > .k-intro > .k-heading-row {
-  justify-content: flex-end;
 }
 @media (min-width: 1600px) {
   .orca-workspace .workspace-main {

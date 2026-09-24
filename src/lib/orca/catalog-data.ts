@@ -5,21 +5,21 @@ import { integrationPresentation } from './integration-directory';
 
 export const catalogCategories = [
 	{ id: 'social-media', th: 'โซเชียลมีเดีย', en: 'Social media' },
-	{ id: 'ecommerce', th: 'ร้านค้าและอีคอมเมิร์ซ', en: 'Stores & ecommerce' },
+	{ id: 'ecommerce', th: 'ร้านค้าและอีคอมเมิร์ซ', en: 'Stores and e-commerce' },
 	{
 		id: 'productivity',
 		th: 'งานและเอกสาร',
-		en: 'Work & documents'
+		en: 'Work and documents'
 	},
 	{
 		id: 'communication',
-		th: 'สื่อสารและประชุม',
-		en: 'Communication & meetings'
+		th: 'การสื่อสารและการประชุม',
+		en: 'Communication and meetings'
 	},
 	{
 		id: 'crm-sales',
 		th: 'ลูกค้าและงานขาย',
-		en: 'CRM & sales'
+		en: 'CRM and sales'
 	},
 	{
 		id: 'marketing',
@@ -28,48 +28,48 @@ export const catalogCategories = [
 	},
 	{
 		id: 'data-analytics',
-		th: 'ข้อมูลและวิเคราะห์',
-		en: 'Data & analytics'
+		th: 'ข้อมูลและการวิเคราะห์',
+		en: 'Data and analytics'
 	},
 	{
 		id: 'developer-tools',
-		th: 'เครื่องมือพัฒนา',
+		th: 'เครื่องมือสำหรับนักพัฒนา',
 		en: 'Developer tools'
 	},
 	{
 		id: 'cloud-infrastructure',
-		th: 'คลาวด์และระบบ',
-		en: 'Cloud & infrastructure'
+		th: 'คลาวด์และโครงสร้างพื้นฐาน',
+		en: 'Cloud and infrastructure'
 	},
 	{
 		id: 'design-content',
-		th: 'ออกแบบและเนื้อหา',
-		en: 'Design & content'
+		th: 'การออกแบบและเนื้อหา',
+		en: 'Design and content'
 	},
 	{
 		id: 'accounting',
 		th: 'บัญชีและการเงิน',
-		en: 'Accounting & finance'
+		en: 'Accounting and finance'
 	},
 	{
 		id: 'finance',
-		th: 'การเงินและลงทุน',
-		en: 'Finance & investing'
+		th: 'การเงินและการลงทุน',
+		en: 'Finance and investing'
 	},
 	{
 		id: 'research-knowledge',
-		th: 'ค้นคว้าและความรู้',
-		en: 'Research & knowledge'
+		th: 'การค้นคว้าและความรู้',
+		en: 'Research and knowledge'
 	},
 	{
 		id: 'people',
 		th: 'บุคลากรและการเรียนรู้',
-		en: 'People & learning'
+		en: 'People and learning'
 	},
 	{
 		id: 'travel-lifestyle',
-		th: 'ท่องเที่ยวและไลฟ์สไตล์',
-		en: 'Travel & lifestyle'
+		th: 'การท่องเที่ยวและไลฟ์สไตล์',
+		en: 'Travel and lifestyle'
 	}
 ] as const;
 
@@ -1229,7 +1229,7 @@ export function getCatalogPresentation(name: string, description = ''): CatalogP
 
 	return {
 		categoryId: 'developer-tools',
-		descriptionTh: 'ดูรายละเอียดและวิธีเชื่อมต่อเครื่องมือ MCP นี้',
+		descriptionTh: 'ดูรายละเอียดและวิธีเชื่อมต่อระบบนี้ผ่าน MCP',
 		aliases: description ? [description] : []
 	};
 }

@@ -16,22 +16,22 @@
 	);
 	const steps = $derived([
 		{
-			title: t('ตั้งค่า Server', 'Configure server'),
-			description: t('เลือกเครื่องมือที่ทีมใช้ได้', 'Review the tools your team can use'),
+			title: t('เชื่อมต่อระบบ', 'Connect a system'),
+			description: t('เชื่อมต่อระบบและตรวจสอบเครื่องมือที่อนุญาต', 'Connect a system and review its allowed tools'),
 			done: readyConnections.length > 0,
 			href: '/app?view=servers'
 		},
 		{
-			title: t('สร้างพื้นที่ทำงาน', 'Create a workspace'),
-			description: t('จัดเครื่องมือให้พร้อมเริ่มงาน', 'Bring your tools together'),
+			title: t('สร้างพื้นที่ทำงาน AI', 'Create an AI workspace'),
+			description: t('รวมระบบและเครื่องมือที่ทีมต้องใช้ไว้ในที่เดียว', 'Bring the systems and tools your team needs into one place'),
 			done: usableHubs.length > 0,
 			href: createWorkspaceHref
 		},
 		{
 			title: t('กำหนดสมาชิก', 'Assign members'),
 			description: hasOtherMember
-				? t('เพิ่มสมาชิกในพื้นที่ทำงาน', 'Add people to your workspace')
-				: t('เตรียมบัญชีให้ทีมเข้าสู่ระบบ', 'Set up sign-in accounts for your team'),
+				? t('เพิ่มสมาชิกหรือแผนกในพื้นที่ทำงาน AI', 'Add members or departments to the AI workspace')
+				: t('สร้างบัญชีให้สมาชิกในทีมเข้าสู่ระบบ', 'Set up sign-in accounts for your team members'),
 			done: usableHubs.some((hub) =>
 				data.members.some(
 					(member) => member.id !== data.currentUserID && gatewayHasMember(hub, member.id)
@@ -51,25 +51,27 @@
 	<details class="workspace-setup">
 		<summary>
 			<span class="setup-heading">
-				<strong>{t('เริ่มต้นกับ ORCA', 'Get started with ORCA')}</strong>
+				<strong>{t('เริ่มต้นใช้งาน ORCA', 'Get started with ORCA')}</strong>
 				<span
-					>{steps.filter((step) => step.done).length} / {steps.length}
-					{t('รายการตั้งค่า', 'setup items complete')}</span
+					>{t(
+						`ดำเนินการแล้ว ${steps.filter((step) => step.done).length} จาก ${steps.length} ขั้นตอน`,
+						`${steps.filter((step) => step.done).length} of ${steps.length} setup steps complete`
+					)}</span
 				>
 			</span>
-			<ChevronDown size={19} class="setup-chevron" aria-hidden="true" />
+			<ChevronDown size={16} class="setup-chevron" aria-hidden="true" />
 		</summary>
 		<ol>
 			{#each steps as step, index}
 				<li>
 					<a href={localeHref(step.href)} class:next={index === nextStep}>
 						<span class="step-marker" class:done={step.done} aria-hidden="true">
-							{#if step.done}<Check size={17} />{:else}{index + 1}{/if}
+							{#if step.done}<Check size={14} />{:else}{index + 1}{/if}
 						</span>
 						<span class="step-copy">
 							<strong>{step.title}</strong>
 							<small>{step.description}</small>
-							{#if step.done}<span class="sr-only">{t('ตั้งค่าแล้ว', 'Configured')}</span>{/if}
+							{#if step.done}<span class="sr-only">{t('ดำเนินการแล้ว', 'Completed')}</span>{/if}
 						</span>
 					</a>
 				</li>
@@ -80,20 +82,20 @@
 
 <style>
 	.workspace-setup {
-		margin-bottom: 24px;
-		background: white;
-		border: 1px solid #dfe3ed;
-		border-radius: 12px;
-		color: var(--o-ink);
+		margin-bottom: 16px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-surface);
+		color: var(--orca-ink);
 	}
 	summary {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		gap: 16px;
-		min-height: 64px;
-		padding: 18px 22px;
-		border-radius: 12px;
+		min-height: 56px;
+		padding: 14px 18px;
+		border-radius: var(--orca-radius-lg);
 		list-style: none;
 		cursor: pointer;
 	}
@@ -101,30 +103,34 @@
 		display: none;
 	}
 	summary:hover {
-		background: #f8faf5;
+		background: var(--orca-surface-2);
 	}
 	summary:focus-visible,
 	a:focus-visible {
-		outline: 3px solid #739831;
-		outline-offset: 3px;
+		outline-offset: -2px;
+	}
+	details[open] > summary {
+		border-radius: var(--orca-radius-lg) var(--orca-radius-lg) 0 0;
 	}
 	.setup-heading {
 		display: flex;
 		align-items: baseline;
 		flex-wrap: wrap;
-		gap: 6px 16px;
+		gap: 2px 12px;
 	}
 	.setup-heading strong {
 		font-size: 16px;
-		font-weight: 690;
+		font-weight: 600;
+		line-height: 1.45;
 	}
 	.setup-heading > span {
-		color: #717b90;
-		font-size: 12px;
+		color: var(--orca-muted);
+		font-size: 13px;
 	}
 	summary :global(.setup-chevron) {
 		flex-shrink: 0;
-		color: #647087;
+		color: var(--orca-subtle);
+		transition: transform 0.15s;
 	}
 	details[open] summary :global(.setup-chevron) {
 		transform: rotate(180deg);
@@ -132,64 +138,77 @@
 	ol {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
+		margin: 0;
+		padding: 0;
 		list-style: none;
-		margin: 0 22px;
-		padding: 22px 0;
-		border-top: 1px solid #e5e9ef;
-		gap: 20px;
+		border-top: 1px solid var(--orca-line);
 	}
 	li {
 		min-width: 0;
 	}
+	li + li {
+		border-left: 1px solid var(--orca-line);
+	}
 	li a {
 		display: flex;
+		align-items: flex-start;
 		gap: 12px;
-		align-items: center;
+		height: 100%;
 		min-height: 44px;
-		border-radius: 6px;
+		padding: 14px 18px 16px;
 		color: inherit;
 		text-decoration: none;
 	}
+	li:first-child a {
+		border-bottom-left-radius: var(--orca-radius-lg);
+	}
+	li:last-child a {
+		border-bottom-right-radius: var(--orca-radius-lg);
+	}
+	li a:hover {
+		background: var(--orca-surface-2);
+	}
 	a:hover .step-copy strong {
 		text-decoration: underline;
-		text-underline-offset: 4px;
+		text-underline-offset: 3px;
 	}
 	.step-marker {
 		display: grid;
 		place-items: center;
-		flex: 0 0 33px;
-		height: 33px;
-		border: 1px solid #dbe0e9;
+		flex: 0 0 24px;
+		height: 24px;
+		border: 1px solid var(--orca-line-strong);
 		border-radius: 50%;
-		background: #f5f6f9;
-		color: #707a8e;
-		font-size: 13px;
-		font-weight: 650;
+		background: var(--orca-surface);
+		color: var(--orca-nav);
+		font-size: 12px;
+		font-weight: 600;
+		line-height: 1;
 	}
 	.next .step-marker {
-		border-color: var(--o-citron);
-		background: var(--o-citron);
-		color: var(--o-ink);
+		border-color: var(--orca-ink);
+		background: var(--orca-ink);
+		color: #fff;
 	}
 	.step-marker.done {
-		background: #f0f6df;
-		border-color: #d6e6b2;
-		color: #527530;
+		border-color: transparent;
+		background: var(--orca-ok-bg);
+		color: var(--orca-ok);
 	}
 	.step-copy {
-		min-width: 0;
 		display: grid;
-		gap: 3px;
+		gap: 2px;
+		min-width: 0;
 	}
 	.step-copy strong {
-		font-size: 13px;
+		font-size: 14px;
+		font-weight: 600;
 		line-height: 1.5;
-		font-weight: 650;
 	}
 	.step-copy small {
-		font-size: 12px;
+		color: var(--orca-muted);
+		font-size: 13px;
 		line-height: 1.55;
-		color: #717b90;
 	}
 	.sr-only {
 		position: absolute;
@@ -204,16 +223,23 @@
 	}
 	@media (max-width: 900px) {
 		ol {
-			grid-template-columns: 1fr;
+			grid-template-columns: minmax(0, 1fr);
+		}
+		li + li {
+			border-left: 0;
+			border-top: 1px solid var(--orca-line);
+		}
+		li:first-child a {
+			border-bottom-left-radius: 0;
+		}
+		li:last-child a {
+			border-bottom-left-radius: var(--orca-radius-lg);
 		}
 	}
 	@media (max-width: 640px) {
-		summary {
-			padding: 16px;
-		}
-		ol {
-			margin: 0 16px;
-			padding: 18px 0;
+		summary,
+		li a {
+			padding-inline: 14px;
 		}
 	}
 </style>

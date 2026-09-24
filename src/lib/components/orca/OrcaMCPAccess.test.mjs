@@ -289,8 +289,8 @@ test('component compiles without warnings and renders unified setup without pass
 	});
 	const html = render(Screen, { props: { data: bootstrap({ hubs: [hub('allowed'), hub('private', { memberIDs: ['other'] })] }) } }).body;
 	assert.match(html, /Connect your AI to ORCA once/);
-	assert.match(html, /Gateways available to you · 1/);
-	assert.match(html, /1 sources · 1 selected tools/);
+	assert.match(html, /AI workspaces available to you · 1/);
+	assert.match(html, /Systems: 1 · Allowed tools: 1/);
 	assert.doesNotMatch(html, />private</);
 	assert.match(html, /No expiry/);
 	assert.equal(calls.length, 2);
@@ -310,10 +310,10 @@ test('component compiles without warnings and renders unified setup without pass
 	const optional = oauthHTML.match(/<details([^>]*class="api-key-option[^>]*)>([\s\S]*?)<\/details>/);
 	assert.ok(optional);
 	assert.doesNotMatch(optional[1], /\bopen(?:\s|=|$)/);
-	assert.match(optional[2], /API key.*Optional/);
+	assert.match(optional[2], /API key \(optional\)/);
 	assert.match(optional[2], /Create a personal key/);
 	const unavailable = render(Screen, { props: { data: bootstrap({ unifiedConnectURL: undefined }) } }).body;
-	assert.match(unavailable, /ORCA MCP URL is not available yet/);
+	assert.match(unavailable, /AI connection link for ORCA is not available yet/);
 	assert.equal(calls.length, 4);
 });
 

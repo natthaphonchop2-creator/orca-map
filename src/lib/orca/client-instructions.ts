@@ -15,12 +15,12 @@ export function gatewayClientInstructions(
 	const url = new URL(endpoint).href;
 	if (oauth) {
 		const instructions = [
-			`Help me connect the AI app I am using to ${scope === 'orca' ? 'ORCA MCP' : 'this ORCA MCP Gateway'}.`,
+			`Help me connect the AI app I am using to ${scope === 'orca' ? 'the ORCA MCP server' : 'this ORCA AI workspace (an MCP server)'}.`,
 			'Server name: orca',
 			`MCP URL: ${url}`,
 			'Transport: Streamable HTTP',
 			'Authentication: OAuth using my ORCA account.',
-			...(scope === 'orca' ? ['Use this single connection for every Gateway I am allowed to use. ORCA determines available tools from my current membership and permissions.'] : []),
+			...(scope === 'orca' ? ['Use this single connection for every AI workspace I am allowed to use. ORCA determines available tools from my current membership and permissions.'] : []),
 			'',
 			'Identify the AI app and verify that its MCP client supports Streamable HTTP and OAuth. If you cannot identify it, ask which app I use. Do not assume every client supports this flow.',
 			'Add this MCP URL through the app’s supported setup flow, preserving existing MCP connections and settings. If a connection named orca already points to another URL, ask me before replacing it.',
@@ -29,18 +29,18 @@ export function gatewayClientInstructions(
 			'If this client does not support the required OAuth flow, explain the limitation and ask me to choose a compatible client. Do not invent a successful login.',
 			'If you cannot configure the app directly, give me the steps to complete in its settings.',
 			'After setup, verify tools/list only. Do not call tools that read or change business data until I request it.',
-			'On an authentication or access error, stop and check sign-in, identity mapping, Gateway membership and permissions. Do not claim the connection is complete until verification succeeds.'
+			'On an authentication or access error, stop and check sign-in, identity mapping, AI workspace membership and permissions. Do not claim the connection is complete until verification succeeds.'
 		];
 		if (localGatewayEndpoint(endpoint)) instructions.push('This is a localhost URL. The connecting app must run on the same computer as ORCA; a cloud AI service cannot reach it.');
 		return instructions.join('\n');
 	}
 	const lines = [
-		`Help me connect the AI app I am using to ${scope === 'orca' ? 'ORCA MCP' : 'this ORCA MCP Gateway'}.`,
+		`Help me connect the AI app I am using to ${scope === 'orca' ? 'the ORCA MCP server' : 'this ORCA AI workspace (an MCP server)'}.`,
 		'Server name: orca',
 		`MCP URL: ${url}`,
 		'Transport: Streamable HTTP',
 		'Authentication: Authorization: Bearer <personal-key>',
-		...(scope === 'orca' ? ['Use this single connection for every Gateway I am allowed to use. ORCA determines available tools from my current membership and permissions.'] : []),
+		...(scope === 'orca' ? ['Use this single connection for every AI workspace I am allowed to use. ORCA determines available tools from my current membership and permissions.'] : []),
 		'',
 		'Identify the AI app and its supported MCP setup method. If you cannot identify it, ask which app I use. Check that it supports Streamable HTTP with a custom Authorization header.',
 		'Use the app’s supported setup flow, preserving existing MCP connections and settings. If a connection named orca already points to another URL, ask me before replacing it.',

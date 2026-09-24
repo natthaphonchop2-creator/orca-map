@@ -15,30 +15,36 @@
   let copyState = $state<"idle" | "copied" | "error">("idle");
   const errors: Record<AuditErrorCategory, string> = $derived({
     authentication_required: t(
-      "ต้องเชื่อมบัญชีต้นทางอีกครั้ง",
-      "Source sign-in required",
+      "ต้องลงชื่อเข้าใช้ด้วยบัญชีของระบบนั้นอีกครั้ง",
+      "The user must sign in to that system again",
     ),
     permission_denied: t("ไม่มีสิทธิ์ดำเนินการ", "Permission denied"),
     tool_changed: t(
-      "เครื่องมือเปลี่ยนแปลง ต้องตรวจสอบใหม่",
-      "Tool changed; review required",
+      "เครื่องมือมีการเปลี่ยนแปลง ต้องตรวจสอบเครื่องมืออีกครั้ง",
+      "The tool changed and requires another tool review",
     ),
     invalid_arguments: t(
       "ข้อมูลที่ส่งให้เครื่องมือไม่ถูกต้อง",
       "Invalid tool input",
     ),
-    quota_exceeded: t("ใช้งานครบจำนวนที่กำหนด", "Usage limit reached"),
-    timeout: t("ระบบต้นทางตอบกลับไม่ทันเวลา", "Source response timed out"),
+    quota_exceeded: t("ใช้งานครบเพดานที่กำหนดแล้ว", "Usage limit reached"),
+    timeout: t(
+      "ระบบที่เชื่อมต่อตอบกลับไม่ทันเวลา",
+      "The connected system did not respond in time",
+    ),
     canceled: t("คำขอถูกยกเลิก", "Request canceled"),
-    upstream_error: t("ติดต่อระบบต้นทางไม่สำเร็จ", "Source request failed"),
-    tool_error: t("เครื่องมือรายงานข้อผิดพลาด", "Tool reported an error"),
+    upstream_error: t(
+      "ติดต่อระบบที่เชื่อมต่อไม่สำเร็จ",
+      "The request to the connected system failed",
+    ),
+    tool_error: t("เครื่องมือแจ้งข้อผิดพลาด", "The tool reported an error"),
     invalid_response: t(
-      "รูปแบบผลลัพธ์จากระบบต้นทางไม่ถูกต้อง",
-      "Invalid source response",
+      "ระบบที่เชื่อมต่อส่งผลลัพธ์ในรูปแบบที่ไม่ถูกต้อง",
+      "Invalid response from the connected system",
     ),
     unknown: t(
-      "ไม่สามารถระบุสาเหตุได้จากประวัตินี้",
-      "Cause unavailable in this record",
+      "ไม่สามารถระบุสาเหตุจากประวัตินี้ได้",
+      "The cause is not available in this record",
     ),
   });
   async function copyReference() {
@@ -60,43 +66,43 @@
   <summary>{t("รายละเอียด", "Details")}</summary>
   <dl>
     {#if detail.reference}<div>
-        <dt>{t("รหัสอ้างอิง", "Reference")}</dt>
+        <dt>{t("รหัสอ้างอิง", "Reference ID")}</dt>
         <dd class="reference">
           <code>{detail.reference}</code><button
             type="button"
             onclick={copyReference}
-            aria-label={t("คัดลอกรหัสอ้างอิง", "Copy reference")}
-            title={t("คัดลอกรหัสอ้างอิง", "Copy reference")}
-            ><Copy size={14} /></button
+            aria-label={t("คัดลอกรหัสอ้างอิง", "Copy reference ID")}
+            title={t("คัดลอกรหัสอ้างอิง", "Copy reference ID")}
+            ><Copy size={16} /></button
           >
         </dd>
       </div>{/if}
     {#if detail.durationMs !== undefined}<div>
-        <dt>{t("เวลาประมวลผล", "Execution duration")}</dt>
+        <dt>{t("ระยะเวลาดำเนินการ", "Duration")}</dt>
         <dd>{auditDuration(detail.durationMs)}</dd>
       </div>{/if}
     {#if detail.finishedAt}<div>
-        <dt>{t("บันทึกผลเสร็จสิ้น (ไทย)", "Completion recorded (Bangkok)")}</dt>
+        <dt>{t("เวลาที่ดำเนินการเสร็จ (เวลาไทย)", "Completed at (Bangkok)")}</dt>
         <dd>{displayDate(detail.finishedAt)}</dd>
       </div>{/if}
     {#if detail.hubVersion !== undefined}<div>
-        <dt>{t("รุ่นการตั้งค่าพื้นที่", "Workspace version")}</dt>
+        <dt>{t("เวอร์ชันการตั้งค่าพื้นที่ทำงาน", "Workspace version")}</dt>
         <dd>{detail.hubVersion}</dd>
       </div>{/if}
     {#if detail.connectionVersion !== undefined}<div>
-        <dt>{t("รุ่นการเชื่อมต่อ", "Connection version")}</dt>
+        <dt>{t("เวอร์ชันการตั้งค่าระบบที่เชื่อมต่อ", "Connected system version")}</dt>
         <dd>{detail.connectionVersion}</dd>
       </div>{/if}
     {#if detail.resourceID}<div>
-        <dt>{t("รหัสรายการที่เกี่ยวข้อง", "Resource ID")}</dt>
+        <dt>{t("รหัสรายการที่เกี่ยวข้อง", "Related item ID")}</dt>
         <dd><code>{detail.resourceID}</code></dd>
       </div>{/if}
     {#if detail.resourceVersion !== undefined}<div>
-        <dt>{t("รุ่นรายการที่บันทึก", "Recorded resource version")}</dt>
+        <dt>{t("เวอร์ชันของรายการที่บันทึก", "Recorded item version")}</dt>
         <dd>{detail.resourceVersion}</dd>
       </div>{/if}
     {#if detail.schemaHash}<div>
-        <dt>{t("รหัสรูปแบบเครื่องมือ", "Tool schema hash")}</dt>
+        <dt>{t("รหัสตรวจสอบนิยามเครื่องมือ", "Tool definition hash")}</dt>
         <dd>
           <code title={detail.schemaHash}
             >{expanded
@@ -112,95 +118,123 @@
   </dl>
   {#if copyState !== "idle"}<p role="status">
       {copyState === "copied"
-        ? t("คัดลอกรหัสอ้างอิงแล้ว", "Reference copied")
+        ? t("คัดลอกรหัสอ้างอิงแล้ว", "Reference ID copied")
         : t(
-            "คัดลอกไม่สำเร็จ เลือกรหัสอ้างอิงเพื่อคัดลอกเองได้",
-            "Copy failed. Select the reference to copy it manually.",
+            "คัดลอกไม่สำเร็จ กรุณาเลือกรหัสอ้างอิงแล้วคัดลอกด้วยตนเอง",
+            "Copy failed. Select the reference ID and copy it manually.",
           )}
     </p>{/if}
 </details>
 
 <style>
   .audit-details {
-    margin-top: 7px;
-    font-size: 11px;
     min-width: 180px;
     max-width: 390px;
+    margin-top: 8px;
+    font-size: 13px;
   }
   .audit-details.expanded {
-    margin-top: 0;
-    max-width: none;
     min-width: 0;
+    max-width: none;
+    margin-top: 0;
   }
   .expanded > summary {
     display: none;
   }
   .expanded dl {
-    margin-top: 0;
+    gap: 0;
+    margin: 0;
     padding: 0;
     border: 0;
+    border-radius: 0;
     background: transparent;
-    gap: 18px;
   }
   .expanded dl > div {
-    gap: 5px;
-    padding-bottom: 14px;
-    border-bottom: 1px solid var(--k-line, #e5e9e5);
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: 4px 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid #eff0f2;
   }
   summary {
-    color: #527135;
-    cursor: pointer;
     width: fit-content;
+    color: var(--orca-ink);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  summary:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
   summary:focus-visible,
   button:focus-visible {
-    outline: 2px solid #719139;
-    outline-offset: 3px;
+    outline: 2px solid var(--orca-ink);
+    outline-offset: 2px;
   }
   dl {
     display: grid;
-    gap: 9px;
-    margin: 10px 0 0;
+    gap: 8px;
+    margin: 8px 0 0;
     padding: 12px;
-    background: #f7f9f3;
-    border: 1px solid #e1e7d8;
-    border-radius: 8px;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface);
   }
   dl > div {
     display: grid;
-    gap: 3px;
+    gap: 2px;
   }
   dt {
-    color: #677287;
+    color: var(--orca-muted);
+    font-size: 13px;
   }
   dd {
+    min-width: 0;
     margin: 0;
-    color: #2e3944;
+    color: var(--orca-ink);
+    font-size: 14px;
     overflow-wrap: anywhere;
   }
-  code {
+  .audit-details code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
     white-space: normal;
     overflow-wrap: anywhere;
-    font-size: 10px;
   }
   .reference {
     display: flex;
-    align-items: start;
-    gap: 7px;
+    align-items: center;
+    gap: 6px;
   }
   .reference code {
     flex: 1;
     min-width: 0;
   }
-  button {
+  .reference button {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    padding: 0;
     border: 0;
+    border-radius: var(--orca-radius);
     background: transparent;
-    padding: 3px;
-    color: #527135;
+    color: var(--orca-subtle);
     cursor: pointer;
   }
-  p {
-    margin: 7px 0 0;
-    color: #657184;
+  .reference button:hover {
+    background: var(--orca-hover);
+    color: var(--orca-ink);
+  }
+  .audit-details p {
+    margin: 8px 0 0;
+    color: var(--orca-muted);
+    font-size: 12.5px;
+  }
+  @media (max-width: 480px) {
+    .expanded dl > div {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 </style>

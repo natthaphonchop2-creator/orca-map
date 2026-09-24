@@ -47,9 +47,9 @@ test('generic instructions still reject embedded credentials or query secrets', 
 
 test('unified instructions describe only the Gateways the member is permitted to access', () => {
 	const prompt = gatewayClientInstructions('https://orca.example/api/orca/mcp', 'orca');
-	assert.match(prompt, /single connection for every Gateway I am allowed to use/);
+	assert.match(prompt, /single connection for every AI workspace I am allowed to use/);
 	assert.match(prompt, /current membership and permissions/);
-	assert.doesNotMatch(gatewayClientInstructions(endpoint), /every Gateway/);
+	assert.doesNotMatch(gatewayClientInstructions(endpoint), /every AI workspace/);
 });
 
 

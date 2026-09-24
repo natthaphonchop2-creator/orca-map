@@ -130,15 +130,15 @@
       <div>
         <p>{error}</p>
         <button class="k-link-button" disabled={refreshing} onclick={refresh}
-          >{t("โหลดข้อมูลอีกครั้ง", "Reload data")}</button
+          >{t("ลองอีกครั้ง", "Try again")}</button
         >
       </div>
     </div>{/if}
   {#if !data}<div class="k-loading" role="status" aria-live="polite">
       {#if refreshing}<LoaderCircle size={25} class="k-spin" />
         {t("กำลังโหลดข้อมูลองค์กร…", "Loading organization data…")}{:else}{t(
-          "โหลดข้อมูลองค์กรไม่สำเร็จ กรุณากดโหลดข้อมูลอีกครั้ง",
-          "Could not load your organization yet.",
+          "โหลดข้อมูลองค์กรไม่สำเร็จ กรุณาลองอีกครั้ง",
+          "Organization data could not be loaded. Please try again.",
         )}{/if}
     </div>
   {:else if view === "dashboard"}{#key data}<WorkspaceDashboard data={currentData!} />{/key}
@@ -221,39 +221,31 @@
   {:else if view === "accounts"}<MyConnections data={currentData!} />
   {:else if view === "connected-users"}<ConnectedUsers data={currentData!} />
   {:else if view === "organization"}
-    <header class="connection-heading"><div>
-      <h1>{t("ข้อมูลองค์กร", "Organization")}</h1>
-      <p>{t("จัดการข้อมูลองค์กรและโครงสร้างหน่วยงาน", "Manage organization details and organizational units.")}</p>
-    </div></header>
     <div class="arcade-embedded"><OrganizationSettings data={currentData!} onchanged={refresh} /></div>
   {:else if view === "members"}
-    <header class="connection-heading"><div>
-      <h1>{t("สมาชิกและแผนก", "Members & departments")}</h1>
-      <p>{t("จัดการสมาชิก บทบาท และแผนกตามสิทธิ์ของคุณ", "Manage members, roles and departments according to your permissions.")}</p>
-    </div></header>
     <div class="arcade-embedded"><TeamAccess {data} onchanged={refresh} /></div>
   {:else if view === "api-keys"}
     <header class="connection-heading"><div>
       <h1>{t("เชื่อม AI กับ ORCA", "Connect AI to ORCA")}</h1>
-      <p>{t("จัดการคีย์ส่วนตัวสำหรับเชื่อมแอป AI กับ ORCA", "Manage personal keys for connecting AI clients to ORCA.")}</p>
+      <p>{t("สร้างคีย์และดูวิธีเชื่อม AI เช่น ChatGPT หรือ Claude เข้ากับพื้นที่ทำงานที่คุณได้รับสิทธิ์", "Create keys and view the instructions for connecting AI, such as ChatGPT or Claude, to the workspaces you can access.")}</p>
     </div></header>
     <section class="connection-detail-panel">
       <div class="connection-section-heading"><div>
-        <h2><KeyRound size={20} />{t("คีย์ ORCA สำหรับทุก Gateway ที่คุณมีสิทธิ์", "One ORCA key for your authorized Gateways")}</h2>
-        <p>{t("สร้างคีย์และคัดลอกวิธีเชื่อม AI จากจุดเดียว เลือกวันหมดอายุหรือใช้จนกว่าจะยกเลิกได้", "Create a key and copy AI setup instructions in one place. Choose an expiry or keep the key active until revoked.")}</p>
-      </div><a class="k-button primary" href={localeHref('/app?view=settings&section=ai')}>{t("เชื่อม AI กับ ORCA", "Connect AI to ORCA")}<ArrowRight size={17} /></a></div>
+        <h2><KeyRound size={18} />{t("คีย์ ORCA สำหรับทุกพื้นที่ทำงานของคุณ", "One ORCA key for all your workspaces")}</h2>
+        <p>{t("สร้างคีย์และคัดลอกวิธีเชื่อม AI ได้ในที่เดียว กำหนดวันหมดอายุ หรือใช้งานจนกว่าจะยกเลิก", "Create a key and copy the setup instructions in one place. Set an expiry date or keep it active until revoked.")}</p>
+      </div><a class="k-button primary" href={localeHref('/app?view=settings&section=ai')}>{t("สร้างคีย์และดูวิธีเชื่อม", "Create key and view instructions")}<ArrowRight size={16} /></a></div>
     </section>
     <section class="connection-detail-panel">
       <div class="connection-section-heading"><div>
-        <h2><KeyRound size={20} />{t("คีย์ของคุณในแต่ละ Gateway", "Your keys by gateway")}</h2>
-        <p>{t("เปิด Gateway เพื่อสร้างคีย์ ดูวันหมดอายุ หรือยกเลิกคีย์ของคุณ", "Open a gateway to create a key, review its expiry or revoke your keys.")}</p>
+        <h2><KeyRound size={18} />{t("คีย์ตามพื้นที่ทำงาน", "Keys by workspace")}</h2>
+        <p>{t("เปิดพื้นที่ทำงานเพื่อสร้างคีย์ ตรวจสอบวันหมดอายุ หรือยกเลิกคีย์", "Open a workspace to create a key, check its expiry date or revoke it.")}</p>
       </div></div>
       {#each personalHubs as item (item.id)}
         <a class="connection-workspace-row" href={localeHref(`/app?view=hub&hub=${encodeURIComponent(item.id)}&tab=connect`)}>
           <span><strong>{item.name}</strong><small>{t("จัดการคีย์ส่วนตัว", "Manage personal keys")}</small></span>
-          <ArrowRight size={17} />
+          <ArrowRight size={16} />
         </a>
-      {:else}<p>{t("คุณยังไม่ได้อยู่ในพื้นที่ทำงาน AI", "You are not in an AI workspace yet.")}</p>{/each}
+      {:else}<p>{t("คุณยังไม่ได้รับสิทธิ์ในพื้นที่ทำงานใด", "You have not been added to a workspace.")}</p>{/each}
     </section>
   {:else if view === "user-sources"}<UserSources data={currentData!} />
   {:else if plannedFeature}<FeatureScaffold feature={plannedFeature} />
@@ -264,94 +256,77 @@
   {:else if view === "overview" || view === "workspaces"}<AppOverview data={managementData!} onchanged={refresh} />
   {:else if view === "help"}
     <div class="k-breadcrumb">
-      <a href={localeHref("/app?view=workspaces")}
-        >{t("พื้นที่ทำงาน AI", "AI workspaces")}</a
-      ><span>/</span><span>{t("ช่วยเหลือ", "Help")}</span>
+      <a href={localeHref("/app")}>{t("หน้าหลัก", "Home")}</a><span>/</span><span>{t("ช่วยเหลือ", "Help")}</span>
     </div>
     <div class="k-intro">
-      <h1>{t("เริ่มใช้งาน ORCA", "Get started with ORCA")}</h1>
+      <h1>{t("ช่วยเหลือ", "Help")}</h1>
       <p class="k-subtitle">
         {t(
-          "เชื่อมแอป AI ที่คุณใช้อยู่กับข้อมูลของทีมตามสิทธิ์ที่กำหนด",
-          "Give the AI you already use access to your team’s data with clear permissions.",
+          "ขั้นตอนการตั้งค่าสำหรับผู้ดูแลระบบและสมาชิก เพื่อให้ AI ที่องค์กรใช้อยู่เข้าถึงข้อมูลตามสิทธิ์ที่กำหนด",
+          "Setup steps for administrators and members, so the AI your organization uses can access data within the permissions you set.",
         )}
       </p>
     </div>
     <WorkspaceSetup data={currentData!} />
     <div class="k-banner">
-      <Info size={20} />
+      <Info size={18} />
       <p>{t(
-        "ขั้นตอนหลัก: เลือกระบบในหน้าเพิ่มระบบใหม่ → ตั้งค่าและเลือกเครื่องมือในหน้าระบบที่เชื่อมต่อ → สร้างพื้นที่ทำงาน AI ให้สมาชิกใช้ ส่วนบัญชีที่เชื่อมไว้อยู่ในเมนูบัญชีของคุณ",
-        "The main flow: pick a system in Add a system → set it up and choose tools in Connected systems → create an AI workspace for members. Your connected accounts are in your account menu.",
+        "ลำดับการตั้งค่า: เพิ่มระบบ → ตรวจสอบและเลือกเครื่องมือที่อนุญาต → สร้างพื้นที่ทำงาน AI และกำหนดสมาชิก → เชื่อม AI กับ ORCA",
+        "Setup order: add a system → review and choose the allowed tools → create an AI workspace and choose its members → connect AI to ORCA.",
       )}</p>
     </div>
     <div class="k-panel">
-      <h2>{t("สำหรับผู้ดูแลองค์กร", "For organization administrators")}</h2>
-      <ol
-        style="margin:15px 0 0;padding-left:22px;display:flex;flex-direction:column;gap:13px"
-      >
+      <h2>{t("สำหรับผู้ดูแลระบบ", "For administrators")}</h2>
+      <ol class="k-numbered">
         <li>
-          {t("ไปที่", "Open")}
-          <a href={localeHref("/app?view=servers")}
-            >Servers</a
-          >
+          {t("เปิดหน้า", "Open")}
+          <a href={localeHref("/app?view=servers")}>{t("ระบบที่เชื่อมต่อ", "Connected systems")}</a>
           {t(
-            "เพื่อเชื่อมบัญชีของระบบที่ทีมใช้ แล้วตรวจสอบและเลือกเครื่องมือที่อนุญาต",
-            "to set up a source account, then review and select allowed tools.",
+            "เพื่อเชื่อมระบบขององค์กร แล้วตรวจสอบและเลือกเครื่องมือที่อนุญาต",
+            "to connect your organization's systems, then review and choose the allowed tools.",
           )}
         </li>
         <li>
-          {t("สร้าง", "Create")}
-          <a href={localeHref("/app?view=new")}
-            >MCP Gateway</a
-          >
+          <a href={localeHref("/app?view=new")}>{t("สร้างพื้นที่ทำงาน AI", "Create an AI workspace")}</a>
           {t(
-            "เลือกระบบ เครื่องมือ และสมาชิก พร้อมกำหนดจำนวนครั้งที่ใช้งานได้ต่อวัน",
-            "Choose a source and tools, then set members and the daily limit.",
+            "โดยเลือกระบบ เครื่องมือ สมาชิก และเพดานการใช้งานต่อวัน",
+            "and choose its systems, tools, members and daily limit.",
           )}
         </li>
         <li>
           {t(
-            "ตรวจสอบสิทธิ์ก่อนเปิดใช้งาน แล้วให้สมาชิกเข้าสู่ระบบด้วยบัญชีของตัวเอง",
-            "Review permissions and activate. Each member signs in with their own account.",
+            "ตรวจสอบสิทธิ์ก่อนเปิดใช้งาน สมาชิกแต่ละคนเข้าสู่ระบบด้วยบัญชีของตนเอง",
+            "Review access before activating. Each member signs in with their own account.",
           )}
         </li>
         <li>
-          {t("ดู", "Check")}
-          <a href={localeHref("/app?view=executions")}
-            >{t("ประวัติการเรียกเครื่องมือ", "Executions")}</a
-          >
+          {t("ตรวจสอบ", "Check")}
+          <a href={localeHref("/app?view=executions")}>{t("ประวัติการใช้งาน", "Activity")}</a>
           {t(
-            "และระงับการใช้งาน Gateway ได้เมื่อต้องการ",
-            "and pause gateway access whenever needed.",
+            "และระงับการใช้งานพื้นที่ทำงานได้ทุกเมื่อ",
+            "and pause a workspace at any time.",
           )}
         </li>
       </ol>
     </div>
     <div class="k-panel">
-      <h2>{t('สำหรับสมาชิก', 'For members')}</h2>
-      <ol style="margin:15px 0 0;padding-left:22px;display:flex;flex-direction:column;gap:13px">
-        <li>{t('คัดลอก URL ของ ORCA MCP หรือ Gateway ที่คุณได้รับสิทธิ์', 'Copy the ORCA MCP URL or a Gateway URL you are allowed to use.')}</li>
-        <li>{t('เพิ่ม URL ในแอป AI ที่รองรับ MCP แบบ Streamable HTTP และ OAuth', 'Add the URL to an AI app that supports Streamable HTTP MCP and OAuth.')}</li>
-        <li>{t('เมื่อหน้า ORCA เปิดขึ้น ให้เข้าสู่ระบบด้วยบัญชีของคุณและยืนยันการเชื่อมต่อ', 'When ORCA opens, sign in with your own account and approve the connection.')}</li>
+      <h2>{t("สำหรับสมาชิก", "For members")}</h2>
+      <ol class="k-numbered">
+        <li>{t("คัดลอกลิงก์เชื่อม AI (MCP URL) ของ ORCA หรือของพื้นที่ทำงานที่ได้รับสิทธิ์", "Copy ORCA's AI connection link (MCP URL), or the link of a workspace you can access.")}</li>
+        <li>{t("เพิ่มลิงก์ในแอป AI ที่รองรับ MCP แบบ Streamable HTTP และ OAuth", "Add the link to an AI app that supports Streamable HTTP MCP with OAuth.")}</li>
+        <li>{t("เมื่อหน้าเข้าสู่ระบบของ ORCA ปรากฏ ให้เข้าสู่ระบบด้วยบัญชีของคุณและยืนยันการเชื่อมต่อ", "When the ORCA sign-in page appears, sign in with your account and approve the connection.")}</li>
       </ol>
     </div>
     <div class="k-banner">
-      <Info size={20} />
+      <Info size={18} />
       <p>
-        {t('API key เป็นทางเลือกในตั้งค่าขั้นสูงสำหรับแอปที่ต้องใช้คีย์ โดย ORCA ตรวจสิทธิ์ของบัญชีทุกครั้งที่เรียกเครื่องมือ', 'API keys are optional in advanced settings for clients that require them. ORCA checks account access on every tool call.')}
+        {t("คีย์ API เป็นทางเลือกสำหรับแอปที่ต้องใช้คีย์ ORCA ตรวจสอบสิทธิ์ของบัญชีทุกครั้งที่มีการเรียกใช้เครื่องมือ", "API keys are an option for apps that require them. ORCA checks account access on every tool call.")}
       </p>
     </div>
     <div class="k-actions">
-      {#if data.canManage}<a
-          class="k-button"
-          href={localeHref("/app?view=members")}
-          >{t("จัดการบัญชีสมาชิก", "Manage accounts and sign-in")}</a
-        ><a class="k-button" href={localeHref("/app?view=servers")}
-          >{t("ตั้งค่าระบบที่เชื่อมต่อ", "Set up source systems")}</a
-        >{/if}<a class="k-button quiet" href="/oauth2/sign_out?rd=/"
-        >{t("ออกจากระบบ", "Sign out")}</a
-      >
+      {#if data.canManage}<a class="k-button" href={localeHref("/app?view=members")}>{t("จัดการสมาชิก", "Manage members")}</a
+        ><a class="k-button" href={localeHref("/app?view=servers")}>{t("จัดการระบบที่เชื่อมต่อ", "Manage connected systems")}</a
+        >{/if}<a class="k-button quiet" href="/oauth2/sign_out?rd=/">{t("ออกจากระบบ", "Sign out")}</a>
     </div>
   {:else}{#key data}<WorkspaceDashboard data={currentData!} />{/key}
   {/if}

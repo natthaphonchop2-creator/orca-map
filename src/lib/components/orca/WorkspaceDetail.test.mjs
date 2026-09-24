@@ -270,7 +270,7 @@ test('status changes retain disabled identity while choosing disabled or missing
   view.setUserSource('disabled-oidc'); await view.saveIdentity();
   view.setUserSource('missing-oidc'); await view.saveIdentity();
   assert.equal(writes.length, 1);
-  assert.match(view.state.userSourcesError, /Choose an enabled user source/);
+  assert.match(view.state.userSourcesError, /Choose an active sign-in source/);
   view.archive(); flush(); view.setUserSource(''); await view.saveIdentity();
   assert.equal(writes.length, 1);
 });

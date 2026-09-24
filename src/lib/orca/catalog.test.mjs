@@ -13,7 +13,7 @@ test('catalog authentication tags use explicit methods, preserve combinations, a
 		[['oauth'], ['OAuth']],
 		[['secrets'], ['Secrets']],
 		[['secrets', 'oauth', 'oauth'], ['OAuth', 'Secrets']],
-		[['none'], ['No auth']]
+		[['none'], ['No authentication']]
 	]) {
 		const source = { id: 'custom', name: 'An organization MCP', authMethods: methods };
 		const before = structuredClone(source);
@@ -403,7 +403,7 @@ test('catalog readiness separates OAuth capability, platform setup and live acco
   assert.equal(owner.action, 'Set up app');
   const available = catalogSetupState({ ...oauth, setupStatus: 'available' });
   assert.equal(available.canStart, true);
-  assert.equal(available.action, 'Connect app');
+  assert.equal(available.action, 'Connect this system');
   assert.doesNotMatch(JSON.stringify(available), /connected|verified|healthy/i);
 });
 
@@ -423,7 +423,7 @@ test('review gates and unknown metadata offer inspection without claiming availa
   const guide = catalogSetupState({ guideOnly: true, setupStatus: 'available', setupCanConfigure: true });
   assert.equal(guide.kind, 'guide');
   assert.equal(guide.canStart, false);
-  assert.equal(guide.action, 'Add your own MCP');
+  assert.equal(guide.action, 'Add a system with an MCP URL');
 });
 
 test('guides never enter adoption or starters and starters exclude known blockers and unknown setup', () => {

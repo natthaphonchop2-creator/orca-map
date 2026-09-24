@@ -96,7 +96,7 @@
       name:
         sourceLabel.trim() ||
         setup?.name.trim() ||
-        t("แหล่งข้อมูล", "your source"),
+        t("ระบบนี้", "this system"),
       ...providerMetadata,
     }),
   );
@@ -198,8 +198,8 @@
     }
     throw new Error(
       t(
-        "ลิงก์เข้าสู่ระบบที่ได้รับไม่ถูกต้อง กรุณาติดต่อทีม ORCA",
-        "The source returned an invalid sign-in link. Contact ORCA.",
+        "ลิงก์ลงชื่อเข้าใช้ที่ได้รับจากระบบไม่ถูกต้อง กรุณาติดต่อทีม ORCA",
+        "The system returned an invalid sign-in link. Contact the ORCA team.",
       ),
     );
   }
@@ -298,8 +298,8 @@
     if (busy || !canCreate || sourceID) return;
     if (!name.trim() || !validEndpoint(endpoint.trim())) {
       error = t(
-        "กรอกชื่อระบบและ URL ที่ขึ้นต้นด้วย HTTPS โดยไม่ใส่รหัสผ่านหรือพารามิเตอร์ใน URL",
-        "Enter a name and HTTPS URL without credentials or query parameters.",
+        "กรุณากรอกชื่อระบบและ URL ที่ขึ้นต้นด้วย HTTPS โดยไม่ระบุรหัสผ่านหรือพารามิเตอร์ใน URL",
+        "Enter a system name and an HTTPS URL without credentials or query parameters.",
       );
       return;
     }
@@ -309,7 +309,7 @@
     try {
       const created = await OrcaService.createRemoteEntry({
         name: name.trim(),
-        shortDescription: t("ระบบที่องค์กรเชื่อมต่อ", "Organization source"),
+        shortDescription: t("ระบบที่องค์กรเพิ่มเอง", "System added by your organization"),
         runtime: "remote",
         serverUserType: "singleUser",
         remoteConfig: {
@@ -339,8 +339,8 @@
       await oncreated?.(created.id);
       if (!isCurrent(request)) return;
       notice = t(
-        "เพิ่มแหล่งข้อมูลแล้ว ตั้งค่าบัญชีของคุณเพื่อเริ่มเชื่อมต่อ",
-        "Source added. Set up your account to connect.",
+        "เพิ่มระบบแล้ว ขั้นตอนถัดไปคือตั้งค่าบัญชีเพื่อเชื่อมต่อ",
+        "System added. Next, set up your account to connect.",
       );
     } catch (cause) {
       if (isCurrent(request)) error = connectionError(cause);
@@ -369,7 +369,7 @@
       if (apiGuide) editing = true;
       error = t(
         "ยังเชื่อมต่อไม่ได้ กรุณาตรวจสอบการตั้งค่าบัญชีแล้วลองอีกครั้ง",
-        "The connection is not ready. Check your source account settings and try again.",
+        "The connection is not ready. Check the account settings and try again.",
       );
     }
   }
@@ -397,8 +397,8 @@
       popup.opener = null;
       popup.document.title = t("กำลังเชื่อมต่อ · ORCA", "Connecting · ORCA");
       popup.document.body.textContent = t(
-        `กำลังเชื่อมต่อ ${providerName}… หน้าขอสิทธิ์จะเปิดที่นี่เมื่อพร้อม`,
-        `Connecting to ${providerName}… The permission page will open here when ready.`,
+        `กำลังเชื่อมต่อ ${providerName}… หน้าอนุญาตสิทธิ์จะเปิดในหน้าต่างนี้เมื่อพร้อม`,
+        `Connecting to ${providerName}… The permission page will open in this window when it is ready.`,
       );
       return popup;
     } catch {
@@ -438,7 +438,7 @@
       editing = true;
       error = t(
         "ระบบยังไม่ยอมรับโทเคนนี้ กรุณาตรวจสอบโทเคนและสิทธิ์ของบัญชี",
-        "The source did not accept this token. Check the token and its account permissions.",
+        "The system did not accept this token. Check the token and the account permissions.",
       );
       return;
     }
@@ -466,8 +466,8 @@
       return;
     if (requiresURL && !validEndpoint(sourceEndpoint.trim())) {
       error = t(
-        "กรอก URL ที่ขึ้นต้นด้วย HTTPS ของบัญชีที่ต้องการเชื่อมต่อ โดยไม่ใส่รหัสผ่านหรือข้อมูลลับใน URL",
-        "Enter the upstream HTTPS URL without secrets in the URL.",
+        "กรุณากรอก URL ของบัญชีที่ต้องการเชื่อมต่อ ซึ่งขึ้นต้นด้วย HTTPS โดยไม่ระบุรหัสผ่านหรือข้อมูลลับใน URL",
+        "Enter the account’s HTTPS URL without passwords or secrets in the URL.",
       );
       return;
     }
@@ -627,15 +627,15 @@
       setup = response;
       if (!response.oauthClientConfigured) throw new Error('not configured');
       notice = t(
-        'ตั้งค่าแอปแล้ว กดเชื่อมบัญชีเพื่ออนุญาตการใช้งาน',
-        'App configured. Connect your account to authorize access.'
+        'ตั้งค่าแอปแล้ว ขั้นตอนถัดไปคือเชื่อมบัญชีเพื่ออนุญาตการเข้าถึง',
+        'App configured. Next, connect your account to authorize access.'
       );
     } catch {
       if (isCurrent(request)) {
         clientFormOpen = true;
         error = t(
-          'บันทึกแอปไม่สำเร็จ ตรวจสอบสิทธิ์ผู้ดูแลและโหลดสถานะล่าสุดก่อนลองอีกครั้ง',
-          'Could not save the app. Check your administrator access and reload the status before retrying.'
+          'บันทึกแอปไม่สำเร็จ กรุณาตรวจสอบสิทธิ์ผู้ดูแลระบบและโหลดสถานะล่าสุด แล้วลองอีกครั้ง',
+          'The app could not be saved. Check your administrator access, reload the status, and try again.'
         );
       }
     } finally {
@@ -673,7 +673,7 @@
         ) {
           error = t(
             `ยังเชื่อมต่อ ${providerName} ไม่ได้ กรุณาโหลดสถานะอีกครั้ง หรือติดต่อทีม ORCA`,
-            `${providerName} is not ready to connect. Reload its status or contact ORCA.`,
+            `${providerName} is not ready to connect. Reload the status or contact the ORCA team.`,
           );
           return;
         }
@@ -705,14 +705,14 @@
       if (!result.disconnected)
         throw new Error(
           t(
-            "ยังยกเลิกการเชื่อมต่อไม่ได้ กรุณาลองอีกครั้ง",
-            "The connection could not be disconnected. Try again.",
+            "ยกเลิกการเชื่อมบัญชีไม่สำเร็จ กรุณาลองอีกครั้ง",
+            "The account could not be disconnected. Try again.",
           ),
         );
       if (setup) setup = { ...setup, oauthConnected: false };
       notice = t(
-        `ยกเลิกการเชื่อมบัญชี ${providerName} ใน ORCA แล้ว หากต้องการถอนสิทธิ์ที่เคยอนุญาต ให้ดำเนินการที่ผู้ให้บริการ`,
-        `Your ${providerName} sign-in in ORCA has been removed. Revoke any provider consent in the provider’s settings.`,
+        `ยกเลิกการเชื่อมบัญชี ${providerName} ใน ORCA แล้ว หากต้องการเพิกถอนสิทธิ์ที่เคยอนุญาต ให้ดำเนินการในการตั้งค่าของผู้ให้บริการ`,
+        `Your ${providerName} account has been disconnected from ORCA. To revoke the permission you granted, use the provider’s settings.`,
       );
     } catch (cause) {
       if (isCurrent(request)) {
@@ -739,9 +739,9 @@
       <p><strong>{t('ประเภทแอป', 'App type')}:</strong> {providerSetup.appType}</p>
       <ol>{#each providerSetup.steps as step}<li>{t(...step)}</li>{/each}</ol>
       <a href={providerSetup.documentationURL} target="_blank" rel="noopener noreferrer"
-        >{t('คู่มือจากผู้ให้บริการ', 'Provider documentation')} <ExternalLink size={14} /></a>
+        >{t('คู่มือจากผู้ให้บริการ', 'Provider documentation')} <ExternalLink size={14} aria-hidden="true" /></a>
       {#if slackAppURL}<a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer"
-        >{t('มีแอปแล้ว: เปิดหน้าตั้งค่า Slack App', 'Already have an app? Open Slack app settings')}</a>{/if}
+        >{t('เปิดหน้าตั้งค่าแอป Slack ที่มีอยู่', 'Open existing Slack app settings')}</a>{/if}
     </details>
   {/if}
 {/snippet}
@@ -750,30 +750,30 @@
 <section class="k-panel source-setup">
   <div class="k-section-title">
     <div class="source-heading">
-      {#if sourceID}<CatalogIcon name={providerName} size={36} />{/if}
+      {#if sourceID}<span class="source-logo"><CatalogIcon name={providerName} size={24} /></span>{/if}
       <h3>
         {sourceID
           ? t(`เชื่อมต่อ ${providerName}`, `Connect ${providerName}`)
-          : t("เพิ่มแหล่งข้อมูลขององค์กร", "Add an organization source")}
+          : t("เพิ่มระบบด้วย MCP URL", "Add a system with an MCP URL")}
       </h3>
     </div>
-    {#if !sourceID}<Plug size={21} />{/if}
+    {#if !sourceID}<Plug size={18} aria-hidden="true" />{/if}
   </div>
   {#if apiGuide && !connectionReady}
     <div class="api-onboarding">
       {#if !onready}<ol aria-label={t("ขั้นตอนเชื่อมบัญชี", "Account connection steps")}>
         <li class:current={!configured || editing}>{t("กรอกข้อมูลบัญชี", "Enter account details")}</li>
-        <li class:current={configured && !editing}>{t("ทดสอบบัญชี", "Test account")}</li>
-        <li>{t("เลือกงานและสิทธิ์", "Choose tasks and permissions")}</li>
+        <li class:current={configured && !editing}>{t("ทดสอบบัญชี", "Test the account")}</li>
+        <li>{t("เลือกเครื่องมือที่อนุญาต", "Choose allowed tools")}</li>
       </ol>{/if}
     </div>
   {/if}
-  {#if error}<div class="k-banner error" role="alert">
-      <Info size={18} />
+  {#if error}<div class="k-banner error source-banner" role="alert">
+      <Info size={16} aria-hidden="true" />
       <p>{error}</p>
     </div>{/if}
-  {#if notice && !connectionReady}<div class="k-banner success" role="status">
-      <Check size={18} />{notice}
+  {#if notice && !connectionReady}<div class="k-banner success source-banner" role="status">
+      <Check size={16} aria-hidden="true" />{notice}
     </div>{/if}
   {#if !sourceID && canCreate}
     <form
@@ -786,7 +786,7 @@
         <div class="k-grid-2">
           <div class="k-field">
             <label for="remote-source-name"
-              >{t("ชื่อระบบ", "Source name")}</label
+              >{t("ชื่อระบบ", "System name")}</label
             ><input
               id="remote-source-name"
               bind:value={name}
@@ -810,8 +810,8 @@
         <div class="k-field">
           <label for="remote-source-auth"
             >{t(
-              "วิธียืนยันตัวตนกับแหล่งข้อมูล",
-              "Source authentication",
+              "วิธียืนยันตัวตนกับระบบ",
+              "Authentication method",
             )}</label
           ><select id="remote-source-auth" bind:value={authKind}
             ><option value="none">{t("ไม่ใช้โทเคน", "No access token")}</option
@@ -830,52 +830,52 @@
           type="submit"
           >{action === "create"
             ? t("กำลังเพิ่ม…", "Adding…")
-            : t("เพิ่มแหล่งข้อมูล", "Add source")}</button
+            : t("เพิ่มระบบ", "Add a system")}</button
         >
       </fieldset>
     </form>
   {:else if loading}<p class="k-muted" role="status">
-      {t("กำลังโหลดการตั้งค่า…", "Loading configuration…")}
+      {t("กำลังโหลดการตั้งค่า…", "Loading settings…")}
     </p>
   {:else if setup}
     {#if primaryState === "ready"}
-      <div class="k-banner success" role="status">
-        <Check size={19} />
+      <div class="k-banner success source-banner" role="status">
+        <Check size={16} aria-hidden="true" />
         <div>
           <strong
             >{t(
-              `ติดต่อ ${providerName} ได้แล้ว`,
-              `${providerName} responded to the connection check`,
+              `${providerName} ผ่านการตรวจสอบการเชื่อมต่อแล้ว`,
+              `${providerName} passed the connection check`,
             )}</strong
           >
           <p>
             {apiGuide ? t(...apiGuide.result) : t(
-              "พร้อมเลือกเครื่องมือและสิทธิ์",
-              "Ready to choose tools and permissions.",
+              "ขั้นตอนถัดไปคือเลือกเครื่องมือที่อนุญาต",
+              "Next, choose the allowed tools.",
             )}
           </p>
         </div>
       </div>
     {:else if primaryState === 'unavailable'}
-      <div class="k-banner">
-        <Info size={18} />
+      <div class="k-banner source-banner">
+        <Info size={16} aria-hidden="true" />
         <div>
           <strong
             >{t(
-              providerReviewRequired ? `ต้องตรวจสอบการเชื่อมต่อ ${providerName}` : `ยังไม่ได้เปิดเชื่อมต่อ ${providerName}`,
+              providerReviewRequired ? `${providerName} รอการยืนยันจากผู้ให้บริการ` : `${providerName} ต้องตั้งค่าแอปก่อนเชื่อมต่อ`,
               providerReviewRequired ? `${providerName} needs provider review` : `${providerName} needs app setup`
             )}</strong
           >
           <p>
             {providerReviewRequired
-              ? t('ผู้ดูแล ORCA ต้องยืนยันวิธีเชื่อมต่อกับผู้ให้บริการก่อน', 'An ORCA administrator must confirm the provider connection requirements first.')
+              ? t('ผู้ดูแลระบบของ ORCA ต้องยืนยันข้อกำหนดการเชื่อมต่อกับผู้ให้บริการก่อน','An ORCA administrator must first confirm the provider’s connection requirements.')
               : canConfigureClient
               ? t(
-                  'ตั้งค่าแอปของ ORCA ครั้งแรก แล้วสมาชิกจึงเชื่อมบัญชีได้',
-                  'Set up the ORCA app once so members can connect their accounts.'
+                  'ตั้งค่าแอปของ ORCA หนึ่งครั้ง เพื่อให้สมาชิกเชื่อมบัญชีของตนได้',
+                  'Set up the ORCA app once so that members can connect their accounts.'
                 )
               : t(
-                  'ผู้ดูแลระบบ ORCA ต้องตั้งค่าแอปก่อน คุณจึงจะเชื่อมบัญชีได้',
+                  'ผู้ดูแลแพลตฟอร์ม ORCA ต้องตั้งค่าแอปก่อน จึงจะเชื่อมบัญชีได้',
                   'An ORCA platform administrator must set up the app before you can connect.'
                 )}
           </p>
@@ -884,7 +884,7 @@
       <div class="client-actions">
         {#if providerReviewRequired && providerSetup}
           <a class="k-button" href={providerSetup.actionURL} target="_blank" rel="noopener noreferrer"
-            >{t(...providerSetup.action)} <ExternalLink size={16} /></a>
+            >{t(...providerSetup.action)} <ExternalLink size={16} aria-hidden="true" /></a>
         {/if}
         {#if canConfigureClient && !clientFormOpen}
           <button class="k-button primary" disabled={busy} onclick={() => (clientFormOpen = true)}
@@ -907,23 +907,23 @@
           <fieldset disabled={busy}>
             {#if providerSetup}
               <a class="k-button" href={slackAppURL || providerSetup.actionURL} target="_blank" rel="noopener noreferrer"
-                >{slackAppURL ? t('สร้าง Slack App สำหรับ ORCA', 'Create ORCA Slack app') : t(...providerSetup.action)}
-                <ExternalLink size={16} /></a>
+                >{slackAppURL ? t('สร้างแอป Slack สำหรับ ORCA', 'Create ORCA Slack app') : t(...providerSetup.action)}
+                <ExternalLink size={16} aria-hidden="true" /></a>
               {@render oauthAppHelp()}
             {/if}
             {#if setup.endpointHost === 'mcp.slack.com'}
               <div class="k-field">
                 <label for="source-client-permissions">{t('สิทธิ์ที่ขอจาก Slack', 'Slack permissions')}</label>
-                <input id="source-client-permissions" readonly value={t('อ่านช่องสาธารณะ', 'Public channels · Read-only')} />
+                <input id="source-client-permissions" readonly value={t('ช่องสาธารณะ · อ่านข้อมูลเท่านั้น', 'Public channels · Read-only')} />
               </div>
             {/if}
             <div class="k-field">
-              <label for="source-client-callback">Callback URL</label>
+              <label for="source-client-callback">{t('URL สำหรับเรียกกลับ (Callback URL)', 'Callback URL')}</label>
               <input id="source-client-callback" readonly value={setup.oauthRedirectURL} />
             </div>
 
             <div class="k-field">
-              <label for="source-client-id">Client ID</label>
+              <label for="source-client-id">{t('รหัสไคลเอนต์ (Client ID)', 'Client ID')}</label>
               <input
                 id="source-client-id"
                 bind:value={clientID}
@@ -934,7 +934,7 @@
               />
             </div>
             <div class="k-field">
-              <label for="source-client-secret">Client Secret</label>
+              <label for="source-client-secret">{t('รหัสลับไคลเอนต์ (Client Secret)', 'Client Secret')}</label>
               <input
                 id="source-client-secret"
                 type="password"
@@ -967,7 +967,7 @@
               <label for="personal-source-url"
                 >{t(
                   "URL ของบัญชีที่ต้องการเชื่อมต่อ",
-                  "Your account URL",
+                  "Account URL",
                 )}</label
               ><input
                 id="personal-source-url"
@@ -1010,12 +1010,12 @@
                   >
                   <option value="false"
                     >{t(
-                      "อ่านและทำงานตามสิทธิ์บัญชี",
-                      "Read and act within account permissions",
+                      "อ่านและดำเนินการตามสิทธิ์ของบัญชี",
+                      "Read and act within the account’s permissions",
                     )}</option
                   >
                   <option value="true"
-                    >{t("อ่านข้อมูลเท่านั้น", "Read only")}</option
+                    >{t("อ่านข้อมูลเท่านั้น", "Read-only")}</option
                   >
                 </select>
               {:else}<input
@@ -1037,13 +1037,13 @@
             </div>{/each}
           {#if editing}<p class="k-small k-muted" style="margin-top:12px">
               {t(
-                "ข้อมูลใหม่นี้จะใช้แทนการตั้งค่าเดิม",
-                "These values will replace the saved configuration.",
+                "ข้อมูลใหม่จะแทนที่การตั้งค่าเดิม",
+                "These values will replace the saved settings.",
               )}
             </p>{/if}
-          <div class="k-actions" style="margin-top:17px">
+          <div class="k-actions" style="margin-top:16px">
             <button type="submit" class="k-button primary" disabled={busy}
-              ><KeyRound size={16} />{action === "configure"
+              ><KeyRound size={16} aria-hidden="true" />{action === "configure"
                 ? t("กำลังเชื่อมต่อ…", "Connecting…")
                 : apiGuide
                   ? t("บันทึกและทดสอบบัญชี", "Save and test account")
@@ -1062,26 +1062,26 @@
         {primaryState === "pending"
           ? oauthWindowOpened
             ? t(
-                "รออนุญาตสิทธิ์ แล้วกลับมาหน้านี้เพื่อตรวจการเชื่อมต่อ",
-                "Finish signing in, then return here to check the connection.",
+                "อนุญาตสิทธิ์ในหน้าต่างของผู้ให้บริการให้เสร็จสิ้น แล้วกลับมาที่หน้านี้เพื่อตรวจสอบการเชื่อมต่อ",
+                "Complete the sign-in in the provider’s window, then return here to check the connection.",
               )
             : t(
-                "หน้าขอสิทธิ์ยังไม่เปิด กดปุ่มด้านล่างเพื่อลงชื่อเข้าใช้",
-                "The sign-in page did not open. Use the button below.",
+                "หน้าอนุญาตสิทธิ์ไม่ได้เปิดขึ้น เลือกปุ่มด้านล่างเพื่อลงชื่อเข้าใช้",
+                "The sign-in page did not open. Use the button below to sign in.",
               )
           : t(
-                  "บัญชีนี้ต้องเข้าสู่ระบบใหม่ กรุณายกเลิกการเชื่อมบัญชีเดิมก่อน",
-                  "This account needs a new sign-in. Disconnect the current account first.",
+                  "บัญชีนี้ต้องลงชื่อเข้าใช้ใหม่ กรุณายกเลิกการเชื่อมบัญชีเดิมก่อน",
+                  "This account must sign in again. Disconnect the current account first.",
                 )}
       </p>{/if}
       <div class="k-actions" style="margin-top:16px">
         {#if busy}
           <button class="k-button primary" disabled
-            ><RefreshCw size={16} />{action === "check" || action === "return"
+            ><RefreshCw size={16} aria-hidden="true" />{action === "check" || action === "return"
               ? t("กำลังตรวจสอบการเชื่อมต่อ…", "Checking connection…")
               : action === "disconnect"
                 ? t("กำลังยกเลิกการเชื่อมบัญชี…", "Disconnecting account…")
-                : t("กำลังเตรียมการเข้าสู่ระบบ…", "Preparing sign-in…")}</button
+                : t("กำลังเตรียมการลงชื่อเข้าใช้…", "Preparing sign-in…")}</button
           >
         {:else if primaryState === "pending"}
           <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Validated external provider URL; it must not be resolved as an app route. -->
@@ -1091,32 +1091,32 @@
             target="_blank"
             rel="noopener noreferrer"
             >{oauthWindowOpened
-              ? t("เปิดหน้าขอสิทธิ์อีกครั้ง", "Reopen permission page")
+              ? t("เปิดหน้าอนุญาตสิทธิ์อีกครั้ง", "Reopen the permission page")
               : t(
-                  `เปิดหน้าขอสิทธิ์ ${providerName}`,
-                  `Open ${providerName} permission page`,
+                  `เปิดหน้าอนุญาตสิทธิ์ของ ${providerName}`,
+                  `Open the permission page for ${providerName}`,
                 )}
-            <ExternalLink size={15} /></a
+            <ExternalLink size={16} aria-hidden="true" /></a
           >
         {:else if primaryState === "connect"}
           <button class="k-button primary" onclick={startOAuth}
-            ><KeyRound size={16} />{t(
+            ><KeyRound size={16} aria-hidden="true" />{t(
               `เชื่อมต่อ ${providerName}`,
               `Connect ${providerName}`,
             )}</button
           >
         {:else if primaryState === "reconnect"}
           <button class="k-button primary" onclick={disconnectOAuth}
-            ><Unplug size={16} />{t(
-              "ยกเลิกการเชื่อมบัญชีเพื่อเข้าสู่ระบบใหม่",
-              "Disconnect account to sign in again",
+            ><Unplug size={16} aria-hidden="true" />{t(
+              "ยกเลิกการเชื่อมบัญชีเพื่อลงชื่อเข้าใช้ใหม่",
+              "Disconnect the account to sign in again",
             )}</button
           >
         {:else}
           <button class="k-button primary" onclick={verify}
-            ><RefreshCw size={16} />{t(
+            ><RefreshCw size={16} aria-hidden="true" />{t(
               onready ? "ตรวจสอบและดำเนินการต่อ" : "ตรวจสอบการเชื่อมต่อบัญชี",
-              onready ? "Check and continue" : "Check account connection",
+              onready ? "Check and continue" : "Check the account connection",
             )}</button
           >
         {/if}
@@ -1124,20 +1124,20 @@
     {/if}
     {#if !editing && (configured || oauthURL || setup.oauthConnected || fields.length) && (!appSetupRequired || setup.oauthConnected || oauthURL)}
       <details style="margin-top:16px">
-        <summary class="k-small k-muted"
+        <summary class="k-small k-muted manage-toggle"
           >{t("จัดการการเชื่อมต่อ", "Manage connection")}</summary
         >
         <div class="k-actions" style="margin-top:12px">
           {#if configured && !appSetupRequired && (oauthURL || connectionReady)}
             <button class="k-button" disabled={busy} onclick={verify}
-              ><RefreshCw size={16} />{oauthURL
-                ? t("ตรวจสอบหลังเข้าสู่ระบบ", "Check after sign-in")
+              ><RefreshCw size={16} aria-hidden="true" />{oauthURL
+                ? t("ตรวจสอบหลังลงชื่อเข้าใช้", "Check after signing in")
                 : t("ตรวจสอบอีกครั้ง", "Check again")}</button
             >
           {/if}
           {#if setup.oauthSupported && !appSetupRequired && !setup.oauthConnected && oauthURL}
             <button class="k-button quiet" disabled={busy} onclick={startOAuth}
-              >{t("เริ่มเข้าสู่ระบบใหม่", "Restart sign-in")}</button
+              >{t("เริ่มลงชื่อเข้าใช้ใหม่", "Restart sign-in")}</button
             >
           {/if}
           {#if (requiresURL || fields.length) && !appSetupRequired}
@@ -1146,7 +1146,7 @@
               disabled={busy}
               onclick={() => editConfiguration(true)}
               >{configured
-                ? t("เปลี่ยนการตั้งค่าบัญชี", "Replace account configuration")
+                ? t("เปลี่ยนการตั้งค่าบัญชี", "Change account settings")
                 : t(
                     "ตั้งค่าโทเคนหรือตัวเลือกเพิ่มเติม",
                     "Set up a token or other options",
@@ -1158,24 +1158,24 @@
               class="k-button quiet"
               disabled={busy}
               onclick={disconnectOAuth}
-              ><Unplug size={16} />{action === "disconnect"
+              ><Unplug size={16} aria-hidden="true" />{action === "disconnect"
                 ? t("กำลังยกเลิก…", "Disconnecting…")
                 : setup.oauthConnected
                   ? t("ยกเลิกการเชื่อมบัญชี", "Disconnect account")
                   : t(
-                      "ยกเลิกการเข้าสู่ระบบที่รออยู่",
-                      "Cancel pending sign-in",
+                      "ยกเลิกการลงชื่อเข้าใช้ที่ค้างอยู่",
+                      "Cancel the pending sign-in",
                     )}</button
             >
           {/if}
           <button class="k-link-button" disabled={busy} onclick={() => load()}
-            >{t("โหลดสถานะล่าสุด", "Reload current status")}</button
+            >{t("โหลดสถานะล่าสุด", "Reload status")}</button
           >
         </div>
         {#if setup.oauthConnected}
           <p class="k-small k-muted" style="margin-top:10px">
             {t(
-              "หากต้องการเปลี่ยนบัญชี ให้ยกเลิกการเชื่อมบัญชีก่อน การยกเลิกใน ORCA จะไม่ถอนสิทธิ์ที่เคยอนุญาตกับผู้ให้บริการ",
+              "หากต้องการเปลี่ยนบัญชี ให้ยกเลิกการเชื่อมบัญชีก่อน การยกเลิกใน ORCA ไม่ได้เพิกถอนสิทธิ์ที่อนุญาตไว้กับผู้ให้บริการ",
               "To change accounts, disconnect first. Disconnecting in ORCA does not revoke consent already granted to the provider.",
             )}
           </p>
@@ -1183,59 +1183,59 @@
       </details>
     {/if}
   {:else}<button class="k-button" disabled={busy} onclick={() => load()}
-      >{t("โหลดการตั้งค่าอีกครั้ง", "Reload configuration")}</button
+      >{t("โหลดการตั้งค่าอีกครั้ง", "Reload settings")}</button
     >{/if}
   {#if !sourceID || apiGuide || guide || fields.length || providerHost || providerKind}
     <details class="source-provider">
       <summary>{t("วิธีตั้งค่า", "Setup help")}</summary
       >
       {#if !sourceID}
-        <p>{t("ใส่ URL ของ MCP ส่วน token จะกรอกในขั้นตอนเชื่อมบัญชี", "Enter the MCP URL. You will enter the token during account setup.")}</p>
+        <p>{t("กรอก URL ของ MCP ในขั้นตอนนี้ ส่วนโทเคนจะกรอกในขั้นตอนเชื่อมบัญชี", "Enter the MCP URL here. The token is entered during account setup.")}</p>
       {/if}
       {#if apiGuide}
         <p>{t(...apiGuide.summary)}</p>
-        <p>{t("รองรับการอ่านข้อมูล ยังไม่รองรับส่งข้อความหรือเผยแพร่โพสต์", "Supports reading data. Sending messages and publishing posts are not available.")}</p>
+        <p>{t("รองรับการอ่านข้อมูลเท่านั้น ยังไม่รองรับการส่งข้อความหรือการเผยแพร่โพสต์", "Supports reading data only. Sending messages and publishing posts are not supported.")}</p>
       {:else if guide}
         <p>{t(guide.th, guide.en)}</p>
-        <a class="field-help-link" href={guide.href} target="_blank" rel="noopener noreferrer">{t("คู่มือผู้ให้บริการ", "Provider guide")}<ExternalLink size={14} /></a>
+        <a class="field-help-link" href={guide.href} target="_blank" rel="noopener noreferrer">{t("คู่มือของผู้ให้บริการ", "Provider guide")}<ExternalLink size={14} aria-hidden="true" /></a>
       {/if}
       {#each fields as field, index (field.key)}
         {@const fieldCopy = apiGuide?.fields[field.key]}
         {#if fieldCopy || field.description}
           <div class="setup-field-help" id={`source-help-${index}`}>
             <strong>{fieldCopy ? t(...fieldCopy.label) : field.name || field.key}</strong>
-            <p>{fieldCopy ? t(...fieldCopy.hint) : field.description === "Personal upstream access token" ? t("โทเคนส่วนตัวสำหรับเข้าถึงระบบที่เชื่อมต่อ", "Personal upstream access token") : field.description}</p>
-            {#if fieldCopy}<a class="field-help-link" href={fieldCopy.href} target="_blank" rel="noopener noreferrer">{t(...fieldCopy.linkLabel)}<ExternalLink size={14} /></a>{/if}
+            <p>{fieldCopy ? t(...fieldCopy.hint) : field.description === "Personal upstream access token" ? t("โทเคนส่วนตัวสำหรับเข้าถึงระบบที่เชื่อมต่อ", "Personal access token for the connected system") : field.description}</p>
+            {#if fieldCopy}<a class="field-help-link" href={fieldCopy.href} target="_blank" rel="noopener noreferrer">{t(...fieldCopy.linkLabel)}<ExternalLink size={14} aria-hidden="true" /></a>{/if}
           </div>
         {/if}
       {/each}
       {#if providerKind === "orca"}
         <p class="k-small k-muted">{t(
-          `ลงชื่อเข้าใช้บัญชี ${providerName} ของคุณ แล้วอนุญาต ORCA บัญชีที่เชื่อมผ่านผู้ให้บริการอื่นต้องลงชื่อเข้าใช้ใหม่`,
+          `ลงชื่อเข้าใช้บัญชี ${providerName} ของคุณ แล้วอนุญาตให้ ORCA เข้าถึง บัญชีที่เชื่อมผ่านผู้ให้บริการรายอื่นต้องลงชื่อเข้าใช้แยกต่างหาก`,
           `Sign in to your own ${providerName} account and authorize ORCA. Accounts connected through another provider require a separate sign-in.`,
         )}</p>
       {:else if providerKind === "obot"}
         <p class="k-small k-muted">
           {t(
-            "การเชื่อมต่อนี้ผ่านบริการของ Obot บัญชีและสิทธิ์ผูกกับการเชื่อมต่อเดิม",
+            "การเชื่อมต่อนี้ใช้บริการของ Obot บัญชีและสิทธิ์จะผูกอยู่กับการเชื่อมต่อนี้",
             "This connection uses Obot’s service. Its account and permissions stay with this connection.",
           )}
         </p>
       {:else if providerKind === "google"}
         <p class="k-small k-muted">
           {t(
-            "เชื่อมกับบริการ Google Drive ของ Google",
+            "เชื่อมต่อกับบริการ Google Drive ของ Google",
             "Connects to Google’s Google Drive service.",
           )}
         </p>
       {/if}
       {#if providerHost && !apiGuide && providerKind !== "orca"}<p class="k-small k-muted">
-        {t("เซิร์ฟเวอร์ต้นทาง", "Source server")}: <code>{providerHost}</code>
+        {t("โฮสต์ของระบบ", "System host")}: <code>{providerHost}</code>
       </p>{/if}
       {#if providerKind === "obot" || providerKind === "google"}
         <p class="k-small k-muted">
           {t(
-            "ชื่อแอปบนหน้าขอสิทธิ์เป็นไปตามการตั้งค่าของผู้ให้บริการ",
+            "ชื่อแอปที่แสดงบนหน้าอนุญาตสิทธิ์เป็นไปตามการตั้งค่าของผู้ให้บริการ",
             "The provider’s configuration determines the app name shown on the consent page.",
           )}
         </p>
@@ -1245,17 +1245,101 @@
 </section>
 
 <style>
-  .client-provider-help { margin: 18px 0; border-top: 1px solid var(--k-line); padding-top: 14px; }
-  .client-provider-help summary { cursor: pointer; font-weight: 600; }
-  .client-provider-help p { margin: 14px 0; }
-  .client-provider-help ol { padding-left: 24px; margin: 14px 0; }
-  .client-provider-help li { margin: 10px 0; line-height: 1.6; }
-  .client-provider-help a { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
-
+  /* These styles load before the shared workspace CSS (WorkspaceDetail and WorkspaceWizard import
+     this component first), so overrides of shared classes carry an extra class. */
+  .source-setup.k-panel {
+    min-width: 0;
+  }
+  .source-setup .k-section-title {
+    margin-bottom: 16px;
+    color: var(--orca-subtle);
+  }
+  .source-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    color: var(--orca-ink);
+  }
+  .source-heading h3 {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .source-logo {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex: none;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface);
+    overflow: hidden;
+  }
+  .source-banner.k-banner {
+    margin: 0 0 16px;
+  }
+  .source-banner strong {
+    display: block;
+    font-weight: 600;
+  }
+  .source-banner p {
+    margin: 2px 0 0;
+  }
+  .source-setup :global(.k-field + .k-field),
+  .source-setup .k-grid-2 + .k-field {
+    margin-top: 16px;
+  }
+  .api-onboarding {
+    margin: 0 0 16px;
+  }
+  .api-onboarding ol {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 20px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: api-step;
+  }
+  .api-onboarding li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--orca-muted);
+    font-size: 13.5px;
+    font-weight: 500;
+    counter-increment: api-step;
+  }
+  .api-onboarding li::before {
+    content: counter(api-step);
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    flex: none;
+    border: 1px solid var(--orca-line-strong);
+    border-radius: 50%;
+    background: var(--orca-surface);
+    color: var(--orca-muted);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .api-onboarding li.current {
+    color: var(--orca-ink);
+    font-weight: 600;
+  }
+  .api-onboarding li.current::before {
+    border-color: var(--orca-ink);
+    background: var(--orca-ink);
+    color: #fff;
+  }
   .client-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 8px;
     margin-top: 16px;
   }
   .client-setup {
@@ -1264,40 +1348,88 @@
   .client-setup .k-field {
     margin-top: 16px;
   }
-  .client-setup p {
+  .client-provider-help {
+    margin: 16px 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--orca-line);
+    font-size: 13.5px;
+  }
+  .client-provider-help summary,
+  .source-provider summary {
+    color: var(--orca-muted);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .client-provider-help summary:hover,
+  .source-provider summary:hover {
+    color: var(--orca-ink);
+  }
+  .client-provider-help p {
     margin: 12px 0;
   }
-
-  .api-onboarding { margin: 18px 0; }
-  .api-onboarding ol { display: flex; flex-wrap: wrap; gap: 10px 24px; list-style-position: inside; padding: 0; margin: 16px 0; color: var(--k-muted); font-size: 13px; }
-  .api-onboarding li.current { color: var(--k-text); font-weight: 650; }
-  .field-help-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin-top: 6px; margin-bottom: 8px; }
-  .source-setup :global(.k-field + .k-field) { margin-top: 22px; }
-
-  .source-heading {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+  .client-provider-help ol {
+    margin: 12px 0;
+    padding-left: 22px;
   }
-  .source-heading h3 {
-    margin: 0;
+  .client-provider-help li {
+    margin: 6px 0;
+    line-height: 1.65;
+  }
+  .client-provider-help a,
+  .field-help-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--orca-ink);
+    font-size: 13.5px;
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+  .client-provider-help a {
+    display: flex;
+    width: fit-content;
+    margin-top: 8px;
+  }
+  .field-help-link {
+    margin: 6px 0 4px;
+  }
+  .manage-toggle {
+    cursor: pointer;
+  }
+  .manage-toggle:hover {
+    color: var(--orca-ink);
   }
   .source-provider {
-    margin-top: 18px;
-    border-top: 1px solid var(--k-line);
-    padding-top: 14px;
-  }
-  .source-provider summary {
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--orca-line);
   }
   .source-provider p {
-    margin: 10px 0 0;
+    margin: 8px 0 0;
+    color: var(--orca-muted);
+    font-size: 13.5px;
     line-height: 1.7;
   }
-  .setup-field-help { margin-top: 18px; font-size: 14px; }
+  .setup-field-help {
+    margin-top: 12px;
+    font-size: 13.5px;
+  }
+  .setup-field-help strong {
+    display: block;
+    font-weight: 600;
+  }
+  .setup-field-help p {
+    margin-top: 2px;
+  }
   .source-provider code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--orca-secondary);
+    color: var(--orca-nav);
+    font-size: 12.5px;
     overflow-wrap: anywhere;
   }
 </style>

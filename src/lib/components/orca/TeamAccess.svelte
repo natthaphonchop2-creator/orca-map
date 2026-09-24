@@ -70,29 +70,29 @@
   const roleGroups = $derived([
     {
       id: "owner",
-      label: "Owner",
+      label: t("เจ้าของระบบ", "Owner"),
       icon: Crown,
       detail: t(
-        "ดูแลทั้งองค์กรและกำหนดบทบาท",
-        "Manage the organization and roles",
+        "ดูแลการตั้งค่าทั้งองค์กรและกำหนดบทบาทสมาชิก",
+        "Manages all organization settings and member roles",
       ),
     },
     {
       id: "admin",
-      label: t("Admin องค์กร", "Organization admin"),
+      label: t("ผู้ดูแลระบบ", "Admin"),
       icon: Shield,
       detail: t(
-        "จัดการการเชื่อมต่อ สมาชิก และแผนก",
-        "Manage connections, employees and departments",
+        "จัดการระบบที่เชื่อมต่อ พื้นที่ทำงาน AI สมาชิก และแผนก",
+        "Manages connected systems, AI workspaces, members and departments",
       ),
     },
     {
       id: "employee",
-      label: t("พนักงาน", "Employee"),
+      label: t("สมาชิกทั่วไป", "Member"),
       icon: Users,
       detail: t(
-        "ใช้งานตามพื้นที่และสิทธิ์ที่ได้รับ",
-        "Use assigned workspaces and permissions",
+        "ใช้งานพื้นที่ทำงาน AI และเครื่องมือตามสิทธิ์ที่ได้รับ",
+        "Uses assigned AI workspaces and tools",
       ),
     },
   ]);
@@ -219,12 +219,12 @@
       open = false;
       success = resetting
         ? t(
-            "เปลี่ยนรหัสผ่านแล้ว บัญชีนี้จะต้องเข้าสู่ระบบใหม่บนทุกอุปกรณ์",
-            "Password updated. Previous sign-in sessions for this account have been ended.",
+            "เปลี่ยนรหัสผ่านแล้ว บัญชีนี้ต้องเข้าสู่ระบบใหม่บนทุกอุปกรณ์",
+            "Password updated. This account must sign in again on every device.",
           )
         : t(
-            "สร้างบัญชีแล้ว ให้ผู้ใช้เข้าสู่ระบบครั้งแรกก่อนเพิ่มเป็นสมาชิกในพื้นที่ทำงาน",
-            "Account created. The user must sign in once before being assigned to a workspace.",
+            "สร้างบัญชีแล้ว ผู้ใช้ต้องเข้าสู่ระบบครั้งแรกก่อน จึงจะเพิ่มเป็นสมาชิกของพื้นที่ทำงาน AI ได้",
+            "Account created. The user must sign in once before being added to an AI workspace.",
           );
       await refresh();
       await onchanged();
@@ -241,49 +241,61 @@
         new URL(localeHref("/login"), window.location.origin).href,
       );
       success = t(
-        "คัดลอกลิงก์แล้ว คุณสามารถนำไปส่งให้สมาชิกได้ ระบบยังไม่ได้ส่งข้อความหรืออีเมล",
-        "Sign-in link copied. No message or email has been sent.",
+        "คัดลอกลิงก์เข้าสู่ระบบแล้ว ORCA ไม่ได้ส่งข้อความหรืออีเมลใดถึงสมาชิก",
+        "Sign-in link copied. ORCA has not sent any message or email.",
       );
     } catch {
       error = t(
-        "คัดลอกลิงก์ไม่สำเร็จ กรุณาเปิดหน้าเข้าสู่ระบบแล้วคัดลอก URL จากแถบที่อยู่ของเบราว์เซอร์",
+        "คัดลอกลิงก์ไม่สำเร็จ กรุณาเปิดหน้าเข้าสู่ระบบและคัดลอกที่อยู่จากแถบที่อยู่ของเบราว์เซอร์",
         "Copy failed. Open the sign-in page and copy its address from the browser.",
       );
     }
   }
 </script>
 
-<div class="k-breadcrumb">
-  <a href={localeHref("/app?view=workspaces")}
-    >{t("พื้นที่ทำงาน", "Workspaces")}</a
-  ><span>/</span><span>{t("สมาชิกและสิทธิ์", "Team & access")}</span>
-</div>
 <div class="k-intro">
   <div class="k-heading-row">
-    <h1>
-      {t("จัดการสมาชิกและสิทธิ์ของทีม", "The right access for your team")}
-    </h1>
-    {#if data.canManage && localAvailable && section === "members"}<button
-        class="k-button primary"
-        onclick={() => start()}
-        ><Plus size={18} />{t("เพิ่มบัญชี", "Add account")}</button
-      >{/if}
+    <div class="team-heading">
+      <h1>
+        {t("สมาชิกและแผนก", "Members and departments")}
+      </h1>
+      <p class="k-subtitle">
+        {t(
+          "กำหนดบทบาทในองค์กร จัดสมาชิกตามแผนก และกำหนดสิทธิ์การเข้าถึงตามหน้าที่",
+          "Assign organization roles, organize members into departments and grant access according to each person’s responsibilities.",
+        )}
+      </p>
+    </div>
+    {#if data.canManage && section === "members"}<div class="team-heading-actions">
+        <button
+          class="k-button"
+          disabled={loading || saving}
+          onclick={async () => {
+            await refresh();
+            await onchanged();
+            await refreshDepartments();
+          }}><RefreshCw size={16} />{t("โหลดข้อมูลใหม่", "Refresh")}</button
+        ><button class="k-button" onclick={copyLogin}
+          ><Copy size={16} />{t(
+            "คัดลอกลิงก์เข้าสู่ระบบ",
+            "Copy sign-in link",
+          )}</button
+        >{#if localAvailable}<button
+            class="k-button primary"
+            onclick={() => start()}
+            ><Plus size={16} />{t("เพิ่มบัญชีผู้ใช้", "Add user account")}</button
+          >{/if}
+      </div>{/if}
   </div>
-  <p class="k-subtitle">
-    {t(
-      "กำหนดบทบาทในองค์กร จัดพนักงานตามแผนก และให้เข้าถึงงานตามหน้าที่",
-      "Assign organization roles, organize departments and give each person the access their work needs.",
-    )}
-  </p>
 </div>
 <div class="team-role-overview">
   {#each roleGroups as group}<article>
-      <group.icon size={20} />
+      <span class="team-role-icon" aria-hidden="true"><group.icon size={16} /></span>
       <div>
         <strong>{group.label}</strong>
         <p>{group.detail}</p>
       </div>
-      <span
+      <span class="team-role-count"
         >{data.members.filter(
           (member) => (!member.status || member.status === "active") && organizationRole(member.role) === group.id,
         ).length}</span
@@ -291,47 +303,47 @@
     </article>{/each}
 </div>
 {#if !data.canManage}<div class="k-banner">
-    <Info size={18} />{t(
-      "บัญชีนี้ดูรายชื่อได้ แต่เปลี่ยนบทบาทหรือจัดแผนกไม่ได้ ติดต่อ Owner หรือ Admin องค์กรเพื่อปรับสิทธิ์",
-      "This account cannot manage roles or departments. Contact an Owner or organization admin for access changes.",
+    <Info size={16} />{t(
+      "บัญชีนี้ดูรายชื่อสมาชิกได้ แต่ไม่สามารถเปลี่ยนบทบาทหรือจัดการแผนก กรุณาติดต่อเจ้าของระบบหรือผู้ดูแลระบบเพื่อขอปรับสิทธิ์",
+      "This account can view members but cannot change roles or manage departments. Contact an Owner or Admin to request access changes.",
     )}
   </div>{:else if !canManageRoles}<p class="k-small k-muted team-role-note">
     {organizationRole(currentUser?.role ?? "") === "admin"
       ? t(
-          "Admin องค์กรจัดการสมาชิกและแผนกได้ การเปลี่ยนบทบาทให้ Owner เป็นผู้ดำเนินการ",
-          "Organization admins manage employees and departments. An Owner manages roles.",
+          "ผู้ดูแลระบบจัดการสมาชิกและแผนกได้ ส่วนการเปลี่ยนบทบาทต้องดำเนินการโดยเจ้าของระบบ",
+          "Admins manage members and departments. Only an Owner can change roles.",
         )
       : t(
-          "ระบบยังไม่ยืนยันสิทธิ์จัดการบทบาท กรุณารีเฟรชข้อมูลเพื่อตรวจสอบสิทธิ์ล่าสุด",
-          "Role management permission has not been confirmed. Refresh to check the latest access.",
+          "ยังไม่สามารถยืนยันสิทธิ์การจัดการบทบาท กรุณาโหลดข้อมูลใหม่เพื่อตรวจสอบสิทธิ์ล่าสุด",
+          "Role management access could not be confirmed. Refresh to check your latest access.",
         )}
   </p>{/if}
-<nav class="team-tabs" aria-label={t("จัดการทีม", "Team management")}>
+<nav class="team-tabs" aria-label={t("การจัดการสมาชิก", "Member management")}>
   <button
     class:active={section === "members"}
     aria-pressed={section === "members"}
     disabled={departmentDirty || saving}
     onclick={() => changeSection("members")}
-    ><Users size={17} />{t("สมาชิกและบทบาท", "Members & roles")}</button
+    ><Users size={16} />{t("สมาชิกและบทบาท", "Members & roles")}</button
   >
   {#if data.canManage}<button
       class:active={section === "departments"}
       aria-pressed={section === "departments"}
       disabled={departmentDirty || saving}
       onclick={() => changeSection("departments")}
-      ><Building2 size={17} />{t("แผนก", "Departments")}<span
+      ><Building2 size={16} />{t("แผนก", "Departments")}<span
         >{data.units.filter((unit) => unit.kind === "department" && !unit.archivedAt && !unit.deletedAt).length}</span
       ></button
     >{/if}
 </nav>
 {#if navigationBlocked}<div class="k-banner" role="alert">
-    <Info size={18} />{t(
-      "มีการแก้ไขที่ยังไม่บันทึก กรุณาบันทึกหรือยกเลิกการแก้ไขก่อนออกจากหน้านี้",
-      "Save or discard your changes before leaving this page.",
+    <Info size={16} />{t(
+      "มีการแก้ไขที่ยังไม่ได้บันทึก กรุณาบันทึกหรือยกเลิกการแก้ไขก่อนออกจากหน้านี้",
+      "You have unsaved changes. Save or discard them before leaving this page.",
     )}
   </div>{/if}
 {#if section === "departments" && data.canManage}<div
-    class="business-library k-panel"
+    class="business-library"
   >
     <LibraryDepartments
       {data}
@@ -347,14 +359,13 @@
         oncancel={() => (editingRole = undefined)}
       />{/key}{/if}
   {#if error}<div class="k-banner error" role="alert">
-      <Info size={18} />{error}
+      <Info size={16} />{error}
     </div>{/if}
   {#if success}<div class="k-banner success" role="status">
-      <Check size={18} />{success}
+      <Check size={16} />{success}
     </div>{/if}
   {#if open && data.canManage && localAvailable}<form
-      class="k-panel"
-      style="margin-bottom:24px"
+      class="k-panel team-form"
       onsubmit={(event) => {
         event.preventDefault();
         void save();
@@ -363,10 +374,10 @@
       <h2>
         {resetting
           ? t("ตั้งรหัสผ่านใหม่", "Set a new password")
-          : t("สร้างบัญชีให้สมาชิก", "Add an account to this installation")}
+          : t("สร้างบัญชีผู้ใช้", "Create a user account")}
       </h2>
       <fieldset disabled={saving}>
-        <div class="k-grid-2 k-section">
+        <div class="k-grid-2 team-form-grid">
           <div class="k-field">
             <label for="team-email">{t("อีเมล", "Email")}</label><input
               id="team-email"
@@ -386,7 +397,7 @@
               required
               autocomplete="new-password"
             />
-            <p class="k-small k-muted">
+            <p class="k-small k-muted team-form-hint">
               {t(
                 `อย่างน้อย ${LOCAL_AUTH_MIN_PASSWORD_LENGTH} ตัวอักษร`,
                 `At least ${LOCAL_AUTH_MIN_PASSWORD_LENGTH} characters`,
@@ -394,13 +405,13 @@
             </p>
           </div>
         </div>
-        <p class="k-small k-muted" style="margin-top:14px">
+        <p class="k-small k-muted team-form-note">
           {t(
-            "กรุณาส่งข้อมูลเข้าสู่ระบบให้สมาชิกผ่านช่องทางที่เหมาะสมด้วยตนเอง แบบฟอร์มนี้ไม่ส่งอีเมลหรือคำเชิญโดยอัตโนมัติ",
-            "Share sign-in details with the user through an appropriate channel. This form does not send email or invitations.",
+            "กรุณาแจ้งข้อมูลเข้าสู่ระบบแก่ผู้ใช้ผ่านช่องทางที่เหมาะสมด้วยตนเอง แบบฟอร์มนี้ไม่ส่งอีเมลหรือคำเชิญโดยอัตโนมัติ",
+            "Share the sign-in details with the user through an appropriate channel. This form does not send email or invitations.",
           )}
         </p>
-        <div class="k-actions" style="margin-top:18px">
+        <div class="k-actions team-form-actions">
           <button class="k-button primary" type="submit" disabled={saving}
             >{saving
               ? t("กำลังบันทึก…", "Saving…")
@@ -417,9 +428,9 @@
       </fieldset>
     </form>{/if}
 
-  <div class="k-heading-row" style="margin-bottom:22px">
-    <div class="k-field" style="width:min(440px,100%)">
-      <label for="team-search">{t("ค้นหาสมาชิก", "Search team")}</label><input
+  <div class="team-toolbar" class:compact={!data.canManage}>
+    <div class="k-field team-search">
+      <label for="team-search">{t("ค้นหาสมาชิก", "Search members")}</label><input
         id="team-search"
         type="search"
         bind:value={query}
@@ -427,7 +438,7 @@
       />
     </div>
     <div class="team-filters">
-      <div class="k-field"><label for="member-status">{t('สถานะสมาชิก','Member status')}</label><select id="member-status" bind:value={memberStatus}><option value="active">{t('ใช้งานอยู่','Active')}</option><option value="suspended">{t('ระงับแล้ว','Suspended')}</option></select></div>
+      <div class="k-field"><label for="member-status">{t('สถานะสมาชิก','Member status')}</label><select id="member-status" bind:value={memberStatus}><option value="active">{t('เปิดใช้งาน','Active')}</option><option value="suspended">{t('ระงับ','Suspended')}</option></select></div>
       <div class="k-field">
         <label for="team-role-filter">{t("บทบาท", "Role")}</label><select
           id="team-role-filter"
@@ -445,141 +456,133 @@
             bind:value={departmentFilter}
             disabled={!!departmentError}
             ><option value="all">{t("ทุกแผนก", "All departments")}</option
-            ><option value="none">{t("ยังไม่ระบุแผนก", "Unassigned")}</option
+            ><option value="none">{t("ยังไม่มีแผนก", "No department")}</option
             >{#each data.units.filter((unit) => unit.kind === "department" && !unit.archivedAt && !unit.deletedAt) as unit}<option
                 value={unit.id}>{unit.name}</option
               >{/each}</select
           >
         </div>{/if}
     </div>
-    {#if data.canManage}<div class="k-actions">
-        <button
-          class="k-button"
-          disabled={loading || saving}
-          onclick={async () => {
-            await refresh();
-            await onchanged();
-            await refreshDepartments();
-          }}><RefreshCw size={16} />{t("รีเฟรชข้อมูล", "Refresh")}</button
-        ><button class="k-button quiet" onclick={copyLogin}
-          ><Copy size={15} />{t(
-            "คัดลอกลิงก์เข้าสู่ระบบ",
-            "Sign-in link",
-          )}</button
-        >
-      </div>{/if}
   </div>
   {#if departmentError}<div class="k-banner" role="alert">
-      <Info size={17} />{t(
+      <Info size={16} />{t(
         "โหลดรายชื่อแผนกไม่สำเร็จ",
         "Could not load departments",
       )}: {departmentError}
     </div>{/if}
-  {#if members.length}<div class="k-table-wrap">
-      <table class="k-table">
+  {#if members.length}<div class="k-table-wrap team-table-wrap">
+      <table class="k-table team-table">
         <thead
           ><tr
-            ><th>{t("สมาชิกที่เคยเข้าสู่ระบบ", "Signed-in members")}</th><th
+            ><th scope="col">{t("สมาชิก", "Member")}</th><th scope="col"
               >{t("บทบาท", "Role")}</th
-            >{#if data.canManage}<th>{t("แผนก", "Department")}</th>{/if}<th
-              >{t("พื้นที่ทำงาน", "Workspaces")}</th
-            >{#if data.canManage && localAvailable}<th
-                >{t("บัญชี", "Account")}</th
-              >{/if}{#if data.canManage}<th>{t('จัดการสมาชิก', 'Manage member')}</th>{/if}</tr
+            >{#if data.canManage}<th scope="col">{t("แผนก", "Department")}</th>{/if}<th scope="col"
+              >{t("พื้นที่ทำงาน AI", "AI workspaces")}</th
+            >{#if data.canManage && localAvailable}<th scope="col"
+                >{t("บัญชีผู้ใช้", "Account")}</th
+              >{/if}{#if data.canManage}<th scope="col" class="team-actions-col">{t('การจัดการสมาชิก', 'Member actions')}</th>{/if}</tr
           ></thead
         ><tbody
           >{#each members as member (member.id)}<tr
-              ><td
+              ><td class="team-member"
                 ><strong>{memberName(member)}</strong>
-                <p class="k-small k-muted">{member.email}</p></td
-              ><td
+                {#if memberName(member) !== member.email}<p class="k-small k-muted">{member.email}</p>{/if}</td
+              ><td class="team-role"
                 ><span class="role-badge">{memberRole(member.role)}</span
                 >{#if member.roleLocked}<small class="role-locked"
                     >{t(
-                      "กำหนดจากการตั้งค่าระบบ",
-                      "Set by system configuration",
+                      "กำหนดโดยการตั้งค่า ORCA",
+                      "Set by ORCA configuration",
                     )}</small
                   >{:else if canManageRoles && typeof member.role === "number" && (!member.status || member.status === "active")}<button
-                    class="k-link-button"
+                    class="k-link-button team-role-change"
                     onclick={() => (editingRole = member)}
                     >{t("เปลี่ยนบทบาท", "Change role")}</button
                   >{/if}</td
-              >{#if data.canManage}<td
-                  >{#each departments.filter( (department) => department.memberIDs.includes(member.id), ) as department}<span
+              >{#if data.canManage}<td class="team-departments"
+                  ><div class="team-chips">{#each departments.filter( (department) => department.memberIDs.includes(member.id), ) as department}{@const departmentLabel = data.units.find((unit) => unit.id === department.unitID)
+                        ?.name || department.name}<span
                       class="department-badge"
-                      >{data.units.find((unit) => unit.id === department.unitID)
-                        ?.name || department.name}</span
-                    >{:else}<span class="k-muted"
+                      title={departmentLabel}
+                      >{departmentLabel}</span
+                    >{:else}<span class="team-none"
                       >{departmentError
                         ? "—"
-                        : t("ยังไม่ระบุ", "Unassigned")}</span
-                    >{/each}</td
-                >{/if}<td
+                        : t("ยังไม่มีแผนก", "No department")}</span
+                    >{/each}</div></td
+                >{/if}<td class="team-hubs"
                 >{#each data.hubs.filter( (hub) => gatewayHasMember(hub, member.id), ) as hub}<a
+                    class="team-hub-link"
                     href={localeHref(
                       `/app?view=hub&hub=${encodeURIComponent(hub.id)}`,
                     )}
-                    style="display:block">{hub.name}</a
-                  >{:else}<span class="k-muted"
+                    title={hub.name}>{hub.name}</a
+                  >{:else}<span class="team-none"
                     >{t(
-                      "ยังไม่มีสิทธิ์เข้าถึงพื้นที่ทำงาน",
-                      "No workspace access yet",
+                      "ยังไม่มีพื้นที่ทำงาน AI",
+                      "No AI workspace yet",
                     )}</span
                   >{/each}</td
               >{#if data.canManage && localAvailable}{@const account =
                   accounts.find(
                     (item) =>
                       normalized(item.email) === normalized(member.email),
-                  )}<td
+                  )}<td class="team-account"
                   >{#if account && passwordAllowed(member)}<button
-                      class="k-button quiet small"
+                      class="team-icon-button"
+                      aria-label={t(`ตั้งรหัสผ่านใหม่ให้ ${member.email}`, `Reset password for ${member.email}`)}
+                      title={t("ตั้งรหัสผ่านใหม่", "Reset password")}
                       onclick={() => start(account)}
-                      ><KeyRound size={14} />{t(
-                        "ตั้งรหัสผ่านใหม่",
-                        "Reset password",
-                      )}</button
-                    >{:else}<span class="k-small k-muted"
+                      ><KeyRound size={16} aria-hidden="true" /></button
+                    >{:else}<span class="team-account-note"
                       >{member.status === 'suspended'
                         ? t('บัญชีถูกระงับ', 'Account suspended')
                         : account
                           ? t(
-                              "บัญชีผู้ดูแล · จำกัดสิทธิ์",
+                              "บัญชีผู้ดูแลระบบที่ได้รับการป้องกัน",
                               "Protected administrator account",
                             )
                           : t(
-                              "บัญชีจากผู้ให้บริการยืนยันตัวตน",
-                              "Identity provider account",
+                              "บัญชีจากผู้ให้บริการเข้าสู่ระบบภายนอก",
+                              "External sign-in account",
                             )}</span
                     >{/if}</td
-                >{/if}{#if data.canManage}<td>
-                  {#if canManageMember(member)}<TeamLifecycleActions kind="member" id={member.id} name={memberName(member)} version={member.version ?? 0} inactive={member.status === 'suspended'} disabled={saving || !!editingRole || open} onbusy={(value) => saving = value} onchanged={memberChanged} />
-                  {:else}<span class="k-small k-muted">{member.id === data.currentUserID ? t('บัญชีของคุณ', 'Your account') : t('จำกัดสิทธิ์ผู้ดูแล', 'Administrator access required')}</span>{/if}
+                >{/if}{#if data.canManage}<td class="team-actions-col">
+                  {#if canManageMember(member)}<TeamLifecycleActions kind="member" id={member.id} name={memberName(member)} version={member.version ?? 0} inactive={member.status === 'suspended'} disabled={saving || !!editingRole || open} compact onbusy={(value) => saving = value} onchanged={memberChanged} />
+                  {:else}<span class="team-account-note">{member.id === data.currentUserID ? t('บัญชีของคุณ', 'Your account') : t('จัดการได้โดยเจ้าของระบบ', 'Managed by an Owner')}</span>{/if}
                 </td>{/if}</tr
             >{/each}</tbody
         >
       </table>
-    </div>{:else}<div class="k-empty">
-      <Users size={32} />
+    </div>{:else}<div class="k-empty team-empty">
+      <Users size={28} />
       <h2>{t("ไม่พบสมาชิก", "No members found")}</h2>
-      <p>{t("ลองค้นหาด้วยชื่อหรืออีเมลอื่น", "Try another name or email.")}</p>
-    </div>{/if}
-  {#if data.canManage && pending.length}<section class="k-section">
-      <div class="k-section-title">
-        <h2>{t("รอเข้าสู่ระบบครั้งแรก", "Waiting for first sign-in")}</h2>
-        <span class="k-badge">{pending.length}</span>
-      </div>
-      <p class="k-small k-muted" style="margin-bottom:15px">
+      <p>
         {t(
-          "บัญชีเหล่านี้พร้อมให้เข้าสู่ระบบแล้ว แต่ยังเพิ่มเข้าพื้นที่ทำงานไม่ได้ ให้สมาชิกเข้าสู่ระบบครั้งแรก แล้วกดรีเฟรชข้อมูล",
-          "These accounts exist but cannot be assigned yet. Ask each user to sign in, then refresh the list.",
+          "ค้นหาด้วยชื่อหรืออีเมลอื่น หรือเปลี่ยนตัวกรอง",
+          "Search for another name or email, or change the filters.",
         )}
       </p>
-      <div class="k-table-wrap">
-        <table class="k-table">
+    </div>{/if}
+  {#if data.canManage && pending.length}<section class="team-pending">
+      <div class="team-pending-head">
+        <div class="k-section-title">
+          <h2>{t("รอเข้าสู่ระบบครั้งแรก", "Waiting for first sign-in")}</h2>
+          <span class="k-badge">{pending.length}</span>
+        </div>
+        <p class="k-small k-muted">
+          {t(
+            "บัญชีเหล่านี้เข้าสู่ระบบได้แล้ว แต่ยังเพิ่มเป็นสมาชิกของพื้นที่ทำงาน AI ไม่ได้จนกว่าผู้ใช้จะเข้าสู่ระบบครั้งแรก จากนั้นกดโหลดข้อมูลใหม่",
+            "These accounts can sign in but cannot be added to an AI workspace until each user signs in once. Then refresh the list.",
+          )}
+        </p>
+      </div>
+      <div class="team-pending-table">
+        <table class="k-table team-table">
           <thead
             ><tr
-              ><th>{t("อีเมล", "Email")}</th><th>{t("สถานะ", "Status")}</th><th
-                >{t("จัดการ", "Manage")}</th
+              ><th scope="col">{t("อีเมล", "Email")}</th><th scope="col">{t("สถานะ", "Status")}</th><th scope="col" class="team-actions-col"
+                >{t("การจัดการ", "Actions")}</th
               ></tr
             ></thead
           ><tbody
@@ -588,13 +591,13 @@
                   ><span class="k-badge paused"
                     >{t("รอเข้าสู่ระบบ", "Pending sign-in")}</span
                   ></td
-                ><td
+                ><td class="team-actions-col"
                   ><button
-                    class="k-button quiet small"
+                    class="k-button small"
                     disabled={organizationRole(currentUser?.role ?? "") !==
                       "owner"}
                     onclick={() => start(account)}
-                    >{t("ตั้งรหัสผ่านใหม่", "Reset password")}</button
+                    ><KeyRound size={16} aria-hidden="true" />{t("ตั้งรหัสผ่านใหม่", "Reset password")}</button
                   ></td
                 ></tr
               >{/each}</tbody
@@ -603,139 +606,399 @@
       </div>
     </section>{/if}
   {#if data.canManage && availabilityError}<div class="k-banner">
-      <Info size={18} />
+      <Info size={16} />
       <div>
         <strong
           >{t(
-            "ยังสร้างบัญชีแบบอีเมลและรหัสผ่านไม่ได้",
-            "Password account creation is unavailable",
+            "ไม่สามารถสร้างบัญชีแบบอีเมลและรหัสผ่านได้ในขณะนี้",
+            "Email and password accounts are unavailable",
           )}</strong
         >
         <p>{availabilityError}</p>
         <p>
           {t(
-            "หากองค์กรใช้ผู้ให้บริการยืนยันตัวตนอื่น รายชื่อสมาชิกจะแสดงหลังเข้าสู่ระบบครั้งแรก",
-            "If your organization uses another identity provider, accounts appear after their first sign-in.",
+            "หากองค์กรใช้วิธีเข้าสู่ระบบอื่น สมาชิกจะแสดงในรายชื่อหลังจากเข้าสู่ระบบครั้งแรก",
+            "If your organization uses another sign-in method, members appear after their first sign-in.",
           )}
         </p>
       </div>
     </div>{/if}
-  <p class="k-small k-muted" style="margin-top:22px">
+  <p class="k-small k-muted team-footnote">
     {t(
-      "สิทธิ์ผู้ดูแลไม่ได้ให้สิทธิ์อ่านข้อมูลโดยอัตโนมัติ หากต้องการให้ใครเข้าถึงข้อมูล ให้เพิ่มเป็นสมาชิกในการตั้งค่าพื้นที่ทำงาน",
-      "Administrators do not receive data access automatically. Assign the intended members in workspace settings.",
+      "บทบาทผู้ดูแลระบบไม่ได้ให้สิทธิ์เข้าถึงข้อมูลโดยอัตโนมัติ หากต้องการให้ผู้ใดเข้าถึงข้อมูล กรุณาเพิ่มเป็นสมาชิกในการตั้งค่าพื้นที่ทำงาน AI",
+      "The Admin role does not grant data access automatically. To give someone access, add them as a member in the AI workspace settings.",
     )}
   </p>
 {/if}
 
 <style>
+  .team-heading {
+    flex: 1 1 360px;
+    min-width: 0;
+  }
+  .team-heading-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex: none;
+  }
+  /* Role summary */
   .team-role-overview {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
-    margin: 22px 0;
+    gap: 12px;
+    margin: 0 0 20px;
   }
   .team-role-overview article {
     display: flex;
+    align-items: flex-start;
     gap: 12px;
-    align-items: start;
     min-width: 0;
-    padding: 19px;
-    border: 1px solid #e0e5ec;
-    border-radius: 14px;
-    background: white;
+    padding: 14px 16px;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius-lg);
+    background: var(--orca-surface);
   }
-  .team-role-overview article > :global(svg) {
-    color: #5c7635;
-    flex: 0 0 auto;
+  .team-role-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--orca-radius);
+    background: var(--orca-secondary);
+    color: var(--orca-nav);
   }
-  .team-role-overview article div {
-    min-width: 0;
+  .team-role-overview article > div {
     flex: 1;
+    min-width: 0;
   }
   .team-role-overview strong {
+    display: block;
     font-size: 14px;
+    font-weight: 600;
+    line-height: 1.45;
   }
   .team-role-overview p {
-    color: #677287;
-    font-size: 12px;
-    line-height: 1.6;
-    margin-top: 6px;
+    margin: 2px 0 0;
+    color: var(--orca-muted);
+    font-size: 13px;
+    line-height: 1.55;
   }
-  .team-role-overview article > span {
-    font-size: 21px;
-    font-weight: 750;
+  .team-role-count {
+    flex: none;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
   }
   .team-role-note {
-    margin-bottom: 14px;
+    margin: 0 0 14px;
   }
+  /* Section tabs */
   .team-tabs {
     display: flex;
-    gap: 7px;
-    border-bottom: 1px solid #dfe4ec;
-    margin-bottom: 24px;
+    gap: 20px;
+    margin: 0 0 20px;
+    overflow-x: auto;
+    box-shadow: inset 0 -1px 0 var(--orca-line);
+    scrollbar-width: none;
   }
   .team-tabs button {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 9px;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 2px;
     border: 0;
-    border-bottom: 3px solid transparent;
+    border-bottom: 2px solid transparent;
     background: transparent;
-    padding: 13px 17px;
+    color: var(--orca-muted);
     font: inherit;
-    color: #637087;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .team-tabs button :global(svg) {
+    color: var(--orca-subtle);
+  }
+  .team-tabs button:hover:not(:disabled) {
+    color: var(--orca-ink);
   }
   .team-tabs button.active {
-    color: #263420;
-    border-bottom-color: #bfe35d;
-    font-weight: 700;
+    border-bottom-color: var(--orca-ink);
+    color: var(--orca-ink);
+    font-weight: 600;
+  }
+  .team-tabs button.active :global(svg) {
+    color: var(--orca-ink);
   }
   .team-tabs button span {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: var(--orca-radius-sm);
+    background: var(--orca-secondary);
+    color: var(--orca-nav);
     font-size: 12px;
-    background: #eef2e7;
-    border-radius: 7px;
-    padding: 1px 6px;
+    font-weight: 500;
+  }
+  /* Add or reset an account */
+  .team-form {
+    margin-bottom: 20px;
+  }
+  .team-form h2 {
+    margin: 0 0 14px;
+  }
+  .team-form-hint {
+    margin: 0;
+  }
+  .team-form-note {
+    margin: 14px 0 0;
+  }
+  .team-form-actions {
+    margin-top: 16px;
+  }
+  /* Filters */
+  .team-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+    align-items: end;
+    gap: 12px;
+    margin: 0 0 16px;
+  }
+  .team-toolbar.compact {
+    grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
   }
   .team-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
+    display: contents;
   }
-  .team-filters .k-field {
-    min-width: 160px;
-    margin-top: 0;
+  .team-toolbar .k-field {
+    margin: 0;
+  }
+  /* Members table */
+  .team-table-wrap {
+    overflow-x: auto;
+  }
+  table.team-table {
+    min-width: 0;
+  }
+  .team-table th {
+    white-space: nowrap;
+  }
+  .team-table-wrap .team-table td,
+  .team-pending-table .team-table td {
+    vertical-align: middle;
+  }
+  .team-member {
+    min-width: 200px;
+  }
+  .team-member strong {
+    display: block;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .team-member p {
+    margin: 1px 0 0;
+    overflow-wrap: anywhere;
   }
   .role-badge {
     display: block;
-    font-weight: 650;
+    font-weight: 500;
     white-space: nowrap;
   }
   .role-locked {
     display: block;
-    color: #718096;
-    font-size: 10px;
-    margin-top: 5px;
+    margin-top: 2px;
+    color: var(--orca-muted);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .team-role .team-role-change {
+    display: inline-block;
+    margin-top: 2px;
+    padding: 0;
+    font-size: 13px;
+    white-space: nowrap;
+    text-decoration-color: var(--orca-line-strong);
+  }
+  .team-role .team-role-change:hover {
+    text-decoration-color: currentColor;
+  }
+  .team-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-width: 220px;
   }
   .department-badge {
     display: inline-block;
-    padding: 3px 7px;
-    margin: 2px;
-    border-radius: 6px;
-    background: #eef3e6;
-    color: #526832;
+    max-width: 100%;
+    padding: 1px 8px;
+    overflow: hidden;
+    border-radius: var(--orca-radius-sm);
+    background: var(--orca-secondary);
+    color: var(--orca-nav);
     font-size: 12px;
+    font-weight: 500;
+    line-height: 1.6;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  @media (max-width: 850px) {
+  .team-none,
+  .team-account-note {
+    color: var(--orca-muted);
+    font-size: 13px;
+  }
+  .team-hub-link {
+    display: block;
+    max-width: 240px;
+    overflow: hidden;
+    color: var(--orca-ink);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .team-hub-link:hover {
+    text-underline-offset: 3px;
+  }
+  .team-account-note {
+    display: block;
+    max-width: 180px;
+    line-height: 1.5;
+  }
+  .team-icon-button {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--orca-radius);
+    background: transparent;
+    color: var(--orca-subtle);
+    cursor: pointer;
+  }
+  .team-icon-button:hover {
+    background: var(--orca-hover);
+    color: var(--orca-ink);
+  }
+  .team-actions-col {
+    width: 1%;
+    white-space: nowrap;
+  }
+  .team-actions-col .team-account-note {
+    max-width: none;
+    white-space: nowrap;
+  }
+  .team-empty {
+    margin-top: 0;
+    gap: 8px;
+  }
+  .team-empty h2 {
+    margin-top: 4px;
+    font-size: 15px;
+  }
+  .team-empty p {
+    margin: 0;
+    font-size: 13.5px;
+  }
+  /* Accounts waiting for their first sign-in */
+  .team-pending {
+    margin-top: 20px;
+    overflow: hidden;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius-lg);
+    background: var(--orca-surface);
+  }
+  .team-pending-head {
+    padding: 16px 18px 14px;
+  }
+  .team-pending-head .k-section-title {
+    justify-content: flex-start;
+    gap: 8px;
+    margin: 0;
+  }
+  .team-pending-head p {
+    margin: 2px 0 0;
+  }
+  .team-pending-table {
+    overflow-x: auto;
+    border-top: 1px solid var(--orca-line);
+  }
+  .team-footnote {
+    margin: 20px 0 0;
+  }
+  @media (max-width: 1100px) {
+    .team-toolbar {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .team-toolbar.compact {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .team-toolbar .team-search {
+      grid-column: 1 / -1;
+    }
     .team-role-overview {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 8px;
     }
-    .team-role-overview article {
-      padding: 14px;
+    /* Member rows stack on narrower screens: name and role, then departments, workspaces and actions. */
+    .team-table-wrap table.team-table,
+    .team-table-wrap .team-table tbody {
+      display: block;
     }
-    .team-role-overview p {
-      margin-top: 2px;
+    .team-table-wrap .team-table thead {
+      display: none;
+    }
+    .team-table-wrap .team-table tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid #eff0f2;
+    }
+    .team-table-wrap .team-table tr:last-child {
+      border-bottom: 0;
+    }
+    .team-table-wrap .team-table td {
+      min-width: 0;
+      padding: 0;
+      border: 0;
+    }
+    .team-member {
+      min-width: 0;
+    }
+    .team-role {
+      text-align: end;
+    }
+    .team-departments,
+    .team-hubs {
+      grid-column: 1 / -1;
+    }
+    .team-chips {
+      max-width: none;
+    }
+    .team-hub-link {
+      max-width: 100%;
+    }
+    .team-table-wrap .team-actions-col {
+      width: auto;
+      justify-self: end;
+    }
+  }
+  @media (max-width: 760px) {
+    .team-heading-actions {
+      width: 100%;
+    }
+    .team-heading-actions > * {
+      flex: 1 1 auto;
+    }
+    .team-toolbar,
+    .team-toolbar.compact {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 </style>

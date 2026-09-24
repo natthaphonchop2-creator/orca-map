@@ -62,36 +62,55 @@
   // One "Activity" page; the tabs tell tool use apart from admin changes.
   const title = $derived(t("ประวัติการใช้งาน", "Activity"));
   const labels: Record<string, string> = $derived({
-    admitted: t("รับคำขอแล้ว", "Admitted"),
+    admitted: t("รับคำขอแล้ว", "Received"),
     success: t("สำเร็จ", "Succeeded"),
     error: t("ไม่สำเร็จ", "Failed"),
-    denied: t("ไม่อนุญาต", "Denied"),
+    denied: t("ไม่ได้รับอนุญาต", "Denied"),
     timeout: t("หมดเวลา", "Timed out"),
-    unknown: t("ยังไม่ทราบผล", "Unknown"),
+    unknown: t("ไม่ทราบผล", "Unknown"),
   });
   const actionLabels: Record<string, string> = $derived({
     "member.role.update": t("เปลี่ยนบทบาทสมาชิก", "Member role changed"),
-    "organization.update": t("แก้ไขข้อมูลองค์กร", "Organization updated"),
-    "unit.create": t("เพิ่มหน่วยงาน", "Unit created"),
-    "unit.update": t("แก้ไขหน่วยงาน", "Unit updated"),
-    "connection.create": t("เพิ่มการเชื่อมต่อ", "Connection created"),
-    "connection.update": t("แก้ไขการเชื่อมต่อ", "Connection updated"),
-    "hub.create": t("สร้าง MCP Gateway", "MCP Gateway created"),
-    "hub.update": t("แก้ไข MCP Gateway", "MCP Gateway updated"),
-    "key.create": t("สร้างคีย์เชื่อมต่อ", "Client key created"),
-    "key.revoke": t("ยกเลิกคีย์เชื่อมต่อ", "Client key revoked"),
-    "tools.call": t("เรียกเครื่องมือ", "Tool call"),
-    "tools/call": t("เรียกเครื่องมือ", "Tool call"),
-    "library.call": t("เรียกเครื่องมือในคลัง", "Library tool call"),
-    "mcp.request": t("คำขอ MCP", "MCP request"),
-    "library.create": t("สร้างรายการในคลัง", "Library item created"),
-    "library.update": t("แก้ไขรายการในคลัง", "Library item updated"),
-    "library.archive": t("เก็บรายการในคลัง", "Library item archived"),
+    "organization.update": t("แก้ไขข้อมูลองค์กร", "Organization details updated"),
+    "unit.create": t("สร้างแผนก", "Department created"),
+    "unit.update": t("แก้ไขแผนก", "Department updated"),
+    "connection.create": t("เพิ่มระบบที่เชื่อมต่อ", "Connected system added"),
+    "connection.update": t("แก้ไขระบบที่เชื่อมต่อ", "Connected system updated"),
+    "connection.archive": t("จัดเก็บระบบที่เชื่อมต่อ", "Connected system archived"),
+    "connection.restore": t("กู้คืนระบบที่เชื่อมต่อ", "Connected system restored"),
+    "connection.delete": t("ลบระบบที่เชื่อมต่อ", "Connected system deleted"),
+    "hub.create": t("สร้างพื้นที่ทำงาน AI", "AI workspace created"),
+    "hub.update": t("แก้ไขพื้นที่ทำงาน AI", "AI workspace updated"),
+    "hub.archive": t("จัดเก็บพื้นที่ทำงาน AI", "AI workspace archived"),
+    "hub.restore": t("กู้คืนพื้นที่ทำงาน AI", "AI workspace restored"),
+    "hub.delete": t("ลบพื้นที่ทำงาน AI", "AI workspace deleted"),
+    "key.create": t("สร้างคีย์ API", "API key created"),
+    "key.revoke": t("เพิกถอนคีย์ API", "API key revoked"),
+    "member.suspend": t("ระงับสมาชิก", "Member suspended"),
+    "member.restore": t("กู้คืนสมาชิก", "Member restored"),
+    "member.remove": t("นำสมาชิกออก", "Member removed"),
+    "department.archive": t("จัดเก็บแผนก", "Department archived"),
+    "department.restore": t("กู้คืนแผนก", "Department restored"),
+    "department.delete": t("ลบแผนก", "Department deleted"),
+    "user_source.create": t("เพิ่มผู้ให้บริการเข้าสู่ระบบ", "Sign-in source added"),
+    "user_source.update": t("แก้ไขผู้ให้บริการเข้าสู่ระบบ", "Sign-in source updated"),
+    "user_source.delete": t("ลบผู้ให้บริการเข้าสู่ระบบ", "Sign-in source deleted"),
+    "access.inspect": t(
+      "ตรวจสอบสิทธิ์การเข้าถึงผ่านแอป AI",
+      "Access checked from an AI app",
+    ),
+    "tools.call": t("เรียกใช้เครื่องมือ", "Tool used"),
+    "tools/call": t("เรียกใช้เครื่องมือ", "Tool used"),
+    "library.call": t("เรียกใช้คลังความรู้", "Knowledge used"),
+    "mcp.request": t("คำขอจากแอป AI", "AI app request"),
+    "library.create": t("เพิ่มรายการในคลังความรู้", "Knowledge item added"),
+    "library.update": t("แก้ไขรายการในคลังความรู้", "Knowledge item updated"),
+    "library.archive": t("จัดเก็บรายการในคลังความรู้", "Knowledge item archived"),
     "department.members": t(
-      "แก้ไขสมาชิกหน่วยงาน",
+      "แก้ไขสมาชิกของแผนก",
       "Department members updated",
     ),
-    "template.preview": t("เปิดตัวอย่างเทมเพลต", "Template previewed"),
+    "template.preview": t("ดูตัวอย่างแม่แบบ", "Template previewed"),
   });
   const names = $derived({
     users: Object.fromEntries(
@@ -171,30 +190,70 @@
           actionLabels[event.action ?? event.method ?? ""] ||
           event.action ||
           event.method ||
-          t("ไม่ระบุเครื่องมือ", "Tool not recorded")
+          t("ไม่มีการบันทึกชื่อเครื่องมือ", "Tool not recorded")
       : actionLabels[event.action ?? ""] ||
           event.action ||
           event.method ||
-          t("ไม่ระบุกิจกรรม", "Action not recorded");
+          t("ไม่มีการบันทึกกิจกรรม", "Action not recorded");
   }
-  function resourceLabel(event: OrcaAuditEvent) {
+  // Presentation only: records that no longer resolve keep their ID, shown under a readable label.
+  // Managers see every system and workspace, so an unresolved ID there means the record was deleted.
+  type EntityDisplay = { label?: string; id?: string };
+  const signInSourceIDs = $derived(
+    new Set(
+      events
+        .filter((event) => (event.action ?? "").startsWith("user_source."))
+        .map((event) => event.connectionID)
+        .filter(Boolean),
+    ),
+  );
+  const isSignInSourceEvent = (event: OrcaAuditEvent) =>
+    (event.action ?? "").startsWith("user_source.");
+  function connectionDisplay(id?: string): EntityDisplay {
+    if (!id) return { label: "—" };
+    if (names.connections[id]) return { label: names.connections[id] };
+    if (signInSourceIDs.has(id))
+      return { label: t("การเข้าสู่ระบบองค์กร", "Sign-in source"), id };
+    return data.canManage
+      ? { label: t("ระบบที่ถูกลบแล้ว", "Deleted system"), id }
+      : { id };
+  }
+  function hubDisplay(id?: string): EntityDisplay {
+    if (!id) return { label: "—" };
+    if (names.hubs[id]) return { label: names.hubs[id] };
+    return data.canManage
+      ? { label: t("พื้นที่ทำงานที่ถูกลบแล้ว", "Deleted workspace"), id }
+      : { id };
+  }
+  function resourceDisplay(event: OrcaAuditEvent): EntityDisplay {
     const id = event.resourceID;
-    if (id)
-      return (
+    if (id) {
+      const known =
         names.hubs[id] ||
         names.connections[id] ||
         names.users[id] ||
-        data.units.find((unit) => unit.id === id)?.name ||
-        id
-      );
-    return (
-      (event.connectionID && names.connections[event.connectionID]) ||
-      (event.hubID && names.hubs[event.hubID]) ||
-      event.connectionID ||
-      event.hubID ||
-      "—"
-    );
+        data.units.find((unit) => unit.id === id)?.name;
+      if (known) return { label: known };
+      if (isSignInSourceEvent(event))
+        return { label: t("การเข้าสู่ระบบองค์กร", "Sign-in source"), id };
+      if (id === event.connectionID || (event.action ?? "").startsWith("connection."))
+        return connectionDisplay(id);
+      if (id === event.hubID || (event.action ?? "").startsWith("hub."))
+        return hubDisplay(id);
+      return { id };
+    }
+    if (event.connectionID && names.connections[event.connectionID])
+      return { label: names.connections[event.connectionID] };
+    if (event.hubID && names.hubs[event.hubID])
+      return { label: names.hubs[event.hubID] };
+    if (event.connectionID) return connectionDisplay(event.connectionID);
+    if (event.hubID) return hubDisplay(event.hubID);
+    return { label: "—" };
   }
+  const connectionOptionLabel = (id: string) => {
+    const display = connectionDisplay(id);
+    return display.id && display.label ? `${display.label} · ${id}` : display.label || id;
+  };
   async function refresh(id: string) {
     const current = ++requestNumber;
     loading = true;
@@ -247,6 +306,17 @@
   });
 </script>
 
+{#snippet entity(item: EntityDisplay, secondary: boolean)}
+  {#if secondary}<span class="secondary-cell entity-line"
+      >{#if item.label}<span>{item.label}</span>{/if}{#if item.id}<span class="audit-id" title={item.id}
+          >{item.id}</span
+        >{/if}</span
+    >{:else}{#if item.label}<span class="primary-cell">{item.label}</span>{/if}{#if item.id}<span
+        class="audit-id"
+        title={item.id}>{item.id}</span
+      >{/if}{/if}
+{/snippet}
+
 <section class="observability" aria-labelledby="audit-title">
   <header class="audit-heading">
     <div>
@@ -255,31 +325,31 @@
         {mode === "executions"
           ? data.canManage
             ? t(
-                "ตรวจสอบว่าใครเรียกเครื่องมือใด และได้ผลอย่างไร",
-                "Review tool calls, the people using them, and their results.",
+                "ตรวจสอบการใช้งานเครื่องมือ ผู้ใช้งาน และผลลัพธ์ของแต่ละรายการ",
+                "Review tool use, who used each tool and the result of each request.",
               )
             : t(
-                "ตรวจการเรียกเครื่องมือของคุณและผลที่บันทึกไว้",
-                "Inspect your tool calls and their recorded outcomes.",
+                "ตรวจสอบการใช้งานเครื่องมือของคุณและผลลัพธ์ที่บันทึกไว้",
+                "Review your tool use and the recorded results.",
               )
           : t(
-              "ตรวจว่าใครเปลี่ยนการตั้งค่า การเข้าถึง และรายการในองค์กร",
-              "Review changes to organization settings, access, and resources.",
+              "ตรวจสอบการเปลี่ยนแปลงการตั้งค่า สิทธิ์การเข้าถึง และข้อมูลขององค์กรโดยผู้ดูแล",
+              "Review changes that administrators made to settings, access and organization data.",
             )}
       </p>
     </div>
     <button
       type="button"
-      class="refresh-button"
+      class="k-button"
       disabled={loading}
       onclick={() => refresh(selectedHubID)}
-      ><RefreshCw size={14} class={loading ? "k-spin" : ""} />{t(
-        "รีเฟรช",
+      ><RefreshCw size={16} class={loading ? "k-spin" : ""} />{t(
+        "โหลดข้อมูลใหม่",
         "Refresh",
       )}</button
     >
   </header>
-  <nav class="audit-tabs" aria-label={t("ประเภทประวัติ", "Activity type")}>
+  <nav class="audit-tabs" aria-label={t("ประเภทประวัติการใช้งาน", "Activity type")}>
     <a
       class:active={mode === "executions"}
       aria-current={mode === "executions" ? "page" : undefined}
@@ -294,267 +364,267 @@
       )}>{t("การเปลี่ยนแปลงโดยผู้ดูแล", "Admin changes")}</a
     >
   </nav>
-  <div class="filters">
-    <div class="search-field">
-      <Search size={16} /><input
-        type="search"
-        bind:value={query}
-        aria-label={t("ค้นหาประวัติที่โหลดมา", "Search loaded records")}
-        placeholder={mode === "executions"
-          ? t(
-              "ค้นหาเครื่องมือ ผู้ใช้ หรือรหัสการเรียก",
-              "Search tools, users, or execution IDs",
-            )
-          : t(
-              "ค้นหากิจกรรม ผู้ใช้ หรือรหัสรายการ",
-              "Search actions, users, or resource IDs",
-            )}
-      />
+  <div class="audit-toolbar">
+    <div class="filters">
+      <div class="search-field">
+        <Search size={16} aria-hidden="true" /><input
+          type="search"
+          bind:value={query}
+          aria-label={t("ค้นหาในประวัติที่โหลดแล้ว", "Search loaded records")}
+          placeholder={mode === "executions"
+            ? t(
+                "ค้นหาชื่อเครื่องมือ ผู้ใช้งาน หรือรหัสอ้างอิง",
+                "Search by tool, user or reference ID",
+              )
+            : t(
+                "ค้นหากิจกรรม ผู้ดำเนินการ หรือรหัสรายการ",
+                "Search by action, user or item ID",
+              )}
+        />
+      </div>
+      <label
+        ><span>{t("พื้นที่ทำงาน AI", "AI workspace")}</span><select bind:value={selectedHubID}
+          ><option value=""
+            >{t("ทุกพื้นที่ทำงานที่คุณมีสิทธิ์ดู", "All workspaces you can access")}</option
+          >{#each data.hubs as hub (hub.id)}<option value={hub.id}
+              >{hub.name}</option
+            >{/each}</select
+        ></label
+      >
+      <label
+        ><span>{t("ผลลัพธ์", "Result")}</span><select bind:value={outcome}
+          ><option value="">{t("ทุกผลลัพธ์", "All results")}</option
+          >{#each outcomes as value}<option {value}
+              >{labels[value] || value}</option
+            >{/each}</select
+        ></label
+      >
+      <label
+        ><span>{t("ช่วงเวลา", "Time range")}</span><select bind:value={timeRange}
+          ><option value="all">{t("ทุกช่วงเวลา", "All time")}</option
+          ><option value="24h">{t("24 ชั่วโมงล่าสุด", "Last 24 hours")}</option
+          ><option value="7d">{t("7 วันล่าสุด", "Last 7 days")}</option><option
+            value="30d">{t("30 วันล่าสุด", "Last 30 days")}</option
+          ></select
+        ></label
+      >
     </div>
-    <label
-      ><span>MCP Gateway</span><select bind:value={selectedHubID}
-        ><option value=""
-          >{t("ทุก Gateway ที่มีสิทธิ์ดู", "All accessible gateways")}</option
-        >{#each data.hubs as hub (hub.id)}<option value={hub.id}
-            >{hub.name}</option
-          >{/each}</select
-      ></label
-    >
-    <label
-      ><span>{t("ผลลัพธ์", "Outcome")}</span><select bind:value={outcome}
-        ><option value="">{t("ทุกผลลัพธ์", "All outcomes")}</option
-        >{#each outcomes as value}<option {value}
-            >{labels[value] || value}</option
-          >{/each}</select
-      ></label
-    >
-    <label
-      ><span>{t("ช่วงเวลา", "Time range")}</span><select bind:value={timeRange}
-        ><option value="all">{t("ทุกเวลาที่โหลดมา", "All loaded dates")}</option
-        ><option value="24h">{t("24 ชั่วโมงล่าสุด", "Last 24 hours")}</option
-        ><option value="7d">{t("7 วันล่าสุด", "Last 7 days")}</option><option
-          value="30d">{t("30 วันล่าสุด", "Last 30 days")}</option
-        ></select
-      ></label
-    >
+    <div class="secondary-filters">
+      <label
+        ><span>{t("ผู้ใช้งาน", "User")}</span><select bind:value={userID}
+          ><option value=""
+            >{t("ผู้ใช้งานทั้งหมด", "All users")}</option
+          >{#each users as id}<option value={id}>{names.users[id] || id}</option
+            >{/each}</select
+        ></label
+      ><label
+        ><span>{t("ระบบ", "System")}</span><select
+          bind:value={connectionID}
+          ><option value="">{t("ทุกระบบ", "All systems")}</option
+          >{#each connections as id}<option value={id}
+              >{connectionOptionLabel(id)}</option
+            >{/each}</select
+        ></label
+      >{#if mode === "executions"}<label
+          ><span>{t("เครื่องมือ", "Tool")}</span><select bind:value={toolName}
+            ><option value="">{t("ทุกเครื่องมือ", "All tools")}</option
+            >{#each tools as name}<option value={name}>{name}</option
+              >{/each}</select
+          ></label
+        >{:else}<label
+          ><span>{t("กิจกรรม", "Action")}</span><select bind:value={action}
+            ><option value="">{t("ทุกกิจกรรม", "All actions")}</option
+            >{#each actions as value}<option {value}
+                >{actionLabels[value] || value}</option
+              >{/each}</select
+          ></label
+        >{/if}
+    </div>
   </div>
-  <div class="secondary-filters">
-    <label
-      ><span>{t("ผู้ใช้งาน", "User")}</span><select bind:value={userID}
-        ><option value=""
-          >{t("ผู้ใช้ทั้งหมดในรายการ", "All listed users")}</option
-        >{#each users as id}<option value={id}>{names.users[id] || id}</option
-          >{/each}</select
-      ></label
-    ><label
-      ><span>{t("การเชื่อมต่อ", "Connection")}</span><select
-        bind:value={connectionID}
-        ><option value="">{t("การเชื่อมต่อทั้งหมด", "All connections")}</option
-        >{#each connections as id}<option value={id}
-            >{names.connections[id] || id}</option
-          >{/each}</select
-      ></label
-    >{#if mode === "executions"}<label
-        ><span>{t("เครื่องมือ", "Tool")}</span><select bind:value={toolName}
-          ><option value="">{t("เครื่องมือทั้งหมด", "All tools")}</option
-          >{#each tools as name}<option value={name}>{name}</option
-            >{/each}</select
-        ></label
-      >{:else}<label
-        ><span>{t("กิจกรรม", "Action")}</span><select bind:value={action}
-          ><option value="">{t("กิจกรรมทั้งหมด", "All actions")}</option
-          >{#each actions as value}<option {value}
-              >{actionLabels[value] || value}</option
-            >{/each}</select
-        ></label
-      >{/if}{#if activeFilters}<button
+  <div class="audit-meta">
+    <div class="loaded-summary" role="status">
+      <span
+        >{loading
+          ? t("กำลังโหลดรายการ…", "Loading records…")
+          : `${visibleEvents.length} ${t("รายการที่ตรงเงื่อนไข จากทั้งหมด", "matching records out of")} ${modeEvents.length} ${t("รายการในหมวดนี้", "in this tab")}`}</span
+      >{#if loadedAt && !loading}<span
+          ><Clock3 size={14} aria-hidden="true" />{t("โหลดข้อมูลล่าสุดเมื่อ", "Last loaded")}
+          {displayDate(new Date(loadedAt).toISOString())}</span
+        >{/if}
+    </div>
+    {#if activeFilters}<button
         type="button"
-        class="clear-button"
+        class="k-button small quiet clear-button"
         onclick={clearFilters}
-        ><FilterX size={13} />{t("ล้างตัวกรอง", "Clear filters")}</button
-      >{/if}
-  </div>
-  <div class="loaded-summary" role="status">
-    <span
-      >{loading
-        ? t("กำลังโหลดรายการ…", "Loading records…")
-        : `${visibleEvents.length} ${t("รายการที่ตรงเงื่อนไข จาก", "matching records from")} ${modeEvents.length} ${t("รายการในหมวดนี้", "in this category")}`}</span
-    >{#if loadedAt && !loading}<span
-        ><Clock3 size={12} />{t("โหลดล่าสุด", "Loaded")}
-        {displayDate(new Date(loadedAt).toISOString())}</span
+        ><FilterX size={16} aria-hidden="true" />{t("ล้างตัวกรอง", "Clear filters")}</button
       >{/if}
   </div>
   {#if error}<div class="audit-error" role="alert">
-      <Info size={20} />
+      <Info size={18} />
       <div>
-        <h2>{t("โหลดประวัติไม่สำเร็จ", "Could not load records")}</h2>
+        <h2>{t("โหลดประวัติการใช้งานไม่สำเร็จ", "Could not load activity records")}</h2>
         <p>{error}</p>
-        <button type="button" onclick={() => refresh(selectedHubID)}
+        <button type="button" class="k-button small" onclick={() => refresh(selectedHubID)}
           >{t("ลองอีกครั้ง", "Try again")}</button
         >
       </div>
     </div>
   {:else if loading}<div class="audit-empty" role="status">
-      <RefreshCw size={23} class="k-spin" />
+      <RefreshCw size={24} class="k-spin" />
       <p>
         {t(
-          "กำลังโหลดประวัติที่คุณมีสิทธิ์ดู",
-          "Loading records you can access.",
+          "กำลังโหลดประวัติการใช้งานที่คุณมีสิทธิ์ดู…",
+          "Loading the records you can access…",
         )}
       </p>
     </div>
   {:else if !visibleEvents.length}<div class="audit-empty">
-      <ClipboardList size={30} />
+      <ClipboardList size={28} />
       <h2>
         {activeFilters
           ? t("ไม่พบรายการที่ตรงเงื่อนไข", "No matching records")
           : mode === "executions"
-            ? t("ยังไม่มีประวัติการเรียกเครื่องมือ", "No tool executions yet")
-            : t("ยังไม่มีประวัติการจัดการ", "No administrative activity yet")}
+            ? t("ยังไม่มีประวัติการใช้งานเครื่องมือ", "No tool use recorded yet")
+            : t("ยังไม่มีการเปลี่ยนแปลงโดยผู้ดูแล", "No admin changes recorded yet")}
       </h2>
       <p>
         {activeFilters
           ? t(
-              "ลองเปลี่ยนคำค้นหาหรือล้างตัวกรองในข้อมูลที่โหลดมา",
-              "Try another search or clear filters within the loaded records.",
+              "เปลี่ยนคำค้นหาหรือล้างตัวกรองเพื่อดูรายการอื่น",
+              "Change the search or clear the filters to see other records.",
             )
           : t(
-              "รายการที่คุณมีสิทธิ์ดูจะแสดงเมื่อมีการใช้งานผ่าน ORCA",
-              "Records you can access appear after activity occurs in ORCA.",
+              "รายการจะแสดงที่นี่เมื่อมีการใช้งานผ่าน ORCA ตามสิทธิ์ของคุณ",
+              "Records appear here when activity occurs in ORCA, according to your access.",
             )}
       </p>
       {#if activeFilters}<button
           type="button"
-          class="refresh-button"
+          class="k-button small"
           onclick={clearFilters}>{t("ล้างตัวกรอง", "Clear filters")}</button
         >{/if}
     </div>
-  {:else}<div class="audit-table-wrap">
-      <table class="audit-table">
-        <thead
-          ><tr
-            ><th>{t("ผลลัพธ์", "Outcome")}</th><th
-              >{mode === "executions"
-                ? t("เครื่องมือ", "Tool")
-                : t("กิจกรรม", "Action")}</th
-            ><th
-              >{mode === "executions"
-                ? t("การเชื่อมต่อ / Hub", "Connection / Hub")
-                : t("รายการที่เกี่ยวข้อง", "Resource")}</th
-            ><th>{t("ผู้ใช้งาน", "User")}</th>{#if mode === "executions"}<th
-                >{t("ระยะเวลา", "Duration")}</th
-              >{/if}<th
-              aria-sort={sort === "newest" ? "descending" : "ascending"}
-              ><button
-                type="button"
-                class="sort-button"
-                onclick={() => (sort = sort === "newest" ? "oldest" : "newest")}
-                >{t(
-                  "วันเวลา (ไทย)",
-                  "Time (Bangkok)",
-                )}{#if sort === "newest"}<ArrowDown size={12} />{:else}<ArrowUp
-                    size={12}
-                  />{/if}</button
-              ></th
-            ><th><span class="sr-only">{t("รายละเอียด", "Details")}</span></th
-            ></tr
-          ></thead
-        ><tbody
-          >{#each pagination.items as event (event.id)}{@const detail =
-              auditDetailValues(event)}<tr
-              ><td
-                ><span
-                  class="outcome"
-                  class:success={event.outcome === "success"}
-                  class:failed={event.outcome === "error" ||
-                    event.outcome === "denied" ||
-                    event.outcome === "timeout"}
-                  class:pending={event.outcome === "admitted"}
-                  ><span class="status-dot"></span>{labels[event.outcome] ||
-                    event.outcome ||
-                    "—"}</span
-                ></td
-              ><td
+  {:else}<div class="audit-panel">
+      <div class="audit-table-wrap">
+        <table class="audit-table">
+          <thead
+            ><tr
+              ><th scope="col">{t("ผลลัพธ์", "Result")}</th><th scope="col"
+                >{mode === "executions"
+                  ? t("เครื่องมือ", "Tool")
+                  : t("กิจกรรม", "Action")}</th
+              ><th scope="col"
+                >{mode === "executions"
+                  ? t("ระบบ / พื้นที่ทำงาน", "System / workspace")
+                  : t("รายการที่เกี่ยวข้อง", "Related item")}</th
+              ><th scope="col">{t("ผู้ใช้งาน", "User")}</th>{#if mode === "executions"}<th scope="col" class="duration"
+                  >{t("ระยะเวลา", "Duration")}</th
+                >{/if}<th
+                scope="col"
+                aria-sort={sort === "newest" ? "descending" : "ascending"}
                 ><button
                   type="button"
-                  class="event-name"
-                  onclick={() => openDetails(event)}>{eventLabel(event)}</button
-                ><span class="event-code"
-                  >{mode === "executions"
-                    ? event.id
-                    : event.action || event.method || "—"}</span
-                ></td
-              ><td
-                >{#if mode === "executions"}<span class="primary-cell"
-                    >{(event.connectionID &&
-                      names.connections[event.connectionID]) ||
-                      event.connectionID ||
-                      "—"}</span
-                  ><span class="secondary-cell"
-                    >{names.hubs[event.hubID] || event.hubID || "—"}</span
-                  >{:else}<span class="primary-cell"
-                    >{resourceLabel(event)}</span
-                  >{#if event.hubID}<span class="secondary-cell"
-                      >{names.hubs[event.hubID] || event.hubID}</span
-                    >{/if}{/if}</td
-              ><td
-                ><span class="primary-cell"
-                  >{names.users[event.userID] ||
-                    event.userID ||
-                    t("ระบบ", "System")}</span
-                >{#if names.users[event.userID]}<span class="secondary-cell"
-                    >ID: {event.userID}</span
-                  >{/if}</td
-              >{#if mode === "executions"}<td class="duration"
-                  >{detail.durationMs !== undefined
-                    ? auditDuration(detail.durationMs)
-                    : "—"}</td
-                >{/if}<td class="timestamp">{displayDate(event.createdAt)}</td
-              ><td
-                ><button
-                  type="button"
-                  class="detail-button"
-                  aria-label={`${t("รายละเอียด", "Details")}: ${eventLabel(event)}`}
-                  onclick={() => openDetails(event)}
-                  ><ChevronRight size={17} /></button
-                ></td
+                  class="sort-button"
+                  onclick={() => (sort = sort === "newest" ? "oldest" : "newest")}
+                  >{t(
+                    "วันเวลา (เวลาไทย)",
+                    "Time (Bangkok)",
+                  )}{#if sort === "newest"}<ArrowDown size={14} />{:else}<ArrowUp
+                      size={14}
+                    />{/if}</button
+                ></th
+              ><th scope="col" class="open-col"><span class="sr-only">{t("รายละเอียด", "Details")}</span></th
               ></tr
-            >{/each}</tbody
-        >
-      </table>
-    </div>
-    <footer class="pagination">
-      <span
-        >{pagination.start}–{pagination.end}
-        {t("จาก", "of")}
-        {pagination.total}</span
-      >
-      <div>
-        <label
-          >{t("ต่อหน้า", "Rows per page")}<select bind:value={pageSize}
-            ><option value={25}>25</option><option value={50}>50</option><option
-              value={100}>100</option
-            ></select
-          ></label
-        ><button
-          type="button"
-          disabled={pagination.page <= 1}
-          onclick={() => (pageNumber = pagination.page - 1)}
-          aria-label={t("หน้าก่อน", "Previous page")}
-          ><ChevronLeft size={16} /></button
-        ><span>{pagination.page} / {pagination.pages}</span><button
-          type="button"
-          disabled={pagination.page >= pagination.pages}
-          onclick={() => (pageNumber = pagination.page + 1)}
-          aria-label={t("หน้าถัดไป", "Next page")}
-          ><ChevronRight size={16} /></button
-        >
+            ></thead
+          ><tbody
+            >{#each pagination.items as event (event.id)}{@const detail =
+                auditDetailValues(event)}{@const related = resourceDisplay(event)}{@const workspace =
+                hubDisplay(event.hubID)}<tr
+                ><td
+                  ><span
+                    class="outcome"
+                    class:success={event.outcome === "success"}
+                    class:failed={event.outcome === "error" ||
+                      event.outcome === "denied" ||
+                      event.outcome === "timeout"}
+                    >{labels[event.outcome] ||
+                      event.outcome ||
+                      "—"}</span
+                  ></td
+                ><td class="event-cell"
+                  ><button
+                    type="button"
+                    class="event-name"
+                    onclick={() => openDetails(event)}>{eventLabel(event)}</button
+                  ><span class="event-code"
+                    >{mode === "executions"
+                      ? event.id
+                      : event.action || event.method || "—"}</span
+                  ></td
+                ><td class="context-cell"
+                  >{#if mode === "executions"}{@render entity(connectionDisplay(event.connectionID), false)}{@render entity(hubDisplay(event.hubID), true)}{:else}{@render entity(related, false)}{#if event.hubID && (related.label !== workspace.label || related.id !== workspace.id)}{@render entity(workspace, true)}{/if}{/if}</td
+                ><td
+                  ><span class="primary-cell"
+                    >{names.users[event.userID] ||
+                      event.userID ||
+                      t("ORCA (อัตโนมัติ)", "ORCA (automated)")}</span
+                  >{#if names.users[event.userID]}<span class="secondary-cell"
+                      >{t("รหัส", "ID")}: {event.userID}</span
+                    >{/if}</td
+                >{#if mode === "executions"}<td class="duration"
+                    >{detail.durationMs !== undefined
+                      ? auditDuration(detail.durationMs)
+                      : "—"}</td
+                  >{/if}<td class="timestamp">{displayDate(event.createdAt)}</td
+                ><td class="open-col"
+                  ><button
+                    type="button"
+                    class="detail-button"
+                    aria-label={`${t("ดูรายละเอียด", "View details")}: ${eventLabel(event)}`}
+                    title={t("ดูรายละเอียด", "View details")}
+                    onclick={() => openDetails(event)}
+                    ><ChevronRight size={16} /></button
+                  ></td
+                ></tr
+              >{/each}</tbody
+          >
+        </table>
       </div>
-    </footer>{/if}
+      <footer class="pagination">
+        <span
+          >{pagination.start}–{pagination.end}
+          {t("จาก", "of")}
+          {pagination.total}</span
+        >
+        <div>
+          <label
+            >{t("แถวต่อหน้า", "Rows per page")}<select bind:value={pageSize}
+              ><option value={25}>25</option><option value={50}>50</option><option
+                value={100}>100</option
+              ></select
+            ></label
+          ><button
+            type="button"
+            disabled={pagination.page <= 1}
+            onclick={() => (pageNumber = pagination.page - 1)}
+            aria-label={t("หน้าก่อนหน้า", "Previous page")}
+            title={t("หน้าก่อนหน้า", "Previous page")}
+            ><ChevronLeft size={16} /></button
+          ><span class="page-status">{pagination.page} / {pagination.pages}</span><button
+            type="button"
+            disabled={pagination.page >= pagination.pages}
+            onclick={() => (pageNumber = pagination.page + 1)}
+            aria-label={t("หน้าถัดไป", "Next page")}
+            title={t("หน้าถัดไป", "Next page")}
+            ><ChevronRight size={16} /></button
+          >
+        </div>
+      </footer>
+    </div>{/if}
   <p class="retention-note">
     {t(
-      "แสดงสูงสุด 200 รายการล่าสุดที่เซิร์ฟเวอร์ส่งมา ตามสิทธิ์และ Gateway ที่เลือก ตัวกรองและจำนวนรายการคำนวณจากข้อมูลชุดนี้",
-      "Shows up to 200 latest records returned for your access and selected Hub. Filters and counts apply to this loaded set.",
+      "แสดงรายการล่าสุดไม่เกิน 200 รายการ ตามสิทธิ์ของคุณและพื้นที่ทำงานที่เลือก ตัวกรองและจำนวนรายการคำนวณจากข้อมูลชุดนี้เท่านั้น",
+      "Shows up to the 200 most recent records for your access and the selected workspace. Filters and counts apply only to this loaded set.",
     )}
   </p>
 </section>
@@ -567,17 +637,19 @@
 >
   {#if selected}<header class="drawer-heading">
       <div>
+        <h2 id="audit-detail-title">{eventLabel(selected)}</h2>
         <p>
           {mode === "executions"
-            ? t("รายละเอียดการเรียก", "Execution details")
-            : t("รายละเอียดเหตุการณ์", "Audit event")}
+            ? t("รายละเอียดการใช้งานเครื่องมือ", "Tool use details")
+            : t("รายละเอียดการเปลี่ยนแปลง", "Change details")}
         </p>
-        <h2 id="audit-detail-title">{eventLabel(selected)}</h2>
       </div>
       <button
         type="button"
+        class="drawer-close"
         onclick={() => detailDialog.close()}
-        aria-label={t("ปิดรายละเอียด", "Close details")}><X size={19} /></button
+        aria-label={t("ปิดรายละเอียด", "Close details")}
+        title={t("ปิดรายละเอียด", "Close details")}><X size={16} /></button
       >
     </header>
     <div class="drawer-body">
@@ -587,62 +659,68 @@
           class:success={selected.outcome === "success"}
           class:failed={selected.outcome === "error" ||
             selected.outcome === "denied"}
-          class:pending={selected.outcome === "admitted"}
-          ><span class="status-dot"></span>{labels[selected.outcome] ||
+          >{labels[selected.outcome] ||
             selected.outcome}</span
         ><span>{displayDate(selected.createdAt)}</span>
       </div>
       {#if selected.outcome === "admitted"}<p class="admission-note">
           {t(
-            "บันทึกว่ารับคำขอแล้ว แต่ยังไม่มีผลเสร็จสิ้นในประวัตินี้",
-            "The request was admitted, but this record has no confirmed completion yet.",
+            "ORCA ได้รับคำขอแล้ว แต่ยังไม่มีการบันทึกผลการดำเนินการในประวัตินี้",
+            "ORCA received the request, but no result has been recorded for it yet.",
           )}
         </p>{/if}
       <dl class="identity-details">
         <div>
-          <dt>{t("ผู้ดำเนินการ", "Actor")}</dt>
+          <dt>{t("ผู้ดำเนินการ", "Performed by")}</dt>
           <dd>
             {names.users[selected.userID] ||
               selected.userID ||
-              t("ระบบ", "System")}{#if selected.userID}<small
-                >ID: {selected.userID}</small
+              t("ORCA (อัตโนมัติ)", "ORCA (automated)")}{#if selected.userID}<small
+                >{t("รหัส", "ID")}: {selected.userID}</small
               >{/if}
           </dd>
         </div>
         <div>
-          <dt>{t("กิจกรรมที่บันทึก", "Recorded action")}</dt>
+          <dt>{t("รหัสกิจกรรมที่บันทึก", "Recorded action code")}</dt>
           <dd><code>{selected.action || selected.method || "—"}</code></dd>
         </div>
-        {#if selected.hubID}<div>
-            <dt>MCP Gateway</dt>
+        {#if selected.hubID}{@const workspace = hubDisplay(selected.hubID)}<div>
+            <dt>{t("พื้นที่ทำงาน AI", "AI workspace")}</dt>
             <dd>
               <a
                 href={localeHref(
                   `/app?view=hub&hub=${encodeURIComponent(selected.hubID)}`,
                 )}
-                >{names.hubs[selected.hubID] || selected.hubID}<ArrowUpRight
-                  size={12}
+                >{workspace.label || selected.hubID}<ArrowUpRight
+                  size={14}
                 /></a
-              >
+              >{#if workspace.id && workspace.label}<small class="audit-id">{workspace.id}</small>{/if}
             </dd>
-          </div>{/if}{#if selected.connectionID}<div>
-            <dt>{t("การเชื่อมต่อ", "Connection")}</dt>
+          </div>{/if}{#if selected.connectionID}{@const system = connectionDisplay(selected.connectionID)}<div>
+            <dt>
+              {isSignInSourceEvent(selected)
+                ? t("การเข้าสู่ระบบองค์กร", "Sign-in source")
+                : t("ระบบที่เชื่อมต่อ", "Connected system")}
+            </dt>
             <dd>
               <a
                 href={localeHref(
                   `/app?view=servers&connection=${encodeURIComponent(selected.connectionID)}`,
                 )}
-                >{names.connections[selected.connectionID] ||
-                  selected.connectionID}<ArrowUpRight size={12} /></a
-              >
+                >{isSignInSourceEvent(selected)
+                  ? selected.connectionID
+                  : system.label || selected.connectionID}<ArrowUpRight size={14} /></a
+              >{#if !isSignInSourceEvent(selected) && system.id && system.label}<small class="audit-id"
+                  >{system.id}</small
+                >{/if}
             </dd>
           </div>{/if}
       </dl>
       <AuditDetails event={selected} expanded />
       <p class="payload-note">
         {t(
-          "บันทึกนี้มีเฉพาะข้อมูลอ้างอิง ไม่มี arguments ผลลัพธ์เนื้อหา หรือคีย์เชื่อมต่อ",
-          "This record contains metadata only. Arguments, response contents, and connection keys are not recorded here.",
+          "ประวัตินี้เก็บเฉพาะข้อมูลอ้างอิง ไม่เก็บข้อมูลที่ส่งให้เครื่องมือ เนื้อหาผลลัพธ์ หรือคีย์ API",
+          "This record contains reference data only. Tool inputs, response contents and API keys are not stored.",
         )}
       </p>
     </div>{/if}
@@ -650,485 +728,567 @@
 
 <style>
   .observability {
-    color: var(--k-ink, #172023);
-    max-width: 1500px;
-    margin: 0 auto;
+    min-width: 0;
+    color: var(--orca-ink);
   }
   .audit-heading {
     display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
     justify-content: space-between;
-    align-items: center;
-    gap: 20px;
+    gap: 12px 24px;
     margin-bottom: 20px;
   }
-  h1 {
+  .audit-heading > div {
+    flex: 1 1 360px;
+    min-width: 0;
+  }
+  .audit-heading h1 {
     margin: 0;
-    font-size: 24px;
-    line-height: 1.4;
-    font-weight: 600;
-    letter-spacing: -0.025em;
   }
   .subtitle {
-    margin: 6px 0 0;
-    color: var(--k-muted, #68766c);
-    font-size: 12px;
-    line-height: 1.7;
+    max-width: 72ch;
+    margin: 4px 0 0;
+    color: var(--orca-muted);
+    font-size: 14px;
+    line-height: 1.65;
   }
-  .refresh-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    min-height: 34px;
-    padding: 7px 11px;
-    background: white;
-    color: #415044;
-    border: 1px solid var(--k-line, #dfe5df);
-    border-radius: 6px;
-    font-size: 11px;
-    cursor: pointer;
-    white-space: nowrap;
+  .audit-heading :global(.k-button) {
+    flex: none;
   }
   button:disabled {
     cursor: not-allowed;
-    opacity: 0.4;
+    opacity: 0.5;
   }
+  /* Underline tabs */
   .audit-tabs {
     display: flex;
-    gap: 25px;
-    border-bottom: 1px solid var(--k-line, #e0e5e0);
-    margin-bottom: 22px;
+    gap: 20px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+    box-shadow: inset 0 -1px 0 var(--orca-line);
+    scrollbar-width: none;
   }
   .audit-tabs a {
-    color: #7b877d;
-    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 2px;
+    border-bottom: 2px solid transparent;
+    color: var(--orca-muted);
+    font-size: 14px;
+    font-weight: 500;
     text-decoration: none;
-    padding: 0 1px 13px;
+    white-space: nowrap;
+  }
+  .audit-tabs a:hover {
+    color: var(--orca-ink);
+    text-decoration: none;
   }
   .audit-tabs a.active {
-    border-bottom: 2px solid #3b5d3f;
-    color: #263d2a;
+    border-bottom-color: var(--orca-ink);
+    color: var(--orca-ink);
     font-weight: 600;
   }
-  .filters {
+  /* Toolbar: the search is wider; the filters share equal columns. */
+  .audit-toolbar {
     display: grid;
-    grid-template-columns: minmax(250px, 1.65fr) repeat(3, minmax(125px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     align-items: end;
+    gap: 12px;
+  }
+  .filters,
+  .secondary-filters {
+    display: contents;
+  }
+  .search-field {
+    grid-column: span 2;
   }
   label {
     display: grid;
     gap: 6px;
-    font-size: 10px;
-    color: #717c72;
+    min-width: 0;
+    color: var(--orca-muted);
+    font-size: 13px;
+    font-weight: 500;
   }
   input,
   select {
-    font: inherit;
     min-width: 0;
-    color: #455247;
+    color: var(--orca-ink);
+    font: inherit;
   }
-  select {
+  .audit-toolbar select {
     width: 100%;
-    height: 35px;
-    padding: 6px 24px 6px 9px;
-    border: 1px solid var(--k-line, #dfe5df);
-    border-radius: 6px;
-    background: white;
-    font-size: 11px;
+    height: 36px;
+    padding: 0 28px 0 11px;
+    border: 1px solid var(--orca-line-strong);
+    border-radius: var(--orca-radius);
+    background-color: var(--orca-surface);
+    color: var(--orca-ink);
+    font-size: 14px;
+    font-weight: 400;
   }
   .search-field {
     display: flex;
     align-items: center;
     gap: 8px;
+    height: 36px;
     padding: 0 11px;
-    background: white;
-    height: 35px;
-    border: 1px solid var(--k-line, #dfe5df);
-    border-radius: 6px;
-    color: #839080;
+    border: 1px solid var(--orca-line-strong);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface);
+    color: var(--orca-subtle);
   }
   .search-field input {
     width: 100%;
+    padding: 0;
     border: 0;
     outline: none;
-    padding: 6px 0;
     background: transparent;
-    font-size: 11px;
+    font-size: 14px;
   }
-  .search-field:focus-within {
-    outline: 2px solid #7a965f;
-    outline-offset: 2px;
+  .search-field input::placeholder {
+    color: var(--orca-subtle);
   }
-  .secondary-filters {
+  .search-field:focus-within,
+  .audit-toolbar select:focus-visible {
+    border-color: var(--orca-ink);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(21, 24, 35, 0.1);
+  }
+  .search-field input:focus-visible {
+    outline: none;
+  }
+  .audit-meta {
     display: flex;
-    align-items: end;
-    gap: 12px;
-    margin-top: 12px;
-  }
-  .secondary-filters label {
-    width: 200px;
-    min-width: 0;
-  }
-  .clear-button {
-    display: inline-flex;
-    gap: 5px;
+    flex-wrap: wrap;
     align-items: center;
-    border: 0;
-    background: transparent;
-    color: #5c7750;
-    padding: 8px 0;
-    font-size: 10px;
-    cursor: pointer;
-    white-space: nowrap;
+    justify-content: space-between;
+    gap: 8px 16px;
+    min-height: 32px;
+    margin: 14px 0 12px;
   }
   .loaded-summary {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    min-height: 46px;
-    margin-top: 7px;
-    font-size: 10px;
-    color: #798477;
+    gap: 4px 16px;
+    color: var(--orca-muted);
+    font-size: 13px;
   }
   .loaded-summary > span:last-child {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
+  }
+  /* Table panel */
+  .audit-panel {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius-lg);
+    background: var(--orca-surface);
   }
   .audit-table-wrap {
     position: relative;
-    border: 1px solid var(--k-line, #e0e5df);
-    border-radius: 8px;
     overflow-x: auto;
-    background: white;
   }
   .audit-table {
     width: 100%;
     border-collapse: collapse;
-    text-align: left;
-    font-size: 11px;
+    text-align: start;
+    font-size: 14px;
   }
   th {
-    color: #818b80;
+    height: 40px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--orca-line);
+    background: var(--orca-surface-2);
+    color: var(--orca-nav);
+    font-size: 13px;
     font-weight: 500;
-    padding: 11px 13px;
-    background: #fafbf9;
+    text-align: start;
     white-space: nowrap;
-    font-size: 10px;
   }
   td {
-    padding: 15px 13px;
-    border-top: 1px solid #eaf0e7;
-    color: #596653;
+    max-width: 280px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #eff0f2;
+    color: var(--orca-ink);
     vertical-align: middle;
-    max-width: 260px;
   }
-  tbody tr:hover {
-    background: #fafcf8;
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  tbody tr:hover td {
+    background: var(--orca-surface-2);
   }
   .sort-button {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     padding: 0;
     border: 0;
     background: transparent;
-    font: inherit;
     color: inherit;
+    font: inherit;
     cursor: pointer;
+  }
+  .sort-button:hover {
+    color: var(--orca-ink);
   }
   .event-name {
     display: block;
+    margin: 0;
+    padding: 0;
     border: 0;
     background: transparent;
-    padding: 0;
-    margin: 0;
-    color: #344b30;
-    font-size: 11px;
+    color: var(--orca-ink);
+    font-size: 14px;
     font-weight: 500;
-    text-align: left;
+    text-align: start;
     cursor: pointer;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
   .event-name:hover {
     text-decoration: underline;
+    text-underline-offset: 3px;
   }
   .event-code,
-  .secondary-cell {
+  .audit-id {
     display: block;
-    margin-top: 4px;
-    color: #909b8b;
-    font-size: 10px;
-    overflow-wrap: anywhere;
-  }
-  .event-code {
-    max-width: 270px;
+    max-width: 260px;
+    margin-top: 2px;
+    overflow: hidden;
+    color: var(--orca-muted);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 9px;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .primary-cell {
     display: block;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+  }
+  .secondary-cell.entity-line {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+  }
+  .entity-line > span:first-child {
+    flex: none;
+  }
+  .entity-line .audit-id {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-top: 0;
+  }
+  .secondary-cell {
+    display: block;
+    margin-top: 2px;
+    color: var(--orca-muted);
+    font-size: 13px;
+    overflow-wrap: break-word;
   }
   .duration,
   .timestamp {
-    white-space: nowrap;
+    color: var(--orca-muted);
+    font-size: 13px;
     font-variant-numeric: tabular-nums;
-    font-size: 10px;
+    white-space: nowrap;
   }
   .outcome {
     display: inline-flex;
-    gap: 5px;
     align-items: center;
-    font-size: 10px;
-    color: #74816f;
+    padding: 1px 8px;
+    border-radius: var(--orca-radius-sm);
+    background: var(--orca-secondary);
+    color: var(--orca-nav);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.6;
     white-space: nowrap;
-    border-radius: 4px;
-    padding: 3px 6px;
-    background: #f0f3ed;
   }
   .outcome.success {
-    background: #edf5e8;
-    color: #547342;
+    background: var(--orca-ok-bg);
+    color: var(--orca-ok);
   }
   .outcome.failed {
-    background: #fff0eb;
-    color: #a46143;
+    background: var(--orca-deny-bg);
+    color: var(--orca-deny);
   }
-  .outcome.pending {
-    background: #f7f2e3;
-    color: #977b40;
-  }
-  .status-dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: currentColor;
-    flex-shrink: 0;
+  .open-col {
+    width: 1%;
+    padding-inline: 8px;
+    text-align: end;
   }
   .detail-button {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
     border: 0;
+    border-radius: var(--orca-radius);
     background: transparent;
-    color: #7e9072;
-    padding: 3px;
+    color: var(--orca-subtle);
     cursor: pointer;
+  }
+  .detail-button:hover {
+    background: var(--orca-hover);
+    color: var(--orca-ink);
   }
   .pagination {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    margin-top: 15px;
-    font-size: 10px;
-    color: #819077;
+    gap: 8px 16px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--orca-line);
+    color: var(--orca-muted);
+    font-size: 13px;
   }
   .pagination > div {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
   }
   .pagination label {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
+    margin-right: 8px;
+    font-weight: 400;
     white-space: nowrap;
-    margin-right: 7px;
   }
   .pagination select {
-    width: 64px;
-    height: 28px;
-    font-size: 10px;
+    width: 72px;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--orca-line-strong);
+    border-radius: var(--orca-radius);
+    background-color: var(--orca-surface);
+    font-size: 13px;
   }
   .pagination button {
-    display: grid;
+    display: inline-grid;
     place-items: center;
-    border: 1px solid #dfe5da;
-    border-radius: 5px;
-    background: white;
-    color: #718763;
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface);
+    color: var(--orca-ink);
     cursor: pointer;
   }
+  .pagination button:hover:not(:disabled) {
+    border-color: var(--orca-line-strong);
+    background: var(--orca-secondary);
+  }
+  .page-status {
+    min-width: 48px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
   .retention-note {
-    color: #939e8b;
-    font-size: 10px;
-    line-height: 1.8;
-    margin-top: 18px;
     max-width: 900px;
+    margin: 12px 0 0;
+    color: var(--orca-muted);
+    font-size: 12.5px;
+    line-height: 1.65;
   }
   .audit-empty {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 62px 24px;
-    min-height: 290px;
-    border: 1px solid var(--k-line, #e0e5df);
-    border-radius: 8px;
-    background: white;
-    color: #91a082;
+    gap: 8px;
+    min-height: 240px;
+    padding: 48px 24px;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius-lg);
+    background: var(--orca-surface);
+    color: var(--orca-subtle);
     text-align: center;
   }
   .audit-empty h2 {
-    font-size: 13px;
-    color: #65775a;
-    font-weight: 500;
-    margin: 15px 0 0;
+    margin: 4px 0 0;
+    color: var(--orca-ink);
+    font-size: 15px;
+    font-weight: 600;
   }
   .audit-empty p {
-    font-size: 11px;
-    color: #8b9980;
-    margin: 8px 0 0;
-    line-height: 1.8;
+    max-width: 460px;
+    margin: 0;
+    color: var(--orca-muted);
+    font-size: 13.5px;
+    line-height: 1.65;
   }
-  .audit-empty button {
-    margin-top: 17px;
+  .audit-empty :global(.k-button) {
+    margin-top: 8px;
   }
   .audit-error {
     display: flex;
-    align-items: start;
-    gap: 11px;
-    border: 1px solid #eedad0;
-    background: #fff9f5;
-    border-radius: 8px;
-    padding: 23px;
-    color: #aa7353;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 1px solid color-mix(in srgb, var(--orca-deny) 25%, transparent);
+    border-radius: var(--orca-radius-lg);
+    background: var(--orca-deny-bg);
+    color: var(--orca-deny);
+  }
+  .audit-error > :global(svg) {
+    flex: none;
+    margin-top: 2px;
   }
   .audit-error h2 {
-    font-size: 13px;
-    font-weight: 600;
     margin: 0;
+    color: var(--orca-ink);
+    font-size: 14.5px;
+    font-weight: 600;
   }
   .audit-error p {
-    font-size: 11px;
-    margin: 7px 0;
+    margin: 4px 0 10px;
+    color: var(--orca-ink);
+    font-size: 13.5px;
     overflow-wrap: anywhere;
   }
-  .audit-error button {
-    border: 0;
-    background: transparent;
-    padding: 0;
-    color: #966239;
-    text-decoration: underline;
-    font-size: 11px;
-    cursor: pointer;
-  }
+  /* Detail drawer */
   .audit-drawer {
     position: fixed;
     inset: 0 0 0 auto;
-    width: min(470px, 100%);
+    width: min(520px, 100%);
+    max-width: 100%;
     height: 100dvh;
     max-height: 100dvh;
-    max-width: 100%;
     margin: 0;
     padding: 0;
     border: 0;
-    border-left: 1px solid #e1e7dc;
-    background: white;
-    color: #34422f;
+    border-left: 1px solid var(--orca-line);
+    background: var(--orca-surface);
+    color: var(--orca-ink);
   }
   .audit-drawer::backdrop {
-    background: rgb(21 32 19 / 20%);
+    background: rgba(21, 24, 35, 0.35);
   }
   .drawer-heading {
     display: flex;
+    align-items: flex-start;
     justify-content: space-between;
-    align-items: start;
-    gap: 20px;
-    padding: 24px;
-    border-bottom: 1px solid #e7ede1;
-  }
-  .drawer-heading p {
-    color: #8d9b83;
-    font-size: 11px;
-    margin: 0 0 8px;
+    gap: 16px;
+    padding: 18px 20px 16px 24px;
+    border-bottom: 1px solid var(--orca-line);
   }
   .drawer-heading h2 {
+    margin: 0;
     font-size: 16px;
     font-weight: 600;
-    margin: 0;
+    line-height: 1.45;
     overflow-wrap: anywhere;
   }
-  .drawer-heading button {
-    border: 0;
-    background: transparent;
-    color: #7f9073;
+  .drawer-heading p {
+    margin: 2px 0 0;
+    color: var(--orca-muted);
+    font-size: 13px;
+  }
+  .drawer-close {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
     padding: 0;
+    border: 0;
+    border-radius: var(--orca-radius);
+    background: transparent;
+    color: var(--orca-subtle);
     cursor: pointer;
   }
+  .drawer-close:hover {
+    background: var(--orca-hover);
+    color: var(--orca-ink);
+  }
   .drawer-body {
-    padding: 22px 24px;
+    padding: 18px 24px 24px;
   }
   .drawer-status {
     display: flex;
+    align-items: center;
     justify-content: space-between;
     gap: 10px;
-    align-items: center;
-    font-size: 10px;
-    color: #8c9c80;
+    color: var(--orca-muted);
+    font-size: 13px;
   }
   .identity-details {
     display: grid;
-    gap: 17px;
-    margin: 23px 0 18px;
+    margin: 14px 0 0;
+    border-top: 1px solid #eff0f2;
   }
   .identity-details > div {
     display: grid;
-    gap: 5px;
-    border-bottom: 1px solid #e7ede1;
-    padding-bottom: 14px;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: 4px 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid #eff0f2;
   }
   dt {
-    font-size: 11px;
-    color: #839576;
+    color: var(--orca-muted);
+    font-size: 13px;
   }
   dd {
+    min-width: 0;
     margin: 0;
-    font-size: 12px;
-    color: #4d6640;
+    color: var(--orca-ink);
+    font-size: 14px;
     overflow-wrap: anywhere;
   }
   dd small {
     display: block;
-    margin-top: 4px;
-    font-size: 10px;
-    color: #91a085;
+    margin-top: 2px;
+    color: var(--orca-muted);
+    font-size: 12.5px;
+  }
+  dd .audit-id {
+    max-width: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   dd code {
-    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
   }
   dd a {
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    color: var(--orca-ink);
     text-decoration: none;
-    color: #577d41;
   }
   dd a:hover {
     text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  dd a :global(svg) {
+    flex: none;
+    color: var(--orca-subtle);
   }
   .payload-note,
   .admission-note {
-    margin: 20px 0 0;
-    font-size: 10px;
-    line-height: 1.8;
-    color: #8c9d7d;
+    margin: 16px 0 0;
+    color: var(--orca-muted);
+    font-size: 12.5px;
+    line-height: 1.65;
   }
   .admission-note {
     padding: 10px 12px;
-    background: #faf7ed;
-    color: #977f49;
-    border: 1px solid #eee5cb;
-    border-radius: 6px;
-  }
-  button:focus-visible,
-  a:focus-visible,
-  select:focus-visible {
-    outline: 2px solid #819f65;
-    outline-offset: 3px;
+    border: 1px solid color-mix(in srgb, var(--orca-warn) 24%, transparent);
+    border-radius: var(--orca-radius);
+    background: var(--orca-warn-bg);
+    color: var(--orca-warn);
   }
   .sr-only {
     position: absolute;
@@ -1141,58 +1301,32 @@
     white-space: nowrap;
     border: 0;
   }
-  @media (max-width: 1050px) {
-    .filters {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+  @media (max-width: 1100px) {
+    .audit-toolbar {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .search-field {
       grid-column: 1 / -1;
     }
-    .secondary-filters {
-      flex-wrap: wrap;
-    }
-    .secondary-filters label {
-      flex: 1;
-      min-width: 145px;
-    }
   }
-  @media (max-width: 650px) {
-    h1 {
-      font-size: 21px;
-    }
-    .audit-heading {
-      align-items: start;
-    }
-    .audit-heading > button {
-      margin-top: 25px;
-    }
-    .filters {
-      grid-template-columns: 1fr 1fr;
-    }
-    .filters > label:first-of-type {
-      grid-column: 1 / -1;
-    }
-    .loaded-summary {
-      flex-direction: column;
-      align-items: start;
-      gap: 5px;
-      padding: 12px 0;
-    }
-    .secondary-filters label {
-      min-width: calc(50% - 12px);
+  @media (max-width: 760px) {
+    .audit-heading > div {
+      flex-basis: 100%;
     }
     .audit-table {
-      min-width: 780px;
-    }
-    .pagination {
-      flex-wrap: wrap;
+      min-width: 760px;
     }
     .pagination > div {
       margin-left: auto;
     }
-    .drawer-body,
-    .drawer-heading {
-      padding: 20px;
+  }
+  @media (max-width: 480px) {
+    .identity-details > div {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .drawer-heading,
+    .drawer-body {
+      padding-inline: 16px;
     }
   }
 </style>

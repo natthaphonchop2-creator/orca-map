@@ -22,29 +22,29 @@ export interface CatalogSource {
 export function catalogSetupState(source: Pick<CatalogSource, 'guideOnly' | 'setupStatus' | 'setupCanConfigure' | 'setupReason'>) {
 	if (source.guideOnly) return {
 		kind: 'guide' as const, canStart: false,
-		labelTh: 'ต้องมีตัวเชื่อมของคุณ', label: 'Bring your own connector',
-		actionTh: 'เพิ่ม MCP ของคุณ', action: 'Add your own MCP'
+		labelTh: 'ต้องใช้ตัวเชื่อมขององค์กร', label: 'Requires your own connector',
+		actionTh: 'เพิ่มระบบด้วย MCP URL', action: 'Add a system with an MCP URL'
 	};
 	if (source.setupStatus === 'admin_setup_required') return {
 		kind: 'admin_setup_required' as const, canStart: source.setupCanConfigure === true,
-		labelTh: 'ผู้ดูแลต้องเปิดใช้', label: 'Administrator setup required',
-		actionTh: source.setupCanConfigure === true ? 'ตั้งค่าแอป' : 'รอผู้ดูแลเปิดใช้',
+		labelTh: 'ต้องให้ผู้ดูแลระบบตั้งค่า', label: 'Administrator setup required',
+		actionTh: source.setupCanConfigure === true ? 'ตั้งค่าแอป' : 'รอผู้ดูแลระบบตั้งค่า',
 		action: source.setupCanConfigure === true ? 'Set up app' : 'Administrator required'
 	};
 	if (source.setupStatus === 'review_required') return {
 		kind: 'review_required' as const, canStart: true,
-		labelTh: source.setupReason === 'provider_review' ? 'รอยืนยันจากผู้ให้บริการ' : 'กำลังตรวจวิธีเชื่อม',
+		labelTh: source.setupReason === 'provider_review' ? 'รอยืนยันจากผู้ให้บริการ' : 'รอตรวจสอบวิธีเชื่อมต่อ',
 		label: source.setupReason === 'provider_review' ? 'Provider review required' : 'Connection review required',
-		actionTh: 'ตรวจการตั้งค่า', action: 'Check setup'
+		actionTh: 'ตรวจสอบการตั้งค่า', action: 'Check setup'
 	};
 	if (source.setupStatus === 'available') return {
 		kind: 'available' as const, canStart: true,
-		labelTh: '', label: '', actionTh: 'เชื่อมต่อแอป', action: 'Connect app'
+		labelTh: '', label: '', actionTh: 'เชื่อมต่อระบบนี้', action: 'Connect this system'
 	};
 	return {
 		kind: 'unknown' as const, canStart: true,
-		labelTh: 'ต้องตรวจการตั้งค่า', label: 'Setup not checked',
-		actionTh: 'ตรวจการตั้งค่า', action: 'Check setup'
+		labelTh: 'ยังไม่ได้ตรวจสอบการตั้งค่า', label: 'Setup not checked',
+		actionTh: 'ตรวจสอบการตั้งค่า', action: 'Check setup'
 	};
 }
 
@@ -69,28 +69,28 @@ const catalogAuthDescriptions = {
 		id: 'oauth',
 		label: 'OAuth',
 		labelTh: 'OAuth',
-		descriptionTh: 'ลงชื่อเข้าใช้และอนุญาตบัญชีผ่านผู้ให้บริการ',
-		descriptionEn: 'Sign in and authorize an account through the provider.'
+		descriptionTh: 'ลงชื่อเข้าใช้ด้วยบัญชีของระบบนั้นและอนุญาตการเข้าถึง (OAuth)',
+		descriptionEn: 'Sign in with that system’s account and authorize access (OAuth).'
 	},
 	secrets: {
 		id: 'secrets',
 		label: 'Secrets',
-		labelTh: 'Secrets',
-		descriptionTh: 'รองรับข้อมูลลับ เช่น API key, token หรือค่ารับรองการเชื่อมต่อ',
-		descriptionEn: 'Supports credentials such as API keys, tokens, or other connection secrets.'
+		labelTh: 'คีย์หรือโทเคน',
+		descriptionTh: 'ใช้ข้อมูลลับ เช่น คีย์ API โทเคน หรือข้อมูลรับรองอื่น',
+		descriptionEn: 'Uses credentials such as API keys, tokens, or other connection secrets.'
 	},
 	none: {
 		id: 'none',
-		label: 'No auth',
-		labelTh: 'ไม่ต้องยืนยันบัญชี',
-		descriptionTh: 'ข้อมูลการเชื่อมต่อระบุว่าไม่ต้องใช้บัญชีหรือข้อมูลลับ',
-		descriptionEn: 'The connection metadata explicitly identifies this source as requiring no authentication.'
+		label: 'No authentication',
+		labelTh: 'ไม่ต้องยืนยันตัวตน',
+		descriptionTh: 'ข้อมูลของระบบระบุว่าไม่ต้องใช้บัญชีหรือข้อมูลลับ',
+		descriptionEn: 'The system’s metadata states that no authentication is required.'
 	},
 	unknown: {
 		id: 'unknown',
-		label: 'Auth not confirmed',
-		labelTh: 'รอยืนยันวิธีเชื่อม',
-		descriptionTh: 'ยังไม่มีข้อมูลยืนยันวิธีเชื่อมต่อ ตรวจสอบได้ในขั้นตอนตั้งค่า',
+		label: 'Authentication not confirmed',
+		labelTh: 'ยังไม่ยืนยันวิธีเชื่อมต่อ',
+		descriptionTh: 'ยังไม่มีข้อมูลยืนยันวิธีเชื่อมต่อ ตรวจสอบได้ระหว่างการตั้งค่า',
 		descriptionEn: 'The authentication method is not confirmed yet. Check it during setup.'
 	}
 } as const;

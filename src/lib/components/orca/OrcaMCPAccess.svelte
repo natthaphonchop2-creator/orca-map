@@ -123,7 +123,7 @@
 	async function createKey() {
 		if (destroyed || creating || !canCreate) return;
 		if (!keyName.trim() || keyName.trim().length > 100 || !Number.isInteger(expiryDays) || (expiryDays ?? -1) < 0 || (expiryDays ?? 31) > 30) {
-			keyError = t('ตั้งชื่อคีย์และเลือกอายุ 1–30 วัน หรือไม่หมดอายุ', 'Enter a key name and select 1–30 days or no expiry.');
+			keyError = t('กรุณาตั้งชื่อคีย์ และเลือกอายุการใช้งาน 1–30 วัน หรือไม่หมดอายุ', 'Enter a key name and select an expiry of 1–30 days or no expiry.');
 			return;
 		}
 		const startedIdentity = identity;
@@ -159,7 +159,7 @@
 			if (current(startedIdentity) && request === creationGeneration) notice = t('คัดลอกคีย์แล้ว', 'Key copied');
 		} catch {
 			if (current(startedIdentity) && request === creationGeneration) {
-				keyError = t('คัดลอกไม่ได้ กดแสดงคีย์แล้วเลือกข้อความเพื่อคัดลอกเองได้', 'Copy failed. Reveal the key and select it to copy manually.');
+				keyError = t('คัดลอกอัตโนมัติไม่สำเร็จ กรุณาแสดงคีย์ แล้วเลือกข้อความเพื่อคัดลอกด้วยตนเอง', 'The key could not be copied automatically. Reveal the key and copy it manually.');
 			}
 		}
 	}
@@ -191,87 +191,335 @@
 
 <section class="orca-mcp-access" aria-labelledby="orca-mcp-title">
 	<header class="access-heading">
-		<h2 id="orca-mcp-title">{t('เชื่อม AI กับ ORCA ครั้งเดียว', 'Connect your AI to ORCA once')}</h2>
+		<h2 id="orca-mcp-title">{t('เชื่อม AI กับ ORCA เพียงครั้งเดียว', 'Connect your AI to ORCA once')}</h2>
 	</header>
-	<details class="access-gateways">
-		<summary>{t(`Gateway ที่คุณใช้งานได้ · ${accessibleGateways.length}`, `Gateways available to you · ${accessibleGateways.length}`)}</summary>
-		{#each accessibleGateways as hub (hub.id)}
-			<a href={localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}`)}><strong>{hub.name}</strong><span>{t(`${gatewaySources(hub).length} ระบบ · ${gatewayToolCount(hub)} เครื่องมือที่เลือก`, `${gatewaySources(hub).length} sources · ${gatewayToolCount(hub)} selected tools`)}</span></a>
-		{:else}<p>{t('ยังไม่มี Gateway ที่คุณใช้ได้ ติดต่อผู้ดูแลเพื่อขอสิทธิ์', 'No Gateway access yet. Ask an administrator for access.')}</p>{/each}
+	<details class="access-gateways access-panel">
+		<summary>{t(`พื้นที่ทำงาน AI ที่คุณใช้งานได้ · ${accessibleGateways.length}`, `AI workspaces available to you · ${accessibleGateways.length}`)}</summary>
+		<div class="access-gateway-list">
+			{#each accessibleGateways as hub (hub.id)}
+				<a href={localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}`)}><strong>{hub.name}</strong><span>{t(`${gatewaySources(hub).length} ระบบ · เครื่องมือที่อนุญาต ${gatewayToolCount(hub)} รายการ`, `Systems: ${gatewaySources(hub).length} · Allowed tools: ${gatewayToolCount(hub)}`)}</span></a>
+			{:else}<p>{t('คุณยังไม่มีสิทธิ์ใช้พื้นที่ทำงาน AI ใด ติดต่อผู้ดูแลระบบเพื่อขอสิทธิ์', 'You do not have access to any AI workspace yet. Contact your administrator to request access.')}</p>{/each}
+		</div>
 	</details>
 
-	<div class="setup-step"><div class="step-title"><h3>{t('เพิ่ม ORCA ในแอป AI', 'Add ORCA to your AI client')}</h3></div>
-		{#if hasEndpoint}<GatewayClientSetup {endpoint} ready={canCreate} scope="orca" {oauth} />{:else}<p class="k-muted">{t('ระบบยังไม่มี URL สำหรับเชื่อม ORCA MCP กรุณาโหลดข้อมูลล่าสุดหรือติดต่อผู้ดูแล', 'An ORCA MCP URL is not available yet. Reload the latest data or contact your administrator.')}</p>{/if}
+	<div class="setup-step access-panel"><div class="step-title"><h3>{t('เพิ่ม ORCA ในแอป AI', 'Add ORCA to your AI app')}</h3></div>
+		<div class="step-body">{#if hasEndpoint}<GatewayClientSetup {endpoint} ready={canCreate} scope="orca" {oauth} />{:else}<p>{t('ยังไม่มีลิงก์เชื่อม AI สำหรับ ORCA กรุณาโหลดข้อมูลล่าสุดหรือติดต่อผู้ดูแลระบบ', 'The AI connection link for ORCA is not available yet. Reload the latest data or contact your administrator.')}</p>{/if}</div>
 	</div>
-	<details class="api-key-option">
-		<summary>API key · {t('ทางเลือก', 'Optional')}</summary>
+	<details class="api-key-option access-panel">
+		<summary>{t('คีย์ API (ไม่บังคับ)', 'API key (optional)')}</summary>
+		<div class="api-key-body">
 		{#if hasEndpoint}<GatewayClientSetup {endpoint} ready={canCreate} scope="orca" oauth={false} />{/if}
-	<div class="setup-step"><div class="step-title"><h3>{t('สร้างคีย์ส่วนตัวสำหรับแอป', 'Create a personal key for your client')}</h3></div>
-		{#if notice}<p class="key-notice" role="status"><Check size={15} />{notice}</p>{/if}
-		{#if keyError}<div class="k-banner error" role="alert"><div>{keyError}<button class="k-link-button" onclick={loadKeys} disabled={loadingKeys}>{t('โหลดรายการคีย์อีกครั้ง', 'Reload keys')}</button></div></div>{/if}
-		{#if newKey && canCreate && secretAccess === accessSignature}
-			<div class="key-created">
-				<strong>{t('คีย์ของคุณพร้อมแล้ว', 'Your key is ready')}</strong>
-				<p>{t('คัดลอกคีย์ไปเก็บในแอป AI คีย์นี้แสดงได้ครั้งเดียว', 'Save this key in your AI app. It is shown only once.')}</p>
-				<div class="k-actions"><button class="k-button primary" onclick={copyKey}><Copy size={16} />{t('คัดลอกคีย์', 'Copy key')}</button><button class="k-button" onclick={toggleReveal}>{#if revealKey}<EyeOff size={16} />{t('ซ่อนคีย์', 'Hide key')}{:else}<Eye size={16} />{t('แสดงคีย์', 'Reveal key')}{/if}</button><button class="k-button quiet" onclick={dismissCreatedKey}>{t('เก็บคีย์แล้ว', 'I have saved the key')}</button></div>
-				{#if revealKey}<div class="k-field reveal-field"><label for="orca-created-key">{t('คีย์เชื่อมต่อของคุณ', 'Your connection key')}</label><input id="orca-created-key" value={newKey} readonly autocomplete="off" spellcheck="false" /></div>{/if}
-			</div>
-		{:else if canCreate}
-			<form onsubmit={(event) => { event.preventDefault(); void createKey(); }}>
-				<fieldset disabled={creating}>
-					<div class="key-fields"><div class="k-field"><label for="orca-key-name">{t('ชื่อคีย์', 'Key name')}</label><input id="orca-key-name" bind:value={keyName} maxlength="100" placeholder={t('เช่น Codex บนคอมของฉัน', 'For example, Codex on my computer')} required /></div>
-					<div class="k-field"><label for="orca-key-expiry">{t('อายุคีย์', 'Key expiry')}</label><select id="orca-key-expiry" bind:value={expiryDays}><option value={1}>{t('1 วัน', '1 day')}</option><option value={7}>{t('7 วัน', '7 days')}</option><option value={14}>{t('14 วัน', '14 days')}</option><option value={30}>{t('30 วัน', '30 days')}</option><option value={0}>{t('ไม่หมดอายุ', 'No expiry')}</option></select></div></div>
-					<button type="submit" class="k-button primary" disabled={creating || !keyName.trim()}><KeyRound size={16} />{creating ? t('กำลังสร้าง…', 'Creating…') : t('สร้างคีย์', 'Create key')}</button>
-				</fieldset>
-			</form>
-		{:else}<p class="k-muted">{t('ต้องมีสิทธิ์ใช้ Gateway ก่อนสร้างคีย์', 'Gateway access is required to create a key.')}</p>{/if}
-	</div>
+		<div class="key-step"><div class="step-title"><h3>{t('สร้างคีย์ส่วนตัวสำหรับแอป AI', 'Create a personal key for your AI app')}</h3></div>
+			{#if notice}<p class="key-notice" role="status"><Check size={16} aria-hidden="true" />{notice}</p>{/if}
+			{#if keyError}<div class="k-banner error" role="alert"><div>{keyError}<button class="k-link-button" onclick={loadKeys} disabled={loadingKeys}>{t('โหลดรายการคีย์อีกครั้ง', 'Reload keys')}</button></div></div>{/if}
+			{#if newKey && canCreate && secretAccess === accessSignature}
+				<div class="key-created">
+					<strong>{t('สร้างคีย์ส่วนตัวแล้ว', 'Personal key created')}</strong>
+					<p>{t('คัดลอกคีย์ไปบันทึกในแอป AI คีย์นี้จะแสดงเพียงครั้งเดียว', 'Save this key in your AI app. It is shown only once.')}</p>
+					<div class="key-actions"><button class="k-button primary" onclick={copyKey}><Copy size={16} aria-hidden="true" />{t('คัดลอกคีย์', 'Copy key')}</button><button class="k-button" onclick={toggleReveal}>{#if revealKey}<EyeOff size={16} aria-hidden="true" />{t('ซ่อนคีย์', 'Hide key')}{:else}<Eye size={16} aria-hidden="true" />{t('แสดงคีย์', 'Reveal key')}{/if}</button><button class="k-button quiet" onclick={dismissCreatedKey}>{t('บันทึกคีย์แล้ว', 'I have saved the key')}</button></div>
+					{#if revealKey}<div class="k-field reveal-field"><label for="orca-created-key">{t('คีย์ส่วนตัวของคุณ', 'Your personal key')}</label><input id="orca-created-key" value={newKey} readonly autocomplete="off" spellcheck="false" /></div>{/if}
+				</div>
+			{:else if canCreate}
+				<form onsubmit={(event) => { event.preventDefault(); void createKey(); }}>
+					<fieldset disabled={creating}>
+						<div class="key-fields"><div class="k-field"><label for="orca-key-name">{t('ชื่อคีย์', 'Key name')}</label><input id="orca-key-name" bind:value={keyName} maxlength="100" placeholder={t('เช่น Codex บนคอมพิวเตอร์ของฉัน', 'For example, Codex on my computer')} required /></div>
+						<div class="k-field"><label for="orca-key-expiry">{t('อายุการใช้งานคีย์', 'Key expiry')}</label><select id="orca-key-expiry" bind:value={expiryDays}><option value={1}>{t('1 วัน', '1 day')}</option><option value={7}>{t('7 วัน', '7 days')}</option><option value={14}>{t('14 วัน', '14 days')}</option><option value={30}>{t('30 วัน', '30 days')}</option><option value={0}>{t('ไม่หมดอายุ', 'No expiry')}</option></select></div></div>
+						<button type="submit" class="k-button primary" disabled={creating || !keyName.trim()}><KeyRound size={16} aria-hidden="true" />{creating ? t('กำลังสร้าง…', 'Creating…') : t('สร้างคีย์', 'Create key')}</button>
+					</fieldset>
+				</form>
+			{:else}<p>{t('ต้องเป็นสมาชิกของพื้นที่ทำงาน AI ที่เปิดใช้งานก่อนสร้างคีย์', 'You must be a member of an active AI workspace to create a key.')}</p>{/if}
+		</div>
 
-	<section class="owned-keys" aria-labelledby="orca-keys-title">
-		<div class="key-list-heading"><h3 id="orca-keys-title">{t('คีย์เชื่อม ORCA ของคุณ', 'Your ORCA connection keys')}</h3><button class="k-button quiet small" onclick={loadKeys} disabled={loadingKeys || creating || revoking !== undefined}><RefreshCw size={14} />{t('โหลดล่าสุด', 'Reload')}</button></div>
-		{#if loadingKeys}<p class="k-muted" role="status">{t('กำลังโหลดรายการคีย์…', 'Loading keys…')}</p>
-		{:else if keysLoaded && !keys.length}<p class="k-muted">{t('ยังไม่มีคีย์เชื่อม ORCA', 'No ORCA connection keys yet.')}</p>
-		{:else if keys.length}<div class="key-list">{#each keys as key (key.id)}<div class="key-row"><div class="key-meta"><strong>{key.name}</strong><span>{t('หมดอายุ: ', 'Expires: ')}{key.expiresAt ? displayDate(key.expiresAt) : t('ไม่หมดอายุ', 'No expiry')}</span><small>{t('ใช้งานล่าสุด: ', 'Last used: ')}{displayDate(key.lastUsedAt)}</small></div>
-			{#if confirmRevoke === key.id}<div class="revoke-confirm"><span>{t('ยกเลิกการเชื่อมต่อของคีย์นี้?', 'Revoke this key’s access?')}</span><div class="k-actions"><button class="k-button danger small" disabled={revoking !== undefined} onclick={() => revokeKey(key.id)}>{revoking === key.id ? t('กำลังยกเลิก…', 'Revoking…') : t('ยืนยันยกเลิก', 'Confirm revocation')}</button><button class="k-button quiet small" disabled={revoking !== undefined} onclick={() => confirmRevoke = undefined}>{t('กลับ', 'Back')}</button></div></div>
-			{:else}<button class="k-button quiet small" aria-label={t(`ยกเลิกคีย์ ${key.name}`, `Revoke key ${key.name}`)} disabled={revoking !== undefined} onclick={() => requestRevoke(key.id)}><Trash2 size={15} />{t('ยกเลิกคีย์', 'Revoke')}</button>{/if}
-		</div>{/each}</div>{/if}
-	</section>
+		<section class="owned-keys" aria-labelledby="orca-keys-title">
+			<div class="key-list-heading"><h3 id="orca-keys-title">{t('คีย์ส่วนตัวของคุณ', 'Your personal keys')}</h3><button class="k-button quiet small" onclick={loadKeys} disabled={loadingKeys || creating || revoking !== undefined}><RefreshCw size={14} aria-hidden="true" />{t('โหลดข้อมูลล่าสุด', 'Reload')}</button></div>
+			{#if loadingKeys}<p role="status">{t('กำลังโหลดรายการคีย์…', 'Loading keys…')}</p>
+			{:else if keysLoaded && !keys.length}<p>{t('ยังไม่มีคีย์ส่วนตัว', 'No personal keys yet.')}</p>
+			{:else if keys.length}<div class="key-list">{#each keys as key (key.id)}<div class="key-row"><div class="key-meta"><strong>{key.name}</strong><span>{t('หมดอายุ: ', 'Expires: ')}{key.expiresAt ? displayDate(key.expiresAt) : t('ไม่หมดอายุ', 'No expiry')}</span><small>{t('ใช้งานล่าสุด: ', 'Last used: ')}{displayDate(key.lastUsedAt)}</small></div>
+				{#if confirmRevoke === key.id}<div class="revoke-confirm"><span>{t('ยกเลิกคีย์นี้หรือไม่ แอปที่ใช้คีย์นี้จะเชื่อมต่อไม่ได้ทันที', 'Revoke this key? Apps using it will lose access immediately.')}</span><div class="key-actions"><button class="k-button danger small" disabled={revoking !== undefined} onclick={() => revokeKey(key.id)}>{revoking === key.id ? t('กำลังยกเลิก…', 'Revoking…') : t('ยืนยันการยกเลิก', 'Confirm revocation')}</button><button class="k-button quiet small" disabled={revoking !== undefined} onclick={() => confirmRevoke = undefined}>{t('กลับ', 'Back')}</button></div></div>
+				{:else}<button class="k-button small revoke-button" aria-label={t(`ยกเลิกคีย์ ${key.name}`, `Revoke key ${key.name}`)} disabled={revoking !== undefined} onclick={() => requestRevoke(key.id)}><Trash2 size={14} aria-hidden="true" />{t('ยกเลิกคีย์', 'Revoke key')}</button>{/if}
+			</div>{/each}</div>{/if}
+		</section>
+		</div>
 	</details>
 </section>
 
 <style>
-	.orca-mcp-access { max-width:960px; min-width:0; }
-	.access-heading h2 { font-size:23px; margin:0 0 10px; }
-	p { color:#647087; font-size:13px; line-height:1.8; margin:10px 0; }
-	.access-gateways { margin:20px 0 28px; border:1px solid #e1e6ed; border-radius:9px; padding:15px 18px; background:#fff; }
-	.access-gateways summary { cursor:pointer; font-size:13px; font-weight:600; }
-	.access-gateways a { display:flex; justify-content:space-between; align-items:center; gap:12px; color:inherit; text-decoration:none; padding-top:15px; font-size:13px; }
-	.access-gateways a span { color:#647087; font-size:12px; }
-	.setup-step { background:#fff; border:1px solid #e1e6ed; padding:23px; border-radius:10px; margin:16px 0; }
-	.step-title { display:flex; align-items:center; gap:11px; margin-bottom:20px; }
-	h3 { font-size:16px; margin:0; }
-	.key-fields { display:grid; grid-template-columns:minmax(0,1fr) minmax(150px,.45fr); gap:18px; margin-bottom:18px; }
-	fieldset { border:0; padding:0; margin:0; min-width:0; }
-	.key-created { background:#f7faef; border:1px solid #dfe7cd; border-radius:9px; padding:19px; }
-	.key-created > strong { font-size:15px; }
-	.reveal-field { margin-top:18px; }
-	.key-notice { display:flex; align-items:center; gap:7px; color:#4d722d; }
-	.k-banner .k-link-button { display:block; margin-top:6px; }
-	.api-key-option { margin-top:24px; padding:18px; border:1px solid #e1e6ed; border-radius:10px; }
-	.api-key-option > summary { cursor:pointer; font-size:15px; font-weight:600; }
-	.owned-keys { margin-top:30px; }
-	.key-list-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }
-	.key-list { border:1px solid #e1e6ed; border-radius:9px; background:white; }
-	.key-row { display:flex; justify-content:space-between; align-items:center; gap:18px; padding:17px 18px; }
-	.key-row + .key-row { border-top:1px solid #e8ebf0; }
-	.key-meta { min-width:0; display:flex; flex-direction:column; gap:6px; overflow-wrap:anywhere; }
-	.key-meta strong { font-size:13px; }
-	.key-meta span, .key-meta small, .revoke-confirm > span { font-size:12px; color:#647087; }
-	.revoke-confirm .k-actions { margin-top:8px; }
-	@media(max-width:600px) {
-		.setup-step { padding:17px; }
-		.key-fields { grid-template-columns:1fr; }
-		.access-gateways a, .key-row { align-items:flex-start; flex-direction:column; }
-		.key-list-heading { align-items:flex-start; }
+	.orca-mcp-access {
+		--access-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+		display: grid;
+		gap: 16px;
+		max-width: 960px;
+		min-width: 0;
+		color: var(--orca-ink);
+	}
+	.access-heading h2 {
+		margin: 0;
+	}
+	p {
+		margin: 0;
+		color: var(--orca-muted);
+		font-size: 13.5px;
+		line-height: 1.65;
+	}
+	h3 {
+		margin: 0;
+		font-size: 14.5px;
+		font-weight: 600;
+		line-height: 1.45;
+	}
+	.access-panel {
+		min-width: 0;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-surface);
+	}
+	/* Collapsible panels: a header row with a chevron that turns when open. */
+	summary {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		min-height: 48px;
+		padding: 12px 18px;
+		border-radius: var(--orca-radius-lg);
+		color: var(--orca-ink);
+		font-size: 14px;
+		font-weight: 600;
+		line-height: 1.45;
+		list-style: none;
+		cursor: pointer;
+	}
+	summary::-webkit-details-marker {
+		display: none;
+	}
+	summary::after {
+		content: '';
+		flex: none;
+		width: 16px;
+		height: 16px;
+		background-color: var(--orca-subtle);
+		-webkit-mask: var(--access-chevron) center / 16px 16px no-repeat;
+		mask: var(--access-chevron) center / 16px 16px no-repeat;
+		transition: transform 0.15s;
+	}
+	summary:hover {
+		background: var(--orca-surface-2);
+	}
+	summary:focus-visible {
+		outline-offset: -2px;
+	}
+	details[open] > summary {
+		border-bottom: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius-lg) var(--orca-radius-lg) 0 0;
+	}
+	details[open] > summary::after {
+		transform: rotate(180deg);
+	}
+	.access-gateway-list a {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 12px;
+		padding: 12px 18px;
+		color: var(--orca-ink);
+		text-decoration: none;
+	}
+	.access-gateway-list a + a {
+		border-top: 1px solid #eff0f2;
+	}
+	.access-gateway-list a:hover {
+		background: var(--orca-surface-2);
+	}
+	.access-gateway-list a:hover strong {
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+	.access-gateway-list a:focus-visible {
+		outline-offset: -2px;
+	}
+	.access-gateway-list strong {
+		min-width: 0;
+		font-size: 14px;
+		font-weight: 600;
+		overflow-wrap: anywhere;
+	}
+	.access-gateway-list span {
+		flex: none;
+		color: var(--orca-muted);
+		font-size: 13px;
+	}
+	.access-gateway-list > p {
+		padding: 14px 18px;
+	}
+	.setup-step > .step-title {
+		padding: 14px 18px;
+		border-bottom: 1px solid var(--orca-line);
+	}
+	.step-body {
+		padding: 16px 18px 18px;
+	}
+	.api-key-body {
+		padding: 16px 18px 18px;
+	}
+	.key-step {
+		margin-top: 20px;
+		padding-top: 16px;
+		border-top: 1px solid #eff0f2;
+	}
+	.key-step > .step-title {
+		margin-bottom: 12px;
+	}
+	.key-step .k-banner {
+		margin: 0 0 12px;
+	}
+	.k-banner .k-link-button {
+		display: block;
+		margin-top: 6px;
+	}
+	.key-notice {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		margin-bottom: 12px;
+		color: var(--orca-ok);
+		font-weight: 500;
+	}
+	fieldset {
+		min-width: 0;
+		margin: 0;
+		padding: 0;
+		border: 0;
+	}
+	.key-fields {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
+		gap: 16px;
+		margin-bottom: 16px;
+	}
+	.key-fields .k-field + .k-field {
+		margin-top: 0;
+	}
+	.key-created {
+		padding: 16px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface);
+	}
+	.key-created > strong {
+		font-size: 14.5px;
+		font-weight: 600;
+	}
+	.key-created > p {
+		margin-top: 4px;
+	}
+	.key-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-top: 12px;
+	}
+	.reveal-field {
+		margin-top: 16px;
+	}
+	.reveal-field input {
+		font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+		font-size: 13px;
+	}
+	.owned-keys {
+		margin-top: 24px;
+		padding-top: 16px;
+		border-top: 1px solid #eff0f2;
+	}
+	.key-list-heading {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 12px;
+		margin-bottom: 10px;
+	}
+	.key-list {
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface);
+	}
+	.key-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 16px;
+		padding: 12px 14px;
+	}
+	.key-row + .key-row {
+		border-top: 1px solid #eff0f2;
+	}
+	.key-meta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 2px 14px;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+	.key-meta strong {
+		flex-basis: 100%;
+		font-size: 14px;
+		font-weight: 600;
+	}
+	.key-meta span,
+	.key-meta small {
+		color: var(--orca-muted);
+		font-size: 13px;
+	}
+	.revoke-button {
+		flex: none;
+	}
+	.revoke-button:hover {
+		border-color: color-mix(in srgb, var(--orca-deny) 25%, var(--orca-surface));
+		background: var(--orca-deny-bg);
+		color: var(--orca-deny) !important;
+	}
+	.revoke-confirm {
+		display: grid;
+		justify-items: end;
+		gap: 6px;
+		max-width: 320px;
+	}
+	.revoke-confirm > span {
+		color: var(--orca-deny);
+		font-size: 12.5px;
+		line-height: 1.5;
+		text-align: end;
+	}
+	.revoke-confirm .key-actions {
+		margin-top: 0;
+	}
+	@media (max-width: 600px) {
+		summary,
+		.access-gateway-list a,
+		.access-gateway-list > p {
+			padding-inline: 14px;
+		}
+		.setup-step > .step-title {
+			padding-inline: 14px;
+		}
+		.step-body,
+		.api-key-body {
+			padding-inline: 14px;
+		}
+		.key-fields {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.access-gateway-list a,
+		.key-row {
+			align-items: flex-start;
+			flex-direction: column;
+			gap: 6px;
+		}
+		.revoke-confirm {
+			justify-items: start;
+		}
+		.revoke-confirm > span {
+			text-align: start;
+		}
 	}
 </style>

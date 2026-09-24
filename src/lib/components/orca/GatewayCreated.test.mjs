@@ -23,20 +23,20 @@ test('OAuth Gateway shares the real MCP endpoint instead of sending employees to
   const input = html.match(/<input[^>]+id="gateway-share-link"[^>]+>/)?.[0];
   assert.match(input, /https:\/\/gateway.example.test\/api\/orca\/hubs\/hub-one\/mcp/);
   assert.doesNotMatch(input, /admin.example.test|view=hub/);
-  assert.match(html, /MCP gateway URL/);
-  assert.match(html, /sign in to ORCA to confirm their account/);
+  assert.match(html, /AI connection link \(MCP URL\)/);
+  assert.match(html, /signs in with their own ORCA account/);
 });
 
 test('ordinary Gateway shares the MCP endpoint without a custom IdP and keeps the draft requirement', () => {
   const html = render(Screen, { props: { hub: { ...hub, status: 'draft' } } }).body;
-  assert.match(html, /MCP gateway URL/);
+  assert.match(html, /AI connection link \(MCP URL\)/);
   assert.match(html, /https:\/\/gateway.example.test\/api\/orca\/hubs\/hub-one\/mcp/);
   assert.doesNotMatch(html, /Member setup link|admin.example.test/);
-  assert.match(html, /Activate this Gateway when you are ready/);
+  assert.match(html, /Activate this AI workspace when you are ready/);
 });
 
 test('an unsafe OAuth endpoint cannot become a copied share URL', () => {
   const html = render(Screen, { props: { hub: { ...hub, userSourceID: 'idp', connectURL: 'https://gateway.example.test/mcp?token=secret' } } }).body;
   assert.doesNotMatch(html, /gateway-share-link|token=secret/);
-  assert.match(html, /A connection URL is not available yet/);
+  assert.match(html, /AI connection link for this workspace is not available yet/);
 });

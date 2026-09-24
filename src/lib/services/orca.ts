@@ -413,28 +413,28 @@ export function orcaError(error: unknown): string {
   const parsed = parseErrorContent(error);
   if (parsed.status === 409)
     return t(
-      "มีการเปลี่ยนแปลงข้อมูลนี้แล้ว กรุณาโหลดข้อมูลล่าสุดก่อนบันทึกอีกครั้ง",
+      "ข้อมูลนี้มีการเปลี่ยนแปลงแล้ว กรุณาโหลดข้อมูลล่าสุดก่อนบันทึกอีกครั้ง",
       "This record has changed. Reload the latest data before saving again.",
     );
   if (parsed.status === 401)
     return t(
-      "กรุณาเข้าสู่ระบบอีกครั้งเพื่อใช้งานต่อ",
-      "Your session expired. Please sign in again.",
+      "การเข้าสู่ระบบหมดอายุแล้ว กรุณาเข้าสู่ระบบอีกครั้ง",
+      "Your session has expired. Please sign in again.",
     );
   if (parsed.status === 403)
     return t(
-      "บัญชีของคุณไม่มีสิทธิ์ทำรายการนี้ หรือมีการเปลี่ยนแปลงสิทธิ์ กรุณาโหลดข้อมูลล่าสุด",
-      "Your account cannot perform this action, or its access has changed. Reload the latest data.",
+      "บัญชีของคุณไม่มีสิทธิ์ดำเนินการนี้ หรือสิทธิ์มีการเปลี่ยนแปลงแล้ว กรุณาโหลดข้อมูลล่าสุด",
+      "Your account does not have permission for this action, or its access has changed. Reload the latest data.",
     );
   if (parsed.status === 429)
     return t(
-      "ใช้งานครบจำนวนที่กำหนดแล้ว กรุณาลองใหม่ภายหลัง",
-      "The usage limit has been reached. Try again later.",
+      "มีการใช้งานครบตามจำนวนที่กำหนดแล้ว กรุณาลองอีกครั้งภายหลัง",
+      "The usage limit has been reached. Please try again later.",
     );
   return (
     parsed.message ||
     t(
-      "เชื่อมต่อไม่สำเร็จ กรุณาลองอีกครั้ง",
+      "ไม่สามารถเชื่อมต่อได้ กรุณาลองอีกครั้ง",
       "Could not connect. Please try again.",
     )
   );
@@ -462,7 +462,7 @@ export const statusLabels: Record<HubStatus, string> = {
     return t("เปิดใช้งาน", "Active");
   },
   get paused() {
-    return t("ระงับการใช้งาน", "Paused");
+    return t("ระงับ", "Paused");
   },
   get archived() {
     return t("จัดเก็บแล้ว", "Archived");
@@ -476,11 +476,11 @@ export const memberName = (member: OrcaMember) =>
 export function memberRole(role: string | number): string {
   const key = organizationRole(role);
   return key === "owner"
-    ? t("Owner", "Owner")
+    ? t("เจ้าของระบบ", "Owner")
     : key === "admin"
-      ? t("Admin องค์กร", "Organization admin")
+      ? t("ผู้ดูแลระบบ", "Admin")
       : key === "employee"
-        ? t("พนักงาน", "Employee")
+        ? t("สมาชิกทั่วไป", "Member")
         : t("ยังไม่กำหนดบทบาท", "Role not assigned");
 }
 export function displayDate(value?: string): string {

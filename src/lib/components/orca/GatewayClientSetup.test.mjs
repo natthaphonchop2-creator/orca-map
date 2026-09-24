@@ -58,7 +58,7 @@ test('clipboard failure provides a manual-copy fallback without a false success'
 	const view = setupHarness(context, { writeText: async () => { throw new Error('denied'); } });
 	await view.copy(view.instructions, 'Setup instructions');
 	assert.equal(view.copied, '');
-	assert.equal(view.error, 'Select and copy the text manually.');
+	assert.equal(view.error, 'The text could not be copied automatically. Select and copy it manually.');
 });
 
 async function rendered(props) {
@@ -81,12 +81,12 @@ test('OAuth URL and instructions are available while manual configuration remain
 	assert.match(html, /Do not require a manually issued API key/);
 	assert.doesNotMatch(html, /Bearer &lt;personal-key&gt;|ORCA_MCP_KEY/);
 	assert.equal((html.match(/<details/g) ?? []).length, 1);
-	assert.match(html, /Activate this Gateway and obtain membership/);
+	assert.match(html, /This AI workspace must be active and you must be a member/);
 	assert.match(html, /reachable only by apps on the same computer/);
 	const advanced = html.match(/<details([^>]*class="advanced-setup[^>]*)>([\s\S]*?)<\/details>/);
 	assert.ok(advanced);
 	assert.doesNotMatch(advanced[1], /\bopen(?:\s|=|$)/);
-	assert.match(html.slice(0, html.indexOf('<details')), /MCP gateway URL/);
+	assert.match(html.slice(0, html.indexOf('<details')), /AI connection link \(MCP URL\)/);
 	assert.match(advanced[2], /Setup help/);
 	assert.match(advanced[2], /General/);
 	assert.match(advanced[2], /Manual configuration format/);
@@ -97,14 +97,14 @@ test('OAuth URL and instructions are available while manual configuration remain
 test('an invalid endpoint cannot produce a copyable setup prompt', async () => {
 	const html = await rendered({ endpoint: 'https://orca.example/mcp?token=secret' });
 	assert.doesNotMatch(html, /Copy setup instructions/);
-	assert.match(html, /endpoint cannot be used to generate a configuration/);
+	assert.match(html, /AI connection link cannot be used to generate a configuration/);
 });
 
 test('the unified endpoint explains that one connection includes only permitted Gateways', async () => {
 	const html = await rendered({ endpoint: 'https://orca.example/api/orca/mcp', scope: 'orca' });
-	assert.match(html, /Connect to ORCA once to use tools from every Gateway you are allowed to access/);
-	assert.match(html, /ORCA MCP URL/);
-	assert.doesNotMatch(html, /MCP gateway URL/);
+	assert.match(html, /Connect to ORCA once to use tools from every AI workspace you are allowed to access/);
+	assert.match(html, /AI connection link for all your workspaces \(MCP URL\)/);
+	assert.doesNotMatch(html, /AI connection link \(MCP URL\)/);
 	assert.match(html, /current membership and permissions/);
 });
 
@@ -120,8 +120,8 @@ test('OAuth setup is English, uses ORCA sign-in and does not demand a personal A
     assert.match(view.config, /https:\/\/orca.example\/mcp\/team/);
   }
   const html = await rendered({ endpoint: 'https://orca.example/mcp/team', oauth: true, ready: false });
-  assert.match(html, /ORCA sign-in/);
-  assert.match(html, /Activate this Gateway and obtain membership/);
+  assert.match(html, /Sign in with your ORCA account \(OAuth\)/);
+  assert.match(html, /This AI workspace must be active and you must be a member/);
   assert.equal((html.match(/<details/g) ?? []).length, 1);
   assert.doesNotMatch(html, /Create a personal key|ORCA_MCP_KEY|Bearer/);
 });

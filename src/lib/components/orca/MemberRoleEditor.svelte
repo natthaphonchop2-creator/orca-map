@@ -50,7 +50,7 @@
       error =
         conflict === "last-owner"
           ? t(
-              "องค์กรต้องมี Owner อย่างน้อยหนึ่งคน กรุณาตั้งสมาชิกคนอื่นเป็น Owner ก่อนเปลี่ยนบทบาทนี้",
+              "องค์กรต้องมีเจ้าของระบบอย่างน้อยหนึ่งคน กรุณาแต่งตั้งสมาชิกคนอื่นเป็นเจ้าของระบบก่อนเปลี่ยนบทบาทนี้",
               "Your organization needs at least one Owner. Appoint another Owner before changing this role.",
             )
           : orcaError(cause);
@@ -64,24 +64,26 @@
   class="k-panel role-editor"
   aria-label={t("เปลี่ยนบทบาทสมาชิก", "Change member role")}
 >
-  <h2>{t("บทบาทของ", "Role for")} {memberName(member)}</h2>
-  <p class="k-small k-muted">
-    {member.email} · {t("ปัจจุบัน", "Current")}: {memberRole(originalRole)}
-  </p>
+  <header class="role-editor-head">
+    <h2>{t("บทบาทของ", "Role for")} {memberName(member)}</h2>
+    <p>
+      {member.email} · {t("บทบาทปัจจุบัน", "Current role")}: {memberRole(originalRole)}
+    </p>
+  </header>
   {#if error}<div class="k-banner error" role="alert">
-      <Info size={17} />
+      <Info size={16} />
       <div>
         {error}
         {#if staleRole}<p>
             {t(
-              "ให้ปิดแล้วเปิดรายการนี้ใหม่เพื่อใช้บทบาทล่าสุด",
-              "Close and reopen this editor to use the latest role.",
+              "กรุณาปิดแล้วเปิดการแก้ไขบทบาทอีกครั้งเพื่อแสดงบทบาทล่าสุด",
+              "Close and reopen this editor to see the latest role.",
             )}
           </p>{/if}
       </div>
     </div>{/if}
   {#if saved}<div class="k-banner success" role="status">
-      <Check size={17} />{t("บันทึกบทบาทแล้ว", "Role saved")}
+      <Check size={16} />{t("บันทึกบทบาทแล้ว", "Role saved")}
     </div>{/if}
   <form
     onsubmit={(event) => {
@@ -95,33 +97,35 @@
           >{t("บทบาทในองค์กร", "Organization role")}</label
         >
         <select id="member-role" bind:value={role}>
-          <option value="owner">Owner</option><option value="admin"
-            >{t("Admin องค์กร", "Organization admin")}</option
-          ><option value="employee">{t("พนักงาน", "Employee")}</option>
+          <option value="owner">{t("เจ้าของระบบ", "Owner")}</option><option value="admin"
+            >{t("ผู้ดูแลระบบ", "Admin")}</option
+          ><option value="employee">{t("สมาชิกทั่วไป", "Member")}</option>
         </select>
       </div>
-      <p class="k-small k-muted role-help">
+      <p class="role-help">
         {role === "owner"
           ? t(
-              "ดูแลการตั้งค่าทั้งองค์กรและกำหนดบทบาทสมาชิก",
-              "Manage all organization settings and member roles.",
+              "ดูแลการตั้งค่าทั้งหมดขององค์กรและกำหนดบทบาทของสมาชิก",
+              "Manages all organization settings and member roles.",
             )
           : role === "admin"
             ? t(
-                "จัดการการเชื่อมต่อ พื้นที่ทำงาน สมาชิก และแผนก โดยเปลี่ยนบทบาทผู้ดูแลไม่ได้",
-                "Manage connections, workspaces, employees and departments without changing administrative roles.",
+                "จัดการระบบที่เชื่อมต่อ พื้นที่ทำงาน AI สมาชิก และแผนก แต่เปลี่ยนบทบาทของผู้ดูแลไม่ได้",
+                "Manages connected systems, AI workspaces, members and departments, but cannot change administrative roles.",
               )
             : t(
-                "ใช้งานเฉพาะพื้นที่ เครื่องมือ และความรู้ที่ได้รับสิทธิ์",
-                "Use only assigned workspaces, tools and knowledge.",
+                "ใช้งานได้เฉพาะพื้นที่ทำงาน AI เครื่องมือ และความรู้ที่ได้รับสิทธิ์",
+                "Uses only assigned AI workspaces, tools and knowledge.",
               )}
       </p>
       {#if member.id === currentUserID && role !== "owner"}<p class="k-banner">
           {t(
-            "คุณกำลังลดสิทธิ์ของตัวเอง หลังบันทึกจะจัดการบทบาทไม่ได้ และองค์กรต้องมี Owner คนอื่นอยู่",
-            "You are reducing your own access. Another Owner is required, and you will no longer manage roles after saving.",
+            "คุณกำลังลดสิทธิ์ของตนเอง หลังบันทึกแล้วคุณจะจัดการบทบาทไม่ได้ และองค์กรต้องมีเจ้าของระบบคนอื่นอยู่",
+            "You are reducing your own access. After saving, you will no longer manage roles, and another Owner must remain.",
           )}
         </p>{/if}
+    </fieldset>
+    <div class="role-actions">
       <button
         class="k-button primary"
         type="submit"
@@ -129,25 +133,45 @@
         >{saving
           ? t("กำลังบันทึก…", "Saving…")
           : t("บันทึกบทบาท", "Save role")}</button
+      ><button class="k-button" type="button" disabled={saving} onclick={oncancel}
+        >{t("ปิด", "Close")}</button
       >
-    </fieldset>
+    </div>
   </form>
-  <button class="k-button quiet" disabled={saving} onclick={oncancel}
-    >{t("ปิด", "Close")}</button
-  >
 </section>
 
 <style>
   .role-editor {
-    margin-block: 20px;
+    margin: 0 0 20px;
   }
-  .role-editor form {
-    margin-block: 18px 10px;
+  .role-editor-head {
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--orca-line);
+  }
+  .role-editor-head h2 {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .role-editor-head p {
+    margin: 2px 0 0;
+    color: var(--orca-muted);
+    font-size: 13px;
+    overflow-wrap: anywhere;
   }
   .role-editor .k-field {
     max-width: 380px;
   }
   .role-help {
-    margin-block: 12px 20px;
+    margin: 8px 0 0;
+    color: var(--orca-muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .role-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
   }
 </style>

@@ -145,7 +145,7 @@ test('an enabled source requires explicit employee mapping while a disabled draf
   await view.save();
   assert.equal(calls.length, 1); assert.equal('clientSecret' in calls[0].payload, false); assert.deepEqual(calls[0].payload.bindings, []);
   view.open(); complete(view); view.edit({ enabled: true }); await view.save();
-  assert.match(view.state.error, /at least one employee/); assert.equal(calls.length, 1);
+  assert.match(view.state.error, /at least one member account/); assert.equal(calls.length, 1);
 });
 
 

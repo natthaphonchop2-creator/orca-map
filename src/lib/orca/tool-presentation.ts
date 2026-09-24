@@ -20,10 +20,10 @@ const knownLabels: Record<string, readonly [string, string]> = {
 	read_file: ['อ่านไฟล์', 'Read file'],
 	search_files: ['ค้นหาไฟล์', 'Search files'],
 	list_recent_files: ['ดูไฟล์ล่าสุด', 'List recent files'],
-	orca_knowledge_search: ['ค้นหาความรู้ขององค์กร', 'Search business knowledge'],
-	orca_knowledge_read: ['อ่านความรู้ขององค์กร', 'Read business knowledge'],
-	orca_template_list: ['ดูเทมเพลตขององค์กร', 'List business templates'],
-	orca_template_use: ['เตรียมเทมเพลตพร้อมความรู้', 'Prepare a business template']
+	orca_knowledge_search: ['ค้นหาบทความความรู้', 'Search knowledge articles'],
+	orca_knowledge_read: ['อ่านบทความความรู้', 'Read a knowledge article'],
+	orca_template_list: ['ดูรายการแม่แบบ', 'List templates'],
+	orca_template_use: ['เตรียมแม่แบบพร้อมบทความความรู้', 'Prepare a template with knowledge']
 };
 
 function humanizeIdentifier(name: string): string {

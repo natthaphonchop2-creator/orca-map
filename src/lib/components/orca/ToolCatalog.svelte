@@ -27,6 +27,7 @@
   import {
     ArrowRight,
     ChevronDown,
+    CircleCheck,
     CirclePlus,
     Code2,
     Info,
@@ -34,7 +35,6 @@
     Search,
     ShieldCheck,
     Layers3,
-    TrendingUp,
     X,
   } from "@lucide/svelte";
   import { onMount, onDestroy, tick } from "svelte";
@@ -162,13 +162,10 @@
 </script>
 
 {#snippet authBadges(source: CatalogTool)}
-  <span class="auth-tags" aria-label={t("วิธีเชื่อมต่อ", "Authentication methods")}>
+  <span class="auth-tags" aria-label={t("วิธีเชื่อมต่อ", "Connection methods")}>
     {#each source.authTags as tag (tag.id)}
       <span
-        class="auth-tag"
-        class:oauth={tag.id === "oauth"}
-        class:secrets={tag.id === "secrets"}
-        class:muted={tag.id === "unknown" || tag.id === "none"}
+        class="k-badge auth-tag"
         title={t(tag.descriptionTh, tag.descriptionEn)}
       >{t(tag.labelTh, tag.label)}</span>
     {/each}
@@ -182,39 +179,39 @@
   {@const provider = googleDriveProvider(source)}
   <details class="source-row">
     <summary
-      ><span class="app-icon"><CatalogIcon name={source.name} size={27} /></span
+      ><span class="app-icon"><CatalogIcon name={source.name} size={24} /></span
       ><span class="source-copy"
         ><strong>{source.name}</strong><span class="source-description"
           >{t(
             source.descriptionTh,
             source.descriptionEn || source.description || source.descriptionTh,
           )}</span
-      >{@render authBadges(source)}{#if readiness.label}<span class="setup-status" class:review={readiness.kind === "unknown" || readiness.kind === "review_required"}>{t(readiness.labelTh, readiness.label)}</span>{/if}</span
-      ><span class="source-type">{source.protocol}</span>{#if connection}<span
-          class="saved-dot"
-          title={t("มีการตั้งค่าในองค์กร", "Configured in your organization")}
-        ></span>{/if}<ChevronDown size={15} /></summary
+      >{@render authBadges(source)}{#if readiness.label}<span class="k-badge setup-status" class:paused={readiness.kind === "admin_setup_required"}>{t(readiness.labelTh, readiness.label)}</span>{/if}</span
+      ><span class="k-badge source-type">{source.protocol}</span>{#if connection}<span
+          class="saved-mark"
+          title={t("ตั้งค่าไว้ในองค์กรแล้ว", "Already set up in your organization")}
+        ><CircleCheck size={16} aria-hidden="true" /></span>{/if}<ChevronDown class="row-chevron" size={16} aria-hidden="true" /></summary
     >
     <div class="source-detail">
       {#if source.reference || provider}
         <details class="integration-guide">
-          <summary>{t("วิธีตั้งค่า", "Setup help")}<ChevronDown size={14} /></summary>
+          <summary>{t("วิธีตั้งค่า", "Setup help")}<ChevronDown size={16} aria-hidden="true" /></summary>
           <div class="integration-guide-body">
             {#if source.reference}
             <p class="integration-scope">{t(source.reference.scope[0], source.reference.scope[1])}</p>
             <ol>{#each source.reference.requirements as step}<li>{t(step[0], step[1])}</li>{/each}</ol>
-            <div class="documentation-links">{#each source.reference.docs as doc}<a href={doc.url} target="_blank" rel="noopener noreferrer">{doc.label}<ArrowRight size={13} /></a>{/each}</div>
-            <small>{t("ข้อมูลจากผู้ให้บริการ", "Provider documentation")} · {source.reference.checkedOn}</small>
+            <div class="documentation-links">{#each source.reference.docs as doc}<a href={doc.url} target="_blank" rel="noopener noreferrer">{doc.label}<ArrowRight size={14} aria-hidden="true" /></a>{/each}</div>
+            <small>{t("ตรวจสอบกับเอกสารของผู้ให้บริการ", "Checked against provider documentation")} · {source.reference.checkedOn}</small>
             {/if}
       {#if provider}<p class="source-provider-copy">
           {provider === "orca"
             ? t(
-                "ORCA ให้บริการ connector และจัดการ OAuth สำหรับ Google Drive API",
-                "ORCA hosts the connector and manages OAuth for the Google Drive API.",
+                "ORCA ให้บริการตัวเชื่อม และจัดการการลงชื่อเข้าใช้ด้วยบัญชี Google (OAuth) สำหรับ Google Drive API",
+                "ORCA hosts the connector and manages Google sign-in (OAuth) for the Google Drive API.",
               )
             : provider === "obot"
               ? t(
-                  "การเชื่อมต่อนี้ผ่านบริการของ Obot",
+                  "การเชื่อมต่อนี้ใช้บริการของ Obot",
                   "This connection uses Obot’s service.",
                 )
               : t(
@@ -229,8 +226,8 @@
         <div class="existing-provider-connections">
           <p>
             {t(
-              "การเชื่อมต่ออื่นขององค์กร",
-              "Other organization connections",
+              "ระบบอื่นที่องค์กรเชื่อมต่อไว้",
+              "Other connected systems in your organization",
             )}
           </p>
           {#each otherConnections as existing (existing.id)}
@@ -241,7 +238,7 @@
             >
               {existing.name} · {driveProviderLabel(
                 sources.find((candidate) => candidate.id === existing.mcpID),
-              )}<ArrowRight size={14} />
+              )}<ArrowRight size={14} aria-hidden="true" />
             </a>
           {/each}
         </div>
@@ -250,22 +247,22 @@
         {#if connection}<a
           class="k-button"
           href={sourceHref(source)}
-          >{t("ตั้งค่า Server", "Server settings")}<ArrowRight size={15} /></a>
+          >{t("ตั้งค่าระบบ", "System settings")}<ArrowRight size={16} aria-hidden="true" /></a>
         {:else}<button type="button" class="k-button" disabled={!readiness.canStart} onclick={() => openSetup(source)}>
-          {t(readiness.actionTh, readiness.action)}{#if readiness.canStart}<ArrowRight size={15} />{/if}
+          {t(readiness.actionTh, readiness.action)}{#if readiness.canStart}<ArrowRight size={16} aria-hidden="true" />{/if}
         </button>{/if}
       </div>
       {:else}<div class="source-actions guide-actions">
-        <span>{t("ต้องมี URL ของ MCP ที่รันอยู่แล้ว", "Requires an existing MCP server URL")}</span>
+        <span>{t("ต้องมี URL ของ MCP ที่ใช้งานได้อยู่แล้ว", "Requires a working MCP URL.")}</span>
         <a class="k-button" href={sourceHref(source)}>{source.protocol === "API"
-          ? t("เชื่อมผ่าน MCP ของคุณ", "Connect your own MCP")
-          : t("เพิ่ม MCP ขององค์กร", "Add organization MCP")}<ArrowRight size={15} /></a>
+          ? t("เชื่อมต่อผ่านตัวเชื่อม MCP ขององค์กร", "Connect through your MCP adapter")
+          : t("เพิ่มระบบด้วย MCP URL", "Add a system with an MCP URL")}<ArrowRight size={16} aria-hidden="true" /></a>
       </div>{/if}
     </div>
   </details>
 {/snippet}
 
-<section class="tool-library" aria-label={t("คลังเครื่องมือ", "Tool catalog")}>
+<section class="tool-library" aria-label={t("คลังระบบ", "System catalog")}>
   <header class="catalog-heading">
     <div>
       <h1>{t("เพิ่มระบบใหม่", "Add a system")}</h1>
@@ -273,35 +270,36 @@
     {#if data.canManage}<a
         class="k-button"
         href={localeHref("/app?view=servers&add=source")}
-        ><CirclePlus size={16} />{t("เพิ่ม MCP ของคุณ", "Add MCP server")}</a
+        ><CirclePlus size={16} aria-hidden="true" />{t("เพิ่มระบบด้วย MCP URL", "Add a system with an MCP URL")}</a
       >{/if}
   </header>
   {#if !data.canManage}
-    <div class="catalog-empty">
-      <ShieldCheck size={28} />
-      <h2>{t("เครื่องมือสำหรับทีมของคุณ", "Tools for your team")}</h2>
+    <div class="catalog-empty catalog-panel">
+      <ShieldCheck size={28} aria-hidden="true" />
+      <h2>{t("ระบบและเครื่องมือของทีม", "Your team’s systems and tools")}</h2>
       <p>
         {t(
-          "ผู้ดูแลเป็นผู้เลือกแอปและสิทธิ์ คุณดูเครื่องมือและวิธีเชื่อมต่อได้ใน MCP Gateway ที่ได้รับสิทธิ์",
-          "Your administrator selects apps and access. View your tools and connection details in an authorized MCP Gateway.",
+          "ผู้ดูแลระบบเป็นผู้เลือกระบบและกำหนดสิทธิ์ ดูเครื่องมือและลิงก์เชื่อม AI ได้ในพื้นที่ทำงาน AI ที่คุณเป็นสมาชิก",
+          "Your administrator selects systems and access. View your tools and AI connection link in the AI workspaces you belong to.",
         )}
       </p>
-      <a class="k-button" href={localeHref("/app?view=workspaces")}
-        >{t("เปิด MCP Gateways", "Open MCP Gateways")}<ArrowRight
+      <a class="k-button small" href={localeHref("/app?view=workspaces")}
+        >{t("ดูพื้นที่ทำงาน AI", "View AI workspaces")}<ArrowRight
           size={16}
+          aria-hidden="true"
         /></a
       >
     </div>
   {:else}
     <nav
       class="catalog-tabs"
-      aria-label={t("ประเภทคลังเครื่องมือ", "Catalog view")}
+      aria-label={t("มุมมองคลังระบบ", "Catalog view")}
     >
       <button
         class:chosen={tab === "apps"}
         aria-pressed={tab === "apps"}
         onclick={() => changeTab("apps")}
-        >{t("แอปและการเชื่อมต่อ", "Apps & integrations")}<span
+        >{t("ระบบที่เพิ่มได้", "Available systems")}<span
           >{loading ? "…" : allSources.length}</span
         ></button
       >
@@ -309,7 +307,7 @@
         class:chosen={tab === "tools"}
         aria-pressed={tab === "tools"}
         onclick={() => changeTab("tools")}
-        >{t("เครื่องมือที่เลือก", "Selected tools")}<span
+        >{t("เครื่องมือที่อนุญาต", "Allowed tools")}<span
           >{inventory.length}</span
         ></button
       >
@@ -317,58 +315,63 @@
         class:chosen={tab === "guides"}
         aria-pressed={tab === "guides"}
         onclick={() => changeTab("guides")}
-        >{t("คู่มือตัวเชื่อมอื่น", "Other connector guides")}<span>{loading ? "…" : guideSources.length}</span></button>
+        >{t("คู่มือการเชื่อมต่อเพิ่มเติม", "Other connection guides")}<span>{loading ? "…" : guideSources.length}</span></button>
     </nav>
     <div class="catalog-toolbar" bind:this={catalogToolbar}>
       <div class="catalog-search">
-        <Search size={17} /><input
+        <Search size={16} aria-hidden="true" /><input
           type="search"
           bind:value={query}
-          aria-label={t("ค้นหาเครื่องมือ", "Search tools")}
+          aria-label={t("ค้นหาในคลังระบบ", "Search the catalog")}
           placeholder={tab !== "tools"
-            ? t("ค้นหาแอป MCP หรือ API…", "Search apps, MCP servers or APIs…")
-            : t("ค้นหาชื่อเครื่องมือหรือระบบ…", "Search tools or connections…")}
+            ? t("ค้นหาระบบตามชื่อหรือประเภทงาน…", "Search systems by name or type of work…")
+            : t("ค้นหาชื่อเครื่องมือหรือระบบ…", "Search tools or systems…")}
         />{#if query}<button
             onclick={() => (query = "")}
-            aria-label={t("ล้างคำค้น", "Clear search")}><X size={15} /></button
+            aria-label={t("ล้างคำค้น", "Clear search")}
+            title={t("ล้างคำค้น", "Clear search")}><X size={16} aria-hidden="true" /></button
           >{/if}
       </div>
+      {#if tab !== "tools"}
+        <div class="protocol-group">
+          <details class="auth-legend">
+            <summary><Info size={16} aria-hidden="true" />{t("วิธีเชื่อมต่อ", "Connection methods")}</summary>
+            <p>
+            <strong>OAuth</strong> {t("ลงชื่อเข้าใช้ด้วยบัญชีของระบบนั้น", "Sign in with that system’s account")}
+            <span aria-hidden="true">·</span>
+            <strong>{t("คีย์หรือโทเคน", "Secrets")}</strong> {t("ใช้คีย์ API หรือโทเคน", "Use an API key or token")}
+            </p>
+          </details>
+          <div class="protocol-filter" role="group" aria-label={t("รูปแบบการเชื่อมต่อ", "Connection protocol")}>
+            {#each ["all", "MCP", "API"] as option}
+              <button type="button" class:chosen={protocol === option} aria-pressed={protocol === option} onclick={() => { protocol = option as typeof protocol; category = "all"; }}>
+                {option === "all" ? t("ทั้งหมด", "All") : option}
+                <span>{option === "all" ? activeSources.length : activeSources.filter((source) => source.protocol === option).length}</span>
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/if}
       <span class="result-count" role="status"
         >{tab !== "tools" ? matches.length : selectedTools.length}
         {t("รายการ", "results")}</span
       >
     </div>
     {#if tab !== "tools"}
-      <div class="protocol-filter" role="group" aria-label={t("วิธีเชื่อม", "Integration protocol")}>
-        {#each ["all", "MCP", "API"] as option}
-          <button class:chosen={protocol === option} aria-pressed={protocol === option} onclick={() => { protocol = option as typeof protocol; category = "all"; }}>
-            {option === "all" ? t("ทั้งหมด", "All") : option}
-            <span>{option === "all" ? activeSources.length : activeSources.filter((source) => source.protocol === option).length}</span>
-          </button>
-        {/each}
-      </div>
-      <details class="auth-legend">
-        <summary>{t("วิธีเชื่อมต่อ", "Connection methods")}</summary>
-        <p>
-        <strong>OAuth</strong> {t("ลงชื่อเข้าใช้ผ่านผู้ให้บริการ", "Sign in through the provider")}
-        <span aria-hidden="true">·</span>
-        <strong>Secrets</strong> {t("ใช้ API key หรือ token", "Use an API key or token")}
-        </p>
-      </details>
-      {#if loading}<div class="catalog-empty" role="status">
-          <LoaderCircle class="k-spin" size={23} />{t(
-            "กำลังโหลดแอป…",
-            "Loading apps…",
+      {#if loading}<div class="catalog-empty catalog-panel" role="status">
+          <LoaderCircle class="k-spin" size={20} aria-hidden="true" />{t(
+            "กำลังโหลดคลังระบบ…",
+            "Loading the catalog…",
           )}
         </div>
-      {:else if error}<div class="catalog-empty" role="alert">
-          <Info size={26} />
+      {:else if error}<div class="catalog-empty catalog-panel" role="alert">
+          <Info size={24} aria-hidden="true" />
           <h2>
-            {t("โหลดคลังเครื่องมือไม่สำเร็จ", "Could not load the catalog")}
+            {t("โหลดคลังระบบไม่สำเร็จ", "The system catalog could not be loaded")}
           </h2>
           <p>{error}</p>
-          <button class="k-button" onclick={load}
-            >{t("ลองอีกครั้ง", "Retry")}</button
+          <button class="k-button small" onclick={load}
+            >{t("ลองอีกครั้ง", "Try again")}</button
           >
         </div>
       {:else}
@@ -378,7 +381,7 @@
             aria-label={t("หมวดงาน", "Work categories")}
           >
             <span class="category-label"
-              >{t("เลือกตามงานของคุณ", "Browse by work")}</span
+              >{t("เลือกตามประเภทงาน", "Browse by type of work")}</span
             >
             <button
               class:chosen={category === "all"}
@@ -409,9 +412,9 @@
                 <header class="section-heading">
                   <div>
                     <h2 id="popular-title">
-                      <TrendingUp size={17} />{t(
-                        "ยอดนิยมในองค์กร",
-                        "Popular in your organization",
+                      {t(
+                        "ใช้มากที่สุดในองค์กร",
+                        "Most used in your organization",
                       )}
                     </h2>
                   </div>
@@ -426,26 +429,26 @@
                         <span class="highlight-icon"
                           ><CatalogIcon
                             name={item.source.name}
-                            size={28}
+                            size={24}
                           /></span
                         >
                         <strong>{item.source.name}</strong>
                         {@render authBadges(item.source)}
                         <span class="adoption-count"
                           >{item.gatewayCount}
-                          {t("Gateways ที่เปิดใช้งาน", "active Gateways")}</span
+                          {t("พื้นที่ทำงาน AI ที่เปิดใช้งาน", item.gatewayCount === 1 ? "active AI workspace" : "active AI workspaces")}</span
                         >
-                        <ArrowRight size={14} />
+                        <ArrowRight size={16} aria-hidden="true" />
                       </a>
                     {/each}
                   </div>
                 {:else}
                   <div class="popular-empty">
-                    <Layers3 size={18} />
+                    <Layers3 size={16} aria-hidden="true" />
                     <p>
                       {t(
-                        "ยังไม่มี MCP Gateway ที่เปิดใช้งาน",
-                        "No active MCP Gateways yet.",
+                        "ยังไม่มีพื้นที่ทำงาน AI ที่เปิดใช้งาน",
+                        "No active AI workspaces yet.",
                       )}
                     </p>
                   </div>
@@ -459,7 +462,7 @@
                   <header class="section-heading">
                     <div>
                       <h2 id="starter-title">
-                        {t("แนะนำให้เริ่มต้น", "Suggested starting points")}
+                        {t("ระบบที่แนะนำสำหรับเริ่มต้น", "Recommended systems to start with")}
                       </h2>
                     </div>
                   </header>
@@ -467,7 +470,7 @@
                     {#each starters as source (source.id)}
                       <a class="highlight-card" href={sourceHref(source)}>
                         <span class="highlight-icon"
-                          ><CatalogIcon name={source.name} size={28} /></span
+                          ><CatalogIcon name={source.name} size={24} /></span
                         >
                         <strong>{source.name}</strong>
                         {@render authBadges(source)}
@@ -479,7 +482,7 @@
                               source.descriptionTh,
                           )}</span
                         >
-                        <ArrowRight size={14} />
+                        <ArrowRight size={16} aria-hidden="true" />
                       </a>
                     {/each}
                   </div>
@@ -505,11 +508,11 @@
                 </div>
               </section>
             {:else}
-              <div class="catalog-empty">
-                <Search size={28} />
-                <h2>{t("ไม่พบแอปที่ค้นหา", "No matching apps")}</h2>
+              <div class="catalog-empty catalog-panel">
+                <Search size={24} aria-hidden="true" />
+                <h2>{t("ไม่พบระบบที่ค้นหา", "No matching systems")}</h2>
                 <button
-                  class="k-button"
+                  class="k-button small"
                   onclick={() => {
                     query = "";
                     category = "all";
@@ -526,29 +529,32 @@
         {#each selectedTools as item (item.key)}
           <details class="tool-row">
             <summary
-              ><Code2 size={17} /><span class="tool-copy"
+              ><span class="tool-icon" aria-hidden="true"><Code2 size={16} /></span><span class="tool-copy"
                 ><strong>{item.tool.name}</strong><span
                   >{item.connection.name}</span
                 ></span
-              ><span class="state" class:enabled={item.enabled}
+              ><span
+                class="k-badge state"
+                class:active={item.connection.enabled && item.enabled}
+                class:paused={!item.connection.enabled || !item.enabled}
                 >{!item.connection.enabled
-                  ? t("ระบบระงับ", "Paused")
+                  ? t("ระบบถูกระงับ", "System paused")
                   : item.enabled
-                    ? t("ตรวจเครื่องมือแล้ว", "Tools reviewed")
+                    ? t("ตรวจสอบแล้ว", "Reviewed")
                     : t("รอตรวจสอบ", "Needs review")}</span
-              ><ChevronDown size={15} /></summary
+              ><ChevronDown class="row-chevron" size={16} aria-hidden="true" /></summary
             >
             <div class="tool-detail">
               <p>
                 {item.tool.description ||
                   t(
-                    "เครื่องมือที่เลือกจากระบบนี้",
-                    "A selected tool from this connection.",
+                    "เครื่องมือที่อนุญาตจากระบบนี้",
+                    "An allowed tool from this system.",
                   )}
               </p>
               <details class="schema">
                 <summary
-                  >{t("ดูโครงสร้างข้อมูลที่รับ", "Input schema")}
+                  >{t("ดูข้อมูลที่เครื่องมือต้องใช้ (Input schema)", "View input schema")}
                   <span>JSON</span></summary
                 >
                 <pre>{JSON.stringify(item.tool.inputSchema, null, 2)}</pre>
@@ -559,40 +565,43 @@
                   href={localeHref(
                     `/app?view=servers&connection=${encodeURIComponent(item.connection.id)}`,
                   )}
-                  >{t("การตั้งค่าและสิทธิ์", "Settings & access")}<ArrowRight
+                  >{t("การตั้งค่าระบบและสิทธิ์", "System settings and access")}<ArrowRight
                     size={14}
+                    aria-hidden="true"
                   /></a
                 >{#if item.hub && item.enabled}<a
                     class="k-button primary"
                     href={localeHref(toolWorkspaceHref(item.hub.id))}
-                    >{t("เปิด MCP Gateway", "Open MCP Gateway")}<ArrowRight
-                      size={14}
+                    >{t("เปิดพื้นที่ทำงาน AI", "Open AI workspace")}<ArrowRight
+                      size={16}
+                      aria-hidden="true"
                     /></a
                   >{:else}<a
                     class="k-button"
                     href={localeHref("/app?view=workspaces")}
-                    >{t("ดู MCP Gateways", "View MCP Gateways")}<ArrowRight
-                      size={14}
+                    >{t("ดูพื้นที่ทำงาน AI", "View AI workspaces")}<ArrowRight
+                      size={16}
+                      aria-hidden="true"
                     /></a
                   >{/if}
               </div>
             </div>
           </details>
         {:else}<div class="catalog-empty">
-            <Code2 size={28} />
+            <Code2 size={24} aria-hidden="true" />
             <h2>
               {query
                 ? t("ไม่พบเครื่องมือที่ค้นหา", "No matching tools")
-                : t("ยังไม่ได้เลือกเครื่องมือ", "No selected tools yet")}
+                : t("ยังไม่มีเครื่องมือที่อนุญาต", "No allowed tools yet")}
             </h2>
             <p>
               {t(
-                "เชื่อมต่อแอป แล้วเลือกเครื่องมือที่ต้องการให้ทีมใช้งาน",
-                "Connect an app, then select the tools your team needs.",
+                "เชื่อมต่อระบบ แล้วเลือกเครื่องมือที่อนุญาตให้ทีมใช้งาน",
+                "Connect a system, then choose the tools your team may use.",
               )}
             </p>
-            <a class="k-button" href={localeHref("/app?view=servers")}
-              >{t("ไปที่ Servers", "Go to Servers")}<ArrowRight size={16} /></a
+            <a class="k-button small" href={localeHref("/app?view=servers")}
+              >{t("ไปที่ระบบที่เชื่อมต่อ", "Go to connected systems")}<ArrowRight size={16} aria-hidden="true" /></a
             >
           </div>{/each}
       </div>
@@ -605,130 +614,392 @@
 {/if}
 
 <style>
-  .protocol-filter { display: flex; gap: 8px; margin: 16px 0 8px; flex-wrap: wrap; }
-  .protocol-filter button { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border: 1px solid var(--o-line, #dce1e9); border-radius: 8px; background: white; color: var(--o-ink-soft, #526070); font: inherit; font-size: 13px; cursor: pointer; }
-  .protocol-filter button.chosen { background: #edf6d9; border-color: #99b85f; color: #354c1d; }
-  .protocol-filter button span { font-size: 11px; font-variant-numeric: tabular-nums; }
-  .setup-status { display: inline-flex; width: fit-content; padding: 3px 8px; border-radius: 5px; background: #fff3de; color: #795421; font-size: 12px; font-weight: 600; margin-top: 8px; }
-  .setup-status.review { background: #eef0f4; color: #526070; }
-  .source-actions button:disabled { cursor: not-allowed; opacity: 0.65; }
-  .integration-guide { border: 1px solid var(--o-line, #dce1e9); border-radius: 9px; background: #f8faf5; }
-  .integration-guide > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 16px; font-size: 12px; color: #526070; }
-  .integration-guide[open] > summary > :global(svg) { transform: rotate(180deg); }
-  .integration-guide-body { padding: 4px 16px 16px; }
-  .integration-guide ol { padding-left: 22px; margin: 0; display: grid; gap: 8px; line-height: 1.7; font-size: 13px; }
-  .documentation-links { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; }
-  .documentation-links a { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #456623; text-decoration: underline; text-underline-offset: 3px; }
-  .integration-guide small { display: block; margin-top: 14px; color: #718064; font-size: 11px; }
   .tool-library {
     min-width: 0;
-    color: var(--k-ink, #17202d);
+    color: var(--orca-ink);
   }
   .catalog-heading {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    gap: 18px;
-    margin-bottom: 24px;
+    align-items: flex-start;
+    gap: 16px 24px;
+    margin-bottom: 20px;
   }
-  h1 {
-    font-size: 27px;
-    line-height: 1.4;
-    font-weight: 650;
-    letter-spacing: -0.035em;
+  .catalog-heading h1 {
     margin: 0;
   }
+  .catalog-heading > :global(.k-button) {
+    flex: none;
+  }
+  /* Page tabs: underline, ink when selected. */
   .catalog-tabs {
     display: flex;
-    flex-wrap: wrap;
     gap: 24px;
-    border-bottom: 1px solid #e3e7eb;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--orca-line);
+    overflow-x: auto;
+    scrollbar-width: thin;
   }
   .catalog-tabs button {
-    display: flex;
-    gap: 9px;
+    display: inline-flex;
     align-items: center;
+    gap: 8px;
+    margin-bottom: -1px;
+    padding: 10px 0 11px;
     border: 0;
     border-bottom: 2px solid transparent;
     background: transparent;
-    padding: 11px 0;
-    color: #79818c;
+    color: var(--orca-muted);
     font: inherit;
-    font-size: 13px;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
     cursor: pointer;
   }
+  .catalog-tabs button:hover {
+    color: var(--orca-ink);
+  }
   .catalog-tabs button.chosen {
-    color: #19202c;
-    border-bottom-color: #7c9d32;
+    border-bottom-color: var(--orca-ink);
+    color: var(--orca-ink);
     font-weight: 600;
   }
   .catalog-tabs span {
-    background: #f0f2f4;
-    border-radius: 4px;
-    padding: 1px 6px;
-    font-size: 11px;
-  }
-  .catalog-toolbar {
-    scroll-margin-top: 76px;
-    display: flex;
-    gap: 10px;
+    display: inline-flex;
     align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    padding: 0 6px;
+    border-radius: var(--orca-radius-sm);
+    background: var(--orca-secondary);
+    color: var(--orca-nav);
+    font-size: 12px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Toolbar: search, then the protocol filter with its label, then the count. */
+  .catalog-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
     margin-bottom: 16px;
+    scroll-margin-top: 76px;
   }
   .catalog-search {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 8px;
+    width: min(360px, 100%);
+    height: 36px;
     padding: 0 11px;
-    border: 1px solid #e0e4e8;
-    border-radius: 6px;
-    background: white;
-    color: #8a929f;
-    width: min(390px, 100%);
-    min-width: 0;
+    border: 1px solid var(--orca-line-strong);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface);
+    color: var(--orca-subtle);
   }
   .catalog-search:focus-within {
-    outline: 2px solid #79943e;
-    outline-offset: 2px;
+    border-color: var(--orca-ink);
+    box-shadow: 0 0 0 3px rgba(21, 24, 35, 0.1);
+  }
+  .catalog-search :global(svg) {
+    flex: none;
   }
   .catalog-search input {
-    width: 100%;
+    flex: 1;
     min-width: 0;
-    padding: 10px 0;
+    padding: 0;
     border: 0;
     outline: none;
     background: transparent;
-    color: #273142;
+    color: var(--orca-ink);
     font: inherit;
-    font-size: 12px;
+    font-size: 14px;
     box-shadow: none;
+  }
+  .catalog-search input::placeholder {
+    color: var(--orca-subtle);
+  }
+  .catalog-search input:focus-visible {
+    outline: none;
+  }
+  /* The field has its own clear button, so the browser's is hidden. */
+  .catalog-search input::-webkit-search-cancel-button {
+    display: none;
+    -webkit-appearance: none;
   }
   .catalog-search button {
     display: grid;
     place-items: center;
+    width: 28px;
+    height: 28px;
+    margin-right: -6px;
     border: 0;
+    border-radius: var(--orca-radius-sm);
     background: none;
-    color: inherit;
-    padding: 3px;
+    color: var(--orca-subtle);
     cursor: pointer;
+  }
+  .catalog-search button:hover {
+    background: var(--orca-hover);
+    color: var(--orca-ink);
+  }
+  .protocol-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+  }
+  .auth-legend {
+    position: relative;
+  }
+  .auth-legend summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    color: var(--orca-muted);
+    font-size: 13.5px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .auth-legend summary :global(svg) {
+    color: var(--orca-subtle);
+  }
+  .auth-legend summary:hover,
+  .auth-legend[open] summary {
+    color: var(--orca-ink);
+  }
+  .auth-legend p {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 5;
+    width: max-content;
+    max-width: min(360px, calc(100vw - 32px));
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface);
+    box-shadow: var(--orca-popover-shadow);
+    color: var(--orca-muted);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .auth-legend strong {
+    color: var(--orca-ink);
+    font-weight: 600;
+  }
+  .auth-legend p > span {
+    margin: 0 4px;
+  }
+  .protocol-filter {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface);
+  }
+  .protocol-filter button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 0 11px;
+    border: 0;
+    border-radius: var(--orca-radius-sm);
+    background: transparent;
+    color: var(--orca-muted);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .protocol-filter button:hover {
+    background: var(--orca-hover);
+    color: var(--orca-ink);
+  }
+  .protocol-filter button.chosen {
+    background: var(--orca-secondary);
+    color: var(--orca-ink);
+    font-weight: 600;
+  }
+  .protocol-filter button span {
+    color: var(--orca-subtle);
+    font-size: 12px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
   }
   .result-count {
     margin-left: auto;
-    color: #828b98;
+    color: var(--orca-muted);
+    font-size: 13px;
     white-space: nowrap;
-    font-size: 11px;
   }
+  /* Layout: category list on the left, results on the right. */
+  .catalog-layout {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+  }
+  .category-nav {
+    position: sticky;
+    top: 80px;
+    display: grid;
+    gap: 1px;
+  }
+  .category-label {
+    padding: 4px 10px 8px;
+    color: var(--orca-subtle);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .category-nav button {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: var(--orca-radius);
+    background: transparent;
+    color: var(--orca-nav);
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+  }
+  .category-nav button:hover {
+    background: var(--orca-hover);
+    color: var(--orca-ink);
+  }
+  .category-nav button.chosen {
+    background: var(--orca-secondary);
+    color: var(--orca-ink);
+    font-weight: 600;
+  }
+  .category-count {
+    color: var(--orca-subtle);
+    font-size: 12px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .catalog-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+    min-width: 0;
+  }
+  .section-heading {
+    margin-bottom: 12px;
+  }
+  .section-heading h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+  }
+  .section-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    padding: 0 6px;
+    border-radius: var(--orca-radius-sm);
+    background: var(--orca-secondary);
+    color: var(--orca-nav);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  /* Highlight cards: white, bordered, no tint. */
+  .highlight-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .highlight-card {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) 16px;
+    align-items: center;
+    gap: 4px 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius-lg);
+    background: var(--orca-surface);
+    color: var(--orca-ink);
+    text-decoration: none;
+    transition: border-color 0.12s;
+  }
+  .highlight-card:hover {
+    border-color: var(--orca-line-strong);
+  }
+  .highlight-icon {
+    display: grid;
+    place-items: center;
+    grid-row: 1 / 4;
+    align-self: start;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface);
+    overflow: hidden;
+  }
+  .highlight-card strong {
+    grid-column: 2;
+    font-size: 14px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .highlight-card > :global(.auth-tags) {
+    grid-column: 2;
+  }
+  .highlight-card > span:not(.highlight-icon):not(.auth-tags) {
+    grid-column: 2;
+    color: var(--orca-muted);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .highlight-card > :global(svg) {
+    grid-column: 3;
+    grid-row: 1 / 4;
+    color: var(--orca-subtle);
+  }
+  .popular-empty {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 1px dashed var(--orca-line-strong);
+    border-radius: var(--orca-radius-lg);
+    background: var(--orca-surface);
+    color: var(--orca-subtle);
+  }
+  .popular-empty :global(svg) {
+    flex-shrink: 0;
+  }
+  .popular-empty p {
+    margin: 0;
+    color: var(--orca-muted);
+    font-size: 13.5px;
+  }
+  /* Result rows */
   .source-list,
   .tool-list {
-    border: 1px solid #e3e7eb;
-    border-radius: 8px;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius-lg);
+    background: var(--orca-surface);
     overflow: clip;
-    background: white;
   }
   .source-row + .source-row,
   .tool-row + .tool-row {
-    border-top: 1px solid #e8ebef;
+    border-top: 1px solid #eff0f2;
   }
   summary {
     list-style: none;
@@ -741,483 +1012,384 @@
   .tool-row > summary {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 15px 17px;
+    gap: 12px;
     min-width: 0;
+    padding: 12px 16px;
   }
   .source-row > summary:hover,
   .tool-row > summary:hover {
-    background: #fafbf8;
+    background: var(--orca-surface-2);
   }
   summary:focus-visible,
-  button:focus-visible,
-  a:focus-visible {
-    outline: 2px solid #779a32;
+  .source-actions a:focus-visible,
+  .category-nav button:focus-visible,
+  .catalog-tabs button:focus-visible {
+    outline: 2px solid var(--orca-ink);
     outline-offset: -2px;
   }
-  .app-icon {
-    width: 38px;
-    height: 38px;
-    border: 1px solid #eef0f2;
-    border-radius: 7px;
+  .app-icon,
+  .tool-icon {
     display: grid;
     place-items: center;
     flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface);
+    overflow: hidden;
   }
-  .source-copy,
-  .tool-copy {
+  .tool-icon {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    background: var(--orca-secondary);
+    color: var(--orca-nav);
+  }
+  /* Name, badges, then the description on its own line. */
+  .source-copy {
+    display: flex;
     flex: 1;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
     min-width: 0;
-    display: grid;
-    gap: 4px;
   }
   .source-copy strong,
   .tool-copy strong {
-    color: #253044;
-    font-size: 13px;
+    color: var(--orca-ink);
+    font-size: 14px;
     font-weight: 600;
     overflow-wrap: anywhere;
   }
+  .source-copy :global(.auth-tags) {
+    order: 1;
+  }
+  .setup-status {
+    order: 2;
+  }
   .source-description {
-    font-size: 11px;
-    line-height: 1.6;
-    color: #78818e;
+    order: 3;
+    flex-basis: 100%;
+    min-width: 0;
     overflow: hidden;
-    white-space: nowrap;
+    color: var(--orca-muted);
+    font-size: 13px;
+    line-height: 1.55;
     text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .source-row[open] .source-description {
     white-space: normal;
   }
-  .auth-legend {
-    margin: 0 0 20px;
-    color: #78818e;
-    font-size: 13px;
-    line-height: 1.7;
-  }
-  .auth-legend summary { cursor: pointer; font-weight: 600; }
-  .auth-legend p { margin: 10px 0 0; }
-  .auth-legend strong {
-    font-weight: 600;
-    color: #536170;
-  }
-  .auth-legend p > span {
-    margin: 0 4px;
-  }
   .auth-tags {
-    display: flex;
+    display: inline-flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
   }
-  .auth-tag {
-    display: inline-flex;
-    padding: 2px 6px;
-    border: 1px solid;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: 500;
-    line-height: 1.45;
-    white-space: nowrap;
-  }
-  .auth-tag.oauth {
-    color: #356159;
-    background: #edf6f3;
-    border-color: #cfe6dd;
-  }
-  .auth-tag.secrets {
-    color: #645687;
-    background: #f4f1fa;
-    border-color: #e2daf1;
-  }
-  .auth-tag.muted {
-    color: #6c7480;
-    background: #f5f6f8;
-    border-color: #e3e6eb;
-  }
-  .source-type,
-  .state {
-    font-size: 10px;
-    padding: 3px 7px;
-    border: 1px solid #e6e9ed;
-    border-radius: 4px;
-    color: #73808c;
-    white-space: nowrap;
-  }
-  .state.enabled {
-    color: #526c29;
-    background: #f0f7e5;
-    border-color: #e0eaca;
-  }
-  .saved-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #82a63f;
+  .source-type {
     flex-shrink: 0;
   }
-  .source-row > summary > :global(svg),
-  .tool-row > summary > :global(svg) {
-    color: #8c94a0;
+  .saved-mark {
+    display: grid;
+    place-items: center;
     flex-shrink: 0;
+    color: var(--orca-ok);
   }
-  .source-row[open] > summary > :global(svg:last-child),
-  .tool-row[open] > summary > :global(svg:last-child) {
+  .source-row > summary > :global(.row-chevron),
+  .tool-row > summary > :global(.row-chevron) {
+    flex-shrink: 0;
+    color: var(--orca-subtle);
+  }
+  .source-row[open] > summary > :global(.row-chevron),
+  .tool-row[open] > summary > :global(.row-chevron) {
     transform: rotate(180deg);
   }
   .source-detail,
   .tool-detail {
-    padding: 2px 18px 18px 69px;
-    background: #fcfdfa;
+    padding: 4px 16px 16px 64px;
+    border-top: 1px solid #eff0f2;
+    background: var(--orca-surface-2);
   }
-  .tool-detail > p {
-    font-size: 12px;
-    color: #6c7684;
-    margin: 0 0 16px;
-    line-height: 1.7;
+  .tool-detail {
+    padding-left: 60px;
   }
-  .source-actions {
+  .source-detail > :first-child,
+  .tool-detail > :first-child {
+    margin-top: 12px;
+  }
+  .integration-guide {
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface);
+  }
+  .integration-guide > summary {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 16px 24px;
-    margin-top: 24px;
-    padding-top: 20px;
-    border-top: 1px solid #e6e9e1;
+    gap: 16px;
+    min-height: 40px;
+    padding: 8px 14px;
+    color: var(--orca-muted);
+    font-size: 13.5px;
+    font-weight: 500;
   }
-  .source-actions > a,
-  .source-actions > button {
-    margin-left: auto;
+  .integration-guide > summary:hover {
+    color: var(--orca-ink);
+  }
+  .integration-guide > summary > :global(svg) {
     flex-shrink: 0;
-    min-height: 42px;
+    color: var(--orca-subtle);
   }
-  .guide-actions > span {
-    flex: 1 1 280px;
+  .integration-guide[open] > summary > :global(svg) {
+    transform: rotate(180deg);
+  }
+  .integration-guide-body {
+    padding: 2px 14px 14px;
+    font-size: 13.5px;
+  }
+  .integration-scope,
+  .source-provider-copy {
+    margin: 0 0 10px;
     line-height: 1.7;
   }
-  .existing-provider-connections {
-    border-top: 1px solid #e6e9e1;
-    padding-top: 12px;
-    margin-bottom: 16px;
-    font-size: 12px;
-    color: #6c7684;
+  .source-provider-copy {
+    color: var(--orca-muted);
   }
-  .existing-provider-connections p {
-    margin: 0 0 8px;
-  }
-  .existing-provider-connections a {
-    display: flex;
-    align-items: center;
+  .integration-guide ol {
+    display: grid;
     gap: 6px;
-    width: fit-content;
-    margin-top: 6px;
-    color: #51662d;
-    overflow-wrap: anywhere;
+    margin: 0;
+    padding-left: 22px;
+    line-height: 1.7;
   }
-  .source-actions > span {
+  .documentation-links {
     display: flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 11px;
-    color: #778370;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-top: 12px;
   }
+  .documentation-links a,
+  .existing-provider-connections a,
   .text-link {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    color: var(--orca-ink);
+    font-size: 13.5px;
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+  .integration-guide small {
+    display: block;
+    margin-top: 12px;
+    color: var(--orca-subtle);
     font-size: 12px;
-    color: #637835;
+  }
+  .existing-provider-connections {
+    margin-top: 12px;
+    color: var(--orca-muted);
+    font-size: 13px;
+  }
+  .existing-provider-connections p {
+    margin: 0 0 6px;
+  }
+  .existing-provider-connections a {
+    display: flex;
+    width: fit-content;
+    margin-top: 4px;
+    overflow-wrap: anywhere;
+  }
+  .source-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 16px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--orca-line);
+  }
+  .source-actions > a:not(.text-link),
+  .source-actions > button {
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .source-actions button:disabled {
+    cursor: not-allowed;
+  }
+  .guide-actions > span {
+    flex: 1 1 280px;
+    color: var(--orca-muted);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  /* Allowed tools tab */
+  .tool-copy {
+    display: grid;
+    flex: 1;
+    gap: 1px;
+    min-width: 0;
   }
   .tool-copy strong {
-    font-family: ui-monospace, monospace;
-    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    font-weight: 500;
   }
   .tool-copy > span {
-    color: #85909c;
-    font-size: 11px;
+    color: var(--orca-muted);
+    font-size: 13px;
   }
-  .tool-detail {
-    padding-left: 48px;
+  .tool-detail > p {
+    margin: 12px 0;
+    color: var(--orca-muted);
+    font-size: 13.5px;
+    line-height: 1.7;
   }
   .schema {
-    margin: 14px 0;
-    border: 1px solid #e4e8ee;
-    border-radius: 6px;
-    background: white;
+    margin: 12px 0 0;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface);
   }
   .schema summary {
-    padding: 10px 12px;
-    font-size: 11px;
     display: flex;
     justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    color: var(--orca-muted);
+    font-size: 13px;
+  }
+  .schema summary:hover {
+    color: var(--orca-ink);
   }
   .schema summary span {
-    color: #8b929f;
-    font-family: monospace;
+    color: var(--orca-subtle);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
   }
   pre {
     margin: 0;
-    padding: 12px;
-    background: #f7f8fa;
-    color: #3c4859;
-    font-size: 11px;
-    line-height: 1.7;
+    padding: 10px 12px;
+    border-top: 1px solid var(--orca-line);
+    background: var(--orca-surface-2);
+    color: var(--orca-nav);
+    font-size: 12px;
+    line-height: 1.6;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
+  /* Empty, loading and error states */
   .catalog-empty {
-    min-height: 240px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 8px;
+    min-height: 200px;
+    padding: 32px 24px;
+    color: var(--orca-subtle);
+    font-size: 14px;
     text-align: center;
-    gap: 13px;
-    color: #7c8794;
-    padding: 24px;
+  }
+  .catalog-panel {
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius-lg);
+    background: var(--orca-surface);
   }
   .catalog-empty h2 {
-    font-size: 18px;
-    color: #2a3543;
-    margin: 0;
+    margin: 4px 0 0;
+    color: var(--orca-ink);
+    font-size: 15px;
+    font-weight: 600;
   }
   .catalog-empty p {
-    font-size: 13px;
-    max-width: 450px;
+    max-width: 460px;
     margin: 0;
+    color: var(--orca-muted);
+    font-size: 13.5px;
     line-height: 1.7;
   }
-  @media (max-width: 600px) {
-    .catalog-heading {
-      align-items: flex-start;
-      flex-direction: column;
-      gap: 14px;
-    }
-    h1 {
-      font-size: 24px;
-    }
-    .catalog-toolbar {
-      flex-wrap: wrap;
-    }
-    .catalog-search {
-      width: 100%;
-    }
-    .source-row > summary,
-    .tool-row > summary {
-      padding: 13px 11px;
-      gap: 9px;
-    }
-    .source-type {
-      font-size: 9px;
-      padding: 2px 4px;
-    }
-    .source-detail,
-    .tool-detail {
-      padding: 8px 14px 16px;
-    }
-    .source-actions {
-      align-items: stretch;
-      flex-direction: column;
-    }
-    .source-actions > a,
-    .source-actions > button {
-      margin-left: 0;
-      justify-content: center;
-      min-height: 44px;
-    }
-    .guide-actions > span { flex-basis: auto; }
-    .catalog-tabs {
-      gap: 18px;
-    }
-    .state {
-      font-size: 9px;
-    }
-  }
-  .catalog-layout {
-    display: grid;
-    grid-template-columns: 196px minmax(0, 1fr);
-    gap: 28px;
-    align-items: start;
-  }
-  .category-nav {
-    display: grid;
-    gap: 3px;
-    position: sticky;
-    top: 80px;
-  }
-  .category-label {
-    padding: 10px 10px 12px;
-    color: #87909b;
-    font-size: 11px;
-    font-weight: 600;
-  }
-  .category-nav button {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    border: 0;
-    border-radius: 6px;
-    background: transparent;
-    padding: 10px;
-    color: #657180;
-    text-align: left;
-    font: inherit;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .category-nav button:hover {
-    background: #f0f3ed;
-  }
-  .category-nav button.chosen {
-    background: #eaf3d6;
-    color: #344d18;
-    font-weight: 600;
-  }
-  .category-count {
-    color: #849174;
-    font-size: 10px;
-    font-variant-numeric: tabular-nums;
-  }
-  .catalog-content {
-    min-width: 0;
-    display: grid;
-    gap: 30px;
-  }
-  .section-heading {
-    margin-bottom: 12px;
-  }
-  .section-heading h2 {
-    display: flex;
-    gap: 9px;
-    align-items: center;
-    margin: 0;
-    color: #263143;
-    font-size: 15px;
-    font-weight: 650;
-  }
-  .section-heading h2 :global(svg) {
-    color: #6d872f;
-  }
-  .section-count {
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    color: #829071;
-    background: #eef2e9;
-    font-weight: 500;
-  }
-  .highlight-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-  .highlight-card {
-    position: relative;
-    display: grid;
-    grid-template-columns: 38px minmax(0, 1fr) 14px;
-    align-items: center;
-    gap: 5px 11px;
-    padding: 15px;
-    border: 1px solid #e2e7ed;
-    border-radius: 8px;
-    background: #fff;
-    text-decoration: none;
-    transition:
-      border-color 0.16s,
-      background 0.16s;
-  }
-  .highlight-card:hover {
-    border-color: #abc47a;
-    background: #fcfdf9;
-  }
-  .highlight-icon {
-    grid-row: 1 / 4;
-    display: grid;
-    place-items: center;
-  }
-  .highlight-card strong {
-    grid-column: 2;
-    font-size: 13px;
-    color: #273145;
-    overflow-wrap: anywhere;
-  }
-  .highlight-card > span:not(.highlight-icon) {
-    grid-column: 2;
-    color: #7b8693;
-    font-size: 10px;
-    line-height: 1.65;
-  }
-  .highlight-card > :global(svg) {
-    grid-column: 3;
-    grid-row: 1 / 4;
-    color: #849171;
-  }
-  .popular-card {
-    border-color: #dce6c9;
-    background: #f9fcf3;
-  }
-  .highlight-card > .adoption-count {
-    color: #5b7730;
-  }
-  .popular-empty {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    padding: 15px 17px;
-    border: 1px dashed #dbe2d1;
-    border-radius: 8px;
-    background: #fafcf6;
-    color: #7f8c70;
-  }
-  .popular-empty :global(svg) {
-    flex-shrink: 0;
-  }
-  .popular-empty p {
-    margin: 0;
-    font-size: 11px;
-    line-height: 1.8;
+  .catalog-empty > :global(.k-button) {
+    margin-top: 8px;
   }
   @media (max-width: 1100px) {
     .catalog-layout {
-      grid-template-columns: 175px minmax(0, 1fr);
-      gap: 18px;
+      grid-template-columns: 180px minmax(0, 1fr);
+      gap: 20px;
     }
   }
   @media (max-width: 800px) {
     .catalog-layout {
       grid-template-columns: minmax(0, 1fr);
-      gap: 22px;
+      gap: 20px;
     }
     .category-nav {
       position: static;
       display: flex;
       gap: 6px;
+      padding-bottom: 4px;
       overflow-x: auto;
-      padding-bottom: 6px;
     }
     .category-label {
       display: none;
     }
     .category-nav button {
       flex: 0 0 auto;
+      min-height: 32px;
+      border: 1px solid var(--orca-line);
+      background: var(--orca-surface);
       white-space: nowrap;
-      border: 1px solid #e3e7eb;
-      background: white;
-      padding: 8px 11px;
     }
     .category-nav button.chosen {
-      border-color: #cedea9;
-      background: #eaf3d6;
+      border-color: var(--orca-line-strong);
+      background: var(--orca-secondary);
     }
   }
-  @media (max-width: 500px) {
+  @media (max-width: 760px) {
+    .catalog-heading {
+      flex-direction: column;
+    }
+    .catalog-heading > :global(.k-button) {
+      width: 100%;
+    }
+    .catalog-search {
+      width: 100%;
+    }
+    .source-row > summary,
+    .tool-row > summary {
+      padding: 12px;
+      gap: 10px;
+    }
+    .source-detail,
+    .tool-detail {
+      padding: 4px 12px 14px;
+    }
+    .source-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .source-actions > a:not(.text-link),
+    .source-actions > button {
+      justify-content: center;
+      margin-left: 0;
+    }
+    .guide-actions > span {
+      flex-basis: auto;
+    }
+    .catalog-tabs {
+      gap: 20px;
+    }
+  }
+  @media (max-width: 560px) {
     .highlight-grid {
       grid-template-columns: minmax(0, 1fr);
     }
     .catalog-content {
-      gap: 25px;
+      gap: 24px;
     }
   }
 </style>

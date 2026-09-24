@@ -111,7 +111,7 @@
 						{
 							id: editing.mcpID,
 							name: editing.name,
-							description: t('Server ที่บันทึกไว้', 'Saved server')
+							description: t('ระบบที่บันทึกไว้', 'Saved system')
 						},
 						...candidates
 					]
@@ -144,8 +144,8 @@
 			if (connection) await openForm(connection);
 			else {
 				error = t(
-					'ไม่พบ Server นี้ หรือบัญชีของคุณไม่มีสิทธิ์เข้าถึง',
-					'This connection was not found or is not accessible to your account.'
+					'ไม่พบระบบนี้ หรือบัญชีของคุณไม่มีสิทธิ์เข้าถึง',
+					'This system was not found, or your account does not have access to it.'
 				);
 				return;
 			}
@@ -153,8 +153,8 @@
 			const source = candidates.find((item) => item.id === initialSourceID);
 			if (!source) {
 				error = t(
-					'ไม่พบเครื่องมือนี้ในคลังขององค์กร กรุณาเลือกเครื่องมืออีกครั้ง',
-					'This source is no longer in the organization catalog. Choose a tool again.'
+					'ไม่พบระบบนี้ในคลังระบบแล้ว กรุณาเลือกระบบอีกครั้ง',
+					'This system is no longer in the system catalog. Choose a system again.'
 				);
 				return;
 			}
@@ -264,8 +264,8 @@
 			if (tools.length) step = 2;
 			else
 				error = t(
-					'ยังไม่พบเครื่องมือจากระบบนี้ กรุณาตรวจสอบการเชื่อมต่อและบัญชีที่ใช้กับระบบนั้น',
-					'This source has no discoverable tools yet. Check the connection and source account.'
+					'ยังไม่พบเครื่องมือจากระบบนี้ กรุณาตรวจสอบการเชื่อมต่อและบัญชีที่ใช้กับระบบ',
+					'No tools were found in this system. Check the connection and the account used for it.'
 				);
 		} catch (cause) {
 			if (!current()) return;
@@ -286,8 +286,8 @@
 			!reviewedTools
 		) {
 			error = t(
-				'กรุณาระบุชื่อและขอบเขตการใช้งาน แล้วตรวจสอบและยืนยันเครื่องมือที่เลือก',
-				'Enter a name and data scope, then review and confirm the selected tools.'
+				'กรุณาระบุชื่อและขอบเขตข้อมูล แล้วตรวจสอบและยืนยันเครื่องมือที่อนุญาต',
+				'Enter a name and data scope, then review and confirm the allowed tools.'
 			);
 			return;
 		}
@@ -316,7 +316,7 @@
 			}
 			formOpen = false;
 			query = '';
-			success = t('บันทึก Server แล้ว', 'Server saved');
+			success = t('บันทึกระบบแล้ว', 'System saved.');
 			await onchanged();
 			await tick();
 			if (!embedded) window.scrollTo({ top: 0, behavior: 'instant' });
@@ -350,10 +350,10 @@
 			await onchanged();
 			success = connection.enabled
 				? t(
-						'ระงับการใช้งานแล้ว ทุกพื้นที่ทำงานที่เชื่อมต่อระบบนี้จะเข้าถึงข้อมูลไม่ได้',
-						'Server disabled. Every MCP Gateway using it can no longer access its data.'
+						'ระงับการใช้งานระบบแล้ว พื้นที่ทำงาน AI ทั้งหมดที่ใช้ระบบนี้จะเข้าถึงข้อมูลไม่ได้',
+						'System paused. AI workspaces that use it can no longer access its data.'
 					)
-				: t('เปิดใช้งาน Server แล้ว', 'Server enabled');
+				: t('เปิดใช้งานระบบอีกครั้งแล้ว', 'System resumed.');
 		} catch (cause) {
 			error = orcaError(cause);
 		} finally {
@@ -366,18 +366,18 @@
 	{@const workspaces = data.hubs.filter((hub) => gatewayUsesConnection(hub, connection.id))}
 	<div class="connection-workspaces">
 		<div class="connection-next-title">
-			<Folder size={19} />
+			<Folder size={18} aria-hidden="true" />
 			<h3>
 				{workspaces.length
-					? t('MCP Gateways ที่ใช้ Server นี้', 'MCP Gateways using this server')
-					: t('นำระบบนี้ไปใช้กับทีม', 'Use this source with your team')}
+					? t('พื้นที่ทำงาน AI ที่ใช้ระบบนี้', 'AI workspaces using this system')
+					: t('นำระบบนี้ไปใช้กับทีม', 'Use this system with your team')}
 			</h3>
 		</div>
 		{#if workspaces.length}
 			<p class="k-small k-muted">
 				{t(
-					'เลือก MCP Gateway เพื่อดูเครื่องมือ สมาชิก และการเชื่อมต่อกับ AI',
-					'Open an MCP Gateway to review its tools, members, and AI connection.'
+					'เลือกพื้นที่ทำงาน AI เพื่อดูเครื่องมือ สมาชิก และลิงก์เชื่อม AI',
+					'Open an AI workspace to review its tools, members, and AI connection link.'
 				)}
 			</p>
 			<div class="connection-workspace-links">
@@ -387,15 +387,15 @@
 						<span class="k-badge" class:active={workspace.status === 'active'}
 							>{statusLabels[workspace.status]}</span
 						>
-						<ArrowUpRight size={16} />
+						<ArrowUpRight size={16} aria-hidden="true" />
 					</a>
 				{/each}
 			</div>
 		{:else if data.canManage}
 			<p class="k-small k-muted">
 				{t(
-					'สร้าง MCP Gateway แล้วเลือกเครื่องมือย่อยจากที่ Server อนุญาตและสมาชิกที่ต้องใช้',
-					'Create an MCP Gateway, then choose a subset of this server’s approved tools and its members.'
+					'สร้างพื้นที่ทำงาน AI แล้วเลือกเครื่องมือจากรายการที่ระบบนี้อนุญาต พร้อมกำหนดสมาชิก',
+					'Create an AI workspace, then choose tools from this system’s allowed tools and assign its members.'
 				)}
 			</p>
 		{/if}
@@ -404,20 +404,20 @@
 				class="k-button small"
 				href={localeHref(`/app?view=new&connection=${encodeURIComponent(connection.id)}`)}
 			>
-				<Plus size={17} />{workspaces.length
-					? t('สร้าง MCP Gateway เพิ่มเติม', 'Create another MCP Gateway')
-					: t('สร้าง MCP Gateway ด้วย Server นี้', 'Create an MCP Gateway with this server')}
+				<Plus size={16} aria-hidden="true" />{workspaces.length
+					? t('สร้างพื้นที่ทำงาน AI เพิ่ม', 'Create another AI workspace')
+					: t('สร้างพื้นที่ทำงาน AI ด้วยระบบนี้', 'Create an AI workspace with this system')}
 			</a>
 		{:else if data.canManage}
 			<p class="connection-unavailable">
-				<Info size={17} />{!connection.enabled
+				<Info size={16} aria-hidden="true" />{!connection.enabled
 					? t(
-							'เปิดใช้งาน Server นี้ก่อนสร้าง MCP Gateway เพิ่มเติม Gateway เดิมยังเข้าถึงข้อมูลจาก Server นี้ไม่ได้',
-							'Enable this server before creating an MCP Gateway. Existing Gateways cannot access its data while it is disabled.'
+							'เปิดใช้งานระบบนี้อีกครั้งก่อนสร้างพื้นที่ทำงาน AI ระหว่างที่ระบบถูกระงับ พื้นที่ทำงานเดิมจะเข้าถึงข้อมูลจากระบบนี้ไม่ได้',
+							'Resume this system before creating an AI workspace. Existing workspaces cannot access its data while it is paused.'
 						)
 					: t(
-							'ตรวจสอบและบันทึกรายการเครื่องมือก่อนสร้าง MCP Gateway',
-							'Review and save this server’s tools before creating an MCP Gateway.'
+							'ตรวจสอบและบันทึกเครื่องมือที่อนุญาตก่อนสร้างพื้นที่ทำงาน AI',
+							'Review and save this system’s allowed tools before creating an AI workspace.'
 						)}
 			</p>
 		{/if}
@@ -426,10 +426,10 @@
 
 {#if !embedded}
 <div class="k-breadcrumb">
-	<a href={localeHref('/app?view=servers')}>Servers</a><span>/</span><span
-		>{t('ระบบต้นทาง', 'Source systems')}</span
+	<a href={localeHref('/app?view=servers')}>{t('ระบบที่เชื่อมต่อ', 'Connected systems')}</a><span>/</span><span
+		>{t('ตั้งค่าระบบ', 'System setup')}</span
 	>{#if formOpen}<span>/</span><span
-			>{editing ? t('แก้ไข', 'Edit') : t('เพิ่ม Server', 'Add server')}</span
+			>{editing ? t('แก้ไข', 'Edit') : t('เพิ่มระบบ', 'Add a system')}</span
 		>{/if}
 </div>
 <div class="k-intro">
@@ -437,25 +437,25 @@
 		<h1 bind:this={title} tabindex="-1">
 			{formOpen
 				? editing
-					? t('ตรวจสอบและแก้ไข Server', 'Review and edit server')
-					: t('เพิ่ม Server', 'Add server')
-				: 'Servers'}
+					? t('ตรวจสอบและแก้ไขระบบ', 'Review and edit system')
+					: t('เพิ่มระบบ', 'Add a system')
+				: t('ระบบที่เชื่อมต่อ', 'Connected systems')}
 		</h1>
 		{#if !formOpen && data.canManage}<a
 				class="k-button primary"
-				href={localeHref('/app?view=servers&add=source')}><Plus size={19} /> {t('เพิ่ม Server', 'Add server')}</a
+				href={localeHref('/app?view=servers&add=source')}><Plus size={16} aria-hidden="true" /> {t('เพิ่มระบบ', 'Add a system')}</a
 			>{/if}
 	</div>
 	<p class="k-subtitle">
 		{t(
-			'ตั้งค่าระบบต้นทางและขอบเขตเครื่องมือที่องค์กรอนุญาต',
-			'Configure source systems and the maximum set of tools approved by your organization.'
+			'ตั้งค่าระบบที่เชื่อมต่อและกำหนดเครื่องมือที่องค์กรอนุญาต',
+			'Set up connected systems and the tools your organization allows.'
 		)}
 	</p>
 </div>
 {/if}
-{#if error}<div class="k-banner error" role="alert">
-		<Info size={19} />
+{#if error}<div class="k-banner error connection-banner" role="alert">
+		<Info size={16} aria-hidden="true" />
 		<div>
 			{error}
 			<div class="k-actions">
@@ -475,14 +475,16 @@
 			</div>
 		</div>
 	</div>{/if}
-{#if success}<div class="k-banner success" role="status"><Check size={19} />{success}</div>{/if}
+{#if success}<div class="k-banner success connection-banner" role="status"><Check size={16} aria-hidden="true" />{success}</div>{/if}
 {#if !embedded && !formOpen && savedSource && data.canManage}
 	<section
 		class="k-panel connection-saved"
-		aria-label={t('ขั้นตอนถัดไปหลังบันทึก Server', 'Next steps after saving your server')}
+		aria-label={t('ขั้นตอนถัดไปหลังบันทึกระบบ', 'Next steps after saving the system')}
 	>
-		<p class="connection-saved-label">{t('ขั้นตอนถัดไป', 'Next step')}</p>
-		<h2>{savedSource.name}</h2>
+		<header class="connection-saved-head">
+			<h2>{savedSource.name}</h2>
+			<span class="k-badge">{t('ขั้นตอนถัดไป', 'Next step')}</span>
+		</header>
 		{#if policyMode}<button class="k-button" onclick={() => openForm(savedSource)}>
 			{t('ตรวจสอบและแก้ไขเครื่องมืออีกครั้ง', 'Review and edit tools again')}
 		</button>{/if}
@@ -491,10 +493,10 @@
 {/if}
 
 {#if embedded && savedConnection}
-  <div class="k-banner success" role="status"><Check size={19} />{t('บันทึกการเชื่อมต่อแล้ว', 'Connection saved')}</div>
-  {#if !saving}<button class="k-button primary" onclick={save}>{t('กลับไปใช้งานการเชื่อมต่อนี้', 'Continue with this connection')}</button>{/if}
+  <div class="k-banner success connection-banner" role="status"><Check size={16} aria-hidden="true" />{t('บันทึกระบบแล้ว', 'System saved.')}</div>
+  {#if !saving}<button class="k-button primary" onclick={save}>{t('ดำเนินการต่อด้วยระบบนี้', 'Continue with this system')}</button>{/if}
 {:else if formOpen && data.canManage}
-	<ol class="connection-progress" aria-label={t('ขั้นตอนตั้งค่า Server', 'Server setup steps')}>
+	<ol class="connection-progress" aria-label={t('ขั้นตอนตั้งค่าระบบ', 'System setup steps')}>
 		{#each policyMode ? [t('เลือกเครื่องมือ', 'Choose tools'), t('บันทึก', 'Save')] : [t('เชื่อมบัญชี', 'Connect account'), t('เลือกเครื่องมือ', 'Choose tools'), t('บันทึก', 'Save')] as label, index (index)}
 			{@const stepNumber = index + (policyMode ? 2 : 1)}
 			<li
@@ -503,7 +505,7 @@
 				aria-current={step === stepNumber ? 'step' : undefined}
 			>
 				<span class="step-number"
-					>{#if step > stepNumber}<Check size={15} />{:else}{index + 1}{/if}</span
+					>{#if step > stepNumber}<Check size={14} aria-hidden="true" />{:else}{index + 1}{/if}</span
 				>
 				<span>{label}</span>
 			</li>
@@ -519,8 +521,8 @@
 		<h2>{t('เลือกระบบ แล้วเชื่อมบัญชีของคุณ', 'Choose a system and connect your account')}</h2>
 		<p class="k-small k-muted step-description">
 			{t(
-				'ตรวจการเชื่อมต่อแล้ว ORCA จะแสดงรายการเครื่องมือให้เลือกในขั้นถัดไป',
-				'After the connection check, ORCA will show the tool list for you to review.'
+				'เมื่อตรวจสอบการเชื่อมต่อแล้ว ORCA จะแสดงรายการเครื่องมือให้เลือกในขั้นตอนถัดไป',
+				'After the connection check, ORCA lists the available tools for you to review.'
 			)}
 		</p>
 		{/if}
@@ -542,15 +544,15 @@
 		{/if}
 		{#if editing}<p class="k-small k-muted">
 				{t(
-					'หากต้องการเปลี่ยนระบบต้นทาง ให้เพิ่ม Server ใหม่',
-					'To use a different source system, add a new server.'
+					'หากต้องการใช้ระบบอื่น ให้เพิ่มเป็นระบบใหม่',
+					'To use a different system, add it as a new system.'
 				)}
 			</p>{/if}
 		{#if loading}<p class="k-muted k-small" role="status">{t('กำลังโหลดรายชื่อระบบ…', 'Loading systems…')}</p>
 		{:else if !selectableCandidates.length}<p class="k-muted k-small">
 				{t(
-					'ยังไม่มีระบบในรายการ เพิ่มระบบของคุณได้ที่ “ตัวเลือกเพิ่มเติม” ด้านล่าง',
-					'No systems yet. Add your system under More options below.'
+					'ยังไม่มีระบบในคลังระบบ เพิ่มระบบด้วย MCP URL ได้ที่ “ตัวเลือกเพิ่มเติม” ด้านล่าง',
+					'The system catalog is empty. Add a system with an MCP URL under More options below.'
 				)}
 			</p>{/if}
 		{#if mcpID || creatingSource}
@@ -571,7 +573,7 @@
 			/>
 		{/if}
 		{#if discovering}<p class="discovery-status" role="status">
-				<LoaderCircle size={18} class="k-spin" />{t(
+				<LoaderCircle size={16} class="k-spin" aria-hidden="true" />{t(
 					'กำลังตรวจสอบรายการเครื่องมือ…',
 					'Checking available tools…'
 				)}
@@ -602,16 +604,16 @@
 					type="button"
 					class="k-link-button"
 					disabled={loading || busy || setupBusy}
-					onclick={loadCandidates}>{t('โหลดรายชื่อระบบใหม่', 'Refresh systems')}</button
+					onclick={loadCandidates}>{t('โหลดรายชื่อระบบอีกครั้ง', 'Reload systems')}</button
 				>
 			</div>
 		</details>
 	</section>
 	{:else if discovering}
-		<p class="discovery-status" role="status"><LoaderCircle size={18} class="k-spin" />{t('กำลังโหลดรายการเครื่องมือล่าสุด…', 'Loading current tools…')}</p>
+		<p class="discovery-status" role="status"><LoaderCircle size={16} class="k-spin" aria-hidden="true" />{t('กำลังโหลดรายการเครื่องมือล่าสุด…', 'Loading current tools…')}</p>
 	{:else if !discoveredID || !tools.length}
-		<div class="k-banner"><Info size={18} /><div>
-			<p>{t('โหลดเครื่องมือล่าสุดก่อนยืนยันสิทธิ์ หากบัญชียังไม่พร้อม ให้เชื่อมบัญชีในแท็บ Account แล้วกลับมาตรวจเครื่องมือ', 'Load the current tools before approving access. If your source account needs attention, open Account and then return to review tools.')}</p>
+		<div class="k-banner connection-banner"><Info size={16} aria-hidden="true" /><div>
+			<p>{t('โหลดรายการเครื่องมือล่าสุดก่อนยืนยันสิทธิ์ หากบัญชียังไม่พร้อม ให้เชื่อมบัญชีในแท็บ “บัญชี” แล้วกลับมาตรวจสอบเครื่องมือ', 'Load the current tools before approving access. If the account needs attention, open the Account tab, then return to review the tools.')}</p>
 			<div class="k-actions">
 				<button class="k-button" disabled={busy} onclick={() => discover()}>{t('โหลดเครื่องมืออีกครั้ง', 'Retry loading tools')}</button>
 				<a class="k-button quiet" href={localeHref(`/app?view=servers&connection=${encodeURIComponent(initialConnectionID)}&tab=account`)}>{t('จัดการบัญชี', 'Manage account')}</a>
@@ -628,20 +630,20 @@
 			<fieldset disabled={busy}>
 				{#if step === 2}
 					<section class="k-panel">
-						<h2>{t('กำหนดขอบเขตเครื่องมือของ Server', 'Set the server’s approved tools')}</h2>
+						<h2>{t('กำหนดเครื่องมือที่อนุญาตของระบบ', 'Set the system’s allowed tools')}</h2>
 						<p class="k-small k-muted step-description">
 							{sourceLabel} · {t(
-								'เลือกขอบเขตเครื่องมือสูงสุดที่องค์กรอนุญาต แต่ละ MCP Gateway เลือกเครื่องมือย่อยและสมาชิกได้ภายในขอบเขตนี้',
-								'Choose the maximum approved tool set. Each MCP Gateway chooses a subset of these tools and its members.'
+								'เลือกเครื่องมือทั้งหมดที่องค์กรอนุญาตให้ใช้ แต่ละพื้นที่ทำงาน AI จะเลือกเครื่องมือและสมาชิกได้จากรายการนี้เท่านั้น',
+								'Choose every tool your organization allows. Each AI workspace can select tools and members only from this list.'
 							)}
 						</p>
 						<div class="k-field k-section">
                             <label for="tool-access-mode">{t('รูปแบบการใช้งาน', 'Access mode')}</label>
                             <select id="tool-access-mode" bind:value={readOnly} onchange={() => { reviewedTools = false; }}>
-                                <option value={false}>{t('ใช้งานตามเครื่องมือที่เลือก', 'Use selected tools')}</option>
-                                <option value={true}>{t('จำกัดเฉพาะอ่านข้อมูล', 'Read-only tools')}</option>
+                                <option value={false}>{t('ใช้งานตามเครื่องมือที่อนุญาต', 'Use the allowed tools')}</option>
+                                <option value={true}>{t('จำกัดเฉพาะการอ่านข้อมูล', 'Restrict to read-only tools')}</option>
                             </select>
-                            <p class="k-small k-muted">{t('เครื่องมือที่เลือกอาจสร้าง แก้ไข หรือลบข้อมูลได้ ตามความสามารถของเครื่องมือและสิทธิ์ที่คุณอนุญาตในระบบต้นทาง', 'Selected tools may create, update, or delete data within the permissions you grant in the source system.')}</p>
+                            <p class="k-small k-muted">{t('เครื่องมือที่อนุญาตอาจสร้าง แก้ไข หรือลบข้อมูลได้ ตามความสามารถของเครื่องมือและสิทธิ์ที่บัญชีได้รับในระบบนั้น', 'Allowed tools may create, update, or delete data within the permissions granted to the account in that system.')}</p>
                         </div>
 						{#if tools.length && discoveredID === mcpID}<div class="k-check-list k-section">
 								{#each tools as tool, index (tool.name)}<div
@@ -664,19 +666,18 @@
 											<p>
 												{tool.description ||
 													t(
-														'ระบบที่เชื่อมต่อไม่ได้ระบุคำอธิบาย',
-														'No description provided by the source'
+														'ระบบไม่ได้ระบุคำอธิบายของเครื่องมือนี้',
+														'The system did not provide a description.'
 													)}
 											</p>
 											<details>
-												<summary class="k-small" style="margin-top:6px;color:var(--k-accent)"
+												<summary class="schema-toggle"
 													>{t(
 														'ดูข้อมูลที่เครื่องมือต้องใช้ (Input schema)',
 														'View input schema'
 													)}</summary
 												>
-												<pre
-													style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;margin-top:8px">{JSON.stringify(
+												<pre class="schema-code">{JSON.stringify(
 														tool.inputSchema,
 														null,
 														2
@@ -684,16 +685,16 @@
 											</details>
 										</div>
 									</div>{/each}
-							</div>{:else}<div class="k-banner">
-								<Info size={19} />
+							</div>{:else}<div class="k-banner connection-banner">
+								<Info size={16} aria-hidden="true" />
 								<p>
 									{t(
-										'เลือก “โหลดรายการเครื่องมือ” จากระบบที่ต้องการใช้ก่อน',
-										'Discover tools from the source before selecting them.'
+										'โหลดรายการเครื่องมือจากระบบก่อนเลือกเครื่องมือ',
+										'Load the tools from the system before selecting them.'
 									)}
 								</p>
 							</div>{/if}
-						<label class="k-check-row" style="padding:21px 0"
+						<label class="k-check-row confirm-row"
 							><input
 								type="checkbox"
 								bind:checked={reviewedTools}
@@ -701,14 +702,14 @@
 							/><span class="k-check-copy"
 								><strong
 									>{t(
-										'ยืนยันให้ใช้งานเครื่องมือที่เลือก ตามสิทธิ์ของบัญชีที่เชื่อมต่อ',
-										'I reviewed and approve the selected tools within the connected account’s permissions.'
+										'ยืนยันว่าได้ตรวจสอบและอนุญาตเครื่องมือที่เลือก ภายใต้สิทธิ์ของบัญชีที่เชื่อมต่อ',
+										'I have reviewed and approve the selected tools within the connected account’s permissions.'
 									)}</strong
 								>
 								<p>
 									{t(
-										'ORCA อนุญาตเฉพาะเครื่องมือที่ตรวจสอบแล้ว หากรูปแบบข้อมูลของเครื่องมือเปลี่ยน จะระงับการใช้จนกว่าจะตรวจสอบอีกครั้ง',
-										'ORCA allows only the reviewed tools. If a tool’s schema changes, access pauses until it is reviewed again.'
+										'ORCA อนุญาตเฉพาะเครื่องมือที่ตรวจสอบแล้ว หากรูปแบบข้อมูลของเครื่องมือเปลี่ยนแปลง ระบบจะระงับการใช้งานจนกว่าจะตรวจสอบอีกครั้ง',
+										'ORCA allows only reviewed tools. If a tool’s schema changes, its use is paused until it is reviewed again.'
 									)}
 								</p></span
 							></label
@@ -716,26 +717,26 @@
 					</section>
 				{:else}
 					<section class="k-panel">
-						<h2>{t('บันทึก Server ขององค์กร', 'Save your organization’s server')}</h2>
+						<h2>{t('บันทึกระบบ', 'Save the system')}</h2>
 						<p class="k-small k-muted step-description">
 							{t(
-								'ตั้งชื่อ Server ให้จำง่าย และอธิบายขอบเขตข้อมูลที่ใช้',
-								'Give this server a clear name and describe its data scope.'
+								'ตั้งชื่อระบบให้ชัดเจน และระบุขอบเขตข้อมูลที่ใช้',
+								'Give this system a clear name and describe its data scope.'
 							)}
 						</p>
 						<div class="k-field k-section">
-							<label for="source-name">{t('ชื่อที่ทีมจะเห็น', 'Name shown to your team')}</label>
+							<label for="source-name">{t('ชื่อที่แสดงต่อทีม', 'Name shown to your team')}</label>
 							<input
 								id="source-name"
 								bind:value={name}
 								maxlength="100"
 								required
-								placeholder={t('เช่น เอกสารทีมขาย', 'For example, Sales documents')}
+								placeholder={t('ตัวอย่าง: เอกสารฝ่ายขาย', 'Example: Sales documents')}
 							/>
 						</div>
 						<div class="k-field">
 							<label for="source-scope"
-								>{t('ขอบเขตการใช้งาน', 'Data scope allowed by the source account')}</label
+								>{t('ขอบเขตข้อมูล', 'Data scope')}</label
 							><textarea
 								id="source-scope"
 								bind:value={scopeNote}
@@ -743,20 +744,20 @@
 								required
 								placeholder={t(
 									'ระบุบัญชีหรือชุดข้อมูลที่ใช้ และสิทธิ์การเข้าถึงที่ตั้งค่าไว้ในระบบนั้น',
-									'Describe the connected account or dataset and the restrictions actually configured.'
+									'Describe the connected account or dataset and the access restrictions configured in that system.'
 								)}
 							></textarea>
 							<p class="k-muted k-small">
 								{t(
-									'ข้อความนี้ใช้อธิบายการใช้งาน ไม่ได้กรองหรือจำกัดข้อมูล หากต้องการจำกัดไฟล์หรือโฟลเดอร์ ให้ตั้งค่าสิทธิ์ในระบบที่เชื่อมต่อ',
-									'This describes permissions set in the source system. File or folder restrictions must also be configured there.'
+									'ข้อความนี้ใช้เพื่ออธิบายเท่านั้น ไม่ได้กรองหรือจำกัดข้อมูล หากต้องการจำกัดไฟล์หรือโฟลเดอร์ ให้ตั้งค่าสิทธิ์ในระบบที่เชื่อมต่อ',
+									'This text is descriptive only and does not filter data. To restrict files or folders, configure permissions in the connected system.'
 								)}
 							</p>
 						</div>
 						<div class="connection-review">
 							<strong
 								>{t(
-									`เลือกไว้ ${toolNames.length} เครื่องมือ`,
+									`เครื่องมือที่เลือก ${toolNames.length} รายการ`,
 									`${toolNames.length} tools selected`
 								)}</strong
 							>
@@ -772,18 +773,18 @@
 								>
 								<input id="source-description" bind:value={description} maxlength="500" />
 							</div>
-							<label class="k-check-row" style="padding:4px 0"
+							<label class="k-check-row option-row"
 								><input type="checkbox" bind:checked={enabled} /><span class="k-check-copy"
 									><strong
 										>{t(
-											'อนุญาตให้ MCP Gateways ใช้ Server นี้',
-											'Allow MCP Gateways to use this server'
+											'อนุญาตให้พื้นที่ทำงาน AI ใช้ระบบนี้',
+											'Allow AI workspaces to use this system'
 										)}</strong
 									>
 									<p>
 										{t(
-											'หากปิดตัวเลือกนี้ ทุก MCP Gateway ที่ใช้ Server นี้จะเข้าถึงข้อมูลไม่ได้',
-											'Disabling this server stops access from every MCP Gateway that uses it.'
+											'หากปิดตัวเลือกนี้ พื้นที่ทำงาน AI ทั้งหมดที่ใช้ระบบนี้จะเข้าถึงข้อมูลไม่ได้',
+											'If this option is off, no AI workspace that uses this system can access its data.'
 										)}
 									</p></span
 								></label
@@ -791,8 +792,8 @@
 						</details>
 						{#if !enabled}<p class="k-small k-muted">
 								{t(
-									'Server นี้ปิดใช้งานอยู่ เปลี่ยนได้ในรายละเอียดเพิ่มเติม',
-									'This server is disabled. Change this under Additional details.'
+									'ระบบนี้ถูกระงับการใช้งาน เปลี่ยนได้ที่ “รายละเอียดเพิ่มเติม”',
+									'This system is paused. Change this under Additional details.'
 								)}
 							</p>{/if}
 					</section>
@@ -808,7 +809,7 @@
 					onclick={() => {
 						step = step === 3 ? 2 : 1;
 						error = '';
-					}}><ChevronLeft size={17} />{t('ย้อนกลับ', 'Back')}</button
+					}}><ChevronLeft size={16} aria-hidden="true" />{t('ย้อนกลับ', 'Back')}</button
 				>{/if}
 				{#if step === 2}<button
 						class="k-button primary"
@@ -822,40 +823,40 @@
 						disabled={busy || !toolsReviewed || !name.trim() || !scopeNote.trim()}
 						>{saving
 							? t('กำลังบันทึก…', 'Saving…')
-							: t('บันทึก Server', 'Save server')}</button
+							: t('บันทึกระบบ', 'Save system')}</button
 					>{/if}
 			</div>
 		</form>
 	{:else if !embedded}
 		<div class="k-wizard-actions">
 			{#if addSourceFlow}<a class="k-link-button" style="display:inline-flex;align-items:center;gap:6px" href={localeHref('/app?view=servers')}
-				><ChevronLeft size={17} />{t('กลับไป Servers', 'Back to Servers')}</a
+				><ChevronLeft size={16} aria-hidden="true" />{t('กลับไปที่ระบบที่เชื่อมต่อ', 'Back to connected systems')}</a
 			>{:else}<button class="k-link-button" type="button" disabled={busy || setupBusy} onclick={closeForm}
-				><ChevronLeft size={17} />{t('กลับไป Servers', 'Back to Servers')}</button
+				><ChevronLeft size={16} aria-hidden="true" />{t('กลับไปที่ระบบที่เชื่อมต่อ', 'Back to connected systems')}</button
 			>{/if}
 		</div>
 	{/if}
 {:else if !policyMode && !embedded && !addSourceFlow}
 	{#if data.connections.length > 4}<div class="k-field" style="max-width:440px;margin-bottom:20px">
-			<label for="connection-search">{t('ค้นหาระบบ', 'Search sources')}</label><input
+			<label for="connection-search">{t('ค้นหาระบบ', 'Search systems')}</label><input
 				id="connection-search"
 				type="search"
 				bind:value={query}
-				placeholder={t('ชื่อหรือคำอธิบายระบบ', 'Source name or description')}
+				placeholder={t('ชื่อหรือคำอธิบายของระบบ', 'System name or description')}
 			/>
 		</div>{/if}
 	{#each visibleConnections as connection (connection.id)}
 		<article class="k-panel">
 			<div class="k-panel-head">
 				<div class="k-actions">
-					<span class="k-icon"><Plug size={23} /></span>
+					<span class="k-icon"><Plug size={18} aria-hidden="true" /></span>
 					<div>
 						<h2>{connection.name}</h2>
 						<p class="k-muted k-small">{connection.description}</p>
 					</div>
 				</div>
 				<span class="k-badge" class:active={connection.enabled}
-					>{connection.enabled ? t('เปิดใช้งาน', 'Available') : t('ปิดใช้งาน', 'Disabled')}</span
+					>{connection.enabled ? t('เปิดใช้งาน', 'Active') : t('ระงับ', 'Paused')}</span
 				>
 			</div>
 			<p class="k-muted" style="white-space:pre-wrap">{connection.scopeNote}</p>
@@ -865,26 +866,27 @@
 					{t('เครื่องมือที่ตรวจสอบแล้ว', 'Reviewed tools')}</span
 				><span
 					>{data.hubs.filter((hub) => gatewayUsesConnection(hub, connection.id)).length}
-					{'MCP Gateways'}</span
-				><span>{connection.reviewedReadOnly ? t('อ่านข้อมูลเท่านั้น', 'Read only') : t('ตามเครื่องมือที่เลือก', 'Selected tools')}</span>
+					{t('พื้นที่ทำงาน AI', 'AI workspaces')}</span
+				><span>{connection.reviewedReadOnly ? t('อ่านข้อมูลเท่านั้น', 'Read-only') : t('ตามเครื่องมือที่อนุญาต', 'Allowed tools')}</span>
 			</div>
 			<div class="k-actions" style="margin-top:18px">
 				{#if data.canManage}<button
 						class="k-button small"
 						disabled={Boolean(changingConnection)}
 						onclick={() => openForm(connection)}
-						><Pencil size={15} /> {t('ตรวจสอบและแก้ไข', 'Review and edit')}</button
+						><Pencil size={16} aria-hidden="true" /> {t('ตรวจสอบและแก้ไข', 'Review and edit')}</button
 					><button
 						class="k-button small"
 						disabled={Boolean(changingConnection)}
 						onclick={() => toggleEnabled(connection)}
-						>{#if connection.enabled}<Pause size={15} />{:else}<Play
-								size={15}
+						>{#if connection.enabled}<Pause size={16} aria-hidden="true" />{:else}<Play
+								size={16}
+								aria-hidden="true"
 							/>{/if}{changingConnection === connection.id
 							? t('กำลังบันทึก…', 'Saving…')
 							: connection.enabled
-								? t('ระงับ Server', 'Disable server')
-								: t('เปิดใช้งาน Server อีกครั้ง', 'Enable server')}</button
+								? t('ระงับการใช้งาน', 'Pause')
+								: t('เปิดใช้งานอีกครั้ง', 'Resume')}</button
 					>{/if}<a class="k-button quiet small" href={localeHref(`/app?view=audit`)}
 					>{t('ดูประวัติการใช้งาน', 'View activity')}</a
 				>
@@ -894,173 +896,304 @@
 			{/if}
 		</article>
 	{:else}<div class="k-empty">
-			<Plug size={35} />
-			<h2>
+			<Plug size={28} aria-hidden="true" />
+			<h2 class="empty-title">
 				{query
-					? t('ไม่พบระบบที่ค้นหา', 'No matching sources')
-					: t('เชื่อมต่อระบบแรกของทีม', 'Start by connecting a system your team uses')}
+					? t('ไม่พบระบบที่ค้นหา', 'No matching systems')
+					: t('ยังไม่มีระบบที่เชื่อมต่อ', 'No connected systems yet')}
 			</h2>
 			<p>
 				{query
 					? t('ลองใช้คำค้นอื่น', 'Try another search term.')
 					: data.canManage
 						? t(
-								'เชื่อมต่อแหล่งข้อมูล ตรวจสอบสิทธิ์ แล้วเลือกเครื่องมือสำหรับค้นหาและอ่านข้อมูล',
-								'Set up the source, check its data scope, then select tools that read data.'
+								'เพิ่มระบบ ตรวจสอบสิทธิ์ของบัญชี แล้วเลือกเครื่องมือที่อนุญาต',
+								'Add a system, check the account permissions, then choose the allowed tools.'
 							)
 						: t(
-								'ระบบที่คุณใช้ได้จะแสดงที่นี่ เมื่อคุณได้รับสิทธิ์เป็นสมาชิกของพื้นที่ทำงาน',
-								'Available sources appear here when you join a workspace.'
+								'ระบบที่คุณใช้ได้จะแสดงที่นี่ เมื่อคุณเป็นสมาชิกของพื้นที่ทำงาน AI',
+								'Systems available to you appear here when you join an AI workspace.'
 							)}
 			</p>
 			{#if data.canManage && !query}<a
 					class="k-button primary"
-					href={localeHref('/app?view=servers&add=source')}>{t('เพิ่ม Server แรก', 'Add your first server')}</a
+					href={localeHref('/app?view=servers&add=source')}>{t('เพิ่มระบบแรก', 'Add your first system')}</a
 				>{/if}
 		</div>{/each}
 {/if}
 
 <style>
+	/* These styles load before the shared workspace CSS (WorkspaceWizard imports this component
+	   first), so every override of a shared class carries at least one extra class. */
+	.connection-banner.k-banner {
+		margin: 0 0 16px;
+	}
+	.connection-banner p {
+		margin: 0;
+	}
 	.connection-progress {
 		display: flex;
-		list-style: none;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px 12px;
+		margin: 0 0 20px;
 		padding: 0;
-		margin: 0 0 24px;
-		gap: 24px;
+		list-style: none;
 	}
 	.connection-progress li {
 		display: flex;
-		gap: 9px;
 		align-items: center;
-		color: var(--k-muted);
+		gap: 8px;
+		color: var(--orca-muted);
 		font-size: 14px;
+		font-weight: 500;
+	}
+	.connection-progress li + li::before {
+		content: '';
+		width: 24px;
+		height: 1px;
+		margin-right: 4px;
+		background: var(--orca-line-strong);
 	}
 	.step-number {
 		display: grid;
 		place-items: center;
 		flex-shrink: 0;
-		width: 28px;
-		height: 28px;
+		width: 24px;
+		height: 24px;
+		border: 1px solid var(--orca-line-strong);
 		border-radius: 50%;
-		background: #e9edf2;
+		background: var(--orca-surface);
+		color: var(--orca-muted);
+		font-size: 12px;
+		font-weight: 600;
+		line-height: 1;
+	}
+	.connection-progress .current,
+	.connection-progress .complete {
+		color: var(--orca-ink);
 	}
 	.connection-progress .current {
-		color: var(--k-ink);
 		font-weight: 600;
 	}
 	.current .step-number {
-		background: var(--k-ink, #171b28);
-		color: #d7f571;
+		border-color: var(--orca-ink);
+		background: var(--orca-ink);
+		color: #fff;
 	}
 	.complete .step-number {
-		background: #edf5d9;
-		color: #4e6826;
+		border-color: transparent;
+		background: var(--orca-ok-bg);
+		color: var(--orca-ok);
 	}
 	.connection-account[hidden] {
 		display: none;
 	}
 	.step-description {
-		margin-top: 8px;
+		margin-top: 4px;
+		color: var(--orca-muted);
+		font-size: 13px;
 	}
-	.connection-account :global(.source-setup) {
+	.k-panel .k-section {
+		margin-top: 16px;
+	}
+	.k-panel.connection-account :global(.source-setup) {
+		margin: 20px 0 0;
+		padding: 20px 0 0;
 		border: 0;
-		border-top: 1px solid var(--k-line);
+		border-top: 1px solid var(--orca-line);
 		border-radius: 0;
 		box-shadow: none;
-		padding: 22px 0 0;
-		margin: 22px 0 0;
+	}
+	/* In the embedded dialog the system is preselected, so the setup is the panel's first block. */
+	.k-panel.connection-account > :global(.source-setup:first-child) {
+		margin-top: 0;
+		padding-top: 0;
+		border-top: 0;
 	}
 	.discovery-status {
 		display: flex;
 		align-items: flex-start;
-		gap: 9px;
-		font-size: 13px;
-		margin-top: 18px;
-		line-height: 1.75;
-		color: var(--k-muted);
+		gap: 8px;
+		margin-top: 16px;
+		color: var(--orca-muted);
+		font-size: 13.5px;
+		line-height: 1.7;
 	}
 	.discovery-status :global(svg) {
 		flex-shrink: 0;
 		margin-top: 3px;
 	}
+	.connection-account > :global(.k-button) {
+		margin-top: 16px;
+	}
 	.connection-options {
-		border-top: 1px solid var(--k-line);
-		margin-top: 22px;
-		padding-top: 18px;
+		margin-top: 20px;
+		padding-top: 16px;
+		border-top: 1px solid var(--orca-line);
 	}
 	.connection-options summary {
+		color: var(--orca-muted);
+		font-size: 13.5px;
+		font-weight: 500;
 		cursor: pointer;
-		color: var(--k-muted);
-		font-size: 13px;
+	}
+	.connection-options summary:hover {
+		color: var(--orca-ink);
 	}
 	.connection-options > .k-actions {
-		margin-top: 15px;
+		gap: 8px;
+		margin-top: 12px;
 	}
-	.connection-review {
-		padding: 16px 18px;
-		border-radius: 10px;
-		background: #f6f8f0;
-		margin-top: 22px;
+	/* Allowed-tool checklist: neutral rows separated by hairlines. */
+	.k-panel .k-check-list {
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface);
+		overflow: hidden;
+	}
+	.k-check-list .k-check-row {
+		gap: 12px;
+		padding: 12px 14px;
+		border: 0;
+		border-radius: 0;
+		background: var(--orca-surface);
 		font-size: 14px;
 	}
-	.connection-review ul {
-		padding-left: 20px;
-		margin: 8px 0 0;
-		overflow-wrap: anywhere;
-		color: var(--k-muted);
+	.k-check-list .k-check-row + .k-check-row {
+		border-top: 1px solid #eff0f2;
 	}
-	@media (max-width: 560px) {
-		.connection-progress {
-			gap: 12px;
-			justify-content: space-between;
-		}
-		.connection-progress li {
-			font-size: 12px;
-			gap: 6px;
-		}
-		.step-number {
-			width: 24px;
-			height: 24px;
-		}
+	.k-check-list .k-check-row:hover,
+	.k-check-list .k-check-row.selected {
+		background: var(--orca-surface-2);
 	}
-	.connection-saved {
-		border-color: #c9dba5;
-		background: linear-gradient(120deg, #fbfdf5, #fff);
-	}
-	.connection-saved-label {
-		margin-bottom: 6px;
-		color: #617832;
-		font-size: 12px;
+	.k-check-list .k-check-copy strong,
+	.confirm-row .k-check-copy strong,
+	.option-row .k-check-copy strong {
+		color: var(--orca-ink);
+		font-size: 14px;
 		font-weight: 600;
+	}
+	.k-check-list .k-check-copy p,
+	.confirm-row .k-check-copy p,
+	.option-row .k-check-copy p {
+		margin-top: 2px;
+		color: var(--orca-muted);
+		font-size: 13px;
+	}
+	.schema-toggle {
+		margin-top: 6px;
+		color: var(--orca-muted);
+		font-size: 13px;
+		cursor: pointer;
+	}
+	.schema-toggle:hover {
+		color: var(--orca-ink);
+	}
+	.schema-code {
+		margin: 8px 0 0;
+		padding: 10px 12px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius-sm);
+		background: var(--orca-surface-2);
+		color: var(--orca-nav);
+		font-size: 12px;
+		line-height: 1.6;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+	.k-check-row.confirm-row,
+	.k-check-row.option-row {
+		gap: 12px;
+		border: 0;
+		border-radius: 0;
+		background: none;
+		font-size: 14px;
+	}
+	.k-check-row.confirm-row {
+		padding: 16px 0 0;
+	}
+	.k-check-row.option-row {
+		padding: 12px 0 0;
+	}
+	.k-check-row.confirm-row:hover,
+	.k-check-row.option-row:hover {
+		background: none;
+	}
+	#source-scope {
+		min-height: 96px;
+		resize: vertical;
+	}
+	.connection-review {
+		margin-top: 20px;
+		padding: 12px 14px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface-2);
+		font-size: 14px;
+	}
+	.connection-review strong {
+		font-weight: 600;
+	}
+	.connection-review ul {
+		margin: 6px 0 0;
+		padding-left: 20px;
+		color: var(--orca-muted);
+		font-size: 13px;
+		overflow-wrap: anywhere;
+	}
+	.k-wizard-actions {
+		gap: 8px;
+		margin-top: 20px;
+		padding-top: 0;
+	}
+	.k-wizard-actions :global(.k-button) {
+		min-width: 0;
+	}
+	.connection-saved-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px 10px;
+	}
+	.connection-saved-head h2 {
+		margin: 0;
+		overflow-wrap: anywhere;
+	}
+	.connection-saved > :global(.k-button) {
+		margin-top: 12px;
 	}
 	.connection-workspaces {
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;
-		gap: 12px;
-		margin-top: 20px;
-		padding-top: 18px;
-		border-top: 1px solid var(--k-line, #e0e4ec);
+		gap: 10px;
+		margin-top: 16px;
+		padding-top: 16px;
+		border-top: 1px solid var(--orca-line);
 	}
 	.connection-next-title {
 		display: flex;
 		align-items: center;
-		gap: 9px;
-		color: var(--o-ink, #171b28);
+		gap: 8px;
+		color: var(--orca-ink);
 	}
 	.connection-next-title h3 {
-		font-size: 15px;
-		line-height: 1.6;
-		font-weight: 600;
+		margin: 0;
 	}
 	.connection-next-title :global(svg) {
 		flex-shrink: 0;
-		color: #72894c;
+		color: var(--orca-subtle);
+	}
+	.connection-workspaces > p {
+		margin: 0;
+		color: var(--orca-muted);
+		font-size: 13px;
 	}
 	.connection-workspace-links {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 9px;
+		gap: 8px;
 		max-width: 100%;
 	}
 	.connection-workspace-links a {
@@ -1068,22 +1201,18 @@
 		align-items: center;
 		gap: 10px;
 		max-width: 100%;
-		min-height: 42px;
-		padding: 9px 12px;
-		border: 1px solid var(--k-line, #e0e4ec);
-		border-radius: 9px;
-		background: #fff;
-		color: var(--o-ink, #171b28);
-		font-size: 13px;
+		min-height: 36px;
+		padding: 6px 12px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface);
+		color: var(--orca-ink);
+		font-size: 14px;
 		text-decoration: none;
 	}
 	.connection-workspace-links a:hover {
-		border-color: #a3b777;
-		background: #f7faef;
-	}
-	.connection-workspace-links a:focus-visible {
-		outline: 2px solid #617832;
-		outline-offset: 3px;
+		border-color: var(--orca-line-strong);
+		background: var(--orca-surface-2);
 	}
 	.connection-workspace-links a > span:first-child {
 		min-width: 0;
@@ -1091,20 +1220,49 @@
 	}
 	.connection-workspace-links :global(svg) {
 		flex-shrink: 0;
+		color: var(--orca-subtle);
 	}
 	.connection-unavailable {
 		display: flex;
 		align-items: flex-start;
 		gap: 8px;
-		color: var(--o-muted, #687086);
+		margin: 0;
+		color: var(--orca-muted);
 		font-size: 13px;
-		line-height: 1.75;
+		line-height: 1.7;
 	}
 	.connection-unavailable :global(svg) {
 		flex-shrink: 0;
 		margin-top: 3px;
+		color: var(--orca-subtle);
+	}
+	.k-panel-head .k-icon {
+		width: 32px;
+		height: 32px;
+		border-radius: var(--orca-radius);
+		background: var(--orca-secondary);
+		color: var(--orca-nav);
+	}
+	.k-panel-head h2 {
+		margin: 0;
+	}
+	.k-empty .empty-title {
+		margin: 0;
+		font-size: 15px;
+		font-weight: 600;
 	}
 	@media (max-width: 560px) {
+		.connection-progress {
+			gap: 8px;
+		}
+		.connection-progress li {
+			gap: 6px;
+			font-size: 13px;
+		}
+		.connection-progress li + li::before {
+			width: 12px;
+			margin-right: 2px;
+		}
 		.connection-workspace-links,
 		.connection-workspace-links a,
 		.connection-workspaces > .k-button {

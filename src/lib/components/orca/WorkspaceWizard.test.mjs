@@ -190,7 +190,7 @@ test('a Gateway caps sources at twenty while allowing selected sources to be rem
 	});
 	connections.forEach((source) => view.selectConnection(source.id));
 	assert.equal(view.state.sources.length, 20);
-	assert.match(view.state.error, /up to 20 sources/);
+	assert.match(view.state.error, /up to 20 systems/);
 	view.selectConnection(connections[0].id);
 	view.selectConnection(connections[20].id);
 	assert.equal(view.state.sources.length, 20);
@@ -347,7 +347,7 @@ test('live revocation in any source blocks save without silently removing it or 
 	assert.match(view.state.error, /Remove tools/);
 	view.removeUnavailableTool(another.id, 'read');
 	await view.save();
-	assert.match(view.state.error, /at least one tool from each source/);
+	assert.match(view.state.error, /at least one tool from each system/);
 	view.toggleSourceTool(another.id, 'list_files');
 	view.confirm();
 	await view.save();
@@ -464,7 +464,7 @@ test('explicit empty multi-source data does not fall back to stale legacy fields
 		existing: { ...existing, sources: [] }
 	});
 	assert.deepEqual(view.state.sources, []);
-	assert.match(view.validation(3), /Select at least one enabled source/);
+	assert.match(view.validation(3), /Select at least one active system/);
 });
 
 test('tool search finds friendly titles, Thai action labels and exact technical identifiers', (context) => {
@@ -534,7 +534,7 @@ test('name and audience precede app selection; submitting an early stage never c
 	});
 	await Promise.resolve();
 	assert.equal(view.state.step, 1);
-	assert.match(view.state.error, /Gateway name/);
+	assert.match(view.state.error, /name for the AI workspace/);
 	view.setName('Customer service');
 	await view.move(3);
 	assert.equal(view.state.step, 1, 'cannot skip the audience stage');
@@ -557,7 +557,7 @@ test('name and audience precede app selection; submitting an early stage never c
 	});
 	await Promise.resolve();
 	assert.equal(view.state.step, 2);
-	assert.match(view.state.error, /Select at least one person/);
+	assert.match(view.state.error, /Select at least one member or department/);
 	view.toggleDepartment('department-one');
 	await view.move(3);
 	assert.equal(view.state.step, 3, 'audience is valid before the source is ready');
@@ -629,7 +629,7 @@ test('audience changes invalidate review while archived and missing grants requi
 		view.state.availableDepartments.some((unit) => unit.id === 'old-dept'),
 		true
 	);
-	assert.match(view.validation(2), /suspended or unavailable people/);
+	assert.match(view.validation(2), /suspended or unavailable members/);
 	view.toggleMember('suspended');
 	view.toggleMember('missing-person');
 	assert.match(view.validation(2), /archived or unavailable departments/);
@@ -653,7 +653,7 @@ test('legacy unit labels are never treated as access grants, and inherited peopl
 	}).view;
 	assert.deepEqual(labelsOnly.state.unitIDs, ['department-one']);
 	assert.deepEqual(labelsOnly.state.accessUnitIDs, []);
-	assert.match(labelsOnly.validation(2), /Select at least one person/);
+	assert.match(labelsOnly.validation(2), /Select at least one member or department/);
 	const { view, writes } = setup(context, {
 		existing: {
 			...existing,
@@ -782,7 +782,7 @@ test('a navigation failure after creation retries the saved transition without a
 	await view.save();
 	assert.equal(writes.length, 1);
 	assert.equal(view.state.savedHub.id, 'created-gateway');
-	assert.match(view.state.error, /Gateway is saved/);
+	assert.match(view.state.error, /AI workspace is saved/);
 	await view.move(3);
 	assert.equal(view.state.step, 4, 'a persisted configuration is no longer editable in this draft');
 	await view.save();
@@ -824,7 +824,7 @@ test('OIDC source selection is saved alongside explicit audience and never repla
   await view.loadUserSources();
   view.setName('Company Gateway');
   view.setUserSource('oidc-one');
-  assert.match(view.validation(2), /Select at least one person/);
+  assert.match(view.validation(2), /Select at least one member or department/);
   view.toggleDepartment('department-one');
   view.selectConnection(connection.id);
   await view.move(2); await view.move(3); await view.move(4);
@@ -844,7 +844,7 @@ test('identity discovery failure leaves ORCA mode available and retry keeps the 
   assert.equal(view.state.userSourcesError, 'Identity service unavailable');
   assert.equal(view.validation(2), '');
   view.setUserSource('unknown');
-  assert.match(view.validation(2), /Choose an enabled user source/);
+  assert.match(view.validation(2), /Choose an active sign-in source/);
   fail = false; await view.loadUserSources(); view.setUserSource('oidc-one');
   assert.equal(view.state.userSourcesError, '');
   assert.equal(view.validation(2), '');

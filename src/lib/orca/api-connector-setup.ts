@@ -21,19 +21,19 @@ const connectors: Record<string, ApiConnectorSetupCopy> = {
   'default-orca-api-facebook-pages': {
     name: 'Facebook Pages',
     summary: [
-      'เชื่อมเพจที่คุณดูแล เพื่ออ่านข้อมูลเพจและโพสต์ล่าสุดใน ORCA',
+      'เชื่อมต่อเพจที่คุณดูแล เพื่ออ่านข้อมูลเพจและโพสต์ล่าสุดใน ORCA',
       'Connect a Page you manage to read its information and recent posts in ORCA.'
     ],
     result: [
-      'Facebook ยืนยันว่า ORCA อ่านข้อมูลเพจนี้ได้แล้ว ขั้นต่อไปเลือกงานที่อนุญาตให้ทีมใช้',
-      'Facebook confirmed that ORCA can read this Page. Next, choose which tasks your team may use.'
+      'Facebook ยืนยันว่า ORCA อ่านข้อมูลเพจนี้ได้แล้ว ขั้นตอนถัดไปคือเลือกเครื่องมือที่อนุญาตให้ทีมใช้',
+      'Facebook confirmed that ORCA can read this Page. Next, choose the tools your team may use.'
     ],
     fields: {
       Authorization: {
         label: ['โทเคนของเพจ Facebook', 'Facebook Page access token'],
         hint: [
-          'คัดลอก Page access token ของเพจที่ต้องการเชื่อมจาก Meta โทเคนคือรหัสอนุญาตให้ ORCA เข้าถึงเพจ ไม่ใช่รหัสผ่าน Facebook',
-          'Copy the Page access token for this Page from Meta. It authorizes access to the Page; do not enter your Facebook password.'
+          'คัดลอก Page access token ของเพจที่ต้องการเชื่อมต่อจาก Meta โทเคนนี้ใช้อนุญาตให้ ORCA เข้าถึงเพจ และไม่ใช่รหัสผ่าน Facebook',
+          'Copy the Page access token for this Page from Meta. The token authorizes ORCA to access the Page. Do not enter your Facebook password.'
         ],
         linkLabel: ['ดูวิธีรับโทเคนของเพจ', 'How to get a Page access token'],
         href: 'https://developers.facebook.com/docs/pages-api/getting-started/'
@@ -41,7 +41,7 @@ const connectors: Record<string, ApiConnectorSetupCopy> = {
       FACEBOOK_PAGE_ID: {
         label: ['หมายเลขเพจ Facebook', 'Facebook Page ID'],
         hint: [
-          'ใส่ Page ID ของเพจเดียวกับโทเคน เป็นตัวเลข ไม่ใช่ชื่อเพจหรือลิงก์ Facebook',
+          'กรอก Page ID ของเพจเดียวกับโทเคน ซึ่งเป็นตัวเลข ไม่ใช่ชื่อเพจหรือลิงก์ Facebook',
           'Enter the numeric Page ID for the same Page as the token, not the Page name or Facebook URL.'
         ],
         linkLabel: ['ดูวิธีหาหมายเลขเพจ', 'How to find the Page ID'],
@@ -53,12 +53,12 @@ const connectors: Record<string, ApiConnectorSetupCopy> = {
   'default-orca-api-line-messaging': {
     name: 'LINE Messaging API',
     summary: [
-      'เชื่อม LINE OA ของธุรกิจ เพื่อดูข้อมูลบัญชี โควตา และยอดข้อความที่ใช้ในเดือนนี้',
+      'เชื่อมต่อ LINE OA ของธุรกิจ เพื่อดูข้อมูลบัญชี โควตา และยอดข้อความที่ใช้ในเดือนนี้',
       'Connect your LINE Official Account to check its profile, message quota, and usage this month.'
     ],
     result: [
-      'LINE ยืนยันว่า ORCA อ่านข้อมูล LINE OA นี้ได้แล้ว ขั้นต่อไปเลือกงานที่อนุญาตให้ทีมใช้',
-      'LINE confirmed that ORCA can read this Official Account. Next, choose which tasks your team may use.'
+      'LINE ยืนยันว่า ORCA อ่านข้อมูล LINE OA นี้ได้แล้ว ขั้นตอนถัดไปคือเลือกเครื่องมือที่อนุญาตให้ทีมใช้',
+      'LINE confirmed that ORCA can read this Official Account. Next, choose the tools your team may use.'
     ],
     fields: {
       Authorization: {
@@ -75,12 +75,12 @@ const connectors: Record<string, ApiConnectorSetupCopy> = {
   'default-orca-api-instagram': {
     name: 'Instagram',
     summary: [
-      'เชื่อมบัญชี Instagram ธุรกิจหรือครีเอเตอร์ เพื่อดูข้อมูลบัญชีและโพสต์ล่าสุด',
+      'เชื่อมต่อบัญชี Instagram ประเภทธุรกิจหรือครีเอเตอร์ เพื่อดูข้อมูลบัญชีและโพสต์ล่าสุด',
       'Connect an Instagram Business or Creator account to read its profile and recent posts.'
     ],
     result: [
-      'Instagram ยืนยันว่า ORCA อ่านข้อมูลบัญชีนี้ได้แล้ว ขั้นต่อไปเลือกงานที่อนุญาตให้ทีมใช้',
-      'Instagram confirmed that ORCA can read this account. Next, choose which tasks your team may use.'
+      'Instagram ยืนยันว่า ORCA อ่านข้อมูลบัญชีนี้ได้แล้ว ขั้นตอนถัดไปคือเลือกเครื่องมือที่อนุญาตให้ทีมใช้',
+      'Instagram confirmed that ORCA can read this account. Next, choose the tools your team may use.'
     ],
     fields: {
       Authorization: {
@@ -95,7 +95,7 @@ const connectors: Record<string, ApiConnectorSetupCopy> = {
       INSTAGRAM_ACCOUNT_ID: {
         label: ['หมายเลขบัญชี Instagram', 'Instagram account ID'],
         hint: [
-          'ใส่ Instagram User ID ของบัญชีเดียวกับโทเคน เป็นตัวเลขที่ได้รับเมื่อเชื่อม Instagram Login ไม่ใช่ชื่อ @ผู้ใช้',
+          'กรอก Instagram User ID ของบัญชีเดียวกับโทเคน ซึ่งเป็นตัวเลขที่ได้รับเมื่อเชื่อม Instagram Login ไม่ใช่ชื่อผู้ใช้ (@username)',
           'Enter the numeric Instagram User ID returned by Instagram Login for the same account as the token, not the @username.'
         ],
         linkLabel: ['ดูวิธีหาหมายเลขบัญชี', 'How to find the account ID'],
@@ -116,19 +116,19 @@ const connectionErrors: Record<string, SetupCopy> = {
     'This token is invalid or expired. Copy a new token from the account you want to connect and test again.'
   ],
   'this API token cannot read the selected account; check its account ID and permissions': [
-    'โทเคนนี้อ่านบัญชีที่ระบุไม่ได้ ตรวจว่าหมายเลขบัญชีตรงกับโทเคน และได้อนุญาตให้อ่านข้อมูลแล้ว',
+    'โทเคนนี้อ่านข้อมูลบัญชีที่ระบุไม่ได้ กรุณาตรวจสอบว่าหมายเลขบัญชีตรงกับโทเคน และได้อนุญาตสิทธิ์อ่านข้อมูลแล้ว',
     'This token cannot read the selected account. Check that the account ID matches the token and that read access was granted.'
   ],
   'the provider is limiting requests; wait and test again': [
-    'ผู้ให้บริการให้พักการเรียกข้อมูลชั่วคราว กรุณารอสักครู่แล้วทดสอบอีกครั้ง',
+    'ผู้ให้บริการจำกัดจำนวนคำขอชั่วคราว กรุณารอสักครู่แล้วทดสอบอีกครั้ง',
     'The provider is temporarily limiting requests. Wait a moment and test again.'
   ],
   'enter a valid access token for this account': [
-    'กรุณาใส่โทเคนของบัญชีที่ต้องการเชื่อม ตรวจว่าได้คัดลอกรหัสมาครบแล้ว',
+    'กรุณากรอกโทเคนของบัญชีที่ต้องการเชื่อมต่อ และตรวจสอบว่าคัดลอกมาครบถ้วน',
     'Enter the complete access token for the account you want to connect.'
   ],
   'enter the numeric account ID, not a username or URL': [
-    'กรุณาใส่หมายเลขบัญชีเป็นตัวเลข ไม่ใช่ชื่อผู้ใช้หรือลิงก์',
+    'กรุณากรอกหมายเลขบัญชีเป็นตัวเลข ไม่ใช่ชื่อผู้ใช้หรือลิงก์',
     'Enter the numeric account ID, not a username or URL.'
   ]
 };

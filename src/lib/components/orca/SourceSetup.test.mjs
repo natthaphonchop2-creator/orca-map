@@ -371,7 +371,7 @@ test('sign-in stops when platform availability changes during personal configura
 	assert.equal(signIns, 0);
 	assert.equal(view.state.connectionReady, false);
 	assert.equal(view.state.oauthURL, '');
-	assert.match(view.state.error, /contact ORCA/);
+	assert.match(view.state.error, /contact the ORCA team/);
 });
 
 test('preparing a link does not imply readiness; checking refreshes stored sign-in state', async (context) => {

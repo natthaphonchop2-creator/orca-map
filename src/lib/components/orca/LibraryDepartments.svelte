@@ -118,8 +118,8 @@
       newName = "";
       choose(unit.id);
       notice = t(
-        "สร้างแผนกแล้ว เลือกสมาชิกแล้วบันทึกได้เลย",
-        "Department created. Choose its members and save.",
+        "สร้างแผนกแล้ว กรุณาเลือกสมาชิกและบันทึก",
+        "Department created. Select its members and save.",
       );
       await onchanged();
     } catch (cause) {
@@ -146,15 +146,15 @@
       selectedVersion = department.version;
       baselineMembers = [...selectedMembers];
       notice = t(
-        "บันทึกสมาชิกแผนกแล้ว สิทธิ์เนื้อหาจะใช้รายชื่อใหม่ในการเรียกครั้งถัดไป",
-        "Department saved. The next content request uses the updated membership.",
+        "บันทึกสมาชิกของแผนกแล้ว สิทธิ์การเข้าถึงเนื้อหาจะใช้รายชื่อใหม่ตั้งแต่คำขอครั้งถัดไป",
+        "Department members saved. Content access uses the updated list from the next request.",
       );
     } catch (cause) {
       conflict = getHttpStatusCode(cause) === 409;
       error = conflict
         ? t(
-            "มีการเปลี่ยนรายชื่อสมาชิกแล้ว กรุณาโหลดรายชื่อล่าสุดก่อนแก้ไขอีกครั้ง รายชื่อที่คุณเลือกยังอยู่",
-            "Membership changed elsewhere. Your selection is preserved; load the latest list before editing again.",
+            "รายชื่อสมาชิกมีการเปลี่ยนแปลงแล้ว รายชื่อที่คุณเลือกยังคงอยู่ กรุณาโหลดรายชื่อล่าสุดก่อนแก้ไขอีกครั้ง",
+            "The member list has changed. Your selection is preserved. Load the latest list before editing again.",
           )
         : orcaError(cause);
     } finally {
@@ -197,40 +197,40 @@
 
 <section
   class="library-departments"
-  aria-label={t("จัดสมาชิกแผนก", "Department membership")}
+  aria-label={t("สมาชิกของแผนก", "Department membership")}
 >
-  <div class="library-section-heading">
-    <div>
+  <header class="library-panel-head">
+    <span class="library-symbol" aria-hidden="true"><Users size={18} /></span>
+    <div class="library-panel-copy">
       <h2>
         {context === "team"
-          ? t("จัดแผนกและสมาชิก", "Manage departments and members")
-          : t("แบ่งปันความรู้ให้ทั้งแผนก", "Share knowledge with a department")}
+          ? t("แผนกและสมาชิก", "Departments and members")
+          : t("แบ่งปันความรู้ตามแผนก", "Share knowledge by department")}
       </h2>
       <p>
         {t(
-          "สร้างแผนกตามโครงสร้างองค์กร แล้วเลือกสมาชิกที่อยู่ในแต่ละแผนก",
-          "Create departments for your organization and choose the people in each one.",
+          "สร้างแผนกตามโครงสร้างองค์กร และกำหนดสมาชิกของแต่ละแผนก",
+          "Create departments that match your organization and assign members to each one.",
         )}
       </p>
     </div>
-    <Users size={25} />
-  </div>
+  </header>
   <p class="library-note">
-    <Info size={18} />{t(
-      "แผนกใช้กำหนดผู้รับเนื้อหา ทุกคนยังต้องเป็นสมาชิกในพื้นที่ทำงานนั้นด้วย จึงจะอ่านได้",
-      "Departments identify an audience. A person still needs membership in the workspace to read its content.",
+    <Info size={16} />{t(
+      "แผนกใช้กำหนดกลุ่มผู้เข้าถึงเนื้อหา ผู้ใช้ยังต้องเป็นสมาชิกของพื้นที่ทำงาน AI นั้นจึงจะอ่านเนื้อหาได้",
+      "Departments define who can receive content. A person must also be a member of the AI workspace to read it.",
     )}
   </p>
   {#if error}<div class="library-alert" role="alert">
-      <Info size={18} />
+      <Info size={16} />
       <div>
         <p>{error}</p>
         {#if conflict}<button
-            class="k-button"
+            class="k-button small"
             onclick={() => (confirmReload = true)}
-            >{t("โหลดรายชื่อฉบับล่าสุด", "Load latest membership")}</button
+            >{t("โหลดรายชื่อล่าสุด", "Load latest list")}</button
           >{:else if !loaded}<button
-            class="k-button"
+            class="k-button small"
             disabled={loading}
             onclick={load}
             ><RefreshCw size={16} />{t("ลองอีกครั้ง", "Try again")}</button
@@ -238,7 +238,7 @@
       </div>
     </div>{/if}
   {#if notice}<p class="library-notice" role="status">
-      <Check size={18} />{notice}
+      <Check size={16} />{notice}
     </p>{/if}
   {#if loading && !loaded}<p class="library-loading" role="status">
       {t("กำลังโหลดแผนก…", "Loading departments…")}
@@ -246,7 +246,7 @@
     <div class="library-department-grid">
       <aside class="library-department-list">
         <h3>{t("แผนกในองค์กร", "Departments")}</h3>
-        <div class="library-actions"><button class:chosen={!showArchived} disabled={dirty || saving || lifecycleBusy || renameOpen} onclick={() => {showArchived=false;selectedID='';}}>{t('ใช้งานอยู่','Current')}</button><button class:chosen={showArchived} disabled={dirty || saving || lifecycleBusy || renameOpen} onclick={() => {showArchived=true;selectedID='';}}>{t('จัดเก็บแล้ว','Archived')}</button></div>
+        <div class="library-segmented"><button class:chosen={!showArchived} aria-pressed={!showArchived} disabled={dirty || saving || lifecycleBusy || renameOpen} onclick={() => {showArchived=false;selectedID='';}}>{t('เปิดใช้งาน','Active')}</button><button class:chosen={showArchived} aria-pressed={showArchived} disabled={dirty || saving || lifecycleBusy || renameOpen} onclick={() => {showArchived=true;selectedID='';}}>{t('จัดเก็บแล้ว','Archived')}</button></div>
         {#each units.filter((unit) => !unit.deletedAt && !!unit.archivedAt === showArchived) as unit}<button
             class:chosen={selectedID === unit.id}
             disabled={saving || lifecycleBusy || renameOpen || (dirty && selectedID !== unit.id)}
@@ -254,14 +254,14 @@
             ><span>{unit.name}</span><small
               >{departments.find((item) => item.unitID === unit.id)?.memberIDs
                 .length ?? 0}
-              {t("คน", "people")}</small
+              {t("คน", "members")}</small
             ></button
           >{:else}<p class="library-hint">
             {showArchived
-              ? t("ไม่มีแผนกที่จัดเก็บ", "No archived departments")
+              ? t("ไม่มีแผนกที่จัดเก็บแล้ว", "No archived departments")
               : t(
-                  "ยังไม่มีแผนก เริ่มเพิ่มแผนกแรกได้ด้านล่าง",
-                  "No departments yet. Add the first one below.",
+                  "ยังไม่มีแผนก เพิ่มแผนกได้จากแบบฟอร์มด้านล่าง",
+                  "No departments yet. Add one using the form below.",
                 )}
           </p>{/each}
         <form onsubmit={create} class="library-create-department">
@@ -275,7 +275,7 @@
             placeholder={t("เช่น แผนกต้อนรับ", "e.g. Front office")}
           /><button
             type="submit"
-            class="k-button"
+            class="k-button small"
             disabled={saving || lifecycleBusy || dirty || renameOpen || !newName.trim()}
             ><Plus size={16} />{t("เพิ่มแผนก", "Add department")}</button
           >
@@ -287,20 +287,20 @@
               <h3>{selectedUnit.name}</h3>
               <p>
                 {selectedMembers.length}
-                {t("คนที่เลือก", "people selected")}
+                {t("คนที่เลือก", "members selected")}
               </p>
             </div>
             <button
-              class="k-button quiet small"
+              class="k-button small"
               disabled={saving || lifecycleBusy || dirty || renameOpen || !!selectedUnit.archivedAt}
               onclick={() => {
                 renamedName = selectedUnit?.name ?? "";
                 renameOpen = true;
-              }}><Pencil size={15} />{t("แก้ชื่อแผนก", "Rename")}</button
+              }}><Pencil size={16} />{t("แก้ไขชื่อแผนก", "Rename department")}</button
             >
           </div>
           <TeamLifecycleActions kind="department" id={selectedUnit.id} name={selectedUnit.name} version={selectedUnit.version} inactive={!!selectedUnit.archivedAt} disabled={!data.canManage || saving || dirty || renameOpen} onbusy={(value) => lifecycleBusy=value} onchanged={async () => {extraUnits=[];selectedID='';selectedMembers=[];baselineMembers=[];await onchanged();await load();}} />
-          {#if selectedUnit.archivedAt}<p class="library-note">{t('แผนกนี้จัดเก็บแล้ว กู้คืนเพื่อกำหนดสมาชิกใหม่', 'This department is archived. Restore it to assign members again.')}</p>{:else}
+          {#if selectedUnit.archivedAt}<p class="library-note">{t('แผนกนี้ถูกจัดเก็บแล้ว กรุณากู้คืนแผนกก่อนกำหนดสมาชิกอีกครั้ง', 'This department is archived. Restore it to assign members again.')}</p>{:else}
           {#if renameOpen}<form class="department-rename" onsubmit={rename}>
               <div class="k-field">
                 <label for="department-rename"
@@ -315,12 +315,12 @@
               </div>
               <div class="library-actions">
                 <button
-                  class="k-button primary"
+                  class="k-button primary small"
                   disabled={saving || !renamedName.trim()}
                   type="submit">{t("บันทึกชื่อ", "Save name")}</button
                 ><button
                   type="button"
-                  class="k-button"
+                  class="k-button small"
                   disabled={saving}
                   onclick={() => (renameOpen = false)}
                   >{t("ยกเลิก", "Cancel")}</button
@@ -348,43 +348,46 @@
                       ? [...selectedMembers, member.id]
                       : selectedMembers.filter((id) => id !== member.id))}
                 /><span
-                  ><strong>{memberName(member)}</strong><small
+                  ><strong>{memberName(member)}</strong>{#if memberName(member) !== member.email}<small
                     >{member.email}</small
-                  ></span
+                  >{/if}</span
                 ></label
               >{/each}
           </div>
           {#if confirmReload}<div class="library-alert" role="alert">
-              <p>
-                {t(
-                  "โหลดรายชื่อที่บันทึกไว้แทนรายชื่อที่คุณเลือกอยู่หรือไม่?",
-                  "Replace your selection with the latest saved membership?",
-                )}
-              </p>
-              <div class="library-actions">
-                <button
-                  class="k-button"
-                  disabled={loading}
-                  onclick={() => (confirmReload = false)}
-                  >{t("เก็บที่เลือกไว้", "Keep selection")}</button
-                ><button
-                  class="k-button"
-                  disabled={loading}
-                  onclick={reloadSelection}
-                  >{t("โหลดรายชื่อใหม่", "Load latest")}</button
-                >
+              <Info size={16} />
+              <div>
+                <p>
+                  {t(
+                    "ต้องการแทนที่รายชื่อที่เลือกไว้ด้วยรายชื่อล่าสุดที่บันทึกไว้หรือไม่",
+                    "Replace your selection with the latest saved list?",
+                  )}
+                </p>
+                <div class="library-actions">
+                  <button
+                    class="k-button small"
+                    disabled={loading}
+                    onclick={() => (confirmReload = false)}
+                    >{t("เก็บรายชื่อที่เลือกไว้", "Keep selection")}</button
+                  ><button
+                    class="k-button small"
+                    disabled={loading}
+                    onclick={reloadSelection}
+                    >{t("โหลดรายชื่อล่าสุด", "Load latest list")}</button
+                  >
+                </div>
               </div>
             </div>{/if}
           <div class="library-editor-footer">
             <span
               >{dirty
                 ? t(
-                    "มีการเปลี่ยนแปลงที่ยังไม่บันทึก",
-                    "Unsaved membership changes",
+                    "มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก",
+                    "Unsaved changes",
                   )
                 : t(
-                    "รายชื่อสมาชิกของแผนกนี้",
-                    "Membership of this department",
+                    "สมาชิกของแผนกนี้",
+                    "Members of this department",
                   )}</span
             >
             <div class="library-actions">
@@ -397,20 +400,20 @@
                 class="k-button primary"
                 disabled={saving || lifecycleBusy || conflict || renameOpen || !dirty}
                 onclick={save}
-                ><Save size={17} />{saving
+                ><Save size={16} />{saving
                   ? t("กำลังบันทึก…", "Saving…")
-                  : t("บันทึกสมาชิก", "Save membership")}</button
+                  : t("บันทึกสมาชิก", "Save members")}</button
               >
             </div>
           </div>
           {/if}
         {:else}<div class="library-empty compact">
-            <Users size={30} />
-            <h3>{t("เลือกแผนกเพื่อจัดสมาชิก", "Select a department")}</h3>
+            <Users size={28} aria-hidden="true" />
+            <h3>{t("เลือกแผนกเพื่อกำหนดสมาชิก", "Select a department to manage its members")}</h3>
             <p>
               {t(
-                "เพิ่มหรือนำสมาชิกออกได้ตามการทำงานขององค์กร",
-                "Add or remove people as your organization changes.",
+                "เพิ่มหรือนำสมาชิกออกให้ตรงกับโครงสร้างขององค์กร",
+                "Add or remove members to match your organization.",
               )}
             </p>
           </div>{/if}
@@ -421,15 +424,15 @@
 
 <style>
   .department-search {
-    margin-block: 15px;
+    margin-block: 16px 12px;
   }
   .department-rename {
     display: grid;
     gap: 12px;
+    margin: 12px 0 4px;
     padding: 16px;
-    margin-bottom: 18px;
-    border: 1px solid #dfe6d5;
-    border-radius: 12px;
-    background: #f7f9f3;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface);
   }
 </style>

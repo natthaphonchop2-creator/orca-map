@@ -19,7 +19,7 @@ export function gatewayClientConfig(endpoint: string, client: GatewayClient, oau
   const server = { url: url.href, headers: { Authorization: authorization } };
   return JSON.stringify(client === 'vscode' ? {
     servers: { orca: { type: 'http', ...server } },
-    inputs: [{ id: 'orca-key', type: 'promptString', description: 'ORCA personal MCP key', password: true }]
+    inputs: [{ id: 'orca-key', type: 'promptString', description: 'ORCA personal key', password: true }]
   } : { mcpServers: { orca: server } }, null, 2);
 }
 

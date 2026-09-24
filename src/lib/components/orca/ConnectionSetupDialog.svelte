@@ -2,7 +2,7 @@
   import Connections from '$lib/components/orca/Connections.svelte';
   import { t } from '$lib/orca/locale.svelte';
   import { OrcaService, type OrcaBootstrap, type OrcaConnection } from '$lib/services/orca';
-  import { X } from '@lucide/svelte';
+  import { Plug, X } from '@lucide/svelte';
   import { onMount } from 'svelte';
 
   let {
@@ -49,11 +49,12 @@
   }}
 >
   <header>
+    <span class="dialog-icon" aria-hidden="true"><Plug size={20} /></span>
     <div>
-      <h2 id="connection-dialog-heading" bind:this={heading} tabindex="-1">{t('ตั้งค่าการเชื่อมต่อ', 'Set up connection')}</h2>
+      <h2 class="dialog-title" id="connection-dialog-heading" bind:this={heading} tabindex="-1">{t('เชื่อมต่อระบบ', 'Connect a system')}</h2>
     </div>
-    <button class="dialog-close" type="button" disabled={busy} onclick={close} aria-label={t('ปิดหน้าตั้งค่าการเชื่อมต่อ', 'Close connection setup')}>
-      <X size={20} />
+    <button class="dialog-close" type="button" disabled={busy} onclick={close} aria-label={t('ปิดหน้าต่างเชื่อมต่อระบบ', 'Close the system connection dialog')} title={t('ปิด', 'Close')}>
+      <X size={16} aria-hidden="true" />
     </button>
   </header>
   <div class="dialog-body" aria-busy={busy}>
@@ -70,35 +71,103 @@
 </dialog>
 
 <style>
+  /* This dialog loads before the shared workspace CSS, so shared-class overrides carry extra classes. */
   .connection-dialog {
     width: min(760px, calc(100vw - 32px));
     max-width: none;
     max-height: min(860px, calc(100dvh - 40px));
     margin: auto;
     padding: 0;
-    border: 1px solid var(--k-line, #dfe4dc);
-    border-radius: 18px;
-    background: var(--k-surface, #fff);
-    color: var(--k-text, #1b241b);
-    box-shadow: 0 24px 80px #14201838;
+    border: 1px solid var(--orca-line, #e5e7eb);
+    border-radius: var(--orca-radius-lg, 10px);
+    background: var(--orca-surface, #fff);
+    color: var(--orca-ink, #151823);
+    box-shadow: 0 16px 48px -12px rgba(21, 24, 35, 0.28);
     overflow: auto;
     overscroll-behavior: contain;
   }
-  .connection-dialog::backdrop { background: #111a1d73; }
-  header { position: sticky; top: 0; z-index: 2; background: var(--k-surface, #fff); display: flex; align-items: flex-start; gap: 20px; padding: 24px 28px; border-bottom: 1px solid var(--k-line, #dfe4dc); }
-  header > div { flex: 1; min-width: 0; }
-  h2 { margin: 0; font-size: 22px; line-height: 1.4; }
-  .dialog-close { display: grid; place-items: center; flex: 0 0 40px; min-height: 40px; border: 1px solid var(--k-line, #dfe4dc); border-radius: 10px; background: transparent; color: inherit; cursor: pointer; }
-  .dialog-close:disabled { opacity: .4; cursor: wait; }
-  .dialog-body { padding: 24px 28px 28px; }
-  .dialog-body :global(.k-panel) { margin-bottom: 16px; }
-  .dialog-body :global(.k-grid-2) { grid-template-columns: 1fr; }
-  .dialog-body :global(.k-field input), .dialog-body :global(.k-field select), .dialog-body :global(.k-field textarea) { max-width: 100%; }
+  .connection-dialog::backdrop {
+    background: rgba(21, 24, 35, 0.45);
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--orca-line, #e5e7eb);
+    background: var(--orca-surface, #fff);
+  }
+  header > div {
+    flex: 1;
+    min-width: 0;
+  }
+  .dialog-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--orca-radius, 8px);
+    background: var(--orca-secondary, #f4f4f5);
+    color: var(--orca-nav, #3f4452);
+  }
+  .connection-dialog .dialog-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  .dialog-close {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: var(--orca-radius, 8px);
+    background: transparent;
+    color: var(--orca-subtle, #6b7280);
+    cursor: pointer;
+  }
+  .dialog-close:hover {
+    background: var(--orca-hover, #f0f1f3);
+    color: var(--orca-ink, #151823);
+  }
+  .dialog-close:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+  .dialog-body {
+    padding: 20px 24px 24px;
+  }
+  /* Top-level step panels only; the account setup nested inside a step stays flat. */
+  .connection-dialog .dialog-body :global(.k-panel:not(.source-setup)) {
+    margin-bottom: 16px;
+  }
+  .dialog-body :global(.k-grid-2) {
+    grid-template-columns: 1fr;
+  }
+  .dialog-body :global(.k-field input),
+  .dialog-body :global(.k-field select),
+  .dialog-body :global(.k-field textarea) {
+    max-width: 100%;
+  }
   @media (max-width: 600px) {
-    .connection-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); border-radius: 14px; }
-    header { padding: 18px; }
-    .dialog-body { padding: 18px; }
-    h2 { font-size: 19px; }
-    .dialog-body :global(.k-panel) { padding: 16px; }
+    .connection-dialog {
+      width: calc(100vw - 16px);
+      max-height: calc(100dvh - 16px);
+    }
+    header {
+      padding: 14px 16px;
+    }
+    .dialog-body {
+      padding: 16px;
+    }
+    .connection-dialog .dialog-body :global(.k-panel:not(.source-setup)) {
+      padding: 16px;
+    }
   }
 </style>

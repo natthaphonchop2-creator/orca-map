@@ -27,7 +27,7 @@
   let completed = $state(false);
   let error = $state('');
   let requiresReload = $state(false);
-  const subject = $derived(kind === 'gateway' ? 'Gateway' : 'Server');
+  const subject = $derived(kind === 'gateway' ? t('พื้นที่ทำงาน AI', 'AI workspace') : t('ระบบที่เชื่อมต่อ', 'connected system'));
   const blockedDelete = $derived(action === 'delete' && kind === 'server' && affectedGateways.length > 0);
   const label = $derived(action === 'delete' ? t('ลบ', 'Delete') : action === 'restore' ? t('กู้คืน', 'Restore') : t('จัดเก็บ', 'Archive'));
 
@@ -62,7 +62,7 @@
     // Use the version the user reviewed, even if data changed while the dialog was open.
     if (snapshot.id !== entity.id || snapshot.version !== entity.version) {
       requiresReload = true;
-      error = t('ข้อมูลเปลี่ยนไปแล้ว โหลดข้อมูลล่าสุดแล้วตรวจสอบอีกครั้ง', 'This record has changed. Reload and review it again.');
+      error = t('ข้อมูลนี้มีการเปลี่ยนแปลง กรุณาโหลดข้อมูลล่าสุดแล้วตรวจสอบอีกครั้ง', 'This record has changed. Reload the latest data and review it again.');
       return;
     }
     pending = true;
@@ -88,45 +88,47 @@
 </script>
 
 {#if canManage}
+  <!-- Compact mode shows icon buttons for table rows; the accessible name comes from aria-label. -->
   <div class="lifecycle-actions" class:compact>
-    <button type="button" class="k-button small" disabled={pending} aria-haspopup="dialog"
+    <button type="button" class="lifecycle-button" class:k-button={!compact} class:small={!compact} disabled={pending} aria-haspopup="dialog"
       aria-label={`${archived ? t('กู้คืน', 'Restore') : t('จัดเก็บ', 'Archive')} ${entity.name}`}
+      title={compact ? (archived ? t('กู้คืน', 'Restore') : t('จัดเก็บ', 'Archive')) : undefined}
       onclick={() => open(archived ? 'restore' : 'archive')}>
       {#if archived}<ArchiveRestore size={16} aria-hidden="true" />{:else}<Archive size={16} aria-hidden="true" />{/if}
-      {archived ? t('กู้คืน', 'Restore') : t('จัดเก็บ', 'Archive')}
+      {#if !compact}{archived ? t('กู้คืน', 'Restore') : t('จัดเก็บ', 'Archive')}{/if}
     </button>
-    <button type="button" class="k-button small delete-action" disabled={pending} aria-haspopup="dialog"
-      aria-label={`${t('ลบ', 'Delete')} ${entity.name}`} onclick={() => open('delete')}>
-      <Trash2 size={16} aria-hidden="true" />{t('ลบ', 'Delete')}
+    <button type="button" class="lifecycle-button delete-action" class:k-button={!compact} class:small={!compact} class:danger={!compact} disabled={pending} aria-haspopup="dialog"
+      aria-label={`${t('ลบ', 'Delete')} ${entity.name}`} title={compact ? t('ลบ', 'Delete') : undefined} onclick={() => open('delete')}>
+      <Trash2 size={16} aria-hidden="true" />{#if !compact}{t('ลบ', 'Delete')}{/if}
     </button>
   </div>
 {/if}
-<dialog bind:this={dialog} class="lifecycle-dialog" aria-label={`${label} ${subject}`}
+<dialog bind:this={dialog} class="lifecycle-dialog" aria-label={t(`${label}${subject}`, `${label} ${subject}`)}
   oncancel={(event) => { if (pending) event.preventDefault(); }}>
   <form onsubmit={(event) => { event.preventDefault(); void confirm(); }}>
     <div class="dialog-icon" class:danger={action === 'delete'}>
       {#if action === 'delete'}<Trash2 size={25} />{:else if action === 'restore'}<ArchiveRestore size={25} />{:else}<Archive size={25} />{/if}
     </div>
-    <h2>{label} {subject}</h2>
+    <h2>{t(`${label}${subject}`, `${label} ${subject}`)}</h2>
     <p class="entity-name">{snapshot?.name}</p>
     {#if action === 'archive'}
       <p>{kind === 'gateway'
-        ? t('ย้ายไปแท็บจัดเก็บแล้ว และหยุดการเรียก MCP รวมถึงการเข้าถึงความรู้ผ่าน Gateway นี้ คีย์เดิมจะถูกยกเลิก', 'Move to Archived and stop MCP calls and knowledge access through this Gateway. Existing keys will be revoked.')
-        : t('ย้ายไปแท็บจัดเก็บแล้วและปิด Server นี้ ทุก Gateway ที่ใช้งาน Server นี้จะเรียกเครื่องมือไม่ได้ และคีย์เดิมของ Gateway เหล่านั้นจะถูกยกเลิก', 'Move to Archived and disable this server. Every Gateway using it will stop calling tools, and their existing keys will be revoked.')}</p>
-      <p>{t('กู้คืนได้ภายหลัง โดยยังต้องเปิดใช้งานและสร้างคีย์ใหม่ก่อนให้ทีมกลับมาใช้', 'You can restore it later. Enable access and issue new keys before your team resumes using it.')}</p>
+        ? t('พื้นที่ทำงานนี้จะย้ายไปอยู่ในรายการที่จัดเก็บแล้ว แอป AI จะเรียกใช้เครื่องมือและเข้าถึงความรู้ผ่านพื้นที่ทำงานนี้ไม่ได้ และคีย์เดิมทั้งหมดจะถูกยกเลิก', 'This workspace moves to Archived. AI apps can no longer call tools or access knowledge through it, and all existing keys will be revoked.')
+        : t('ระบบนี้จะย้ายไปอยู่ในรายการที่จัดเก็บแล้วและถูกปิดใช้งาน พื้นที่ทำงาน AI ทุกแห่งที่ใช้ระบบนี้จะเรียกใช้เครื่องมือของระบบนี้ไม่ได้ และคีย์เดิมของพื้นที่ทำงานเหล่านั้นจะถูกยกเลิก', 'This system moves to Archived and is disabled. Every AI workspace that uses it will stop calling its tools, and the existing keys for those workspaces will be revoked.')}</p>
+      <p>{t('กู้คืนได้ภายหลัง แต่ต้องเปิดใช้งานและสร้างคีย์ใหม่ก่อนให้ทีมกลับมาใช้งาน', 'You can restore it later. Activate it and issue new keys before your team uses it again.')}</p>
     {:else if action === 'restore'}
       <p>{kind === 'gateway'
-        ? t('นำ Gateway กลับมาในรายการด้วยสถานะระงับ ตรวจสอบสิทธิ์และเปิดใช้งานก่อนสร้างคีย์ใหม่', 'Return this Gateway to the list in Paused status. Review access and activate it before issuing new keys.')
-        : t('นำ Server กลับมาในรายการโดยยังปิดใช้งานอยู่ ตรวจสอบการตั้งค่าและเปิดใช้งานก่อนสร้างคีย์ Gateway ใหม่', 'Return this server to the list while keeping it disabled. Review and enable it before issuing new Gateway keys.')}</p>
+        ? t('พื้นที่ทำงานนี้จะกลับมาในรายการด้วยสถานะระงับ กรุณาตรวจสอบสิทธิ์และเปิดใช้งานก่อนสร้างคีย์ใหม่', 'This workspace returns to the list with Paused status. Review access and activate it before issuing new keys.')
+        : t('ระบบนี้จะกลับมาในรายการโดยยังปิดใช้งานอยู่ กรุณาตรวจสอบการตั้งค่าและเปิดใช้งานก่อนสร้างคีย์ใหม่ของพื้นที่ทำงาน AI', 'This system returns to the list and remains disabled. Review and enable it before issuing new AI workspace keys.')}</p>
     {:else}
       <p>{kind === 'gateway'
-        ? t('ลบ Gateway ออกจากรายการและยกเลิกคีย์ทั้งหมด การเรียก MCP และการเข้าถึงความรู้ผ่าน Gateway นี้จะหยุดลง ไม่สามารถกู้คืน Gateway นี้ได้', 'Remove this Gateway and revoke all its keys. MCP calls and knowledge access through it will stop. This Gateway cannot be restored.')
-        : t('ลบ Server ออกจากรายการ ไม่สามารถกู้คืน Server นี้ได้ หากยังอาจใช้งานอีก ให้เลือกจัดเก็บแทน', 'Remove this server from the list. It cannot be restored. Choose Archive if you may need it again.')}</p>
+        ? t('พื้นที่ทำงานนี้จะถูกลบออกจากรายการ และคีย์ทั้งหมดจะถูกยกเลิก การเรียกใช้เครื่องมือและการเข้าถึงความรู้ผ่านพื้นที่ทำงานนี้จะหยุดลง และไม่สามารถกู้คืนได้', 'This workspace will be removed and all its keys revoked. Tool calls and knowledge access through it will stop. It cannot be restored.')
+        : t('ระบบนี้จะถูกลบออกจากรายการและไม่สามารถกู้คืนได้ หากอาจต้องใช้งานอีก กรุณาเลือกจัดเก็บแทน', 'This system will be removed from the list and cannot be restored. Choose Archive if you may need it again.')}</p>
     {/if}
-    <p class="preserved">{t('บัญชีแอปที่เชื่อมไว้ ไฟล์ต้นทาง และประวัติการใช้งานยังคงอยู่', 'Connected app accounts, source files and activity history are retained.')}</p>
+    <p class="preserved">{t('บัญชีที่เชื่อมไว้ ข้อมูลในระบบที่เชื่อมต่อ และประวัติการใช้งานยังคงอยู่', 'Connected accounts, data in the connected systems and activity history are retained.')}</p>
     {#if affectedGateways.length > 0 && kind === 'server' && action !== 'restore'}
       <div class="affected-gateways">
-        <strong>{action === 'delete' ? t('ต้องลบหรือเปลี่ยน Server ของ Gateway เหล่านี้ก่อน รวมถึงรายการที่จัดเก็บไว้', 'Delete or reassign these Gateways first, including archived ones.') : t('Gateway ที่ได้รับผลกระทบ', 'Affected Gateways')}</strong>
+        <strong>{action === 'delete' ? t('กรุณาลบพื้นที่ทำงาน AI ต่อไปนี้ หรือนำระบบนี้ออกจากพื้นที่ทำงานเหล่านั้นก่อน รวมถึงรายการที่จัดเก็บแล้ว', 'Delete these AI workspaces or remove this system from them first, including archived ones.') : t('พื้นที่ทำงาน AI ที่ได้รับผลกระทบ', 'Affected AI workspaces')}</strong>
         <ul>{#each affectedGateways as gateway}<li><a href={localeHref(`/app?view=hub&hub=${encodeURIComponent(gateway.id)}`)}>{gateway.name}</a></li>{/each}</ul>
       </div>
     {/if}
@@ -135,7 +137,7 @@
       <button bind:this={cancelButton} type="button" class="k-button" disabled={pending} onclick={close}>{t('ยกเลิก', 'Cancel')}</button>
       {#if requiresReload}<button type="button" class="k-button primary" disabled={pending} onclick={reload}>{t('โหลดข้อมูลล่าสุด', 'Reload latest data')}</button>
       {:else}<button type="submit" class="k-button primary" class:danger={action === 'delete'} disabled={pending || blockedDelete || completed || !canManage}>
-        {#if pending}<LoaderCircle size={16} class="k-spin" aria-hidden="true" />{/if}{pending ? t('กำลังบันทึก…', 'Saving…') : `${label} ${subject}`}
+        {#if pending}<LoaderCircle size={16} class="k-spin" aria-hidden="true" />{/if}{pending ? t('กำลังบันทึก…', 'Saving…') : t(`${label}${subject}`, `${label} ${subject}`)}
       </button>{/if}
     </div>
   </form>
@@ -143,22 +145,27 @@
 
 <style>
   .lifecycle-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-  .lifecycle-actions.compact { gap: 5px; }
-  .compact :global(.k-button) { font-size: 11px; padding: 6px 8px; }
-  .delete-action { color: #a22d43; }
-  .lifecycle-dialog { width: min(540px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 26px; border: 1px solid #dce2ec; border-radius: 17px; background: white; color: #182033; box-shadow: 0 24px 80px #18203333; }
-  .lifecycle-dialog::backdrop { background: #111b36a6; }
-  .dialog-icon { width: 48px; height: 48px; display: grid; place-items: center; background: #edf2e6; color: #547631; border-radius: 12px; }
-  .dialog-icon.danger { background: #fff1f3; color: #ad2d46; }
-  h2 { margin: 16px 0 6px; font-size: 23px; line-height: 1.4; font-weight: 700; }
-  p { margin: 12px 0; line-height: 1.8; font-size: 14px; }
-  .entity-name { font-weight: 650; overflow-wrap: anywhere; margin: 0 0 18px; }
-  .preserved { font-size: 12px; color: #647087; }
-  .affected-gateways { background: #f7f8fb; border-radius: 9px; padding: 13px; font-size: 13px; line-height: 1.7; }
+  .lifecycle-actions.compact { flex-wrap: nowrap; gap: 4px; }
+  .compact .lifecycle-button { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--orca-radius, 8px); background: transparent; color: var(--orca-subtle, #6b7280); cursor: pointer; }
+  .compact .lifecycle-button:hover { background: var(--orca-hover, #f0f1f3); color: var(--orca-ink, #151823); }
+  .compact .lifecycle-button.delete-action:hover { background: var(--orca-deny-bg, #fdecee); color: var(--orca-deny, #b3262f); }
+  .compact .lifecycle-button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .delete-action { color: var(--orca-deny, #b3262f); }
+  .compact .delete-action { color: var(--orca-subtle, #6b7280); }
+  .lifecycle-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 24px; border: 1px solid var(--orca-line, #e5e7eb); border-radius: var(--orca-radius-lg, 10px); background: #fff; color: var(--orca-ink, #151823); box-shadow: 0 16px 48px -12px rgba(21, 24, 35, 0.28); }
+  .lifecycle-dialog::backdrop { background: rgba(21, 24, 35, 0.45); }
+  .dialog-icon { width: 40px; height: 40px; display: grid; place-items: center; background: var(--orca-secondary, #f4f4f5); color: var(--orca-nav, #3f4452); border-radius: var(--orca-radius, 8px); }
+  .dialog-icon.danger { background: var(--orca-deny-bg, #fdecee); color: var(--orca-deny, #b3262f); }
+  .dialog-icon :global(svg) { width: 20px; height: 20px; }
+  h2 { margin: 16px 0 4px; font-size: 18px; line-height: 1.4; font-weight: 600; }
+  p { margin: 10px 0; line-height: 1.7; font-size: 14px; color: var(--orca-muted, #5b6270); }
+  .entity-name { font-weight: 600; color: var(--orca-ink, #151823); overflow-wrap: anywhere; margin: 0 0 14px; }
+  .preserved { font-size: 13px; color: var(--orca-subtle, #6b7280); }
+  .affected-gateways { border: 1px solid var(--orca-line, #e5e7eb); background: var(--orca-surface-2, #fafafa); border-radius: var(--orca-radius, 8px); padding: 12px 14px; font-size: 13px; line-height: 1.7; }
   ul { padding-left: 20px; margin: 8px 0 0; max-height: 140px; overflow-y: auto; }
-  .affected-gateways a { color: #365a87; text-decoration: underline; }
-  .dialog-error { margin-top: 14px; color: #a22d43; background: #fff2f4; border-radius: 8px; padding: 12px; font-size: 13px; line-height: 1.7; }
-  .dialog-actions { display: flex; flex-wrap: wrap; gap: 9px; justify-content: flex-end; margin-top: 24px; }
-  .dialog-actions .danger { background: #b62f48; border-color: #b62f48; color: white; }
-  button:focus-visible, a:focus-visible { outline: 3px solid #567cbb; outline-offset: 3px; }
+  .affected-gateways a { color: var(--orca-ink, #151823); text-decoration: underline; text-underline-offset: 3px; }
+  .dialog-error { margin-top: 14px; color: var(--orca-deny, #b3262f); background: var(--orca-deny-bg, #fdecee); border-radius: var(--orca-radius, 8px); padding: 10px 12px; font-size: 13px; line-height: 1.7; }
+  .dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 22px; }
+  .dialog-actions .danger { background: var(--orca-deny, #b3262f) !important; border-color: var(--orca-deny, #b3262f) !important; color: #fff !important; }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--orca-ink, #151823); outline-offset: 2px; }
 </style>

@@ -7,6 +7,7 @@
 	import McpDeprecatedNotice from '$lib/components/mcp/McpDeprecatedNotice.svelte';
 	import BetaLogo from '$lib/components/navbar/BetaLogo.svelte';
 	import { HttpError } from '$lib/errors';
+	import { initializeLocale, t } from '$lib/orca/locale.svelte';
 	import { UserService, type OAuthConsent } from '$lib/services';
 	import {
 		convertCompositeInfoToLaunchFormData,
@@ -16,9 +17,9 @@
 		hasSecretBinding,
 		isDeprecatedMCPServer
 	} from '$lib/services/user/mcp';
-	import { ExternalLink, SettingsIcon, ShieldAlertIcon } from '@lucide/svelte';
+	import { ChevronDown, ExternalLink, SettingsIcon, ShieldAlertIcon } from '@lucide/svelte';
 	import { onMount, tick, untrack } from 'svelte';
-	import { twMerge } from 'tailwind-merge';
+	import '$lib/components/orca/orca.css';
 
 	type Props = {
 		data: {
@@ -66,7 +67,7 @@
 	const details = $derived.by((): DetailRow[] => {
 		const rows: DetailRow[] = [
 			{
-				label: 'Application',
+				label: t('แอปพลิเคชัน', 'Application'),
 				type: 'text',
 				value: consent.clientName,
 				valueClass: 'wrap-break-word font-medium'
@@ -74,44 +75,50 @@
 		];
 
 		if (consent.clientURI) {
-			rows.push({ label: 'Application URL', type: 'link', value: consent.clientURI });
+			rows.push({
+				label: t('URL ของแอปพลิเคชัน', 'Application URL'),
+				type: 'link',
+				value: consent.clientURI
+			});
 		}
 
 		rows.push({
-			label: 'OAuth client',
+			label: t('ประเภทไคลเอนต์ OAuth', 'OAuth client'),
 			type: 'text',
 			value: clientCredentialSourceLabel,
 			valueClass: 'wrap-break-word'
 		});
 
 		rows.push({
-			label: 'Redirect URL',
+			label: t('URL สำหรับส่งกลับ', 'Redirect URL'),
 			type: 'text',
 			value: consent.redirectURI,
 			valueClass: 'break-all'
 		});
 
 		if (scopes.length) {
-			rows.push({ label: 'Scopes', type: 'scopes', values: scopes });
+			rows.push({ label: t('สิทธิ์ที่ขอ', 'Requested scopes'), type: 'scopes', values: scopes });
 		}
 
 		if (consent.mcpAuthRequired || consent.userHasSecondLevelOAuthed) {
 			rows.push({
-				label: 'MCP server',
+				label: t('ระบบ', 'System'),
 				type: 'text',
 				value: consent.mcpServerName ?? '',
 				valueClass: 'wrap-break-word'
 			});
 			rows.push({
-				label: 'Third-party OAuth',
+				label: t('การลงชื่อเข้าใช้กับระบบ (OAuth)', 'System sign-in (OAuth)'),
 				type: 'text',
-				value: consent.userHasSecondLevelOAuthed ? 'Already authorized' : 'Authorization required',
+				value: consent.userHasSecondLevelOAuthed
+					? t('อนุญาตแล้ว', 'Already authorized')
+					: t('ต้องได้รับอนุญาต', 'Authorization required'),
 				valueClass: 'wrap-break-word'
 			});
 
 			if (consent.mcpServerURL) {
 				rows.push({
-					label: 'MCP URL',
+					label: t('URL ของระบบ (MCP)', 'System URL (MCP)'),
 					type: 'text',
 					value: consent.mcpServerURL,
 					valueClass: 'break-all'
@@ -120,7 +127,7 @@
 
 			if (consent.thirdPartyAuthURL) {
 				rows.push({
-					label: 'OAuth URL',
+					label: t('URL สำหรับลงชื่อเข้าใช้ (OAuth)', 'Sign-in URL (OAuth)'),
 					type: 'text',
 					value: consent.thirdPartyAuthURL,
 					valueClass: 'break-all'
@@ -129,17 +136,26 @@
 		}
 
 		if (consent.policyURI) {
-			rows.push({ label: 'Privacy policy', type: 'link', value: consent.policyURI });
+			rows.push({
+				label: t('นโยบายความเป็นส่วนตัว', 'Privacy policy'),
+				type: 'link',
+				value: consent.policyURI
+			});
 		}
 
 		if (consent.tosURI) {
-			rows.push({ label: 'Terms', type: 'link', value: consent.tosURI });
+			rows.push({
+				label: t('ข้อกำหนดการใช้งาน', 'Terms of service'),
+				type: 'link',
+				value: consent.tosURI
+			});
 		}
 
 		return rows;
 	});
 
 	onMount(() => {
+		initializeLocale();
 		if (requiresMCPConfiguration) {
 			void loadMCPConfiguration(currentConsent);
 		}
@@ -192,7 +208,10 @@
 			}
 		} catch (_err) {
 			configureForm = undefined;
-			configError = 'Failed to load current MCP server configuration.';
+			configError = t(
+				'โหลดการตั้งค่าปัจจุบันของระบบไม่สำเร็จ กรุณาลองอีกครั้ง',
+				'Could not load the current system configuration. Please try again.'
+			);
 		} finally {
 			loadingConfig = false;
 		}
@@ -228,7 +247,12 @@
 		try {
 			if (consent.mcpServerInstance?.id) {
 				if (isCompositeForm(configureForm)) {
-					throw new Error('Unexpected composite configuration for MCP server instance');
+					throw new Error(
+						t(
+							'รูปแบบการตั้งค่าไม่ตรงกับระบบนี้',
+							'The configuration does not match this system.'
+						)
+					);
 				}
 				const payload = convertEnvHeadersToRecord(undefined, configureForm.headers);
 				await UserService.configureMcpServerInstance(consent.mcpServerInstance.id, payload);
@@ -245,20 +269,30 @@
 					await UserService.configureSingleOrRemoteMcpServer(consent.mcpServer.id, payload);
 				}
 			} else {
-				throw new Error('Missing MCP server configuration target');
+				throw new Error(
+					t('ไม่พบระบบที่ต้องตั้งค่า', 'The system to configure could not be found.')
+				);
 			}
 			const nextConsent = await UserService.getOAuthConsent(consent.authRequestID);
 			currentConsent = nextConsent;
 			if (nextConsent.mcpConfigRequired) {
 				await loadMCPConfiguration(nextConsent);
-				configError =
-					'Configuration was saved, but additional required configuration is still missing.';
+				configError = t(
+					'บันทึกการตั้งค่าแล้ว แต่ยังมีการตั้งค่าที่จำเป็นอื่นที่ยังไม่ได้กรอก',
+					'The configuration was saved, but other required settings are still missing.'
+				);
 			} else {
 				configureForm = undefined;
 				configDialog?.close();
 			}
 		} catch (err) {
-			configError = err instanceof Error ? err.message : 'Failed to save MCP server configuration.';
+			configError =
+				err instanceof Error
+					? err.message
+					: t(
+							'บันทึกการตั้งค่าของระบบไม่สำเร็จ กรุณาลองอีกครั้ง',
+							'Could not save the system configuration. Please try again.'
+						);
 		} finally {
 			savingConfig = false;
 		}
@@ -273,167 +307,175 @@
 	function clientCredentialSourceLabelFor(source: OAuthConsent['clientCredentialSource']) {
 		switch (source) {
 			case 'client_id_metadata_document':
-				return 'Client ID Metadata Document';
+				return t('เอกสารข้อมูล Client ID', 'Client ID metadata document');
 			case 'static_client_credentials':
-				return 'Static client credentials';
+				return t('ข้อมูลรับรองไคลเอนต์ที่กำหนดไว้', 'Static client credentials');
 			case 'dynamic_client':
-				return 'Dynamic client';
+				return t('ไคลเอนต์ที่ลงทะเบียนอัตโนมัติ', 'Dynamically registered client');
 			default:
-				return 'Unknown';
+				return t('ไม่ทราบ', 'Unknown');
 		}
 	}
 </script>
 
 <svelte:head>
-	<title>Authorize OAuth Access</title>
+	<title>{t('อนุญาตการเข้าถึง · ORCA', 'Authorize access · ORCA')}</title>
 </svelte:head>
 
-<div class="bg-base-200 dark:bg-base-100 flex min-h-screen items-center justify-center p-4">
-	<main class="paper w-full max-w-lg overflow-hidden p-0">
-		<BetaLogo class="self-center mt-6" />
-		<h1 class="text-xl font-semibold text-center px-4">
+<div class="orca oauth-page">
+	<main class="oauth-card">
+		<BetaLogo class="oauth-logo" />
+		<h1>
 			{requiresMCPConfiguration
-				? `Configure ${consent.mcpServerName || 'MCP server'}`
-				: `Authorize ${consent.clientName}`}
+				? t(
+						`ตั้งค่า ${consent.mcpServerName || 'ระบบ'}`,
+						`Configure ${consent.mcpServerName || 'the system'}`
+					)
+				: t(
+						`อนุญาตให้ ${consent.clientName} เข้าถึง ORCA`,
+						`Authorize ${consent.clientName} to access ORCA`
+					)}
 		</h1>
 
 		{#if requiresMCPConfiguration}
-			<section class="flex flex-col gap-5 p-4 py-0">
+			<section class="oauth-body">
 				<McpDeprecatedNotice {deprecated} variant="notification" />
 
-				<div class="notification-info flex items-center gap-3 p-3">
-					<SettingsIcon class="size-5 shrink-0" />
-					<p class="min-w-0 text-sm">
+				<div class="oauth-note">
+					<SettingsIcon class="size-4 shrink-0" />
+					<p>
 						{#if isCompositeMCPServer && !hasConfiguredComposite}
-							Configure <b class="font-semibold">{consent.mcpServerName || 'this MCP server'}</b> to choose
-							which composite servers to use before continuing.
+							{t('ตั้งค่า', 'Configure')}
+							<b>{consent.mcpServerName || t('ระบบนี้', 'this system')}</b>
+							{t(
+								'เพื่อเลือกระบบที่จะใช้ก่อนดำเนินการต่อ',
+								'to choose which systems to use before continuing.'
+							)}
 						{:else}
-							<b class="font-semibold">{consent.mcpServerName || 'This MCP server'}</b> needs required
-							configuration before ORCA can finish authorizing this connection.
+							<b>{consent.mcpServerName || t('ระบบนี้', 'This system')}</b>
+							{t(
+								'ต้องได้รับการตั้งค่าที่จำเป็นก่อน ORCA จึงจะอนุญาตการเชื่อมต่อนี้ได้',
+								'requires configuration before ORCA can finish authorizing this connection.'
+							)}
 						{/if}
 					</p>
 				</div>
 
 				{#if configError}
-					<p class="text-error text-sm mt-4">{configError}</p>
+					<p class="oauth-error">{configError}</p>
 				{/if}
 			</section>
 		{:else}
-			<section class="flex flex-col gap-5 p-4 pt-0">
+			<section class="oauth-body">
 				<McpDeprecatedNotice {deprecated} variant="notification" />
 
 				{#if showMCPAuthNotice}
-					<div class="notification-info flex items-center gap-3 p-3">
-						<ShieldAlertIcon class="size-5 shrink-0" />
-						<p class="min-w-0 text-sm">
+					<div class="oauth-note">
+						<ShieldAlertIcon class="size-4 shrink-0" />
+						<p>
 							{#if consent.mcpAuthRequired}
-								<b class="font-semibold">{consent.mcpServerName || 'This MCP server'}</b> requires its
-								own third-party OAuth authorization. You will be redirected to the third-party OAuth provider
-								to complete the authorization.
+								<b>{consent.mcpServerName || t('ระบบนี้', 'This system')}</b>
+								{t(
+									'กำหนดให้ลงชื่อเข้าใช้ด้วยบัญชีของระบบนั้นเพิ่มเติม ORCA จะนำคุณไปยังหน้าลงชื่อเข้าใช้ของผู้ให้บริการเพื่อดำเนินการให้เสร็จสิ้น',
+									'requires you to sign in with that system’s account (OAuth). You will be redirected to the provider to complete sign-in.'
+								)}
 							{:else if consent.userHasSecondLevelOAuthed}
-								<b class="font-semibold">{consent.mcpServerName || 'This MCP server'}</b> requires its
-								own third-party OAuth authorization, and you have already authorized it.
+								<b>{consent.mcpServerName || t('ระบบนี้', 'This system')}</b>
+								{t(
+									'กำหนดให้ลงชื่อเข้าใช้ด้วยบัญชีของระบบนั้น และคุณได้อนุญาตไว้แล้ว',
+									'requires you to sign in with that system’s account (OAuth), and you have already authorized it.'
+								)}
 							{/if}
 						</p>
 					</div>
 				{/if}
 
 				{#if hasConfigurableMCPConfiguration}
-					<div
-						class="border-base-300 bg-base-100 dark:bg-base-200 flex items-center gap-3 rounded-md border p-3"
-					>
-						<SettingsIcon class="text-muted-content size-4 shrink-0" />
-						<div
-							class="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+					<div class="oauth-config">
+						<SettingsIcon class="size-4 shrink-0" />
+						<p>
+							{t('คุณสามารถแก้ไขการตั้งค่าของ', 'You can update the configuration for')}
+							<b>{consent.mcpServerName || t('ระบบนี้', 'this system')}</b>
+						</p>
+						<button
+							class="oauth-button small"
+							type="button"
+							onclick={openMCPConfiguration}
+							disabled={loadingConfig || savingConfig}
 						>
-							<p class="text-muted-content min-w-0 text-xs">
-								You can update the configuration for
-								<b class="font-semibold">{consent.mcpServerName || 'this MCP server'}</b>
-							</p>
-							<button
-								class="btn btn-text btn-sm flex shrink-0 items-center gap-2"
-								type="button"
-								onclick={openMCPConfiguration}
-								disabled={loadingConfig || savingConfig}
-							>
-								<SettingsIcon class="size-3.5" />
-								{loadingConfig ? 'Loading...' : 'Configure'}
-							</button>
-						</div>
+							<SettingsIcon class="size-4" />
+							{loadingConfig ? t('กำลังโหลด…', 'Loading…') : t('ตั้งค่า', 'Configure')}
+						</button>
 					</div>
 				{/if}
 
 				{#if configError}
-					<p class="text-error text-sm">{configError}</p>
+					<p class="oauth-error">{configError}</p>
 				{/if}
 
-				<p class="text-sm">
-					{consent.clientName} wants to authenticate with ORCA for an MCP server connection. If you approve,
-					ORCA will redirect you back to the OAuth client that started this request.
+				<p class="oauth-text">
+					{t(
+						`${consent.clientName} ขอสิทธิ์เข้าถึง ORCA ผ่านลิงก์เชื่อม AI (MCP URL) หากคุณอนุญาต ORCA จะนำคุณกลับไปยังแอปที่ส่งคำขอนี้`,
+						`${consent.clientName} is requesting access to ORCA through the AI connection link (MCP URL). If you approve, ORCA will return you to the application that started this request.`
+					)}
 				</p>
 
-				<div>
-					<details
-						class="collapse collapse-arrow border border-base-300"
-						name="more-details-content"
+				<details class="oauth-details" name="more-details-content">
+					<summary
+						>{t('ดูรายละเอียด', 'View details')}<ChevronDown
+							class="oauth-chevron size-4 shrink-0"
+						/></summary
 					>
-						<summary class="collapse-title text-muted-content text-xs font-medium"
-							>See details</summary
-						>
 
-						<div class="collapse-content space-y-3 overflow-y-auto default-scrollbar-thin max-h-64">
-							{#each details as detail (detail.label)}
-								<div class="grid grid-cols-[9rem_minmax(0,1fr)] gap-3 text-xs max-sm:grid-cols-1">
-									<div class="text-muted-content font-medium">{detail.label}</div>
+					<dl>
+						{#each details as detail (detail.label)}
+							<div>
+								<dt>{detail.label}</dt>
 
-									{#if detail.type === 'text'}
-										<div class="min-w-0 {detail.valueClass ?? ''}">{detail.value}</div>
-									{:else if detail.type === 'link'}
-										<a
-											class="link flex min-w-0 items-center gap-1 break-all"
-											href={detail.value}
-											rel="external noreferrer noopener"
-										>
-											<span class="truncate break-all">{detail.value}</span>
+								{#if detail.type === 'text'}
+									<dd class={detail.valueClass ?? ''}>{detail.value}</dd>
+								{:else if detail.type === 'link'}
+									<dd>
+										<a href={detail.value} rel="external noreferrer noopener">
+											<span>{detail.value}</span>
 											<ExternalLink class="size-3 shrink-0" />
 										</a>
-									{:else}
-										<div class="flex min-w-0 flex-wrap gap-2">
-											{#each detail.values as scope, i (i)}
-												<span class="badge badge-secondary badge-xs">{scope}</span>
-											{/each}
-										</div>
-									{/if}
-								</div>
-							{/each}
-						</div>
-					</details>
-				</div>
+									</dd>
+								{:else}
+									<dd class="oauth-scopes">
+										{#each detail.values as scope, i (i)}
+											<span>{scope}</span>
+										{/each}
+									</dd>
+								{/if}
+							</div>
+						{/each}
+					</dl>
+				</details>
 			</section>
 		{/if}
 
-		<footer
-			class={twMerge(
-				'border-base-300 bg-base-100 dark:bg-base-200 flex justify-end gap-3 border-t p-3 max-sm:flex-col-reverse',
-				requiresMCPConfiguration && 'border-t-0'
-			)}
-		>
+		<footer class="oauth-actions" class:configuring={requiresMCPConfiguration}>
 			<form method="POST" action={resolve(consent.cancelURL as `/${string}`)}>
-				<button class="btn btn-text w-full" type="submit" disabled={savingConfig}>Cancel</button>
+				<button class="oauth-button" type="submit" disabled={savingConfig}
+					>{t('ยกเลิก', 'Cancel')}</button
+				>
 			</form>
 			{#if requiresMCPConfiguration}
 				<button
-					class="btn btn-primary flex w-full items-center gap-2"
+					class="oauth-button primary"
 					type="button"
 					onclick={openMCPConfiguration}
 					disabled={loadingConfig || savingConfig}
 				>
 					<SettingsIcon class="size-4" />
-					{loadingConfig ? 'Loading...' : 'Configure'}
+					{loadingConfig ? t('กำลังโหลด…', 'Loading…') : t('ตั้งค่า', 'Configure')}
 				</button>
 			{:else}
 				<form method="POST" action={resolve(consent.continueURL as `/${string}`)}>
-					<button class="btn btn-primary w-full" type="submit">Continue</button>
+					<button class="oauth-button primary" type="submit"
+						>{t('อนุญาตและดำเนินการต่อ', 'Allow and continue')}</button
+					>
 				</form>
 			{/if}
 		</footer>
@@ -443,14 +485,264 @@
 <CatalogConfigureForm
 	bind:this={configDialog}
 	bind:form={configureForm}
-	name={consent.mcpServerName || 'MCP server'}
+	name={consent.mcpServerName || t('ระบบ', 'System')}
 	onSave={saveMCPConfiguration}
 	onCancel={() => configDialog?.close()}
 	loading={savingConfig}
 	error={configError}
 	{deprecated}
-	cancelText="Close"
-	submitText="Save"
-	configurationTitle="MCP Server Configuration"
+	cancelText={t('ปิด', 'Close')}
+	submitText={t('บันทึก', 'Save')}
+	configurationTitle={t('การตั้งค่าระบบ', 'System configuration')}
 	disableOutsideClick
 />
+
+<style>
+	/* Formal authorization card that matches the ORCA sign-in page. */
+	.oauth-page {
+		--orca-ink: #151823;
+		--orca-surface: #ffffff;
+		--orca-surface-2: #fafafa;
+		--orca-secondary: #f4f4f5;
+		--orca-line: #e5e7eb;
+		--orca-line-strong: #d4d4d8;
+		--orca-muted: #5b6270;
+		--orca-subtle: #6b7280;
+		--orca-nav: #3f4452;
+		--orca-deny: #b3262f;
+		--orca-deny-bg: #fdecee;
+		--orca-radius: 8px;
+		--orca-radius-lg: 12px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 100vh;
+		padding: 24px 16px;
+		background: var(--orca-surface-2);
+		color: var(--orca-ink);
+		font-size: 14px;
+		line-height: 1.6;
+	}
+	.oauth-page :focus-visible {
+		outline: 2px solid var(--orca-ink);
+		outline-offset: 2px;
+	}
+	.oauth-card {
+		width: 100%;
+		max-width: 480px;
+		overflow: hidden;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-surface);
+	}
+	.oauth-card :global(.oauth-logo) {
+		margin: 28px 28px 0;
+	}
+	.oauth-card h1 {
+		margin: 16px 28px 0;
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 1.45;
+		overflow-wrap: anywhere;
+	}
+	.oauth-body {
+		display: grid;
+		gap: 16px;
+		padding: 16px 28px 24px;
+	}
+	.oauth-note,
+	.oauth-config {
+		display: flex;
+		align-items: flex-start;
+		gap: 10px;
+		padding: 12px 14px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface-2);
+		font-size: 13.5px;
+		line-height: 1.6;
+	}
+	.oauth-note :global(svg),
+	.oauth-config :global(svg) {
+		margin-top: 2px;
+		color: var(--orca-subtle);
+	}
+	.oauth-note p,
+	.oauth-config p {
+		flex: 1;
+		min-width: 0;
+		margin: 0;
+	}
+	.oauth-note b,
+	.oauth-config b {
+		font-weight: 600;
+	}
+	.oauth-config {
+		flex-wrap: wrap;
+		align-items: center;
+		background: var(--orca-surface);
+		color: var(--orca-muted);
+		font-size: 13px;
+	}
+	.oauth-config p {
+		min-width: 200px;
+	}
+	.oauth-error {
+		margin: 0;
+		padding: 10px 12px;
+		border: 1px solid color-mix(in srgb, var(--orca-deny) 28%, transparent);
+		border-radius: var(--orca-radius);
+		background: var(--orca-deny-bg);
+		color: var(--orca-deny);
+		font-size: 13.5px;
+	}
+	.oauth-text {
+		margin: 0;
+		line-height: 1.7;
+	}
+	.oauth-details {
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+	}
+	.oauth-details summary {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		padding: 10px 14px;
+		color: var(--orca-muted);
+		font-size: 13px;
+		font-weight: 500;
+		list-style: none;
+		cursor: pointer;
+	}
+	.oauth-details summary::-webkit-details-marker {
+		display: none;
+	}
+	.oauth-details summary:hover {
+		color: var(--orca-ink);
+	}
+	.oauth-details[open] :global(.oauth-chevron) {
+		transform: rotate(180deg);
+	}
+	.oauth-details dl {
+		max-height: 16rem;
+		margin: 0;
+		padding: 0 14px;
+		overflow-y: auto;
+		border-top: 1px solid var(--orca-line);
+	}
+	.oauth-details dl > div {
+		display: grid;
+		grid-template-columns: 9rem minmax(0, 1fr);
+		gap: 4px 12px;
+		padding: 8px 0;
+		border-bottom: 1px solid #eff0f2;
+		font-size: 13px;
+	}
+	.oauth-details dl > div:last-child {
+		border-bottom: 0;
+	}
+	.oauth-details dt {
+		color: var(--orca-muted);
+	}
+	.oauth-details dd {
+		min-width: 0;
+		margin: 0;
+		color: var(--orca-ink);
+	}
+	.oauth-details dd a {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		max-width: 100%;
+		color: var(--orca-ink);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		word-break: break-all;
+	}
+	.oauth-scopes {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.oauth-scopes span {
+		padding: 1px 8px;
+		border-radius: 6px;
+		background: var(--orca-secondary);
+		color: var(--orca-nav);
+		font-size: 12px;
+		font-weight: 500;
+	}
+	.oauth-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 8px;
+		padding: 14px 28px;
+		border-top: 1px solid var(--orca-line);
+		background: var(--orca-surface-2);
+	}
+	.oauth-actions.configuring {
+		border-top: 0;
+	}
+	.oauth-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		min-height: 36px;
+		padding: 0 14px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface);
+		color: var(--orca-ink);
+		font: inherit;
+		font-size: 14px;
+		font-weight: 500;
+		cursor: pointer;
+	}
+	.oauth-button:hover:not(:disabled) {
+		border-color: var(--orca-line-strong);
+		background: var(--orca-secondary);
+	}
+	.oauth-button.primary {
+		border-color: transparent;
+		background: var(--orca-ink);
+		color: white;
+		font-weight: 600;
+	}
+	.oauth-button.primary:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--orca-ink) 86%, white);
+	}
+	.oauth-button.small {
+		min-height: 32px;
+		padding: 0 10px;
+		font-size: 13px;
+	}
+	.oauth-button:disabled {
+		cursor: not-allowed;
+		opacity: 0.5;
+	}
+	@media (max-width: 480px) {
+		.oauth-card :global(.oauth-logo) {
+			margin: 24px 20px 0;
+		}
+		.oauth-card h1 {
+			margin-inline: 20px;
+		}
+		.oauth-body {
+			padding: 16px 20px 20px;
+		}
+		.oauth-details dl > div {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.oauth-actions {
+			flex-direction: column-reverse;
+			padding: 14px 20px;
+		}
+		.oauth-actions form,
+		.oauth-actions .oauth-button {
+			width: 100%;
+		}
+	}
+</style>

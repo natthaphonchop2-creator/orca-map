@@ -93,7 +93,7 @@ test('archived Server cannot mount OAuth or policy editor through direct tab URL
   for (const tab of ['account', 'tools', 'overview']) {
     const result = screen(tab, true, { data: { canManage: true, connections: [archived], hubs: [] } });
     assert.deepEqual(result.calls, []);
-    assert.match(result.html, /Archived server details/);
+    assert.match(result.html, /Archived system details/);
     assert.doesNotMatch(result.html, /tab=account|tab=tools|view=new/);
   }
 });

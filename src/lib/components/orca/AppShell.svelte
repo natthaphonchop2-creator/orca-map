@@ -212,7 +212,7 @@
       aria-label="ORCA"
       title={compact ? "ORCA" : undefined}
     >
-      <Brand {compact} dark />
+      <Brand {compact} />
     </div>
     {#if !mobile}
       <button

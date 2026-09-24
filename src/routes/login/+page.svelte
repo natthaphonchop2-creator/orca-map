@@ -43,7 +43,7 @@
 <svelte:head
   ><title>{t("เข้าสู่ระบบ · ORCA", "Sign in · ORCA")}</title></svelte:head
 >
-<div class="orca" lang={orcaLocale.value}>
+<div class="orca o-auth-page" lang={orcaLocale.value}>
   <header class="o-simple-header o-wrap">
     <a href={localeHref("/")} aria-label={t("หน้าหลัก ORCA", "ORCA home")}
       ><Brand /></a
@@ -53,33 +53,33 @@
     <section class="o-auth-story">
       <Brand dark />
       <h1>
-        {t("เชื่อม AI กับข้อมูล", "Your team’s space.")}<br />{t(
-          "ให้ทีมทำงานร่วมกัน",
-          "Your business rhythm.",
+        {t("พื้นที่ทำงาน AI", "The AI workspace")}<br />{t(
+          "สำหรับองค์กรของคุณ",
+          "for your organization",
         )}
       </h1>
       <p>
         {t(
-          "จัดการระบบที่เชื่อมต่อ กำหนดสิทธิ์ และให้ทีมใช้ AI กับข้อมูลที่จำเป็นต่องาน",
-          "Manage connected systems, set access, and let your team use AI with the data they need.",
+          "เชื่อมต่อระบบที่องค์กรใช้ จัดเก็บคลังความรู้ และกำหนดสิทธิ์การใช้งาน AI ของสมาชิกได้จากที่เดียว",
+          "Connect your organization’s systems, manage its knowledge and control each member’s AI access in one place.",
         )}
       </p>
     </section>
     <section class="o-auth-form">
-      <h2>{t("ยินดีต้อนรับกลับ", "Welcome back")}</h2>
+      <h2>{t("เข้าสู่ระบบ ORCA", "Sign in to ORCA")}</h2>
       <p>
         {t(
           localProvider
-            ? "กรอกอีเมลและรหัสผ่านเพื่อเข้าสู่พื้นที่ทำงาน"
-            : "เลือกวิธีเข้าสู่ระบบที่องค์กรของคุณจัดเตรียมไว้",
+            ? "กรอกอีเมลและรหัสผ่านของคุณเพื่อเข้าสู่ระบบ"
+            : "เลือกวิธีเข้าสู่ระบบที่องค์กรของคุณกำหนดไว้",
           localProvider
-            ? "Enter your email and password to open your workspace."
-            : "Choose the sign-in method configured by your organization.",
+            ? "Enter your email and password to sign in."
+            : "Choose the sign-in method set up by your organization.",
         )}
       </p>
       {#if data.unavailable}<div class="o-alert" role="alert">
           {t(
-            "โหลดตัวเลือกการเข้าสู่ระบบไม่สำเร็จ กรุณารีเฟรชหน้านี้",
+            "โหลดวิธีเข้าสู่ระบบไม่สำเร็จ กรุณาโหลดหน้านี้อีกครั้ง",
             "Sign-in methods could not be loaded. Please reload this page.",
           )}
         </div>{/if}
@@ -87,8 +87,8 @@
         <form method="POST" action="/oauth2/start">
           {#if error}<div class="o-alert" role="alert">
               {t(
-                "เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจอีเมลและรหัสผ่านแล้วลองอีกครั้ง",
-                "Sign-in failed. Please check your email and password, then try again.",
+                "เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบอีเมลและรหัสผ่าน แล้วลองอีกครั้ง",
+                "Sign-in failed. Check your email and password, then try again.",
               )}
             </div>{/if}
           <input type="hidden" name="rd" value={localeHref(data.rd)} />
@@ -110,8 +110,8 @@
                 aria-pressed={revealed}
                 onclick={() => (revealed = !revealed)}
                 >{revealed
-                  ? t("ซ่อนรหัสผ่าน", "Hide")
-                  : t("แสดงรหัสผ่าน", "Show")}</button
+                  ? t("ซ่อนรหัสผ่าน", "Hide password")
+                  : t("แสดงรหัสผ่าน", "Show password")}</button
               >
             </div>
             <input
@@ -124,25 +124,26 @@
             />
           </div>
           <button class="o-button" type="submit"
-            >{t("เข้าสู่ระบบ", "Sign in")} <ArrowRight size={19} /></button
+            >{t("เข้าสู่ระบบ", "Sign in")} <ArrowRight size={16} /></button
           >
         </form>
       {/if}
       {#if externalProviders.length > 0}
         {#if localProvider}<p class="o-auth-bottom">
             {t(
-              "หรือเข้าสู่ระบบด้วยบัญชีองค์กร",
-              "Or continue with your organization account",
+              "หรือเข้าสู่ระบบด้วยบัญชีขององค์กร",
+              "Or sign in with your organization account",
             )}
           </p>{/if}
         <div class="o-auth-provider">
           {#each externalProviders as provider (provider.id)}
             <button
               class="o-button"
+              class:outline={Boolean(localProvider)}
               onclick={() => signIn(provider.namespace, provider.id)}
             >
-              {t("เข้าสู่ระบบด้วย", "Continue with")}
-              {provider.name}<ArrowRight size={19} />
+              {t("เข้าสู่ระบบด้วย", "Sign in with")}
+              {provider.name}<ArrowRight size={16} />
             </button>
           {/each}
         </div>
@@ -150,8 +151,8 @@
       {#if !data.unavailable && data.authProviders.length === 0}
         <p class="o-alert">
           {t(
-            "องค์กรยังไม่ได้ตั้งค่าวิธีเข้าสู่ระบบ กรุณาติดต่อผู้ดูแลองค์กร",
-            "Sign-in is not configured yet. Contact your installation administrator.",
+            "องค์กรยังไม่ได้ตั้งค่าวิธีเข้าสู่ระบบ กรุณาติดต่อผู้ดูแลระบบ",
+            "Sign-in has not been set up yet. Contact your administrator.",
           )}
         </p>
       {/if}

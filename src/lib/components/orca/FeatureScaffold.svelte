@@ -8,14 +8,14 @@
 <section class="feature-page" aria-labelledby="feature-title">
   <header class="feature-heading">
     <div>
-      <h1 id="feature-title">{feature.title}</h1>
+      <h1 id="feature-title">{t(feature.title.th, feature.title.en)}</h1>
       <p>{t(feature.purpose.th, feature.purpose.en)}</p>
     </div>
     <span class="feature-status">{t("ยังไม่เปิดใช้งาน", "Not available yet")}</span>
   </header>
 
   <div class="feature-scope">
-    <h2>{t("ขอบเขตของหน้านี้", "Page scope")}</h2>
+    <h2>{t("ขอบเขตของหน้านี้", "What this page covers")}</h2>
     <p>{t(feature.scope.th, feature.scope.en)}</p>
     <div class="feature-limitation">
       <h2>{t("สถานะปัจจุบัน", "Current availability")}</h2>
@@ -32,8 +32,8 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 18px;
-    margin-bottom: 24px;
+    gap: 12px 24px;
+    margin-bottom: 20px;
   }
   .feature-heading > div {
     min-width: 0;
@@ -43,60 +43,57 @@
     overflow-wrap: anywhere;
   }
   .feature-heading p {
-    max-width: 680px;
-    margin: 7px 0 0;
-    color: var(--k-muted, #697386);
-    font-size: 13px;
-    line-height: 1.7;
+    max-width: 72ch;
+    margin: 4px 0 0;
+    color: var(--orca-muted);
+    font-size: 14px;
+    line-height: 1.65;
   }
   .feature-status {
     flex-shrink: 0;
-    margin-top: 4px;
-    border: 1px solid var(--k-line, #e2e6ed);
-    border-radius: 5px;
-    padding: 4px 8px;
-    color: var(--k-muted, #697386);
-    background: #f7f8fa;
-    font-size: 11px;
-    line-height: 1.5;
+    margin-top: 6px;
+    padding: 1px 8px;
+    border-radius: var(--orca-radius-sm);
+    background: var(--orca-secondary);
+    color: var(--orca-nav);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.6;
+    white-space: nowrap;
   }
   .feature-scope {
     max-width: 760px;
-    border: 1px solid var(--k-line, #e2e6ed);
-    border-radius: 7px;
-    padding: 22px 24px;
-    background: white;
+    padding: 18px 20px;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius-lg);
+    background: var(--orca-surface);
   }
   .feature-scope h2 {
     margin: 0;
-    color: var(--k-ink, #171c2a);
-    font-size: 13px;
-    line-height: 1.6;
-    font-weight: 600;
+    color: var(--orca-ink);
   }
   .feature-scope p {
-    margin: 6px 0 0;
-    color: var(--k-muted, #697386);
-    font-size: 13px;
-    line-height: 1.8;
+    margin: 4px 0 0;
+    color: var(--orca-muted);
+    font-size: 14px;
+    line-height: 1.65;
     overflow-wrap: anywhere;
   }
   .feature-limitation {
-    margin-top: 20px;
-    border-top: 1px solid var(--k-line, #e2e6ed);
-    padding-top: 18px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--orca-line);
   }
   @media (max-width: 640px) {
     .feature-heading {
       flex-direction: column;
-      gap: 12px;
-      margin-bottom: 20px;
+      gap: 8px;
     }
     .feature-status {
       margin-top: 0;
     }
     .feature-scope {
-      padding: 18px;
+      padding: 16px;
     }
   }
 </style>

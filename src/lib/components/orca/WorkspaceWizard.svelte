@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ConnectionSetupDialog from '$lib/components/orca/ConnectionSetupDialog.svelte';
+	import CatalogIcon from '$lib/orca/CatalogIcon.svelte';
 	import { parseErrorContent } from '$lib/errors';
 	import { connectionReady } from '$lib/orca/activation';
 	import { unavailableGatewayTools } from '$lib/orca/gateway-tool-selection';
@@ -82,8 +83,8 @@
 	let userSourcesController: AbortController | undefined;
 	const selectedUserSource = $derived(userSources.find((source) => source.id === userSourceID));
 	const userSourceLabel = $derived(userSourceID
-		? selectedUserSource ? `${selectedUserSource.name}${selectedUserSource.enabled ? '' : t(' · ระงับแล้ว', ' · Disabled')}` : t('User source เดิม', 'Existing user source')
-		: t('เข้าสู่ระบบ ORCA', 'ORCA sign-in'));
+		? selectedUserSource ? `${selectedUserSource.name}${selectedUserSource.enabled ? '' : t(' · ปิดใช้งาน', ' · Disabled')}` : t('การเข้าสู่ระบบองค์กรเดิม', 'Previous sign-in source')
+		: t('บัญชี ORCA', 'ORCA account'));
 	let unitIDs = $state<string[]>(untrack(() => [...(existing?.unitIDs ?? [])]));
 	let dailyLimit = $state<number | undefined>(untrack(() => existing?.dailyLimit ?? 100));
 	let status = $state<HubStatus>(untrack(() => existing?.status ?? 'active'));
@@ -100,43 +101,43 @@
 	let errorBox: HTMLDivElement | undefined = $state();
 	const steps = $derived([
 		t('ตั้งชื่อ', 'Name'),
-		t('ผู้ใช้งาน', 'Audience'),
-		t('แอปและเครื่องมือ', 'Apps and tools'),
+		t('สิทธิ์และสมาชิก', 'Access and members'),
+		t('ระบบและเครื่องมือ', 'Systems and tools'),
 		t('ตรวจสอบ', 'Review'),
-		t('เชื่อม AI', 'Connect AI')
+		t('เชื่อมแอป AI', 'Connect an AI app')
 	]);
 	const stepTitles = $derived([
-		t('ตั้งชื่อ Gateway ของทีม', 'Name your team’s Gateway'),
-		t('ใครใช้ Gateway นี้ได้บ้าง', 'Who can use this Gateway?'),
-		t('เลือกแอปและเครื่องมือที่ต้องใช้', 'Choose the apps and tools your team needs'),
-		t('ตรวจสอบและสร้าง Gateway', 'Review and create your Gateway')
+		t('ตั้งชื่อพื้นที่ทำงาน AI', 'Name the AI workspace'),
+		t('กำหนดผู้มีสิทธิ์ใช้พื้นที่ทำงานนี้', 'Choose who can use this workspace'),
+		t('เลือกระบบและเครื่องมือที่ทีมต้องใช้', 'Select the systems and tools your team needs'),
+		t('ตรวจสอบก่อนบันทึก', 'Review before saving')
 	]);
 	const stepDescriptions = $derived([
 		t(
-			'Gateway นี้จะอยู่ในองค์กรที่คุณกำลังใช้งาน ตั้งชื่อให้คนในทีมเข้าใจได้ทันที',
-			'This Gateway belongs to your current organization. Give it a name your team will recognize.'
+			'พื้นที่ทำงานนี้จะอยู่ในองค์กรปัจจุบันของคุณ ตั้งชื่อที่สมาชิกในทีมเข้าใจได้ทันที',
+			'This workspace belongs to your current organization. Use a name your team will recognize.'
 		),
 		t(
-			'เลือกสมาชิกเป็นรายคน หรือให้สิทธิ์ทั้งทีมและแผนก จะเลือกทั้งสองแบบก็ได้',
-			'Select people, grant access to a team or department, or combine both.'
+			'เลือกวิธีเข้าสู่ระบบ จากนั้นให้สิทธิ์แก่แผนก สมาชิกรายบุคคล หรือทั้งสองแบบ',
+			'Choose the sign-in method, then grant access to departments, individual members or both.'
 		),
 		toolsOnly
 			? t(
-					'ปรับเครื่องมือของแอปที่เลือกไว้ โดยคงผู้ใช้งานและการตั้งค่าอื่นไว้ตามเดิม',
-					'Adjust tools from the selected apps while keeping your existing audience and settings.'
+					'ปรับเครื่องมือของระบบที่เลือกไว้ โดยสมาชิกและการตั้งค่าอื่นยังคงเดิม',
+					'Adjust the tools for the selected systems. Members and other settings stay the same.'
 				)
 			: t(
-					'เลือกได้หลายแอป เครื่องมือที่องค์กรอนุญาตไว้จะถูกเลือกให้ทันที และปรับให้เฉพาะทีมได้ที่นี่',
-					'Choose multiple apps. Each starts with its currently approved tools, which you can customize here.'
+					'เลือกได้หลายระบบ เครื่องมือที่องค์กรอนุญาตไว้จะถูกเลือกให้โดยอัตโนมัติ และปรับเฉพาะสำหรับพื้นที่ทำงานนี้ได้',
+					'Select one or more systems. Each starts with the tools your organization has allowed, which you can adjust for this workspace.'
 				),
 		toolsOnly
 			? t(
-					'ตรวจสอบเครื่องมือก่อนบันทึก สมาชิก ทีม และการตั้งค่าอื่นจะคงเดิม',
-					'Review your tools before saving. People, teams and other settings stay the same.'
+					'ตรวจสอบเครื่องมือก่อนบันทึก สมาชิก แผนก และการตั้งค่าอื่นยังคงเดิม',
+					'Review the tools before saving. Members, departments and other settings stay the same.'
 				)
 			: t(
-					'ตรวจสอบผู้ใช้งานและเครื่องมือ แล้วเพิ่มรายละเอียดหรือปรับการใช้งานได้ตามต้องการ',
-					'Check your audience and tools, then add a description or adjust usage settings if needed.'
+					'ตรวจสอบสมาชิกและเครื่องมือ จากนั้นเพิ่มคำอธิบายหรือปรับเพดานการใช้งานต่อวันตามความเหมาะสม',
+					'Review members and tools, then add a description or adjust the daily limit if needed.'
 				)
 	]);
 	const organizationName = $derived(data.organization.displayName || 'ORCA');
@@ -175,10 +176,10 @@
 	);
 	const toolAccessLabel = $derived(
 		!sources.length
-			? t('ยังไม่ได้เลือกระบบ', 'No sources selected')
+			? t('ยังไม่ได้เลือกระบบ', 'No systems selected')
 			: allReadOnly
 				? t('อ่านข้อมูลเท่านั้น', 'Read only')
-				: t('เครื่องมือที่เลือก', 'Selected tools')
+				: t('เฉพาะเครื่องมือที่อนุญาต', 'Allowed tools only')
 	);
 	const sourceLinkChanged = $derived(!editingID && initialConnectionID !== requestedConnectionID);
 	const currentMember = $derived(
@@ -207,22 +208,22 @@
 			if (!source)
 				return t(
 					'ไม่พบระบบที่เลือก หรือบัญชีของคุณไม่มีสิทธิ์ใช้ระบบนี้ กรุณานำระบบนั้นออกหรือเลือกระบบอีกครั้ง',
-					'A selected source was not found or is not accessible to your account. Remove it or choose a source again.'
+					'A selected system was not found or is not accessible to your account. Remove it or select a system again.'
 				);
 			if (!source.enabled || source.archivedAt || source.deletedAt)
 				return t(
-					`ระบบ ${source.name} ไม่ได้เปิดใช้งาน กรุณาเปิดใช้งานหรือนำออกจาก Gateway ก่อนดำเนินการต่อ`,
-					`${source.name} is not active. Enable it or remove it from the Gateway to continue.`
+					`ระบบ ${source.name} ไม่ได้เปิดใช้งาน กรุณาเปิดใช้งานหรือนำออกจากพื้นที่ทำงานนี้ก่อนดำเนินการต่อ`,
+					`${source.name} is not active. Activate it or remove it from this workspace to continue.`
 				);
 			if (!connectionReady(source))
 				return t(
-					`ระบบ ${source.name} ยังมีเครื่องมือที่ตรวจสอบไม่ครบ กรุณาตรวจสอบการเชื่อมต่อหรือนำระบบนี้ออก`,
-					`${source.name} does not have a complete set of reviewed tools. Review the connection or remove it.`
+					`ระบบ ${source.name} ยังตรวจสอบเครื่องมือไม่ครบ กรุณาตรวจสอบเครื่องมือของระบบนี้หรือนำระบบนี้ออก`,
+					`${source.name} has tools that have not been reviewed. Review its tools or remove the system.`
 				);
 			if (!selectedConnectionIDs.includes(id))
 				return t(
-					'ระบบที่ระบุพร้อมให้เลือกแล้ว กรุณาเลือกระบบด้านล่างเพื่อใช้กับ Gateway นี้',
-					'The requested source is now available. Select it below to use it in this Gateway.'
+					'ระบบที่ระบุพร้อมให้เลือกแล้ว กรุณาเลือกระบบด้านล่างเพื่อใช้กับพื้นที่ทำงานนี้',
+					'The requested system is now available. Select it below to use it in this workspace.'
 				);
 		}
 		return '';
@@ -302,8 +303,8 @@
 			if (!selected || !connectionReady(selected)) return;
 			if (sources.length >= maxSources) {
 				error = t(
-					`Gateway รวมได้สูงสุด ${maxSources} ระบบ กรุณานำระบบที่ไม่ใช้ออกก่อนเพิ่ม`,
-					`A Gateway supports up to ${maxSources} sources. Remove an unused source before adding another.`
+					`พื้นที่ทำงานหนึ่งแห่งรวมได้สูงสุด ${maxSources} ระบบ กรุณานำระบบที่ไม่ใช้ออกก่อนเพิ่มระบบใหม่`,
+					`A workspace can include up to ${maxSources} systems. Remove an unused system before adding another.`
 				);
 				return;
 			}
@@ -385,14 +386,14 @@
 		error = '';
 	}
 	function validation(at: number): string {
-		if (at >= 1 && !name.trim()) return t('กรุณาตั้งชื่อ Gateway', 'Enter a Gateway name.');
+		if (at >= 1 && !name.trim()) return t('กรุณาตั้งชื่อพื้นที่ทำงาน AI', 'Enter a name for the AI workspace.');
 		if (at >= 2) {
 			if (userSourceID && userSourceID !== initialUserSourceID && !selectedUserSource?.enabled)
-				return t('เลือก User source ที่เปิดใช้งาน หรือใช้บัญชี ORCA', 'Choose an enabled user source or use an ORCA account.');
+				return t('กรุณาเลือกการเข้าสู่ระบบองค์กรที่เปิดใช้งาน หรือใช้บัญชี ORCA', 'Choose an active sign-in source or use an ORCA account.');
 			if (!memberIDs.length && !accessUnitIDs.length)
 				return t(
-					'กรุณาเลือกสมาชิก หรือทีมและแผนกอย่างน้อย 1 รายการ',
-					'Select at least one person, team or department.'
+					'กรุณาเลือกสมาชิกหรือแผนกอย่างน้อย 1 รายการ',
+					'Select at least one member or department.'
 				);
 			if (
 				memberIDs.some(
@@ -400,12 +401,12 @@
 				)
 			)
 				return t(
-					'นำสมาชิกที่ถูกระงับหรือไม่พบในองค์กรออกก่อนดำเนินการต่อ',
-					'Remove suspended or unavailable people before continuing.'
+					'กรุณานำสมาชิกที่ถูกระงับหรือไม่พบในองค์กรออกก่อนดำเนินการต่อ',
+					'Remove suspended or unavailable members before continuing.'
 				);
 			if (accessUnitIDs.some((id) => !departmentActive(data.units.find((unit) => unit.id === id))))
 				return t(
-					'นำทีมและแผนกที่ถูกจัดเก็บหรือไม่พบออกก่อนดำเนินการต่อ',
+					'กรุณานำแผนกที่จัดเก็บแล้วหรือไม่พบออกก่อนดำเนินการต่อ',
 					'Remove archived or unavailable departments before continuing.'
 				);
 		}
@@ -413,23 +414,23 @@
 			if (sourceIssue) return sourceIssue;
 			if (sources.length > maxSources)
 				return t(
-					`Gateway รวมได้สูงสุด ${maxSources} ระบบ`,
-					`A Gateway supports up to ${maxSources} sources.`
+					`พื้นที่ทำงานหนึ่งแห่งรวมได้สูงสุด ${maxSources} ระบบ`,
+					`A workspace can include up to ${maxSources} systems.`
 				);
 			if (!sources.length || sourceGroups.some((source) => !connectionReady(source.connection)))
 				return t(
-					'กรุณาเลือกแอปที่เปิดใช้งานพร้อมเครื่องมือที่ตรวจสอบแล้วอย่างน้อย 1 แอป',
-					'Select at least one enabled source with reviewed tools.'
+					'กรุณาเลือกระบบที่เปิดใช้งานและตรวจสอบเครื่องมือแล้วอย่างน้อย 1 ระบบ',
+					'Select at least one active system with reviewed tools.'
 				);
 			if (sourceGroups.some((source) => source.unavailableTools.length))
 				return t(
-					'นำเครื่องมือที่ Server ไม่อนุญาตแล้วออกจาก Gateway ก่อนดำเนินการต่อ',
-					'Remove tools that a server no longer allows before continuing.'
+					'กรุณานำเครื่องมือที่ระบบไม่อนุญาตแล้วออกจากพื้นที่ทำงานนี้ก่อนดำเนินการต่อ',
+					'Remove tools that a system no longer allows before continuing.'
 				);
 			if (sources.some((source) => !source.toolNames.length))
 				return t(
-					'กรุณาเลือกเครื่องมืออย่างน้อย 1 รายการจากแต่ละแอป หรือนำแอปที่ไม่ใช้ออกจาก Gateway',
-					'Select at least one tool from each source, or remove the unused source from the Gateway.'
+					'กรุณาเลือกเครื่องมืออย่างน้อย 1 รายการจากแต่ละระบบ หรือนำระบบที่ไม่ใช้ออกจากพื้นที่ทำงานนี้',
+					'Select at least one tool from each system, or remove unused systems from this workspace.'
 				);
 		}
 		if (
@@ -437,7 +438,7 @@
 			(!Number.isInteger(dailyLimit) || (dailyLimit ?? 0) < 1 || (dailyLimit ?? 0) > 1000000)
 		)
 			return t(
-				'กรุณาระบุจำนวนครั้งที่ใช้งานได้ต่อวันเป็นจำนวนเต็ม ตั้งแต่ 1 ถึง 1,000,000 ครั้ง',
+				'กรุณากำหนดเพดานการใช้งานต่อวันเป็นจำนวนเต็มตั้งแต่ 1 ถึง 1,000,000 ครั้ง',
 				'Set a whole-number daily limit between 1 and 1,000,000 calls.'
 			);
 		return '';
@@ -491,7 +492,7 @@
 		if (error || !reviewed) {
 			error ||= t(
 				'กรุณายืนยันว่าได้ตรวจสอบข้อมูลและสิทธิ์แล้วก่อนบันทึก',
-				'Confirm the access review before saving.'
+				'Confirm that you have reviewed the settings and access before saving.'
 			);
 			await showError();
 			return;
@@ -527,8 +528,8 @@
 	}
 	function conflictMessage() {
 		return t(
-			'มีผู้แก้ไข Gateway นี้แล้ว ข้อมูลที่คุณกรอกยังอยู่ แต่ยังบันทึกทับไม่ได้ กรุณายกเลิกและเปิดหน้าแก้ไขอีกครั้งเพื่อตรวจสอบสิทธิ์ล่าสุด',
-			'This Gateway was changed elsewhere. Your draft is preserved, but cannot overwrite the newer version. Cancel and reopen the editor to review the latest access.'
+			'พื้นที่ทำงานนี้มีการแก้ไขจากที่อื่นแล้ว ข้อมูลที่คุณกรอกยังอยู่ แต่บันทึกทับฉบับล่าสุดไม่ได้ กรุณายกเลิกและเปิดหน้าแก้ไขอีกครั้งเพื่อตรวจสอบสิทธิ์ล่าสุด',
+			'This workspace was changed elsewhere. Your entries are preserved but cannot overwrite the newer version. Cancel and reopen the editor to review the latest access.'
 		);
 	}
 	async function openSavedHub() {
@@ -539,8 +540,8 @@
 			await onsaved(savedHub);
 		} catch {
 			error = t(
-				'บันทึก Gateway สำเร็จแล้ว แต่ยังเปิดหน้าถัดไปไม่ได้ กด “เปิด Gateway ที่บันทึกแล้ว” เพื่อลองอีกครั้ง',
-				'Your Gateway is saved, but its page could not open. Choose “Open saved Gateway” to retry.'
+				'บันทึกพื้นที่ทำงาน AI แล้ว แต่เปิดหน้าถัดไปไม่สำเร็จ กรุณากด “เปิดพื้นที่ทำงานที่บันทึกแล้ว” เพื่อลองอีกครั้ง',
+				'The AI workspace is saved, but its page could not be opened. Select “Open saved workspace” to try again.'
 			);
 			await showError();
 		} finally {
@@ -552,18 +553,18 @@
 {#snippet sourceTools(group: (typeof sourceGroups)[number])}
 	<fieldset class="setup-source-tools">
 		<legend
-			><Plug size={19} />{group.connection?.name ||
-				t('ระบบที่ไม่พร้อมใช้งาน', 'Unavailable source')}</legend
+			><Plug size={16} aria-hidden="true" />{group.connection?.name ||
+				t('ระบบที่ไม่พร้อมใช้งาน', 'Unavailable system')}</legend
 		>
-		{#if group.connection?.scopeNote}<p class="k-small k-muted setup-scope-note">
+		{#if group.connection?.scopeNote}<p class="setup-scope-note">
 				{group.connection.scopeNote}
 			</p>{/if}
 		<div class="setup-tool-preset">
 			<p class="setup-tool-selection" role="status">
 				{group.allApprovedSelected
 					? t(
-							`ใช้เครื่องมือที่อนุญาตไว้ครบ ${group.selectedEligibleCount} รายการ`,
-							`All ${group.selectedEligibleCount} approved tools selected`
+							`เลือกเครื่องมือที่อนุญาตครบทั้ง ${group.selectedEligibleCount} รายการแล้ว`,
+							`All ${group.selectedEligibleCount} allowed tools selected`
 						)
 					: t(
 							`เลือกแล้ว ${group.selectedEligibleCount} จาก ${group.eligibleTools.length} รายการ`,
@@ -576,20 +577,20 @@
 					disabled={!group.eligibleTools.length}
 					onclick={() => selectAllApprovedTools(group.connectionID)}
 				>
-					<Check size={18} />{t(
-						`ใช้เครื่องมือที่อนุญาตไว้ทั้งหมด — ${group.eligibleTools.length} รายการ`,
-						`Use all approved tools — ${group.eligibleTools.length} tools`
+					<Check size={16} aria-hidden="true" />{t(
+						`เลือกเครื่องมือที่อนุญาตทั้งหมด (${group.eligibleTools.length} รายการ)`,
+						`Select all allowed tools (${group.eligibleTools.length})`
 					)}
 				</button>{/if}
 		</div>
 		{#if group.unavailableTools.length}<div class="setup-revoked-tools" role="status">
 				<h3>
-					{t('เครื่องมือที่ Server ไม่อนุญาตแล้ว', 'Tools no longer allowed by this server')}
+					{t('เครื่องมือที่ระบบไม่อนุญาตแล้ว', 'Tools no longer allowed by this system')}
 				</h3>
 				<p>
 					{t(
-						'รายการเหล่านี้ยังอยู่ในการตั้งค่า Gateway กรุณานำออกก่อนบันทึก',
-						'These tools remain in the Gateway configuration. Remove them before saving.'
+						'เครื่องมือเหล่านี้ยังอยู่ในการตั้งค่าของพื้นที่ทำงานนี้ กรุณานำออกก่อนบันทึก',
+						'These tools remain in this workspace’s settings. Remove them before saving.'
 					)}
 				</p>
 				{#each group.unavailableTools as tool (tool)}<div class="setup-revoked-tool">
@@ -602,7 +603,7 @@
 							type="button"
 							class="k-button small"
 							onclick={() => removeUnavailableTool(group.connectionID, tool)}
-							>{t('นำออกจาก Gateway', 'Remove from Gateway')}</button
+							>{t('นำออกจากพื้นที่ทำงาน', 'Remove from workspace')}</button
 						>
 					</div>{/each}
 			</div>{/if}
@@ -613,42 +614,41 @@
 				aria-expanded={customToolsOpen.includes(group.connectionID) || Boolean(toolQuery.trim())}
 				aria-controls={`gateway-tools-${group.connectionID}`}
 				onclick={() => toggleCustomization(group.connectionID)}
-				>{t('กำหนดเครื่องมือเฉพาะทีม', 'Customize this team’s tools')}<span
-					>{customToolsOpen.includes(group.connectionID) ? '−' : '+'}</span
-				></button
+				>{t('ปรับเครื่องมือสำหรับพื้นที่ทำงานนี้', 'Customize tools for this workspace')}</button
 			>
 			{#if customToolsOpen.includes(group.connectionID) || toolQuery.trim()}<div
 					id={`gateway-tools-${group.connectionID}`}
+					class="setup-custom-body"
 				>
-					<p class="k-small k-muted">
+					<p class="setup-help">
 						{t(
-							'การเลือกนี้มีผลกับ Gateway นี้เท่านั้น สิทธิ์ของ Gateway อื่นยังเหมือนเดิม',
-							'These choices apply only to this Gateway. Other Gateways keep their permissions.'
+							'การเลือกนี้มีผลกับพื้นที่ทำงานนี้เท่านั้น พื้นที่ทำงานอื่นยังคงใช้สิทธิ์เดิม',
+							'These choices apply only to this workspace. Other workspaces keep their current access.'
 						)}
 					</p>
-					<div class="k-check-list">
+					<div class="setup-choices setup-choices-single">
 						{#each group.visibleTools as tool (tool.name)}
 							{@const presentation = toolPresentation(tool, orcaLocale.value)}
-							<label class="k-check-row" class:selected={group.toolNames.includes(tool.name)}>
+							<label class="setup-choice" class:selected={group.toolNames.includes(tool.name)}>
 								<input
 									type="checkbox"
 									checked={group.toolNames.includes(tool.name)}
 									onchange={() => toggleSourceTool(group.connectionID, tool.name)}
 								/>
-								<span class="k-icon"><FileCheck2 size={22} /></span><span class="k-check-copy">
+								<span class="setup-choice-copy">
 									<strong>{presentation.label}</strong><code class="setup-tool-identifier"
 										>{presentation.identifier}</code
 									>
 									<p>
 										{presentation.description ||
 											t(
-												'ระบบที่เชื่อมต่อไม่ได้ระบุคำอธิบาย',
-												'No description provided by the source'
+												'ระบบไม่ได้ระบุคำอธิบายของเครื่องมือนี้',
+												'No description provided by the system'
 											)}
 									</p>
 								</span>
 							</label>
-						{:else}<p class="k-muted" style="padding:18px">
+						{:else}<p class="setup-empty-choice">
 								{t('ไม่พบเครื่องมือที่ตรงกับคำค้น', 'No tools match your search.')}
 							</p>{/each}
 					</div>
@@ -659,31 +659,31 @@
 
 <div class="workspace-setup">
 	<div class="k-breadcrumb">
-		<a href={localeHref('/app?view=workspaces')}>{t('MCP Gateways', 'MCP Gateways')}</a><span
+		<a href={localeHref('/app?view=workspaces')}>{t('พื้นที่ทำงาน AI', 'AI workspaces')}</a><span
 			>/</span
 		><span
 			>{existing
-				? t('แก้ไข Gateway', 'Update Gateway')
-				: t('สร้าง Gateway', 'Create Gateway')}</span
+				? t('แก้ไขพื้นที่ทำงาน AI', 'Edit AI workspace')
+				: t('สร้างพื้นที่ทำงาน AI', 'Create AI workspace')}</span
 		>
 	</div>
 	<div class="k-intro">
 		<h1>
 			{toolsOnly
-				? t('แก้ไขเครื่องมือของ Gateway', 'Edit Gateway tools')
+				? t('แก้ไขเครื่องมือของพื้นที่ทำงาน', 'Edit workspace tools')
 				: existing
-					? t('แก้ไข Gateway', 'Edit Gateway')
-					: t('สร้าง Gateway', 'Create Gateway')}
+					? t('แก้ไขพื้นที่ทำงาน AI', 'Edit AI workspace')
+					: t('สร้างพื้นที่ทำงาน AI', 'Create AI workspace')}
 		</h1>
 		<p class="k-subtitle">
 			{toolsOnly
 				? t(
-						'เลือกเครื่องมือแล้วตรวจสอบก่อนบันทึก สมาชิก หน่วยงาน และการตั้งค่าอื่นใช้ค่าปัจจุบัน',
-						'Select tools and review before saving. Members, units, and other settings keep their current values.'
+						'เลือกเครื่องมือและตรวจสอบก่อนบันทึก สมาชิก แผนก และการตั้งค่าอื่นยังคงใช้ค่าปัจจุบัน',
+						'Select tools and review them before saving. Members, departments and other settings keep their current values.'
 					)
 				: t(
-						'จัดระบบ เครื่องมือ และสมาชิกให้พร้อมสำหรับงานของทีม',
-						'Bring the right apps, tools and people together for your team.'
+						'รวมระบบ เครื่องมือ และสมาชิกที่ทีมต้องใช้ไว้ในพื้นที่ทำงานเดียว',
+						'Bring the systems, tools and members your team needs into one workspace.'
 					)}
 		</p>
 	</div>
@@ -694,7 +694,7 @@
 				bind:this={stepList}
 				class="setup-steps"
 				style:--setup-step-count={progressSteps.length}
-				aria-label={t('ขั้นตอนสร้าง Gateway', 'Gateway setup steps')}
+				aria-label={t('ขั้นตอนการตั้งค่าพื้นที่ทำงาน', 'Workspace setup steps')}
 			>
 				{#each progressSteps as stepNumber, index (stepNumber)}
 					<li class:current={step === stepNumber} class:complete={step > stepNumber}>
@@ -705,32 +705,32 @@
 							onclick={() => move(stepNumber)}
 						>
 							<span class="setup-step-number"
-								>{#if step > stepNumber}<Check size={18} />{:else}{index + 1}{/if}</span
-							><span>{steps[stepNumber - 1]}</span>
+								>{#if step > stepNumber}<Check size={14} />{:else}{index + 1}{/if}</span
+							><span class="setup-step-label">{steps[stepNumber - 1]}</span>
 						</button>
 					</li>
 				{/each}
 			</ol>
 			{#if sourceLinkChanged}<div class="k-banner" role="status">
-					<Info size={19} />
+					<Info size={16} aria-hidden="true" />
 					<p>
 						{t(
-							'ลิงก์เปลี่ยนแล้ว แต่ข้อมูลที่กำลังกรอกยังอยู่ เพิ่มหรือนำแอปออกได้ในขั้นตอนแอปและเครื่องมือ',
-							'The link changed, and your current entries are preserved. Add or remove apps in the apps and tools step.'
+							'ลิงก์ของหน้านี้เปลี่ยนแล้ว แต่ข้อมูลที่กรอกไว้ยังอยู่ เพิ่มหรือนำระบบออกได้ในขั้นตอนระบบและเครื่องมือ',
+							'The page link changed, and your current entries are preserved. Add or remove systems in the Systems and tools step.'
 						)}
 					</p>
 				</div>{/if}
 			{#if step >= 3 && sourceIssue}<div class="k-banner" role="status">
-					<Info size={19} />
+					<Info size={16} aria-hidden="true" />
 					<div>
 						<p>{sourceIssue}</p>
 						<a class="k-link-button" href={localeHref('/app?view=servers')}
-							>{t('ตรวจสอบ Server', 'Review server')}</a
+							>{t('ตรวจสอบระบบ', 'Review systems')}</a
 						>
 					</div>
 				</div>{/if}
 			{#if error}<div class="k-banner error" role="alert" bind:this={errorBox} tabindex="-1">
-					<Info size={19} />
+					<Info size={16} aria-hidden="true" />
 					<div>
 						{error}
 						<div class="k-actions">
@@ -738,7 +738,7 @@
 								<a
 									class="k-link-button"
 									href={localeHref(`/app?view=hub&hub=${encodeURIComponent(editingID)}`)}
-									>{t('ยกเลิกและกลับไปดู Gateway', 'Cancel and return to Gateway')}</a
+									>{t('ยกเลิกและกลับไปที่พื้นที่ทำงาน', 'Cancel and return to the workspace')}</a
 								>
 							{:else if !savedHub}
 								<button type="button" class="k-link-button" disabled={busy} onclick={onreload}
@@ -749,111 +749,111 @@
 					</div>
 				</div>{/if}
 			<fieldset disabled={busy || !!savedHub} class="setup-fields">
-				<div class="k-wizard-content">
+				<div class="setup-content">
 					<header class="setup-step-intro">
-						<p class="setup-step-count">
-							{t('ขั้นตอน', 'Step')}
-							{flowSteps.indexOf(step) + 1}
-							{t('จาก', 'of')}
-							{progressSteps.length}
-						</p>
-						<h2 bind:this={title} tabindex="-1">{stepTitles[step - 1]}</h2>
-						<p>{stepDescriptions[step - 1]}</p>
+						<div class="setup-step-heading">
+							<h2 bind:this={title} tabindex="-1">{stepTitles[step - 1]}</h2>
+							<p class="setup-step-count">
+								{t('ขั้นตอนที่', 'Step')}
+								{flowSteps.indexOf(step) + 1}
+								{t('จาก', 'of')}
+								{progressSteps.length}
+							</p>
+						</div>
+						<p class="setup-step-description">{stepDescriptions[step - 1]}</p>
 					</header>
 					{#if step === 1}
 						<div class="setup-organization">
-							<span class="k-small k-muted">{t('องค์กรปัจจุบัน', 'Current organization')}</span
+							<span class="setup-organization-label">{t('องค์กรปัจจุบัน', 'Current organization')}</span
 							><strong>{organizationName}</strong>
 						</div>
 						<div class="k-field">
-							<label for="hub-name">{t('ชื่อ Gateway', 'Gateway name')}</label><input
+							<label for="hub-name">{t('ชื่อพื้นที่ทำงาน', 'Workspace name')}</label><input
 								id="hub-name"
 								bind:value={name}
 								oninput={() => (reviewed = false)}
 								maxlength="100"
-								placeholder={t('เช่น งานบริการลูกค้า', 'For example, Customer service')}
+								placeholder={t('เช่น ฝ่ายบริการลูกค้า', 'For example, Customer service')}
 								required
 							/>
 						</div>
 					{:else if step === 2}
 						<div class="k-field setup-identity">
-							<label for="hub-user-source">{t('การยืนยันตัวตน', 'Authentication')}</label>
+							<label for="hub-user-source">{t('วิธีเข้าสู่ระบบของสมาชิก', 'Member sign-in method')}</label>
 							<select id="hub-user-source" bind:value={userSourceID} onchange={() => reviewed = false}>
-								<option value="">{t('เข้าสู่ระบบ ORCA', 'ORCA sign-in')}</option>
-								{#if userSourceID && !selectedUserSource}<option value={userSourceID} disabled>{t('User source เดิม', 'Existing user source')}</option>{/if}
+								<option value="">{t('บัญชี ORCA', 'ORCA account')}</option>
+								{#if userSourceID && !selectedUserSource}<option value={userSourceID} disabled>{t('การเข้าสู่ระบบองค์กรเดิม', 'Previous sign-in source')}</option>{/if}
 								{#each userSources.filter((source) => source.enabled || source.id === userSourceID) as source (source.id)}
-									<option value={source.id} disabled={!source.enabled}>{source.name}{source.enabled ? '' : t(' · ระงับแล้ว', ' · Disabled')}</option>
+									<option value={source.id} disabled={!source.enabled}>{source.name}{source.enabled ? '' : t(' · ปิดใช้งาน', ' · Disabled')}</option>
 								{/each}
 							</select>
 							<div class="setup-identity-actions">
-								<a href={localeHref('/app?view=user-sources')}>{t('จัดการ User sources', 'Manage user sources')}</a>
+								<a href={localeHref('/app?view=user-sources')}>{t('จัดการการเข้าสู่ระบบองค์กร', 'Manage sign-in sources')}</a>
 								{#if loadingUserSources}<span role="status">{t('กำลังโหลด…', 'Loading…')}</span>{/if}
 							</div>
-							{#if userSourcesError}<div class="k-banner error" role="alert"><div>{userSourcesError}<button type="button" class="k-link-button" disabled={loadingUserSources} onclick={loadUserSources}>{t('โหลด User sources อีกครั้ง', 'Retry user sources')}</button></div></div>{/if}
+							{#if userSourcesError}<div class="k-banner error" role="alert"><div>{userSourcesError}<button type="button" class="k-link-button" disabled={loadingUserSources} onclick={loadUserSources}>{t('โหลดการเข้าสู่ระบบองค์กรอีกครั้ง', 'Reload sign-in sources')}</button></div></div>{/if}
 						</div>
 						<fieldset class="setup-audience-group">
-							<legend>{t('ทีม / แผนก', 'Teams / departments')}</legend>
-							<p class="k-small k-muted setup-source-help">
+							<legend>{t('แผนก', 'Departments')}</legend>
+							<p class="setup-help">
 								{t(
-									'สมาชิกที่อยู่ในทีมจะมีสิทธิ์ตามนี้โดยอัตโนมัติ เมื่อย้ายออกหรือถูกระงับ สิทธิ์ผ่านทีมนั้นจะสิ้นสุด ทีมที่ยังไม่มีสมาชิกก็เลือกไว้ก่อนได้',
+									'สมาชิกในแผนกที่เลือกจะได้รับสิทธิ์โดยอัตโนมัติ และสิทธิ์จะสิ้นสุดเมื่อย้ายออกจากแผนกหรือถูกระงับ แผนกที่ยังไม่มีสมาชิกสามารถเลือกไว้ก่อนได้',
 									'Active department members receive access automatically. Leaving the department or being suspended ends that access. You can also select departments that are currently empty.'
 								)}
 							</p>
-							<div class="k-check-list">
+							<div class="setup-choices">
 								{#each availableDepartments as unit (unit.id)}
-									<label class="k-check-row" class:selected={accessUnitIDs.includes(unit.id)}
+									<label class="setup-choice" class:selected={accessUnitIDs.includes(unit.id)}
 										><input
 											type="checkbox"
 											checked={accessUnitIDs.includes(unit.id)}
 											disabled={!accessUnitIDs.includes(unit.id) && !departmentActive(unit)}
 											onchange={() => toggleDepartment(unit.id)}
-										/><span class="k-icon"><Users size={21} /></span><span class="k-check-copy"
+										/><span class="setup-choice-copy"
 											><strong>{unit.name}</strong>
 											<p>
 												{departmentActive(unit)
-													? t('ให้สิทธิ์ตามสมาชิกในทีม', 'Access follows department membership')
+													? t('สิทธิ์เป็นไปตามสมาชิกในแผนก', 'Access follows department membership')
 													: t(
-															'ทีมไม่พร้อมใช้งาน — นำออกก่อนบันทึก',
-															'Department is unavailable — remove before saving'
+															'แผนกนี้ไม่พร้อมใช้งาน กรุณานำออกก่อนบันทึก',
+															'This department is unavailable. Remove it before saving.'
 														)}
 											</p></span
 										></label
 									>
-								{:else}<p class="k-small k-muted setup-empty-audience">
+								{:else}<p class="setup-empty-choice">
 										{t(
-											'ยังไม่มีทีม / แผนก เลือกสมาชิกเป็นรายคนก่อนได้',
-											'No departments yet. You can select people below.'
+											'ยังไม่มีแผนก เลือกสมาชิกรายบุคคลด้านล่างได้',
+											'No departments yet. You can select individual members below.'
 										)}
 									</p>{/each}
 							</div>
 							{#each missingDepartmentIDs as id (id)}<div class="setup-revoked-tool">
 									<span
-										>{t('ไม่พบทีมที่เคยเลือก', 'Selected department is unavailable')}
+										>{t('ไม่พบแผนกที่เคยเลือก', 'Selected department is unavailable')}
 										<code>{id}</code></span
 									><button type="button" class="k-button small" onclick={() => toggleDepartment(id)}
-										>{t('นำทีมออก', 'Remove department')}</button
+										>{t('นำแผนกออก', 'Remove department')}</button
 									>
 								</div>{/each}
 						</fieldset>
 						<fieldset class="setup-audience-group">
-							<legend class="sr-only">{t('สมาชิกเป็นรายคน', 'Individual people')}</legend>
-							<div class="k-section-title">
-								<h3>{t('สมาชิกที่เลือกเป็นรายคน', 'People with direct access')}</h3>
-								<span class="k-badge accent"
-									>{t('เลือกแล้ว', 'Selected')}
-									{memberIDs.length}
-									{t('คน', 'people')}</span
+							<legend class="sr-only">{t('สมาชิกรายบุคคล', 'Individual members')}</legend>
+							<div class="setup-group-head">
+								<h3>{t('สมาชิกรายบุคคล', 'Individual members')}</h3>
+								<span class="setup-count"
+									>{t(`เลือกแล้ว ${memberIDs.length} คน`, `${memberIDs.length} selected`)}</span
 								>
 							</div>
 							{#if currentMember}<div class="setup-my-membership">
 									<div>
 										<strong
-											>{t('ให้บัญชีของคุณใช้ Gateway นี้ด้วย', 'Use this Gateway yourself')}</strong
+											>{t('ใช้พื้นที่ทำงานนี้ด้วยบัญชีของคุณ', 'Use this workspace yourself')}</strong
 										>
 										<p>
 											{t(
-												'เพิ่มตัวเองเพื่อจัดการความรู้และเชื่อมแอป AI ใน Gateway นี้',
-												'Add yourself to manage knowledge and connect your AI app in this Gateway.'
+												'เพิ่มตัวเองเป็นสมาชิกเพื่อจัดการความรู้และเชื่อมแอป AI กับพื้นที่ทำงานนี้',
+												'Add yourself as a member to manage knowledge and connect your AI app to this workspace.'
 											)}
 										</p>
 									</div>
@@ -863,17 +863,18 @@
 										aria-pressed={memberIDs.includes(currentMember.id)}
 										onclick={toggleMyMembership}
 									>
-										{#if memberIDs.includes(currentMember.id)}<Check size={17} />{:else}<Users
-												size={17}
+										{#if memberIDs.includes(currentMember.id)}<Check size={16} aria-hidden="true" />{:else}<Users
+												size={16}
+												aria-hidden="true"
 											/>{/if}
 										{memberIDs.includes(currentMember.id)
-											? t('นำฉันออกจากสมาชิก', 'Remove me from members')
-											: t('เพิ่มฉันเป็นสมาชิก', 'Add me as a member')}
+											? t('นำตัวเองออกจากสมาชิก', 'Remove me as a member')
+											: t('เพิ่มตัวเองเป็นสมาชิก', 'Add me as a member')}
 									</button>
 								</div>{/if}
-							<div class="k-field" style="margin-bottom:17px">
-								<label for="member-search" class="k-small k-muted"
-									>{t('ค้นหาสมาชิก', 'Search people')}</label
+							<div class="k-field setup-search-field">
+								<label for="member-search"
+									>{t('ค้นหาสมาชิก', 'Search members')}</label
 								><input
 									id="member-search"
 									type="search"
@@ -881,15 +882,15 @@
 									placeholder={t('ชื่อหรืออีเมล', 'Name or email')}
 								/>
 							</div>
-							<div class="k-check-list">
+							<div class="setup-choices">
 								{#each visibleMembers as member (member.id)}
-									<label class="k-check-row" class:selected={memberIDs.includes(member.id)}
+									<label class="setup-choice" class:selected={memberIDs.includes(member.id)}
 										><input
 											type="checkbox"
 											checked={memberIDs.includes(member.id)}
 											disabled={!memberIDs.includes(member.id) && !memberActive(member.status)}
 											onchange={() => toggleMember(member.id)}
-										/><span class="k-icon"><Users size={21} /></span><span class="k-check-copy"
+										/><span class="setup-choice-copy"
 											><strong
 												>{memberName(member)}{member.id === data.currentUserID
 													? t(' (คุณ)', ' (you)')
@@ -898,54 +899,54 @@
 											<p>{member.email}</p>
 											{#if !memberActive(member.status)}<span class="k-badge"
 													>{t(
-														'ระงับหรือยกเลิกสมาชิกแล้ว — นำออกก่อนบันทึก',
-														'Suspended or removed — remove before saving'
+														'สมาชิกถูกระงับหรือนำออกแล้ว กรุณานำออกก่อนบันทึก',
+														'Suspended or removed. Remove before saving.'
 													)}</span
 												>{/if}</span
 										></label
 									>
-								{:else}<p class="k-muted" style="padding:18px">
-										{t('ไม่พบสมาชิกที่ตรงกับคำค้น', 'No people match your search.')}
+								{:else}<p class="setup-empty-choice">
+										{t('ไม่พบสมาชิกที่ตรงกับคำค้น', 'No members match your search.')}
 									</p>{/each}
 							</div>
-							<p class="k-small k-muted" style="margin-top:13px">
+							<p class="setup-help setup-help-after">
 								{t(
-									'เจ้าขององค์กรและผู้ดูแลระบบต้องมีสิทธิ์ผ่านรายชื่อหรือทีมที่เลือกเช่นกัน จึงจะใช้ Gateway นี้ได้',
-									'Owners and administrators also need access through a selected person or department to use this Gateway.'
+									'เจ้าของระบบและผู้ดูแลระบบต้องได้รับสิทธิ์ในฐานะสมาชิกรายบุคคลหรือผ่านแผนกที่เลือกเช่นกัน จึงจะใช้พื้นที่ทำงานนี้ได้',
+									'Owners and admins also need access as an individual member or through a selected department to use this workspace.'
 								)}
 							</p>
 							{#each missingMemberIDs as id (id)}
 								<div class="setup-revoked-tool">
 									<span
-										>{t('ไม่พบสมาชิกที่เคยเลือก', 'Selected person is unavailable')}
+										>{t('ไม่พบสมาชิกที่เคยเลือก', 'Selected member is unavailable')}
 										<code>{id}</code></span
 									><button type="button" class="k-button small" onclick={() => toggleMember(id)}
-										>{t('นำสมาชิกออก', 'Remove person')}</button
+										>{t('นำสมาชิกออก', 'Remove member')}</button
 									>
 								</div>
 							{/each}
 						</fieldset>
 					{:else if step === 3}
-						<div class="k-section-title">
+						<div class="setup-group-head">
 							<h3>
-								{t('ระบบและเครื่องมือใน Gateway', 'Gateway sources and tools')}
+								{t('ระบบและเครื่องมือในพื้นที่ทำงานนี้', 'Systems and tools in this workspace')}
 							</h3>
-							<span class="k-badge accent"
+							<span class="setup-count"
 								>{t(
-									`${sources.length} ระบบ · ${selectedToolCount} เครื่องมือ`,
-									`${sources.length} sources · ${selectedToolCount} tools`
+									`${sources.length} ระบบ · เครื่องมือ ${selectedToolCount} รายการ`,
+									`Systems: ${sources.length} · Tools: ${selectedToolCount}`
 								)}</span
 							>
 						</div>
-						<p class="k-small k-muted setup-source-help">
+						<p class="setup-help">
 							{t(
-								'ชุดนี้ใช้เฉพาะเครื่องมือที่เลือกในครั้งนี้ หากเพิ่มเครื่องมือใน Server ภายหลัง คุณต้องเลือกเพิ่มให้ Gateway เอง',
-								'This set includes only the tools selected now. New Server tools need to be added to this Gateway explicitly.'
+								'พื้นที่ทำงานนี้ใช้เฉพาะเครื่องมือที่เลือกในครั้งนี้ หากระบบมีเครื่องมือใหม่ภายหลัง ต้องเลือกเพิ่มให้พื้นที่ทำงานนี้เอง',
+								'This workspace includes only the tools selected now. Tools added to a system later must be added to this workspace explicitly.'
 							)}
 						</p>
 						{#if eligibleToolCount > 5}<div class="k-field setup-tool-search">
-								<label for="tool-search" class="k-small k-muted"
-									>{t('ค้นหาเครื่องมือทุกระบบ', 'Search tools across sources')}</label
+								<label for="tool-search"
+									>{t('ค้นหาเครื่องมือในทุกระบบ', 'Search tools across systems')}</label
 								>
 								<input
 									id="tool-search"
@@ -958,49 +959,50 @@
 						{#if toolsOnly}
 							{#each sourceGroups as group (group.connectionID)}{@render sourceTools(group)}{/each}
 						{:else}
-							<fieldset class="k-section setup-source-selection">
-								<legend>{t('แอปที่เชื่อมต่อไว้', 'Connected apps')}</legend>
-								<p class="k-small k-muted setup-source-help">
+							<fieldset class="setup-source-selection">
+								<legend>{t('ระบบที่เชื่อมต่อ', 'Connected systems')}</legend>
+								<p class="setup-help">
 									{t(
-										'เลือกแอป แล้วปรับเครื่องมือของแต่ละแอปได้ทันทีด้านล่าง',
-										'Choose an app and customize its tools directly below it.'
+										'เลือกระบบ แล้วปรับเครื่องมือของแต่ละระบบได้ด้านล่าง',
+										'Select a system, then customize its tools directly below it.'
 									)}
 								</p>
-								<p class="k-small k-muted">
+								<p class="setup-count-line">
 									{t(
-										`เลือกแล้ว ${sources.length} / ${maxSources} ระบบ`,
-										`${sources.length} / ${maxSources} sources selected`
+										`เลือกแล้ว ${sources.length} จาก ${maxSources} ระบบ`,
+										`${sources.length} of ${maxSources} systems selected`
 									)}
 								</p>
 								{#if !hasReadyConnection}
 									<div class="setup-prerequisite">
-										<span class="setup-prerequisite-icon"><Plug size={28} /></span>
+										<span class="setup-prerequisite-icon" aria-hidden="true"><Plug size={28} /></span>
 										<h3>
-											{t('เชื่อมระบบก่อนสร้าง Gateway', 'Connect a source to get started')}
+											{t('ยังไม่มีระบบที่พร้อมใช้งาน', 'No systems are ready yet')}
 										</h3>
 										<p>
 											{t(
-												'เพิ่มระบบที่ทีมต้องใช้ แล้วตรวจสอบและเปิดใช้งานเครื่องมือ ระบบที่พร้อมจะปรากฏให้เลือกในหน้านี้',
-												'Add your team’s source, review its tools and enable the connection. It will then appear here for selection.'
+												'เชื่อมต่อระบบที่ทีมต้องใช้ แล้วตรวจสอบและเปิดใช้งานเครื่องมือ ระบบที่พร้อมใช้งานจะแสดงให้เลือกในหน้านี้',
+												'Connect a system your team uses, then review and enable its tools. Ready systems will appear here for selection.'
 											)}
 										</p>
 										<button type="button" class="k-button primary" onclick={() => sourceSetupOpen = true}
-											><Plug size={18} />{t('เชื่อมต่อแอป', 'Connect an app')}<ChevronRight
-												size={17}
+											><Plug size={16} aria-hidden="true" />{t('เชื่อมต่อระบบ', 'Connect a system')}<ChevronRight
+												size={16}
+												aria-hidden="true"
 										/></button
 										>
 									</div>
 								{/if}
-								{#if hasReadyConnection}<button type="button" class="k-button" style="margin:16px 0" onclick={() => sourceSetupOpen = true}>
-									<Plug size={17} />{t('เชื่อมต่อแอปเพิ่ม', 'Connect another app')}
+								{#if hasReadyConnection}<button type="button" class="k-button setup-connect-more" onclick={() => sourceSetupOpen = true}>
+									<Plug size={16} aria-hidden="true" />{t('เชื่อมต่อระบบเพิ่ม', 'Connect another system')}
 								</button>{/if}
 								{#if availableConnections.length}
-									<div class="k-check-list">
+									<div class="setup-choices setup-choices-single">
 										{#each availableConnections as source (source.id)}
 											{@const group = sourceGroups.find((item) => item.connectionID === source.id)}
 											<div class="setup-app-card" class:selected={!!group}>
 												<label
-													class="k-check-row"
+													class="setup-choice"
 													class:selected={selectedConnectionIDs.includes(source.id)}
 												>
 													<input
@@ -1012,7 +1014,7 @@
 															(!connectionReady(source) || sources.length >= maxSources)}
 														onchange={() => selectConnection(source.id)}
 													/>
-													<span class="k-icon"><Plug size={23} /></span><span class="k-check-copy"
+													<span class="setup-logo"><CatalogIcon name={source.name} size={20} /></span><span class="setup-choice-copy"
 														><strong>{source.name}</strong>
 														<p>{source.description || source.scopeNote}</p></span
 													><span class="k-badge" class:active={connectionReady(source)}
@@ -1021,8 +1023,8 @@
 															: !source.enabled
 																? t('ปิดใช้งาน', 'Disabled')
 																: connectionReady(source)
-																	? t('ตรวจเครื่องมือแล้ว', 'Tools reviewed')
-																	: t('รอตรวจสอบเครื่องมือ', 'Tool review needed')}</span
+																	? t('ตรวจสอบเครื่องมือแล้ว', 'Tools reviewed')
+																	: t('รอตรวจสอบ', 'Needs review')}</span
 													>
 												</label>
 												{#if group}{@render sourceTools(group)}{/if}
@@ -1033,30 +1035,30 @@
 								{#each missingSources as source (source.connectionID)}
 									<div class="setup-revoked-tool">
 										<span
-											>{t('ไม่พบระบบที่เคยเลือก', 'Selected source is unavailable')}
+											>{t('ไม่พบระบบที่เคยเลือก', 'Selected system is unavailable')}
 											<code>{source.connectionID}</code></span
 										>
 										<button
 											type="button"
 											class="k-button small"
 											onclick={() => selectConnection(source.connectionID)}
-											>{t('นำระบบออก', 'Remove source')}</button
+											>{t('นำระบบออก', 'Remove system')}</button
 										>
 									</div>
 								{/each}
 							</fieldset>
 						{/if}
-						<p class="k-small k-muted setup-source-help">
+						<p class="setup-help setup-help-after">
 							{t(
-								'ข้อมูลที่เข้าถึงได้ขึ้นอยู่กับบัญชีและสิทธิ์ของแต่ละแอปที่เชื่อมต่อ',
-								'Available data follows the account and permissions of each connected app.'
+								'ข้อมูลที่เข้าถึงได้เป็นไปตามบัญชีและสิทธิ์ของผู้ใช้ในแต่ละระบบที่เชื่อมต่อ',
+								'Accessible data follows each user’s account and permissions in every connected system.'
 							)}
 						</p>
 					{:else}
 						<div class="k-field">
 							<label for="hub-description"
-								>{t('คำอธิบายการใช้งาน', 'Gateway description')}
-								<span class="k-muted k-small">{t('(ไม่บังคับ)', '(optional)')}</span></label
+								>{t('คำอธิบายพื้นที่ทำงาน', 'Workspace description')}
+								<span class="setup-optional">{t('(ไม่บังคับ)', '(optional)')}</span></label
 							><textarea
 								id="hub-description"
 								bind:value={description}
@@ -1066,14 +1068,14 @@
 								rows="3"
 								placeholder={t(
 									'เช่น ใช้ค้นหาเอกสารและติดตามงานของทีม',
-									'Help your team understand its purpose'
+									'For example, search documents and track team tasks'
 								)}
 							></textarea>
 						</div>
-						<div class="k-grid-2 k-section">
+						<div class="setup-limit-grid">
 							<div class="k-field">
 								<label for="daily-limit"
-									>{t('จำนวนครั้งที่ใช้งานได้ต่อวัน', 'Daily call limit')}</label
+									>{t('เพดานการใช้งานต่อวัน', 'Daily limit')}</label
 								><input
 									id="daily-limit"
 									type="number"
@@ -1084,47 +1086,47 @@
 									disabled={toolsOnly}
 									oninput={() => (reviewed = false)}
 									required
-								/><span class="k-muted k-small"
+								/><span class="setup-field-help"
 									>{t(
-										'สมาชิกทุกคนใน Gateway ใช้ร่วมกัน · เริ่มนับใหม่ทุกวันตามเวลาไทย',
-										'Shared by all Gateway members · resets at midnight Bangkok time'
+										'สมาชิกทุกคนในพื้นที่ทำงานใช้ร่วมกัน · เริ่มนับใหม่ทุกเที่ยงคืนตามเวลาประเทศไทย',
+										'Shared by all workspace members · resets at midnight Bangkok time'
 									)}</span
 								>
 							</div>
-							<div class="k-banner" style="margin:0">
-								<FileCheck2 size={21} />
+							<div class="k-banner setup-reviewed-note">
+								<FileCheck2 size={16} aria-hidden="true" />
 								<div>
 									<strong>{t('เครื่องมือที่ตรวจสอบแล้ว', 'Reviewed tools')}</strong>
 									<p>
 										{allReadOnly
 											? t(
-													'Gateway นี้ใช้เฉพาะเครื่องมืออ่านข้อมูลที่ผู้ดูแลอนุญาต',
-													'This Gateway uses only administrator-approved read tools.'
+													'พื้นที่ทำงานนี้ใช้เฉพาะเครื่องมืออ่านข้อมูลที่ผู้ดูแลระบบอนุญาต',
+													'This workspace uses only read tools allowed by an administrator.'
 												)
 											: t(
-													'Gateway นี้ใช้เฉพาะเครื่องมือที่เลือกจากรายการที่ผู้ดูแลอนุญาต',
-													'This Gateway uses only selected tools from the administrator-approved list.'
+													'พื้นที่ทำงานนี้ใช้เฉพาะเครื่องมือที่เลือกจากรายการที่ผู้ดูแลระบบอนุญาต',
+													'This workspace uses only tools selected from the list allowed by an administrator.'
 												)}
 									</p>
 								</div>
 							</div>
 						</div>
-						<div class="k-section-title">
-							<h3>{t('สรุปการตั้งค่า', 'Gateway settings')}</h3>
-							<span class="k-badge accent">{toolAccessLabel}</span>
+						<div class="setup-group-head setup-review-head">
+							<h3>{t('สรุปการตั้งค่า', 'Settings summary')}</h3>
+							<span class="setup-count">{toolAccessLabel}</span>
 						</div>
-						<div class="k-review">
+						<div class="setup-review">
 							<dl>
 								<div>
-									<dt>{t('Gateway', 'Gateway')}</dt>
+									<dt>{t('พื้นที่ทำงาน', 'Workspace')}</dt>
 									<dd>
-										<strong>{name}</strong>{#if description}<p class="k-small k-muted">
+										<strong>{name}</strong>{#if description}<p class="setup-review-note">
 												{description}
 											</p>{/if}
 									</dd>
 								</div>
 								<div>
-									<dt>{t('ระบบและเครื่องมือ', 'Sources and tools')}</dt>
+									<dt>{t('ระบบและเครื่องมือ', 'Systems and tools')}</dt>
 									<dd class="setup-review-sources">
 										{#each sourceGroups as group (group.connectionID)}<section>
 												<strong>{group.connection?.name || group.connectionID}</strong>
@@ -1147,18 +1149,18 @@
 									</dd>
 								</div>
 								<div>
-									<dt>{t('สมาชิกที่เลือกเป็นรายคน', 'People with direct access')}</dt>
+									<dt>{t('สมาชิกรายบุคคล', 'Individual members')}</dt>
 									<dd>
 										{data.members
 											.filter((member) => memberIDs.includes(member.id))
 											.map(memberName)
 											.join(', ') ||
-											t('ไม่มี — ให้สิทธิ์ผ่านทีม', 'None — access is granted through departments')}
+											t('ไม่มี (ให้สิทธิ์ผ่านแผนก)', 'None (access is granted through departments)')}
 									</dd>
 								</div>
-								<div><dt>{t('การยืนยันตัวตน', 'Authentication')}</dt><dd>{userSourceLabel}</dd></div>
+								<div><dt>{t('วิธีเข้าสู่ระบบของสมาชิก', 'Member sign-in method')}</dt><dd>{userSourceLabel}</dd></div>
 								<div>
-									<dt>{t('ทีม / แผนกที่มีสิทธิ์', 'Teams / departments with access')}</dt>
+									<dt>{t('แผนกที่ได้รับสิทธิ์', 'Departments with access')}</dt>
 									<dd>
 										{data.units
 											.filter((unit) => accessUnitIDs.includes(unit.id))
@@ -1167,15 +1169,15 @@
 									</dd>
 								</div>
 								<div>
-									<dt>{t('จำนวนครั้งที่ใช้งานได้ต่อวัน', 'Daily limit')}</dt>
+									<dt>{t('เพดานการใช้งานต่อวัน', 'Daily limit')}</dt>
 									<dd>
 										{dailyLimit?.toLocaleString('th-TH')}
-										{t('ครั้ง โดยสมาชิกใช้ร่วมกัน', 'calls per Gateway')}
+										{t('ครั้ง (สมาชิกใช้ร่วมกัน)', 'calls, shared by all members')}
 									</dd>
 								</div>
 								{#if unitIDs.length}
 									<div>
-										<dt>{t('ป้ายกำกับหน่วยงานเดิม', 'Existing organizational labels')}</dt>
+										<dt>{t('ป้ายกำกับแผนกเดิม', 'Previous department labels')}</dt>
 										<dd>
 											{data.units
 												.filter((unit) => unitIDs.includes(unit.id))
@@ -1186,38 +1188,38 @@
 								{/if}
 							</dl>
 						</div>
-						<div class="k-field k-section">
-							<label for="hub-status">{t('สถานะหลังบันทึก', 'After saving')}</label><select
+						<div class="k-field setup-status-field">
+							<label for="hub-status">{t('สถานะหลังบันทึก', 'Status after saving')}</label><select
 								id="hub-status"
 								bind:value={status}
 								disabled={toolsOnly}
 								onchange={() => (reviewed = false)}
 								><option value="active"
 									>{t(
-										'เปิดใช้งาน — สมาชิกสร้างคีย์เพื่อเชื่อมแอป AI ได้',
-										'Active — members can create connection keys'
+										'เปิดใช้งาน (สมาชิกเชื่อมแอป AI ได้ทันที)',
+										'Active (members can connect their AI apps)'
 									)}</option
 								><option value="draft"
 									>{t(
-										'บันทึกเป็นฉบับร่าง — ยังเข้าถึงข้อมูลไม่ได้',
-										'Draft — data is not accessible yet'
+										'ฉบับร่าง (ยังเข้าถึงข้อมูลไม่ได้)',
+										'Draft (data is not accessible yet)'
 									)}</option
-								>{#if existing}<option value="paused">{t('ระงับการใช้งาน', 'Pause access')}</option
+								>{#if existing}<option value="paused">{t('ระงับการใช้งาน', 'Paused')}</option
 									>{/if}</select
 							>
 						</div>
-						<label class="k-check-row setup-confirmation"
-							><input type="checkbox" bind:checked={reviewed} /><span class="k-check-copy"
+						<label class="setup-choice setup-confirmation"
+							><input type="checkbox" bind:checked={reviewed} /><span class="setup-choice-copy"
 								><strong
 									>{t(
-										'ยืนยันว่าข้อมูล เครื่องมือ และผู้มีสิทธิ์ใช้งานถูกต้อง',
-										'I checked the data, tools and audience access.'
+										'ยืนยันว่าระบบ เครื่องมือ และผู้มีสิทธิ์ใช้งานถูกต้อง',
+										'I confirm that the systems, tools and access are correct.'
 									)}</strong
 								>
 								<p>
 									{t(
-										'สิทธิ์ที่แก้ไขจะมีผลเมื่อสมาชิกใช้งานครั้งถัดไป',
-										'Permission changes apply to each member’s next call.'
+										'การเปลี่ยนแปลงสิทธิ์จะมีผลเมื่อสมาชิกเรียกใช้งานครั้งถัดไป',
+										'Access changes apply from each member’s next call.'
 									)}
 								</p></span
 							></label
@@ -1225,7 +1227,7 @@
 					{/if}
 				</div>
 			</fieldset>
-			<div class="k-wizard-actions setup-actions">
+			<div class="setup-actions">
 				{#if step === flowSteps[0]}<a
 						class="k-button"
 						href={localeHref(
@@ -1238,10 +1240,10 @@
 						class="k-button"
 						disabled={busy || !!savedHub}
 						onclick={() => move(flowSteps[flowSteps.indexOf(step) - 1])}
-						><ChevronLeft size={17} /> {t('ย้อนกลับ', 'Back')}</button
+						><ChevronLeft size={16} aria-hidden="true" /> {t('ย้อนกลับ', 'Back')}</button
 					>{/if}
 				{#if step < 4}<button type="submit" class="k-button primary" disabled={busy}
-						>{t('ถัดไป', 'Continue')} <ChevronRight size={17} /></button
+						>{t('ถัดไป', 'Continue')} <ChevronRight size={16} aria-hidden="true" /></button
 					>{:else}<button
 						type="submit"
 						class="k-button primary"
@@ -1249,72 +1251,74 @@
 						>{busy
 							? t('กำลังบันทึก…', 'Saving…')
 							: savedHub
-								? t('เปิด Gateway ที่บันทึกแล้ว', 'Open saved Gateway')
+								? t('เปิดพื้นที่ทำงานที่บันทึกแล้ว', 'Open saved workspace')
 								: existing
 									? t('บันทึกการเปลี่ยนแปลง', 'Save changes')
 									: status === 'active'
 										? t('สร้างและเปิดใช้งาน', 'Create and activate')
 										: t('บันทึกฉบับร่าง', 'Save draft')}
-						<Check size={18} /></button
+						<Check size={16} aria-hidden="true" /></button
 					>{/if}
 			</div>
 		</form>
-		<aside class="setup-summary" aria-label={t('สรุป Gateway', 'Gateway summary')}>
+		<aside class="setup-summary" aria-label={t('สรุปพื้นที่ทำงาน', 'Workspace summary')}>
 			<div class="setup-summary-header">
-				<span class="setup-summary-icon"><Folder size={22} /></span>
-				<h2>{t('MCP Gateway ของคุณ', 'Your Gateway')}</h2>
+				<span class="setup-summary-icon" aria-hidden="true"><Folder size={18} /></span>
+				<h2>{t('สรุปพื้นที่ทำงาน AI', 'AI workspace summary')}</h2>
 			</div>
-			<p class="setup-summary-description">{organizationName}</p>
-			<p class="setup-summary-name">
-				{name.trim() || t('Gateway ใหม่', 'New Gateway')}
-			</p>
-			{#if description.trim()}<p class="setup-summary-description">
-					{description.trim()}
-				</p>{/if}
+			<div class="setup-summary-identity">
+				<p class="setup-summary-name">
+					{name.trim() || t('พื้นที่ทำงาน AI ใหม่', 'New AI workspace')}
+				</p>
+				<p class="setup-summary-description">{organizationName}</p>
+				{#if description.trim()}<p class="setup-summary-description">
+						{description.trim()}
+					</p>{/if}
+			</div>
 			<dl>
-				<div class="k-summary-row">
-					<span class="k-icon"><Plug size={21} /></span>
-					<dt>{t('ระบบ:', 'Sources:')}</dt>
+				<div class="setup-summary-row">
+					<span class="setup-summary-tile" aria-hidden="true"><Plug size={16} /></span>
+					<dt>{t('ระบบ:', 'Systems:')}</dt>
 					<dd>
 						{sourceGroups
 							.map(
 								(source) =>
-									source.connection?.name || t('ระบบที่ไม่พร้อมใช้งาน', 'Unavailable source')
+									source.connection?.name || t('ระบบที่ไม่พร้อมใช้งาน', 'Unavailable system')
 							)
 							.join(', ') || t('ยังไม่ได้เลือก', 'Not selected')}
 					</dd>
 				</div>
-				<div class="k-summary-row">
-					<span class="k-icon"><Folder size={21} /></span>
+				<div class="setup-summary-row">
+					<span class="setup-summary-tile" aria-hidden="true"><Folder size={16} /></span>
 					<dt>{t('เครื่องมือ:', 'Tools:')}</dt>
 					<dd>
 						{selectedToolCount
-							? t(`${selectedToolCount} เครื่องมือ`, `${selectedToolCount} tools`)
-							: t('ยังไม่ได้กำหนด', 'Not defined')}
+							? t(`${selectedToolCount} รายการ`, `${selectedToolCount} selected`)
+							: t('ยังไม่ได้เลือก', 'Not selected')}
 					</dd>
 				</div>
-				<div class="k-summary-row">
-					<span class="k-icon"><FileCheck2 size={21} /></span>
+				<div class="setup-summary-row">
+					<span class="setup-summary-tile" aria-hidden="true"><FileCheck2 size={16} /></span>
 					<dt>{t('สิทธิ์:', 'Access:')}</dt>
 					<dd>{toolAccessLabel}</dd>
 				</div>
-				<div class="k-summary-row">
-					<span class="k-icon"><Users size={21} /></span>
-					<dt>{t('ผู้มีสิทธิ์ใช้งาน:', 'Audience:')}</dt>
+				<div class="setup-summary-row">
+					<span class="setup-summary-tile" aria-hidden="true"><Users size={16} /></span>
+					<dt>{t('สมาชิกและแผนก:', 'Members and departments:')}</dt>
 					<dd>
 						{memberIDs.length || accessUnitIDs.length
 							? t(
-									`${memberIDs.length} คน · ${accessUnitIDs.length} ทีม / แผนก`,
-									`${memberIDs.length} people · ${accessUnitIDs.length} departments`
+									`สมาชิก ${memberIDs.length} คน · ${accessUnitIDs.length} แผนก`,
+									`Members: ${memberIDs.length} · Departments: ${accessUnitIDs.length}`
 								)
-							: t('เลือกในขั้นตอนผู้ใช้งาน', 'Choose in the audience step')}
+							: t('เลือกในขั้นตอนสิทธิ์และสมาชิก', 'Select in the Access and members step')}
 					</dd>
 				</div>
 			</dl>
-			<p class="k-summary-note">
+			<p class="setup-summary-note">
 				{t(
-					'แอป AI เข้าถึงข้อมูลผ่าน Gateway นี้ ตามสิทธิ์ของผู้ใช้แต่ละคน',
-					'AI uses data through this Gateway according to each person’s own permissions.'
+					'แอป AI เข้าถึงข้อมูลผ่านพื้นที่ทำงานนี้ตามสิทธิ์ของสมาชิกแต่ละคน',
+					'AI apps access data through this workspace according to each member’s own permissions.'
 				)}
 			</p>
 		</aside>
@@ -1326,52 +1330,12 @@
 {/if}
 
 <style>
-	.setup-identity { margin-bottom: 24px; }
-	.setup-identity-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; font-size: 14px; }
-	.setup-organization {
-		display: grid;
-		gap: 6px;
-		padding: 18px;
-		margin-bottom: 24px;
-		border: 1px solid var(--setup-line);
-		border-radius: 10px;
-		background: #f8f9fb;
-	}
-	.setup-audience-group {
+	.workspace-setup {
+		--setup-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+		--setup-mono: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+		--setup-warn-line: color-mix(in srgb, var(--orca-warn) 22%, var(--orca-warn-bg));
 		min-width: 0;
-		margin: 0 0 28px;
-		padding: 0;
-		border: 0;
-	}
-	.setup-audience-group > legend {
-		padding: 0;
-		font-weight: 600;
-		font-size: 17px;
-	}
-	.setup-empty-audience {
-		padding: 16px;
-	}
-	.setup-app-card {
-		min-width: 0;
-		border: 1px solid var(--setup-line);
-		border-radius: 12px;
-		overflow: hidden;
-	}
-	.setup-app-card.selected {
-		border-color: #bdd787;
-	}
-	.setup-app-card > .k-check-row {
-		border: 0;
-		border-radius: 0;
-	}
-	.setup-app-card .setup-source-tools {
-		margin: 0;
-		border: 0;
-		border-radius: 0;
-		border-top: 1px solid var(--setup-line);
-	}
-	.setup-app-card .setup-source-tools legend {
-		font-size: 14px;
+		color: var(--orca-ink);
 	}
 	.sr-only {
 		position: absolute;
@@ -1384,188 +1348,67 @@
 		border: 0;
 	}
 
-	.setup-tool-preset {
-		display: grid;
-		gap: 14px;
-		margin-top: 12px;
-		padding: 20px;
-		border: 1px solid #d9e5bf;
-		border-radius: 10px;
-		background: #f7faef;
-	}
-	.setup-tool-preset > p {
-		font-size: 14px;
-		line-height: 1.75;
-	}
-	.setup-source-help {
-		margin: 12px 0 18px;
-		line-height: 1.75;
-	}
-	.setup-source-tools {
-		min-width: 0;
-		border: 1px solid var(--setup-line);
-		border-radius: 12px;
-		padding: 18px;
-		margin: 24px 0;
-	}
-	.setup-source-tools legend {
-		display: flex;
-		align-items: center;
-		gap: 9px;
-		padding: 0 8px;
-		font-size: 16px;
-		font-weight: 600;
-	}
-	.setup-source-tools legend :global(svg) {
-		flex-shrink: 0;
-	}
-	.setup-scope-note {
-		white-space: pre-wrap;
-		line-height: 1.75;
-		overflow-wrap: anywhere;
-	}
-	.setup-tool-search {
-		margin: 18px 0;
-	}
-	.setup-tool-identifier {
-		display: block;
-		margin-top: 4px;
-		font-size: 11px;
-		font-weight: 400;
-		color: var(--setup-muted);
-		overflow-wrap: anywhere;
-	}
-	.setup-review-sources section + section {
-		margin-top: 18px;
-	}
-	.setup-review-sources li + li {
-		margin-top: 10px;
-	}
-	.workspace-setup .setup-use-approved {
-		justify-self: start;
-		max-width: 100%;
-		min-height: 44px;
-		white-space: normal;
-		text-align: left;
-		line-height: 1.6;
-	}
-	.setup-use-approved :global(svg) {
-		flex-shrink: 0;
-	}
-	.setup-tool-selection {
-		color: #526b29;
-		font-weight: 600;
-	}
-	.setup-custom-tools {
-		margin-top: 16px;
-		border: 1px solid var(--setup-line);
-		border-radius: 10px;
-		padding: 0 18px;
-	}
-	.setup-custom-toggle {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 12px;
-		width: 100%;
-		padding: 16px 0;
-		border: 0;
-		background: transparent;
-		color: inherit;
-		text-align: left;
-		cursor: pointer;
-		font: inherit;
-		font-size: 14px;
-		font-weight: 600;
-	}
-	.setup-custom-toggle:focus-visible {
-		outline: 2px solid var(--setup-ink);
-		outline-offset: 3px;
-		border-radius: 4px;
-	}
-	.setup-custom-tools p {
-		margin-bottom: 14px;
-		line-height: 1.75;
-	}
-	.setup-custom-tools .k-check-list {
-		padding-bottom: 16px;
-	}
-	.setup-revoked-tools {
-		border: 1px solid #e8bf78;
-		border-radius: 10px;
-		background: #fff8ea;
-		padding: 16px;
-		margin-bottom: 16px;
-	}
-	.setup-revoked-tools h3 {
-		font-size: 15px;
-		margin: 0 0 8px;
-	}
-	.setup-revoked-tools p {
-		font-size: 13px;
-		line-height: 1.6;
-		margin: 0 0 12px;
-	}
-	.setup-revoked-tool {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		flex-wrap: wrap;
-		gap: 10px;
-		padding-top: 10px;
-	}
-	.setup-revoked-tool strong {
-		overflow-wrap: anywhere;
-		font-size: 13px;
-	}
-	.workspace-setup {
-		--setup-ink: var(--o-ink, #171b28);
-		--setup-muted: var(--o-muted, #687086);
-		--setup-line: var(--k-line, #e0e4ec);
-		min-width: 0;
-		color: var(--setup-ink);
-	}
+	/* ---------- Layout ---------- */
 	.setup-layout {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) 280px;
+		grid-template-columns: minmax(0, 1fr) 300px;
 		align-items: start;
-		gap: 24px;
+		gap: 20px;
 	}
 	.setup-main,
 	.setup-summary {
 		min-width: 0;
-		border: 1px solid var(--setup-line);
-		border-radius: 14px;
-		background: #fff;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-surface);
 	}
+
+	/* ---------- Stepper ---------- */
 	.setup-steps {
-		display: grid;
-		grid-template-columns: repeat(var(--setup-step-count, 4), minmax(max-content, 1fr));
-		gap: 8px;
-		max-width: 100%;
+		display: flex;
+		align-items: center;
 		margin: 0;
-		padding: 24px 28px;
+		padding: 10px 20px;
 		overflow-x: auto;
-		overscroll-behavior-x: contain;
-		scrollbar-width: thin;
+		scrollbar-width: none;
 		list-style: none;
-		border-bottom: 1px solid var(--setup-line);
+		border-bottom: 1px solid var(--orca-line);
+	}
+	.setup-steps::-webkit-scrollbar {
+		display: none;
+	}
+	.setup-steps li {
+		display: flex;
+		align-items: center;
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+	.setup-steps li:last-child {
+		flex: 0 0 auto;
+	}
+	.setup-steps li:not(:last-child)::after {
+		content: '';
+		flex: 1 1 auto;
+		min-width: 16px;
+		height: 1px;
+		margin: 0 12px;
+		background: var(--orca-line);
 	}
 	.setup-steps button {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 10px;
-		width: 100%;
-		padding: 3px;
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		flex: none;
+		min-height: 36px;
+		padding: 4px 2px;
 		border: 0;
-		border-radius: 6px;
+		border-radius: var(--orca-radius-sm);
 		background: transparent;
-		color: var(--setup-muted);
+		color: var(--orca-muted);
 		font: inherit;
-		font-size: 14px;
-		line-height: 1.5;
-		text-align: left;
+		font-size: 13.5px;
+		font-weight: 500;
+		line-height: 1.4;
 		white-space: nowrap;
 	}
 	.setup-steps button:disabled {
@@ -1575,216 +1418,754 @@
 	.setup-steps button:not(:disabled) {
 		cursor: pointer;
 	}
-	.setup-steps button:focus-visible {
-		outline: 2px solid var(--setup-ink);
-		outline-offset: 3px;
+	.setup-steps button:not(:disabled):hover .setup-step-label {
+		text-decoration: underline;
+		text-underline-offset: 3px;
 	}
 	.setup-step-number {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 34px;
-		height: 34px;
-		border: 1px solid var(--setup-line);
+		display: grid;
+		place-items: center;
+		flex: none;
+		width: 24px;
+		height: 24px;
+		border: 1px solid var(--orca-line-strong);
 		border-radius: 50%;
-		background: #f7f8fb;
-		font-size: 14px;
+		background: var(--orca-surface);
+		color: var(--orca-muted);
+		font-size: 12px;
 		font-weight: 600;
+		line-height: 1;
 	}
 	.setup-steps .current button {
-		color: var(--setup-ink);
+		color: var(--orca-ink);
 		font-weight: 600;
 	}
 	.setup-steps .current .setup-step-number {
-		border-color: var(--o-citron, #d4f277);
-		background: var(--o-citron, #d4f277);
-		color: var(--setup-ink);
+		border-color: var(--orca-ink);
+		background: var(--orca-ink);
+		color: #fff;
+	}
+	.setup-steps .complete button {
+		color: var(--orca-ink);
 	}
 	.setup-steps .complete .setup-step-number {
-		border-color: #d7e7b3;
-		background: #f0f6e2;
-		color: #526b29;
+		border-color: transparent;
+		background: var(--orca-ok-bg);
+		color: var(--orca-ok);
+	}
+
+	/* ---------- Form body ---------- */
+	.setup-main > .k-banner {
+		margin: 16px 20px 0;
 	}
 	.setup-fields {
 		min-width: 0;
 		margin: 0;
-		padding: 28px;
+		padding: 20px 20px 24px;
 		border: 0;
 	}
-	.workspace-setup .setup-source-selection {
-		margin-top: 20px;
-	}
 	.setup-step-intro {
-		margin-bottom: 28px;
+		margin-bottom: 20px;
 	}
-	.setup-step-intro .setup-step-count {
-		margin: 0 0 8px;
-		color: #657d32;
-		font-size: 12px;
-		font-weight: 600;
-	}
-	.setup-step-intro h2 {
-		font-size: clamp(20px, 2vw, 24px);
-		line-height: 1.5;
-		letter-spacing: -0.025em;
-	}
-	.setup-step-intro > p:last-child {
-		margin-top: 8px;
-		color: var(--setup-muted);
-		font-size: 14px;
-		line-height: 1.75;
-	}
-	.setup-main h3 {
-		font-size: 17px;
-		line-height: 1.6;
-		font-weight: 600;
-	}
-	.setup-main > .k-banner {
-		margin: 20px 28px 0;
-	}
-	.setup-prerequisite {
+	.setup-step-heading {
 		display: flex;
-		flex-direction: column;
+		align-items: baseline;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 4px 16px;
+	}
+	.setup-step-heading h2 {
+		margin: 0;
+	}
+	.setup-step-count {
+		color: var(--orca-muted);
+		font-size: 13px;
+		font-weight: 500;
+		white-space: nowrap;
+	}
+	.setup-step-description {
+		max-width: 72ch;
+		margin-top: 4px;
+		color: var(--orca-muted);
+		font-size: 13.5px;
+		line-height: 1.65;
+	}
+	.setup-help {
+		margin: 4px 0 12px;
+		color: var(--orca-muted);
+		font-size: 13px;
+		line-height: 1.65;
+	}
+	.setup-help-after {
+		margin: 12px 0 0;
+	}
+	.setup-group-head {
+		display: flex;
 		align-items: center;
-		gap: 14px;
-		margin-top: 8px;
-		padding: 32px 24px;
-		border: 1px dashed #d7dfc7;
-		border-radius: 12px;
-		background: #fbfcf8;
-		text-align: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 8px 12px;
+		margin-bottom: 4px;
 	}
-	.setup-prerequisite-icon {
+	.setup-group-head h3 {
+		margin: 0;
+	}
+	.setup-count {
+		display: inline-flex;
+		align-items: center;
+		padding: 1px 8px;
+		border-radius: var(--orca-radius-sm);
+		background: var(--orca-secondary);
+		color: var(--orca-nav);
+		font-size: 12px;
+		font-weight: 500;
+		line-height: 1.6;
+		white-space: nowrap;
+	}
+	.setup-count-line {
+		margin-bottom: 12px;
+		color: var(--orca-subtle);
+		font-size: 12.5px;
+	}
+	.setup-field-help {
+		color: var(--orca-muted);
+		font-size: 12.5px;
+		line-height: 1.55;
+	}
+	.setup-optional {
+		color: var(--orca-muted);
+		font-size: 13px;
+		font-weight: 400;
+	}
+
+	/* ---------- Step 1 ---------- */
+	.setup-organization {
 		display: grid;
-		place-items: center;
-		width: 52px;
-		height: 52px;
-		border: 1px solid #e4eacb;
-		border-radius: 14px;
-		background: #f0f5e4;
-		color: #607339;
+		gap: 6px;
+		margin-bottom: 16px;
 	}
-	.setup-prerequisite > p {
-		max-width: 43ch;
-		color: var(--setup-muted);
+	.setup-organization-label {
+		font-size: 13.5px;
+		font-weight: 600;
+	}
+	/* The organization is fixed, so it reads as a read-only field. */
+	.setup-organization strong {
+		display: flex;
+		align-items: center;
+		min-height: 36px;
+		padding: 0 11px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface-2);
 		font-size: 14px;
-		line-height: 1.8;
+		font-weight: 500;
 	}
-	.setup-prerequisite .k-button {
-		margin-top: 5px;
+
+	/* ---------- Step 2 ---------- */
+	.setup-identity {
+		margin-bottom: 24px;
+	}
+	.setup-identity select {
+		max-width: 480px;
+	}
+	.setup-identity-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px 16px;
+		font-size: 13px;
+	}
+	.setup-identity-actions a {
+		color: var(--orca-ink);
+		font-weight: 500;
+		text-decoration: underline;
+		text-decoration-thickness: 1px;
+		text-underline-offset: 3px;
+	}
+	.setup-identity-actions span {
+		color: var(--orca-muted);
+	}
+	.setup-identity .k-banner {
+		margin: 8px 0 0;
+	}
+	.setup-audience-group {
+		min-width: 0;
+		margin: 0 0 24px;
+		padding: 0;
+		border: 0;
+	}
+	.setup-audience-group:last-child {
+		margin-bottom: 0;
+	}
+	.setup-audience-group > legend {
+		margin: 0 0 2px;
+		padding: 0;
+		font-size: 14.5px;
+		font-weight: 600;
+		line-height: 1.45;
 	}
 	.setup-my-membership {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 16px;
-		margin: 14px 0 20px;
-		padding: 16px;
-		border: 1px solid #d9e5bf;
-		border-radius: 10px;
-		background: #f7faef;
+		gap: 12px 16px;
+		margin: 8px 0 16px;
+		padding: 12px 14px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface);
 	}
 	.setup-my-membership strong {
 		font-size: 14px;
-		line-height: 1.7;
+		font-weight: 600;
+		line-height: 1.5;
 	}
 	.setup-my-membership p {
-		margin-top: 4px;
-		color: var(--setup-muted);
-		font-size: 12px;
-		line-height: 1.75;
+		margin-top: 2px;
+		color: var(--orca-muted);
+		font-size: 13px;
+		line-height: 1.55;
 	}
 	.setup-my-membership .k-button {
 		flex-shrink: 0;
 	}
-	.workspace-setup .setup-confirmation {
-		margin-top: 20px;
-		padding: 18px;
-		border: 1px solid #d9e5bf;
-		border-radius: 10px;
-		background: #f7faef;
+	.setup-search-field {
+		margin-bottom: 12px;
 	}
+	.setup-search-field input,
+	.setup-tool-search input {
+		max-width: 420px;
+	}
+
+	/* ---------- Choice cards ---------- */
+	.setup-choices {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+		gap: 8px;
+	}
+	.setup-choices-single {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.setup-choice {
+		display: flex;
+		align-items: flex-start;
+		gap: 12px;
+		min-width: 0;
+		padding: 12px 14px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface);
+		cursor: pointer;
+		transition:
+			border-color 0.12s,
+			background-color 0.12s;
+	}
+	.setup-choice:hover {
+		border-color: var(--orca-line-strong);
+	}
+	.setup-choice.selected {
+		border-color: var(--orca-ink);
+		background: var(--orca-citron-soft);
+	}
+	.setup-choice:has(input:disabled) {
+		background: var(--orca-surface-2);
+		cursor: not-allowed;
+	}
+	.setup-choice input {
+		flex: none;
+		margin: 2px 0 0;
+	}
+	.setup-choice-copy {
+		flex: 1;
+		min-width: 0;
+	}
+	.setup-choice-copy strong {
+		display: block;
+		font-size: 14px;
+		font-weight: 600;
+		line-height: 1.5;
+		overflow-wrap: anywhere;
+	}
+	.setup-choice-copy p {
+		margin-top: 2px;
+		color: var(--orca-muted);
+		font-size: 13px;
+		line-height: 1.55;
+		overflow-wrap: anywhere;
+	}
+	.setup-choice-copy .k-badge {
+		margin-top: 6px;
+		white-space: normal;
+	}
+	.setup-empty-choice {
+		grid-column: 1 / -1;
+		padding: 14px;
+		border: 1px dashed var(--orca-line-strong);
+		border-radius: var(--orca-radius);
+		color: var(--orca-muted);
+		font-size: 13.5px;
+		text-align: center;
+	}
+	.setup-revoked-tool {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 8px 12px;
+		font-size: 13px;
+	}
+	.setup-audience-group > .setup-revoked-tool,
+	.setup-source-selection > .setup-revoked-tool {
+		margin-top: 8px;
+		padding: 8px 12px;
+		border: 1px solid var(--setup-warn-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-warn-bg);
+	}
+	.setup-revoked-tool code {
+		color: var(--orca-nav);
+		font-family: var(--setup-mono);
+		font-size: 12px;
+		overflow-wrap: anywhere;
+	}
+
+	/* ---------- Step 3 ---------- */
+	.setup-tool-search {
+		margin: 4px 0 16px;
+	}
+	.setup-source-selection {
+		min-width: 0;
+		margin: 16px 0 0;
+		padding: 0;
+		border: 0;
+	}
+	.setup-source-selection > legend {
+		margin: 0 0 2px;
+		padding: 0;
+		font-size: 14.5px;
+		font-weight: 600;
+		line-height: 1.45;
+	}
+	.setup-connect-more {
+		margin-bottom: 12px;
+	}
+	.setup-app-card {
+		min-width: 0;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface);
+		overflow: hidden;
+	}
+	.setup-app-card.selected {
+		border-color: var(--orca-ink);
+	}
+	.setup-app-card > .setup-choice {
+		align-items: center;
+		border: 0;
+		border-radius: 0;
+	}
+	.setup-app-card > .setup-choice .k-badge {
+		flex: none;
+	}
+	.setup-logo {
+		display: grid;
+		place-items: center;
+		flex: none;
+		width: 32px;
+		height: 32px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface);
+		overflow: hidden;
+	}
+	.setup-prerequisite {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+		margin-top: 4px;
+		padding: 32px 24px;
+		border: 1px dashed var(--orca-line-strong);
+		border-radius: var(--orca-radius-lg);
+		text-align: center;
+	}
+	.setup-prerequisite-icon {
+		display: inline-flex;
+		color: var(--orca-subtle);
+	}
+	.setup-prerequisite h3 {
+		margin: 4px 0 0;
+		font-size: 15px;
+	}
+	.setup-prerequisite > p {
+		max-width: 46ch;
+		color: var(--orca-muted);
+		font-size: 13.5px;
+		line-height: 1.65;
+	}
+	.setup-prerequisite .k-button {
+		margin-top: 8px;
+	}
+
+	/* Tools of one system: a card of its own when editing tools only, a section inside the system card otherwise. */
+	.setup-source-tools {
+		min-width: 0;
+		margin: 0 0 16px;
+		padding: 14px 16px 16px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+	}
+	.setup-source-tools > legend {
+		float: left;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		width: 100%;
+		margin: 0 0 10px;
+		padding: 0;
+		font-size: 14.5px;
+		font-weight: 600;
+		line-height: 1.45;
+	}
+	.setup-source-tools > legend + * {
+		clear: both;
+	}
+	.setup-source-tools > legend :global(svg) {
+		flex-shrink: 0;
+		color: var(--orca-subtle);
+	}
+	.setup-app-card .setup-source-tools {
+		margin: 0;
+		border: 0;
+		border-top: 1px solid var(--orca-line);
+		border-radius: 0;
+	}
+	/* Inside a system card the card header already names the system. */
+	.setup-app-card .setup-source-tools > legend {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: 0;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+	}
+	.setup-scope-note {
+		margin-bottom: 12px;
+		color: var(--orca-muted);
+		font-size: 13px;
+		line-height: 1.65;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+	.setup-tool-preset {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 8px 16px;
+	}
+	.setup-tool-selection {
+		font-size: 13.5px;
+		font-weight: 500;
+	}
+	.workspace-setup .setup-use-approved {
+		max-width: 100%;
+		white-space: normal;
+		text-align: start;
+	}
+	.setup-use-approved :global(svg) {
+		flex-shrink: 0;
+	}
+	.setup-revoked-tools {
+		margin-top: 12px;
+		padding: 12px 14px;
+		border: 1px solid var(--setup-warn-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-warn-bg);
+	}
+	.setup-revoked-tools h3 {
+		margin: 0;
+		font-size: 14px;
+	}
+	.setup-revoked-tools p {
+		margin: 2px 0 4px;
+		color: var(--orca-nav);
+		font-size: 13px;
+		line-height: 1.6;
+	}
+	.setup-revoked-tools .setup-revoked-tool {
+		padding-top: 8px;
+	}
+	.setup-revoked-tool strong {
+		min-width: 0;
+		font-size: 13.5px;
+		font-weight: 600;
+		overflow-wrap: anywhere;
+	}
+	.setup-custom-tools {
+		margin-top: 12px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+	}
+	.setup-custom-toggle {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		width: 100%;
+		min-height: 40px;
+		padding: 8px 12px 8px 14px;
+		border: 0;
+		border-radius: var(--orca-radius);
+		background: transparent;
+		color: var(--orca-ink);
+		font: inherit;
+		font-size: 14px;
+		font-weight: 500;
+		text-align: start;
+		cursor: pointer;
+	}
+	.setup-custom-toggle::after {
+		content: '';
+		flex: none;
+		width: 16px;
+		height: 16px;
+		background-color: var(--orca-subtle);
+		-webkit-mask: var(--setup-chevron) center / 16px 16px no-repeat;
+		mask: var(--setup-chevron) center / 16px 16px no-repeat;
+		transition: transform 0.15s;
+	}
+	.setup-custom-toggle:hover {
+		background: var(--orca-surface-2);
+	}
+	.setup-custom-toggle:focus-visible {
+		outline-offset: -2px;
+	}
+	.setup-custom-toggle[aria-expanded='true'] {
+		border-bottom: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius) var(--orca-radius) 0 0;
+	}
+	.setup-custom-toggle[aria-expanded='true']::after {
+		transform: rotate(180deg);
+	}
+	.setup-custom-body {
+		padding: 12px 14px 14px;
+	}
+	.setup-tool-identifier {
+		display: block;
+		margin-top: 2px;
+		color: var(--orca-subtle);
+		font-family: var(--setup-mono);
+		font-size: 12px;
+		font-weight: 400;
+		overflow-wrap: anywhere;
+	}
+
+	/* ---------- Step 4 ---------- */
+	.setup-limit-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		align-items: start;
+		gap: 16px;
+		margin-top: 20px;
+	}
+	.setup-limit-grid input {
+		max-width: 240px;
+	}
+	.setup-reviewed-note {
+		margin: 0;
+	}
+	.setup-reviewed-note strong {
+		display: block;
+		font-size: 13.5px;
+		font-weight: 600;
+	}
+	.setup-reviewed-note p {
+		margin-top: 2px;
+		color: var(--orca-muted);
+		font-size: 13px;
+		line-height: 1.6;
+	}
+	.setup-review-head {
+		margin: 28px 0 10px;
+	}
+	/* The settings summary reads as a two-column definition table. */
+	.setup-review {
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius-lg);
+		overflow: hidden;
+	}
+	.setup-review dl {
+		margin: 0;
+	}
+	.setup-review dl > div {
+		display: grid;
+		grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
+	}
+	.setup-review dl > div + div {
+		border-top: 1px solid #eff0f2;
+	}
+	.setup-review dt {
+		padding: 10px 14px;
+		border-right: 1px solid #eff0f2;
+		background: var(--orca-surface-2);
+		color: var(--orca-nav);
+		font-size: 13px;
+		font-weight: 500;
+		line-height: 1.6;
+	}
+	.setup-review dd {
+		min-width: 0;
+		margin: 0;
+		padding: 10px 14px;
+		font-size: 14px;
+		line-height: 1.6;
+		overflow-wrap: anywhere;
+	}
+	.setup-review dd strong {
+		font-weight: 600;
+	}
+	.setup-review-note {
+		margin-top: 2px;
+		color: var(--orca-muted);
+		font-size: 13px;
+	}
+	.setup-review-sources section + section {
+		margin-top: 12px;
+	}
+	.setup-review-sources ul {
+		margin: 4px 0 0;
+		padding: 0;
+		list-style: none;
+	}
+	.setup-review-sources li {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0 8px;
+		font-size: 13.5px;
+		line-height: 1.6;
+	}
+	.setup-review-sources li + li {
+		margin-top: 2px;
+	}
+	.setup-review-sources .setup-tool-identifier {
+		display: inline;
+		margin: 0;
+	}
+	.setup-status-field {
+		margin-top: 20px;
+	}
+	.setup-status-field select {
+		max-width: 480px;
+	}
+	.workspace-setup .setup-confirmation {
+		margin-top: 16px;
+	}
+	.workspace-setup .setup-confirmation:has(input:checked) {
+		border-color: var(--orca-ink);
+		background: var(--orca-citron-soft);
+	}
+
+	/* ---------- Footer ---------- */
 	.setup-actions {
-		margin-top: 0;
-		padding: 20px 28px;
-		border-top: 1px solid var(--setup-line);
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 14px 20px;
+		border-top: 1px solid var(--orca-line);
 	}
 	.setup-actions .k-button {
-		min-width: 110px;
-		min-height: 44px;
+		min-width: 96px;
 	}
+
+	/* ---------- Summary ---------- */
 	.setup-summary {
 		position: sticky;
-		top: calc(var(--k-header, 72px) + 24px);
-		padding: 24px;
+		top: calc(var(--k-header, 56px) + 24px);
+		overflow: hidden;
 	}
 	.setup-summary-header {
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 8px;
+		padding: 16px 18px 10px;
 	}
 	.setup-summary-header h2 {
-		font-size: 16px;
-		line-height: 1.6;
+		margin: 0;
 	}
 	.setup-summary-icon {
 		display: inline-flex;
-		color: #7b865f;
+		color: var(--orca-subtle);
+	}
+	.setup-summary-identity {
+		padding: 0 18px 14px;
 	}
 	.setup-summary-name {
-		margin-top: 20px;
-		font-size: 22px;
-		line-height: 1.6;
+		font-size: 15px;
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		line-height: 1.5;
 		overflow-wrap: anywhere;
 	}
 	.setup-summary-description {
-		margin-top: 5px;
-		color: var(--setup-muted);
+		margin-top: 2px;
+		color: var(--orca-muted);
 		font-size: 13px;
-		line-height: 1.75;
+		line-height: 1.6;
 		overflow-wrap: anywhere;
 	}
 	.setup-summary dl {
-		margin-top: 18px;
+		margin: 0;
+		border-top: 1px solid var(--orca-line);
 	}
-	.setup-summary .k-summary-row {
+	.setup-summary-row {
 		display: grid;
 		grid-template-columns: 32px minmax(0, 1fr);
 		align-items: center;
-		gap: 3px 10px;
-		padding: 14px 0;
-		border-bottom: 1px solid var(--setup-line);
+		gap: 0 12px;
+		padding: 10px 18px;
 	}
-	.setup-summary .k-icon {
+	.setup-summary-row + .setup-summary-row {
+		border-top: 1px solid #eff0f2;
+	}
+	.setup-summary-tile {
 		grid-row: span 2;
+		display: grid;
+		place-items: center;
 		width: 32px;
 		height: 32px;
-		background: #f5f6f8;
-		color: #71798a;
+		border-radius: var(--orca-radius);
+		background: var(--orca-secondary);
+		color: var(--orca-nav);
 	}
 	.setup-summary dt {
 		min-width: 0;
-		font-size: 12px;
-		color: var(--setup-muted);
+		color: var(--orca-muted);
+		font-size: 12.5px;
+		line-height: 1.5;
 	}
 	.setup-summary dd {
+		min-width: 0;
+		margin: 0;
 		font-size: 14px;
-		color: var(--setup-ink);
+		line-height: 1.5;
+		overflow-wrap: anywhere;
 	}
-	.setup-summary .k-summary-note {
-		margin-top: 18px !important;
-		font-size: 12px;
-		line-height: 1.8;
+	.setup-summary-note {
+		padding: 12px 18px 14px;
+		border-top: 1px solid var(--orca-line);
+		color: var(--orca-muted);
+		font-size: 12.5px;
+		line-height: 1.6;
 	}
+
+	/* ---------- Responsive ---------- */
 	@media (max-width: 1200px) {
 		.setup-layout {
-			grid-template-columns: minmax(0, 1fr) 240px;
-			gap: 20px;
-		}
-		.setup-summary {
-			padding: 20px;
+			grid-template-columns: minmax(0, 1fr) 260px;
+			gap: 16px;
 		}
 	}
 	@media (max-width: 1050px) {
@@ -1796,41 +2177,75 @@
 		}
 		.setup-summary dl {
 			display: grid;
-			grid-template-columns: 1fr 1fr;
-			gap: 0 24px;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+		.setup-summary-row + .setup-summary-row {
+			border-top: 0;
+		}
+		.setup-summary dl > .setup-summary-row:nth-child(n + 3) {
+			border-top: 1px solid #eff0f2;
 		}
 	}
-	@media (max-width: 680px) {
-		.setup-my-membership {
-			align-items: stretch;
-			flex-direction: column;
-		}
+	@media (max-width: 760px) {
 		.setup-steps {
-			padding: 18px 20px;
+			padding: 8px 16px;
 		}
-		.setup-fields,
-		.setup-actions {
-			padding: 20px;
+		.setup-steps li:not(:last-child)::after {
+			min-width: 12px;
+			margin: 0 8px;
+		}
+		/* Phones show every step number but only the current step's name. */
+		.setup-steps li:not(.current) .setup-step-label {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			padding: 0;
+			overflow: hidden;
+			clip: rect(0, 0, 0, 0);
+			white-space: nowrap;
+			border: 0;
 		}
 		.setup-main > .k-banner {
-			margin-right: 20px;
-			margin-left: 20px;
+			margin: 12px 16px 0;
 		}
-		.setup-prerequisite {
-			padding: 24px 18px;
-		}
-		.setup-prerequisite .k-button {
-			width: 100%;
+		.setup-fields {
+			padding: 16px 16px 20px;
 		}
 		.setup-actions {
-			align-items: stretch;
-			flex-wrap: wrap;
+			padding: 12px 16px;
 		}
 		.setup-actions .k-button.primary {
 			flex: 1;
 		}
+		.setup-choices,
+		.setup-limit-grid {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.setup-source-tools {
+			padding-inline: 14px;
+		}
+		.setup-my-membership {
+			flex-direction: column;
+			align-items: stretch;
+		}
+		.setup-review dl > div {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.setup-review dt {
+			padding-block: 6px;
+			border-right: 0;
+		}
+		.setup-prerequisite {
+			padding: 24px 16px;
+		}
+		.setup-prerequisite .k-button {
+			width: 100%;
+		}
 		.setup-summary dl {
 			grid-template-columns: minmax(0, 1fr);
+		}
+		.setup-summary dl > .setup-summary-row:nth-child(n + 2) {
+			border-top: 1px solid #eff0f2;
 		}
 	}
 </style>

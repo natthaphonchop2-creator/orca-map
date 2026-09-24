@@ -23,7 +23,7 @@ function screen(actorRole,targets=[],props={},testState={}) {
 const employee={id:'employee',email:'employee@example.test',role:'employee',version:5};
 test('organization admin sees member lifecycle even when local auth is unavailable',()=>{
  const result=screen('admin',[employee,{id:'owner',email:'owner@example.test',role:'owner'},{id:'other-admin',email:'admin@example.test',role:'admin'}]);
- assert.deepEqual(result.actions.map(x=>x.id),['employee']);assert.equal(result.actions[0].version,5);assert.match(result.html,/Manage member/);
+ assert.deepEqual(result.actions.map(x=>x.id),['employee']);assert.equal(result.actions[0].version,5);assert.match(result.html,/Member actions/);
 });
 test('owner may manage role-locked other members but not self',()=>{
  const result=screen('owner',[{...employee,roleLocked:true},{id:'other-owner',email:'owner@example.test',role:'owner',roleLocked:true}]);assert.deepEqual(result.actions.map(x=>x.id),['employee','other-owner']);

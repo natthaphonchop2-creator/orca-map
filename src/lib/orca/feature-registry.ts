@@ -15,7 +15,7 @@ export interface FeatureCopy {
 
 export interface FeatureDefinition {
   id: FeatureId;
-  title: string;
+  title: FeatureCopy;
   purpose: FeatureCopy;
   scope: FeatureCopy;
   limitation: FeatureCopy;
@@ -24,130 +24,130 @@ export interface FeatureDefinition {
 export const featureRegistry: Record<FeatureId, FeatureDefinition> = {
   projects: {
     id: "projects",
-    title: "Projects",
+    title: { th: "โครงการ", en: "Projects" },
     purpose: {
-      th: "จัดกลุ่มการเชื่อมต่อและการตั้งค่าตามโครงการ",
-      en: "Organize connections and settings by project.",
+      th: "จัดกลุ่มระบบที่เชื่อมต่อและการตั้งค่าตามโครงการ",
+      en: "Organize connected systems and settings by project.",
     },
     scope: {
-      th: "กำหนดขอบเขตทรัพยากรและการเข้าถึงสำหรับแต่ละโครงการ",
-      en: "Define the resources and access that belong to each project.",
+      th: "กำหนดข้อมูลและสิทธิ์การเข้าถึงของแต่ละโครงการ",
+      en: "Define the resources and access for each project.",
     },
     limitation: {
-      th: "ยังไม่มีการสร้าง เลือก หรือสลับโครงการและองค์กรผ่านหน้านี้",
-      en: "Project creation and project or organization switching are not enabled on this page.",
+      th: "หน้านี้ยังไม่รองรับการสร้าง เลือก หรือสลับโครงการและองค์กร",
+      en: "Creating, selecting or switching projects and organizations is not available on this page yet.",
     },
   },
   "user-sources": {
     id: "user-sources",
-    title: "User sources",
+    title: { th: "การเข้าสู่ระบบองค์กร", en: "Sign-in sources" },
     purpose: {
-      th: "กำหนดแหล่งบัญชีผู้ใช้และผู้ให้บริการเข้าสู่ระบบ",
-      en: "Configure sources of user identities and sign-in providers.",
+      th: "กำหนดผู้ให้บริการเข้าสู่ระบบขององค์กร",
+      en: "Configure your organization’s sign-in sources.",
     },
     scope: {
-      th: "จัดการแหล่งยืนยันตัวตนที่องค์กรใช้ระบุบัญชีผู้ใช้",
-      en: "Manage the identity sources used to identify organization users.",
+      th: "จัดการผู้ให้บริการยืนยันตัวตนที่องค์กรใช้ระบุบัญชีสมาชิก",
+      en: "Manage the identity providers used to identify organization members.",
     },
     limitation: {
-      th: "หน้านี้ยังไม่เปิดให้เพิ่มหรือแก้ไขแหล่งผู้ใช้และผู้ให้บริการเข้าสู่ระบบ",
-      en: "Adding or changing user sources and sign-in providers is not enabled on this page.",
+      th: "หน้านี้ยังไม่รองรับการเพิ่มหรือแก้ไขผู้ให้บริการเข้าสู่ระบบ",
+      en: "Adding or changing sign-in sources is not available on this page yet.",
     },
   },
   secrets: {
     id: "secrets",
-    title: "Secrets",
+    title: { th: "ข้อมูลลับ", en: "Secrets" },
     purpose: {
-      th: "จัดการข้อมูลลับที่แอปและบริการใช้เชื่อมต่อกัน",
-      en: "Manage secrets used by connected apps and services.",
+      th: "จัดการข้อมูลลับที่ใช้เชื่อมต่อกับระบบต่าง ๆ",
+      en: "Manage the secrets used to connect systems.",
     },
     scope: {
-      th: "ครอบคลุมการจัดเก็บ อัปเดต และยกเลิก API keys, tokens และ client secrets ตามสิทธิ์",
+      th: "จัดเก็บ แก้ไข และเพิกถอนคีย์ API โทเคน และ Client secret ตามสิทธิ์ที่กำหนด",
       en: "Store, update and revoke API keys, tokens and client secrets with controlled access.",
     },
     limitation: {
-      th: "ยังไม่มีคลัง Secrets หรือการเพิ่ม หมุน และลบข้อมูลลับผ่านหน้านี้",
-      en: "A secrets vault and controls to create, rotate or delete secrets are not enabled on this page.",
+      th: "หน้านี้ยังไม่รองรับการจัดเก็บ เปลี่ยน หรือลบข้อมูลลับ",
+      en: "Storing, rotating or deleting secrets is not available on this page yet.",
     },
   },
   "connected-apps": {
     id: "connected-apps",
-    title: "Connected apps",
+    title: { th: "แอปที่เชื่อมต่อ", en: "Connected apps" },
     purpose: {
-      th: "ตั้งค่า OAuth providers และ OAuth clients ของแพลตฟอร์ม",
-      en: "Configure platform OAuth providers and OAuth clients.",
+      th: "ตั้งค่าการลงชื่อเข้าใช้ด้วยบัญชีของระบบภายนอก (OAuth) สำหรับ ORCA",
+      en: "Configure sign-in with external system accounts (OAuth) for ORCA.",
     },
     scope: {
-      th: "จัดการข้อมูล OAuth client สำหรับเชื่อมผู้ให้บริการ การอนุญาตบัญชีของสมาชิกและนโยบายเครื่องมือมีขอบเขตแยกจากการตั้งค่านี้",
-      en: "Manage OAuth client configuration for providers. Members’ account grants and tool policies have separate scopes.",
+      th: "จัดการข้อมูล OAuth client ของผู้ให้บริการแต่ละราย การอนุญาตบัญชีของสมาชิกและเครื่องมือที่อนุญาตจัดการแยกจากการตั้งค่านี้",
+      en: "Manage the OAuth client settings for each provider. Member account authorizations and allowed tools are managed separately.",
     },
     limitation: {
-      th: "ผู้ดูแลตั้ง OAuth client เริ่มต้นสำหรับบางแอปได้แล้ว แต่หน้าจัดการผู้ให้บริการแบบครบยังไม่เปิดใช้งาน",
-      en: "Administrators can already perform initial static OAuth client setup for some apps. The full provider administration page is not enabled yet.",
+      th: "ผู้ดูแลระบบตั้งค่า OAuth client เริ่มต้นสำหรับบางระบบได้แล้ว แต่หน้าจัดการผู้ให้บริการแบบเต็มรูปแบบยังไม่เปิดใช้งาน",
+      en: "Admins can already set up an initial OAuth client for some systems. The full provider management page is not available yet.",
     },
   },
   "user-verification": {
     id: "user-verification",
-    title: "User verification",
+    title: { th: "การยืนยันตัวตนผู้ใช้", en: "User verification" },
     purpose: {
-      th: "กำหนดวิธียืนยันผู้ใช้ก่อนเข้าถึงแอปและเครื่องมือ",
-      en: "Define how users verify their identity before accessing apps and tools.",
+      th: "กำหนดวิธียืนยันตัวตนของผู้ใช้ก่อนเข้าถึงระบบและเครื่องมือ",
+      en: "Define how users verify their identity before accessing systems and tools.",
     },
     scope: {
       th: "กำหนดข้อกำหนดการยืนยันตัวตนเพิ่มเติมตามการใช้งานขององค์กร",
-      en: "Set additional identity verification requirements for organization use.",
+      en: "Set additional identity verification requirements for your organization.",
     },
     limitation: {
-      th: "ยังไม่มีการตั้งค่าวิธียืนยันผู้ใช้หรือข้อกำหนดการยืนยันเพิ่มเติมผ่านหน้านี้",
-      en: "Verification methods and additional verification requirements are not configurable on this page yet.",
+      th: "หน้านี้ยังไม่รองรับการตั้งค่าวิธียืนยันตัวตนหรือข้อกำหนดการยืนยันเพิ่มเติม",
+      en: "Verification methods and additional requirements cannot be configured on this page yet.",
     },
   },
   "contextual-access": {
     id: "contextual-access",
-    title: "Contextual Access",
+    title: { th: "การเข้าถึงตามบริบท", en: "Contextual access" },
     purpose: {
       th: "กำหนดเงื่อนไขการเข้าถึงตามบริบทของคำขอ",
-      en: "Define access conditions based on the context of a request.",
+      en: "Define access conditions based on the context of each request.",
     },
     scope: {
-      th: "เพิ่มเงื่อนไขประกอบการอนุญาตใช้งานแอปและเครื่องมือ",
-      en: "Add contextual conditions to app and tool access decisions.",
+      th: "เพิ่มเงื่อนไขประกอบการอนุญาตให้ใช้ระบบและเครื่องมือ",
+      en: "Add conditions to system and tool access decisions.",
     },
     limitation: {
-      th: "ยังไม่มีตัวแก้ไขหรือการบังคับใช้ contextual policies ผ่านหน้านี้",
-      en: "A contextual policy editor and enforcement through this page are not enabled yet.",
+      th: "หน้านี้ยังไม่รองรับการกำหนดหรือบังคับใช้เงื่อนไขการเข้าถึงตามบริบท",
+      en: "Defining or enforcing contextual access rules is not available on this page yet.",
     },
   },
   "logging-policy": {
     id: "logging-policy",
-    title: "Logging Policy",
+    title: { th: "นโยบายการเก็บประวัติการใช้งาน", en: "Activity logging policy" },
     purpose: {
       th: "กำหนดข้อมูลการใช้งานที่บันทึกและระยะเวลาเก็บรักษา",
-      en: "Define what usage data is logged and how long it is retained.",
+      en: "Define which activity is recorded and how long it is retained.",
     },
     scope: {
       th: "จัดการข้อกำหนดการบันทึกและเก็บรักษาประวัติการใช้งานขององค์กร",
-      en: "Manage organization requirements for logging and retaining usage history.",
+      en: "Manage your organization’s requirements for recording and retaining activity.",
     },
     limitation: {
-      th: "ประวัติการเรียกและ Audit log ที่มีอยู่ยังดูได้ตามสิทธิ์ แต่หน้านี้ยังไม่เปิดให้ปรับนโยบายการบันทึก",
-      en: "Existing execution history and audit logs remain available according to permissions. Logging policies cannot be changed on this page yet.",
+      th: "ประวัติการใช้งานที่มีอยู่ยังดูได้ตามสิทธิ์ แต่หน้านี้ยังไม่รองรับการปรับนโยบายการบันทึก",
+      en: "Existing activity records remain available according to permissions. Logging policies cannot be changed on this page yet.",
     },
   },
   billing: {
     id: "billing",
-    title: "Billing",
+    title: { th: "การเรียกเก็บเงิน", en: "Billing" },
     purpose: {
       th: "จัดการแพ็กเกจ ค่าบริการ และการชำระเงิน",
       en: "Manage plans, charges and payments.",
     },
     scope: {
       th: "ดูรายละเอียดการเรียกเก็บเงินและจัดการการชำระเงินขององค์กร",
-      en: "Review billing details and manage organization payments.",
+      en: "Review billing details and manage your organization’s payments.",
     },
     limitation: {
-      th: "ยังไม่มีการสมัครแพ็กเกจ ใบเรียกเก็บเงิน หรือการชำระเงินผ่านหน้านี้",
-      en: "Plan subscriptions, invoices and payments are not enabled on this page.",
+      th: "หน้านี้ยังไม่รองรับการสมัครแพ็กเกจ ใบแจ้งหนี้ หรือการชำระเงิน",
+      en: "Plan subscriptions, invoices and payments are not available on this page yet.",
     },
   },
 };
