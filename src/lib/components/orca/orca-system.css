@@ -340,6 +340,23 @@
 .orca-workspace.orca-app .k-button.danger:hover {
   background: var(--orca-deny-bg);
 }
+/* Solid destructive confirm (dialogs): white label on red. Disabled keeps a
+   readable red label instead of fading to an empty pink block. */
+.orca-workspace.orca-app .k-button.danger-solid {
+  border-color: var(--orca-deny);
+  background: var(--orca-deny);
+  color: #fff !important;
+}
+.orca-workspace.orca-app .k-button.danger-solid:hover {
+  border-color: #962029;
+  background: #962029;
+}
+.orca-workspace.orca-app .k-button.danger-solid:disabled {
+  opacity: 1;
+  border-color: #f1c9cd;
+  background: var(--orca-deny-bg);
+  color: var(--orca-deny) !important;
+}
 .orca-workspace.orca-app .k-button.quiet {
   border-color: transparent;
   background: transparent;

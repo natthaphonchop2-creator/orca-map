@@ -61,7 +61,7 @@
       : t('ยุติการเข้าถึง ORCA ของสมาชิกรายนี้ เพิกถอนสิทธิ์ในพื้นที่ทำงาน AI แผนก และความรู้ที่แบ่งปันโดยตรง รวมถึงเพิกถอนคีย์ API ที่มีอยู่', 'Ends this member’s access to ORCA, removes AI workspace, department and direct knowledge access, and revokes existing API keys.')}</p>
   {#if action === 'delete'}<p>{t('รายการนี้จะถูกนำออกจากหน้าจัดการและไม่สามารถกู้คืนจากหน้านี้ได้ ประวัติการใช้งานและเอกสารที่สร้างไว้จะยังคงเก็บรักษาไว้', 'This entry will be removed from management and cannot be restored here. Activity history and authored documents are retained.')}</p>{/if}
   {#if error}<p class="dialog-error" role="alert">{error}</p>{/if}
-  <div class="dialog-actions"><button bind:this={cancelButton} class="k-button" disabled={saving} onclick={() => dialog.close()}>{t('ยกเลิก', 'Cancel')}</button><button class="k-button primary" class:danger={action === 'delete'} disabled={saving || stale || disabled || completed} onclick={confirm}>{saving ? t('กำลังบันทึก…', 'Saving…') : label}</button></div>
+  <div class="dialog-actions"><button bind:this={cancelButton} class="k-button" disabled={saving} onclick={() => dialog.close()}>{t('ยกเลิก', 'Cancel')}</button><button class="k-button" class:primary={action !== 'delete'} class:danger-solid={action === 'delete'} disabled={saving || stale || disabled || completed} onclick={confirm}>{saving ? t('กำลังบันทึก…', 'Saving…') : label}</button></div>
 </dialog>
 <style>
   .team-lifecycle { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -80,5 +80,4 @@
   .team-dialog .subject { margin: 0 0 14px; color: var(--orca-ink); font-weight: 600; overflow-wrap: anywhere; }
   .team-dialog .dialog-error { margin-top: 14px; padding: 10px 12px; border-radius: var(--orca-radius); background: var(--orca-deny-bg); color: var(--orca-deny); font-size: 13px; }
   .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 22px; }
-  .dialog-actions .danger { border-color: var(--orca-deny) !important; background: var(--orca-deny) !important; color: var(--orca-surface) !important; }
 </style>

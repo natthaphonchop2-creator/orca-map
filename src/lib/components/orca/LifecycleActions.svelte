@@ -2,7 +2,7 @@
   import { parseErrorContent } from '$lib/errors';
   import { localeHref, t } from '$lib/orca/locale.svelte';
   import { OrcaService, orcaError } from '$lib/services/orca';
-  import { Archive, ArchiveRestore, LoaderCircle, Trash2 } from '@lucide/svelte';
+  import { Archive, ArchiveRestore, CircleAlert, LoaderCircle, Trash2 } from '@lucide/svelte';
   import { tick } from 'svelte';
 
   type Action = 'archive' | 'restore' | 'delete';
@@ -30,6 +30,8 @@
   const subject = $derived(kind === 'gateway' ? t('พื้นที่ทำงาน AI', 'AI workspace') : t('ระบบที่เชื่อมต่อ', 'connected system'));
   const blockedDelete = $derived(action === 'delete' && kind === 'server' && affectedGateways.length > 0);
   const label = $derived(action === 'delete' ? t('ลบ', 'Delete') : action === 'restore' ? t('กู้คืน', 'Restore') : t('จัดเก็บ', 'Archive'));
+  // A blocked delete explains what to do next instead of showing a disabled red button.
+  const heading = $derived(blockedDelete ? t('ยังลบระบบนี้ไม่ได้', 'This system cannot be deleted yet') : t(`${label}${subject}`, `${label} ${subject}`));
 
   async function open(next: Action) {
     if (pending || !canManage) return;
@@ -103,13 +105,13 @@
     </button>
   </div>
 {/if}
-<dialog bind:this={dialog} class="lifecycle-dialog" aria-label={t(`${label}${subject}`, `${label} ${subject}`)}
+<dialog bind:this={dialog} class="lifecycle-dialog" aria-label={heading}
   oncancel={(event) => { if (pending) event.preventDefault(); }}>
   <form onsubmit={(event) => { event.preventDefault(); void confirm(); }}>
-    <div class="dialog-icon" class:danger={action === 'delete'}>
-      {#if action === 'delete'}<Trash2 size={25} />{:else if action === 'restore'}<ArchiveRestore size={25} />{:else}<Archive size={25} />{/if}
+    <div class="dialog-icon" class:danger={action === 'delete' && !blockedDelete} class:warn={blockedDelete}>
+      {#if blockedDelete}<CircleAlert size={25} />{:else if action === 'delete'}<Trash2 size={25} />{:else if action === 'restore'}<ArchiveRestore size={25} />{:else}<Archive size={25} />{/if}
     </div>
-    <h2>{t(`${label}${subject}`, `${label} ${subject}`)}</h2>
+    <h2>{heading}</h2>
     <p class="entity-name">{snapshot?.name}</p>
     {#if action === 'archive'}
       <p>{kind === 'gateway'
@@ -120,23 +122,26 @@
       <p>{kind === 'gateway'
         ? t('พื้นที่ทำงานนี้จะกลับมาในรายการด้วยสถานะระงับ กรุณาตรวจสอบสิทธิ์และเปิดใช้งานก่อนสร้างคีย์ใหม่', 'This workspace returns to the list with Paused status. Review access and activate it before issuing new keys.')
         : t('ระบบนี้จะกลับมาในรายการโดยยังปิดใช้งานอยู่ กรุณาตรวจสอบการตั้งค่าและเปิดใช้งานก่อนสร้างคีย์ใหม่ของพื้นที่ทำงาน AI', 'This system returns to the list and remains disabled. Review and enable it before issuing new AI workspace keys.')}</p>
+    {:else if blockedDelete}
+      <p>{t('ระบบนี้ยังถูกใช้อยู่ในพื้นที่ทำงาน AI ด้านล่าง นำระบบออกจากพื้นที่ทำงานเหล่านั้น หรือลบพื้นที่ทำงานก่อน (รวมถึงรายการที่จัดเก็บแล้ว) แล้วจึงกลับมาลบระบบนี้', 'This system is still used by the AI workspaces below. Remove it from those workspaces, or delete them (including archived ones), then come back to delete it.')}</p>
     {:else}
       <p>{kind === 'gateway'
         ? t('พื้นที่ทำงานนี้จะถูกลบออกจากรายการ และคีย์ทั้งหมดจะถูกยกเลิก การเรียกใช้เครื่องมือและการเข้าถึงความรู้ผ่านพื้นที่ทำงานนี้จะหยุดลง และไม่สามารถกู้คืนได้', 'This workspace will be removed and all its keys revoked. Tool calls and knowledge access through it will stop. It cannot be restored.')
         : t('ระบบนี้จะถูกลบออกจากรายการและไม่สามารถกู้คืนได้ หากอาจต้องใช้งานอีก กรุณาเลือกจัดเก็บแทน', 'This system will be removed from the list and cannot be restored. Choose Archive if you may need it again.')}</p>
     {/if}
-    <p class="preserved">{t('บัญชีที่เชื่อมไว้ ข้อมูลในระบบที่เชื่อมต่อ และประวัติการใช้งานยังคงอยู่', 'Connected accounts, data in the connected systems and activity history are retained.')}</p>
+    {#if !blockedDelete}<p class="preserved">{t('บัญชีที่เชื่อมไว้ ข้อมูลในระบบที่เชื่อมต่อ และประวัติการใช้งานยังคงอยู่', 'Connected accounts, data in the connected systems and activity history are retained.')}</p>{/if}
     {#if affectedGateways.length > 0 && kind === 'server' && action !== 'restore'}
       <div class="affected-gateways">
-        <strong>{action === 'delete' ? t('กรุณาลบพื้นที่ทำงาน AI ต่อไปนี้ หรือนำระบบนี้ออกจากพื้นที่ทำงานเหล่านั้นก่อน รวมถึงรายการที่จัดเก็บแล้ว', 'Delete these AI workspaces or remove this system from them first, including archived ones.') : t('พื้นที่ทำงาน AI ที่ได้รับผลกระทบ', 'Affected AI workspaces')}</strong>
+        <strong>{blockedDelete ? t(`พื้นที่ทำงาน AI ที่ยังใช้ระบบนี้ (${affectedGateways.length})`, `AI workspaces still using this system (${affectedGateways.length})`) : t('พื้นที่ทำงาน AI ที่ได้รับผลกระทบ', 'Affected AI workspaces')}</strong>
         <ul>{#each affectedGateways as gateway}<li><a href={localeHref(`/app?view=hub&hub=${encodeURIComponent(gateway.id)}`)}>{gateway.name}</a></li>{/each}</ul>
       </div>
     {/if}
     {#if error}<div class="dialog-error" role="alert">{error}</div>{/if}
     <div class="dialog-actions">
-      <button bind:this={cancelButton} type="button" class="k-button" disabled={pending} onclick={close}>{t('ยกเลิก', 'Cancel')}</button>
-      {#if requiresReload}<button type="button" class="k-button primary" disabled={pending} onclick={reload}>{t('โหลดข้อมูลล่าสุด', 'Reload latest data')}</button>
-      {:else}<button type="submit" class="k-button primary" class:danger={action === 'delete'} disabled={pending || blockedDelete || completed || !canManage}>
+      <button bind:this={cancelButton} type="button" class="k-button" disabled={pending} onclick={close}>{blockedDelete ? t('ปิด', 'Close') : t('ยกเลิก', 'Cancel')}</button>
+      {#if blockedDelete}<!-- nothing to confirm until the workspaces above are cleared -->
+      {:else if requiresReload}<button type="button" class="k-button primary" disabled={pending} onclick={reload}>{t('โหลดข้อมูลล่าสุด', 'Reload latest data')}</button>
+      {:else}<button type="submit" class="k-button" class:primary={action !== 'delete'} class:danger-solid={action === 'delete'} disabled={pending || completed || !canManage}>
         {#if pending}<LoaderCircle size={16} class="k-spin" aria-hidden="true" />{/if}{pending ? t('กำลังบันทึก…', 'Saving…') : t(`${label}${subject}`, `${label} ${subject}`)}
       </button>{/if}
     </div>
@@ -152,20 +157,22 @@
   .compact .lifecycle-button:disabled { opacity: 0.5; cursor: not-allowed; }
   .delete-action { color: var(--orca-deny, #b3262f); }
   .compact .delete-action { color: var(--orca-subtle, #6b7280); }
-  .lifecycle-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 24px; border: 1px solid var(--orca-line, #e5e7eb); border-radius: var(--orca-radius-lg, 10px); background: #fff; color: var(--orca-ink, #151823); box-shadow: 0 16px 48px -12px rgba(21, 24, 35, 0.28); }
+  /* The dialog lives inside table action cells (white-space: nowrap); reset what it would inherit. */
+  .lifecycle-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 24px; border: 1px solid var(--orca-line, #e5e7eb); border-radius: var(--orca-radius-lg, 10px); background: #fff; color: var(--orca-ink, #151823); box-shadow: 0 16px 48px -12px rgba(21, 24, 35, 0.28); white-space: normal; text-align: start; }
   .lifecycle-dialog::backdrop { background: rgba(21, 24, 35, 0.45); }
   .dialog-icon { width: 40px; height: 40px; display: grid; place-items: center; background: var(--orca-secondary, #f4f4f5); color: var(--orca-nav, #3f4452); border-radius: var(--orca-radius, 8px); }
   .dialog-icon.danger { background: var(--orca-deny-bg, #fdecee); color: var(--orca-deny, #b3262f); }
+  .dialog-icon.warn { background: var(--orca-warn-bg, #fff5dc); color: var(--orca-warn, #8a5a00); }
   .dialog-icon :global(svg) { width: 20px; height: 20px; }
   h2 { margin: 16px 0 4px; font-size: 18px; line-height: 1.4; font-weight: 600; }
   p { margin: 10px 0; line-height: 1.7; font-size: 14px; color: var(--orca-muted, #5b6270); }
   .entity-name { font-weight: 600; color: var(--orca-ink, #151823); overflow-wrap: anywhere; margin: 0 0 14px; }
   .preserved { font-size: 13px; color: var(--orca-subtle, #6b7280); }
   .affected-gateways { border: 1px solid var(--orca-line, #e5e7eb); background: var(--orca-surface-2, #fafafa); border-radius: var(--orca-radius, 8px); padding: 12px 14px; font-size: 13px; line-height: 1.7; }
-  ul { padding-left: 20px; margin: 8px 0 0; max-height: 140px; overflow-y: auto; }
+  .affected-gateways strong { display: block; color: var(--orca-ink, #151823); }
+  ul { padding-left: 20px; margin: 8px 0 0; max-height: 140px; overflow-y: auto; list-style: disc; }
   .affected-gateways a { color: var(--orca-ink, #151823); text-decoration: underline; text-underline-offset: 3px; }
   .dialog-error { margin-top: 14px; color: var(--orca-deny, #b3262f); background: var(--orca-deny-bg, #fdecee); border-radius: var(--orca-radius, 8px); padding: 10px 12px; font-size: 13px; line-height: 1.7; }
   .dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 22px; }
-  .dialog-actions .danger { background: var(--orca-deny, #b3262f) !important; border-color: var(--orca-deny, #b3262f) !important; color: #fff !important; }
   button:focus-visible, a:focus-visible { outline: 2px solid var(--orca-ink, #151823); outline-offset: 2px; }
 </style>
