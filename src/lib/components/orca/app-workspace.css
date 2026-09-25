@@ -119,6 +119,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.orca-workspace .workspace-nav-count {
+  flex: none;
+  min-width: 18px;
+  margin-left: auto;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--k-ink);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 .orca-workspace .workspace-nav a:hover {
   background: #eef1e9;
   text-decoration: none;
@@ -242,6 +256,19 @@
 .orca-workspace .compact .workspace-account > summary {
   justify-content: center;
   padding-inline: 5px;
+}
+.orca-workspace .compact .workspace-nav a {
+  position: relative;
+}
+.orca-workspace .compact .workspace-nav-count {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 8px;
+  height: 8px;
+  padding: 0;
+  font-size: 0;
+  line-height: 0;
 }
 .orca-workspace .compact .workspace-nav-group.nested {
   border-left: 0;

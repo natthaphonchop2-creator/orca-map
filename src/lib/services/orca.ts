@@ -98,6 +98,8 @@ export interface OrcaHub {
   description: string;
   /** Administrators' guidance sent to AI apps that connect; never adds permissions. */
   instructions?: string;
+  /** "approval" holds tools that change data for a manager; empty or "direct" runs them at once. */
+  writeMode?: "" | "direct" | "approval";
   connectionID: string;
   toolNames: string[];
   /** Authoritative when present. Legacy fields project the first source. */
@@ -173,6 +175,24 @@ export interface OrcaSecretSession {
   createdAt: string;
   lastRefreshedAt: string;
   expiresAt: string;
+}
+
+/** A write an AI app asked for, held until a manager decides; arguments and results are the member's data. */
+export interface OrcaApproval {
+  id: string;
+  createdAt: string;
+  expiresAt: string;
+  userID: string;
+  hubID: string;
+  connectionID: string;
+  toolName: string;
+  arguments?: unknown;
+  status: "pending" | "running" | "succeeded" | "failed" | "rejected" | "expired";
+  decidedBy?: string;
+  decidedAt?: string;
+  note?: string;
+  result?: string;
+  errorCategory?: string;
 }
 
 /** A connected system's last week of finished tool calls, from ORCA's activity records. */
@@ -290,7 +310,7 @@ export type HubInput = Pick<
   | "userSourceID"
   | "dailyLimit"
   | "status"
-> & { version?: number; instructions?: string };
+> & { version?: number; instructions?: string; writeMode?: "" | "direct" | "approval" };
 export type UnitInput = Pick<OrcaUnit, "name" | "kind" | "parentID"> & {
   version?: number;
 };
@@ -426,6 +446,13 @@ export const OrcaService = {
       { clientID, clientSecret, ...(scopeProfile ? { scopeProfile } : {}), ...(replace ? { replace: true } : {}) },
       options,
     ) as Promise<OrcaSourceSetup>,
+  approvals: (status?: "pending" | "decided", mine = false) => {
+    const query = new URLSearchParams({ ...(status ? { status } : {}), ...(mine ? { mine: "1" } : {}) }).toString();
+    return list<OrcaApproval>(`/orca/approvals${query ? `?${query}` : ""}`);
+  },
+  approveRequest: (id: string) => doPost(`/orca/approvals/${part(id)}/approve`, {}, options) as Promise<OrcaApproval>,
+  rejectRequest: (id: string, note: string) =>
+    doPost(`/orca/approvals/${part(id)}/reject`, { note }, options) as Promise<OrcaApproval>,
   connectionHealth: () =>
     doGet("/orca/connections/health", options) as Promise<{ since: string; items: OrcaConnectionHealth[] }>,
   /** Metadata only; administrators revoke a leaver's keys and AI app sign-ins here. */

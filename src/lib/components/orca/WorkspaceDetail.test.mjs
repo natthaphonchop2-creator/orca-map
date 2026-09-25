@@ -24,8 +24,9 @@ export function harness(testProps, OrcaService, personalKeyAvailable, workspaceT
 	const page = $state({ url: new URL('https://orca.example.test/app?tab=connect') });
 	${script}
 	return {
-		createKey, revokeKey, clearCreatedKey, changeStatus, loadUserSources, saveIdentity, saveGuidance,
+		createKey, revokeKey, clearCreatedKey, changeStatus, loadUserSources, saveIdentity, saveGuidance, saveWriteMode,
 		setUserSource(value) { userSourceID = value; },
+		setWriteMode(value) { writeMode = value; },
 		setGuidance(value) { guidance = value; },
 		nameKey(value) { keyName = value; },
 		expiry(value) { expiryDays = value; },
@@ -40,7 +41,7 @@ export function harness(testProps, OrcaService, personalKeyAvailable, workspaceT
 		pause() { hub = { ...hub, status: 'paused' }; },
 		archive() { hub = { ...hub, status: 'archived' }; },
 		remove() { hub = { ...hub, status: 'deleted' }; },
-		get state() { return { accountSourceID, newKey, newKeyID, revealKey, keyError, archived, canConnect, activeTab, userSourceID, userSources, userSourcesError, identitySaved, selectedUserSource, guidanceSaved, guidanceChanged }; }
+		get state() { return { accountSourceID, newKey, newKeyID, revealKey, keyError, archived, canConnect, activeTab, userSourceID, userSources, userSourcesError, identitySaved, selectedUserSource, guidanceSaved, guidanceChanged, savedWriteMode, writeModeSaved, writeModeError, readOnlyOnly }; }
 	};
 }`, { filename: 'workspace-detail-test.svelte.js', generate: 'client' }).js.code
 	.replaceAll('svelte/internal/client', pathToFileURL(require.resolve('svelte/internal/client')).href);
@@ -387,4 +388,45 @@ test('guidance saves trimmed text with the other grants, and other saves leave i
   view.setGuidance('Member attempt');
   await view.saveGuidance();
   assert.equal(writes.length, 2, 'members cannot change guidance');
+});
+
+test('write mode saves with the other grants, other saves leave it out, and read-only systems are called out', async (context) => {
+  const writes = [];
+  const { view } = setup(context, {
+    hub: async (input) => { writes.push(input); },
+  }, { accessUnitIDs: ['finance'], version: 4 });
+  assert.equal(view.state.savedWriteMode, 'direct', 'workspaces without a mode run writes at once');
+  await view.saveWriteMode();
+  assert.equal(writes.length, 0, 'an unchanged mode is not saved');
+  view.setWriteMode('approval');
+  await view.saveWriteMode();
+  assert.equal(writes[0].writeMode, 'approval');
+  assert.deepEqual(writes[0].toolNames, ['read']);
+  assert.deepEqual(writes[0].accessUnitIDs, ['finance']);
+  assert.equal(writes[0].version, 4);
+  assert.equal(view.state.writeModeSaved, true);
+  view.setGuidance('Reply in Thai.');
+  await view.saveGuidance();
+  assert.equal('writeMode' in writes[1], false, 'forms that do not edit the mode never send it');
+  assert.equal(view.state.readOnlyOnly, false);
+  view.setSources([{ connectionID: 'server-one', toolNames: ['read'] }], [{ id: 'server-one', enabled: true, reviewedTools: true, reviewedReadOnly: true, toolNames: ['read'], tools: [{ name: 'read' }] }]);
+  flush();
+  assert.equal(view.state.readOnlyOnly, true);
+  view.setManager(false);
+  view.setWriteMode('direct');
+  await view.saveWriteMode();
+  assert.equal(writes.length, 2, 'members cannot change the mode');
+  view.setManager(true);
+  view.archive();
+  await view.saveWriteMode();
+  assert.equal(writes.length, 2, 'archived workspaces cannot change the mode');
+});
+
+test('a failed write-mode save keeps the choice and explains why', async (context) => {
+  const { view } = setup(context, { hub: async () => { throw new Error('Workspace changed; reload and try again'); } }, { writeMode: 'approval' });
+  assert.equal(view.state.savedWriteMode, 'approval');
+  view.setWriteMode('direct');
+  await view.saveWriteMode();
+  assert.equal(view.state.writeModeError, 'Workspace changed; reload and try again');
+  assert.equal(view.state.writeModeSaved, false);
 });

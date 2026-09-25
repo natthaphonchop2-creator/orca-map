@@ -67,6 +67,8 @@
 		const ready = workspaceToolingReady({ ...hub, sources: [source] }, connection);
 		return { ...source, connection, ready };
 	}));
+	// Systems reviewed as read-only are never held, whatever the write mode.
+	const readOnlyOnly = $derived(sources.length > 0 && sources.every((source) => source.connection?.reviewedReadOnly));
 	const selectedTools = $derived(sources.flatMap((source) => source.toolNames.map((name) => ({
 		key: JSON.stringify([source.connectionID, name]),
 		name, source,
@@ -102,6 +104,11 @@
 	let guidanceSaved = $state(false);
 	let guidanceError = $state('');
 	const guidanceChanged = $derived(guidance.trim() !== (hub.instructions ?? '').trim());
+	const savedWriteMode = $derived(hub.writeMode === 'approval' ? 'approval' : 'direct');
+	let writeMode = $state<'direct' | 'approval'>(untrack(() => (hub.writeMode === 'approval' ? 'approval' : 'direct')));
+	let writeModeSaving = $state(false);
+	let writeModeSaved = $state(false);
+	let writeModeError = $state('');
 	let userSources = $state<OrcaUserSource[]>([]);
 	let loadingUserSources = $state(false);
 	let userSourcesError = $state('');
@@ -263,6 +270,21 @@
 			guidanceError = orcaError(cause);
 		} finally {
 			guidanceSaving = false;
+		}
+	}
+	async function saveWriteMode() {
+		if (!data.canManage || archived || writeModeSaving || writeMode === savedWriteMode) return;
+		writeModeSaving = true;
+		writeModeSaved = false;
+		writeModeError = '';
+		try {
+			await OrcaService.hub({ ...hubInput(), writeMode }, hub.id);
+			await onchanged();
+			writeModeSaved = true;
+		} catch (cause) {
+			writeModeError = orcaError(cause);
+		} finally {
+			writeModeSaving = false;
 		}
 	}
 	async function changeStatus() {
@@ -486,6 +508,41 @@
 		</div>
 	</section>
 </div>
+
+<section class="detail-card gateway-writes" aria-labelledby="detail-writes-title">
+	<header class="detail-card-head">
+		<h2 id="detail-writes-title">{t('การแก้ไขข้อมูลในระบบ', 'Changes to your systems')}</h2>
+		{#if savedWriteMode === 'approval'}<span class="k-badge accent">{t('ผู้ดูแลอนุมัติก่อน', 'Approval first')}</span>{/if}
+	</header>
+	<div class="detail-card-body">
+		<p class="detail-muted">{t('งานที่อาจแก้ไขข้อมูล เช่น สร้างใบเสนอราคาหรือส่งอีเมล จะทำทันที หรือรอผู้ดูแลอนุมัติก่อนก็ได้ ส่วนการอ่านข้อมูลทำได้ทันทีเสมอ', 'Actions that may change data, such as creating a quotation or sending an email, can run at once or wait for a manager. Reading data always runs at once.')}</p>
+		{#if data.canManage}
+			<form onsubmit={(event) => { event.preventDefault(); void saveWriteMode(); }}>
+				<fieldset class="write-mode-options" disabled={archived || writeModeSaving}>
+					<legend class="sr-only">{t('วิธีจัดการงานที่แก้ไขข้อมูล', 'How to handle actions that change data')}</legend>
+					<label class="write-mode-option" class:chosen={writeMode === 'direct'}>
+						<input type="radio" name="write-mode" value="direct" bind:group={writeMode} onchange={() => (writeModeSaved = false)} />
+						<span><strong>{t('ทำงานทันที', 'Run at once')}</strong><small>{t('แอป AI ใช้เครื่องมือที่อนุญาตได้เลย', 'AI apps use the allowed tools right away.')}</small></span>
+					</label>
+					<label class="write-mode-option" class:chosen={writeMode === 'approval'}>
+						<input type="radio" name="write-mode" value="approval" bind:group={writeMode} onchange={() => (writeModeSaved = false)} />
+						<span><strong>{t('ผู้ดูแลอนุมัติก่อน', 'A manager approves first')}</strong><small>{t('งานที่แก้ไขข้อมูลจะรอในกล่องอนุมัติ แล้ว ORCA จึงทำด้วยบัญชีของผู้ขอ', 'Actions that change data wait in Approvals, then ORCA runs them with the requester’s account.')}</small></span>
+					</label>
+				</fieldset>
+				{#if readOnlyOnly}<p class="write-mode-note">{t('ตอนนี้ทุกระบบในพื้นที่ทำงานนี้ถูกตรวจว่าอ่านอย่างเดียว จึงยังไม่มีงานที่ต้องอนุมัติ', 'Every system here is reviewed as read-only, so nothing needs approval yet.')}</p>{/if}
+				<div class="write-mode-foot">
+					<a class="k-link-button" href={localeHref('/app?view=approvals')}>{t('เปิดกล่องอนุมัติ', 'Open approvals')}</a>
+					<button type="submit" class="k-button primary" disabled={archived || writeModeSaving || writeMode === savedWriteMode}>{writeModeSaving ? t('กำลังบันทึก…', 'Saving…') : t('บันทึก', 'Save')}</button>
+				</div>
+			</form>
+			{#if writeModeError}<div class="k-banner error" role="alert">{writeModeError}</div>{/if}
+			{#if writeModeSaved}<div class="k-banner success" role="status"><Check size={16} aria-hidden="true" />{savedWriteMode === 'approval' ? t('บันทึกแล้ว งานที่แก้ไขข้อมูลจะรอผู้ดูแลอนุมัติก่อน', 'Saved. Actions that change data now wait for a manager.') : t('บันทึกแล้ว แอป AI ทำงานที่แก้ไขข้อมูลได้ทันที', 'Saved. AI apps now run actions that change data at once.')}</div>{/if}
+		{:else}
+			<p class="write-mode-current">{savedWriteMode === 'approval' ? t('งานที่แก้ไขข้อมูลในพื้นที่ทำงานนี้ต้องรอผู้ดูแลอนุมัติก่อน', 'Actions that change data in this workspace wait for a manager’s approval.') : t('งานที่แก้ไขข้อมูลในพื้นที่ทำงานนี้ทำได้ทันที', 'Actions that change data in this workspace run at once.')}
+				{#if savedWriteMode === 'approval'}<a href={localeHref('/app?view=approvals')}>{t('ดูคำขอของฉัน', 'See my requests')}</a>{/if}</p>
+		{/if}
+	</div>
+</section>
 
 <section class="detail-card gateway-guidance" aria-labelledby="detail-guidance-title">
 	<header class="detail-card-head">
@@ -1032,6 +1089,87 @@
 	}
 	.gateway-guidance .k-banner {
 		margin-top: 10px;
+	}
+	.gateway-writes {
+		margin-top: 16px;
+	}
+	.gateway-writes .detail-card-head {
+		justify-content: flex-start;
+	}
+	.write-mode-options {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 10px;
+		min-width: 0;
+		margin: 12px 0 0;
+		padding: 0;
+		border: 0;
+	}
+	.write-mode-option {
+		display: flex;
+		align-items: flex-start;
+		gap: 10px;
+		min-width: 0;
+		padding: 12px 14px;
+		border: 1px solid var(--orca-line-strong);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface);
+		cursor: pointer;
+	}
+	.write-mode-option.chosen {
+		border-color: var(--orca-ink);
+		box-shadow: inset 0 0 0 1px var(--orca-ink);
+	}
+	.write-mode-options:disabled .write-mode-option {
+		cursor: default;
+		opacity: 0.7;
+	}
+	.write-mode-option input {
+		flex: none;
+		width: 16px;
+		height: 16px;
+		margin: 3px 0 0;
+		accent-color: var(--orca-ink);
+	}
+	.write-mode-option span {
+		display: grid;
+		gap: 2px;
+		min-width: 0;
+	}
+	.write-mode-option strong {
+		font-size: 14px;
+		font-weight: 600;
+	}
+	.write-mode-option small {
+		color: var(--orca-muted);
+		font-size: 13px;
+		line-height: 1.55;
+	}
+	.write-mode-note {
+		margin: 10px 0 0;
+		color: var(--orca-muted);
+		font-size: 13px;
+	}
+	.write-mode-foot {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-top: 12px;
+	}
+	.write-mode-current {
+		margin: 10px 0 0;
+	}
+	.write-mode-current a {
+		margin-left: 6px;
+	}
+	.gateway-writes .k-banner {
+		margin-top: 10px;
+	}
+	@media (max-width: 640px) {
+		.write-mode-options {
+			grid-template-columns: minmax(0, 1fr);
+		}
 	}
 	.detail-card-head-ruled {
 		padding-bottom: 16px;

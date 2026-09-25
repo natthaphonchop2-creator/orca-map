@@ -100,6 +100,9 @@
     "oauth_app.replace": t("เปลี่ยนแอปเชื่อมบัญชี", "OAuth app replaced"),
     "oauth_app.remove": t("นำแอปเชื่อมบัญชีออก", "OAuth app removed"),
     "oauth_session.revoke": t("ให้แอป AI ออกจากระบบ", "AI app signed out"),
+    "approval.request": t("ขออนุมัติงานที่แก้ไขข้อมูล", "Approval requested"),
+    "approval.approve": t("อนุมัติงานที่แก้ไขข้อมูล", "Action approved"),
+    "approval.reject": t("ปฏิเสธงานที่แก้ไขข้อมูล", "Action rejected"),
     "access.inspect": t(
       "ตรวจสอบสิทธิ์การเข้าถึงผ่านแอป AI",
       "Access checked from an AI app",

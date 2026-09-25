@@ -20,6 +20,7 @@
     ChevronsRight,
     CircleHelp,
     House,
+    Inbox,
     KeyRound,
     KeySquare,
     LayoutGrid,
@@ -41,12 +42,14 @@
     data,
     view,
     refreshing,
+    pendingApprovals = 0,
     onrefresh,
     children,
   }: {
     data?: OrcaBootstrap;
     view: string;
     refreshing: boolean;
+    pendingApprovals?: number;
     onrefresh: () => void;
     children: Snippet;
   } = $props();
@@ -75,7 +78,10 @@
   // team access with an audit trail. Planned pages stay reachable by URL but are not
   // advertised here, and members only see what they can use.
   const canManage = $derived(!!data?.canManage);
-  const navigationGroups = $derived([
+  // Members only see their requests once one of their workspaces holds writes.
+  const requestsApproval = $derived(!!data?.hubs.some((hub) => hub.writeMode === "approval" && hub.status !== "archived" && hub.status !== "deleted"));
+  type NavigationItem = { id: string; label: string; href: string; icon: typeof House; count?: number };
+  const navigationGroups = $derived<{ id: string; label: string; items: NavigationItem[] }[]>([
     {
       id: "main", label: "",
       items: [{ id: "dashboard", label: t("หน้าหลัก", "Home"), href: "/app", icon: House }],
@@ -90,6 +96,9 @@
             ]
           : [{ id: "accounts", label: t("บัญชีที่เชื่อมไว้", "My accounts"), href: "/app?view=accounts", icon: KeyRound }]),
         { id: "workspaces", label: t("พื้นที่ทำงาน AI", "AI workspaces"), href: "/app?view=workspaces", icon: Boxes },
+        ...(!canManage && requestsApproval
+          ? [{ id: "approvals", label: t("คำขออนุมัติของฉัน", "My requests"), href: "/app?view=approvals", icon: Inbox }]
+          : []),
         { id: "knowledge", label: t("คลังความรู้", "Knowledge"), href: "/app?view=knowledge", icon: BookOpen },
       ],
     },
@@ -97,6 +106,7 @@
       ? [{
           id: "team", label: t("ทีมและการควบคุม", "Team & control"),
           items: [
+            { id: "approvals", label: t("กล่องอนุมัติ", "Approvals"), href: "/app?view=approvals", icon: Inbox, count: pendingApprovals },
             { id: "members", label: t("สมาชิกและแผนก", "Members & departments"), href: "/app?view=members", icon: Users },
             { id: "connected-users", label: t("ผู้ใช้ที่เชื่อมบัญชี", "Connected users"), href: "/app?view=connected-users", icon: UserCheck },
             { id: "executions", label: t("ประวัติการใช้งาน", "Activity"), href: "/app?view=executions", icon: Activity },
@@ -254,11 +264,12 @@
               onclick={closeDrawer}
               class:active={activeView === item.id}
               aria-current={activeView === item.id ? "page" : undefined}
-              aria-label={item.label}
+              aria-label={item.count ? t(`${item.label} รอ ${item.count} รายการ`, `${item.label}, ${item.count} waiting`) : item.label}
               title={item.label}
             >
               <item.icon size={18} strokeWidth={1.7} aria-hidden="true" />
               <span class="workspace-nav-label">{item.label}</span>
+              {#if item.count}<span class="workspace-nav-count" aria-hidden="true">{item.count > 99 ? "99+" : item.count}</span>{/if}
             </a>
           {/each}
         </div>

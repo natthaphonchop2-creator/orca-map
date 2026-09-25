@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
+  import Approvals from "$lib/components/orca/Approvals.svelte";
   import Audit from "$lib/components/orca/Audit.svelte";
   import OrganizationSettings from "$lib/components/orca/OrganizationSettings.svelte";
   import WorkspaceDetail from "$lib/components/orca/WorkspaceDetail.svelte";
@@ -44,6 +45,8 @@
   let refreshing = $state(false);
   let refreshGeneration = 0;
   let wizardRevision = $state(0);
+  let pendingApprovals = $state(0);
+  let approvalsGeneration = 0;
   const navigation = $derived(appNavigation(page.url.searchParams));
   const view = $derived(navigation.view);
   const plannedFeature = $derived(getFeatureDefinition(view));
@@ -81,11 +84,28 @@
     error = "";
     try {
       const result = await OrcaService.bootstrap();
-      if (request === refreshGeneration) data = result;
+      if (request === refreshGeneration) {
+        data = result;
+        void refreshApprovals();
+      }
     } catch (cause) {
       if (request === refreshGeneration) error = orcaError(cause);
     } finally {
       if (request === refreshGeneration) refreshing = false;
+    }
+  }
+  // The waiting count on the manager's menu; a failed check keeps the last count.
+  async function refreshApprovals() {
+    const request = ++approvalsGeneration;
+    if (!data?.canManage) {
+      pendingApprovals = 0;
+      return;
+    }
+    try {
+      const items = await OrcaService.approvals("pending");
+      if (request === approvalsGeneration) pendingApprovals = items.length;
+    } catch {
+      // Keep the last count; the inbox itself shows any error.
     }
   }
   onMount(() => {
@@ -126,7 +146,7 @@
   /></svelte:head
 >
 
-<AppShell {data} {view} {refreshing} onrefresh={refresh}>
+<AppShell {data} {view} {refreshing} {pendingApprovals} onrefresh={refresh}>
   {#if error}<div class="k-banner error" role="alert">
       <Info size={20} />
       <div>
@@ -250,6 +270,7 @@
       {:else}<p>{t("คุณยังไม่ได้รับสิทธิ์ในพื้นที่ทำงานใด", "You have not been added to a workspace.")}</p>{/each}
     </section>
   {:else if view === "user-sources"}<UserSources data={currentData!} />
+  {:else if view === "approvals"}<Approvals {data} onchanged={refreshApprovals} />
   {:else if view === "connected-apps"}<OAuthApps data={currentData!} />
   {:else if view === "secrets"}<Secrets data={currentData!} />
   {:else if plannedFeature}<FeatureScaffold feature={plannedFeature} />
