@@ -16,6 +16,8 @@ export interface CatalogSource {
 	setupStatus?: 'available' | 'admin_setup_required' | 'review_required' | 'unknown';
 	setupCanConfigure?: boolean;
 	setupReason?: string;
+	/** From the catalog's tool preview; absent means not known yet. */
+	toolCount?: number;
 }
 
 /** Current setup prerequisites; OAuth labels do not imply the app is configured. */

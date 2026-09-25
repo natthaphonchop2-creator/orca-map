@@ -28,7 +28,7 @@ const code = compileModule(
   ${script}
   return {
     load, otherDriveConnections, driveProviderLabel, sourceHref, sourceConnection, changeTab, openSetup,
-    setQuery(value) { query = value; }, setCategory(value) { category = value; }, setProtocol(value) { protocol = value; },
+    setQuery(value) { query = value; }, setCategory(value) { category = value; }, setProtocol(value) { protocol = value; }, setAuth(value) { auth = value; },
     get matches() { return matches; },
     get allSources() { return allSources; }, get guideSources() { return guideSources; }, get setupSourceID() { return setupSourceID; }, get groupedMatches() { return groupedMatches; },
     get popular() { return popular; }, get starters() { return starters; },
@@ -350,4 +350,33 @@ test('guide directory is secondary, searchable and does not change the actual ap
     flush();
     assert.deepEqual(view.matches.map(row => row.id), [api.id]);
   } finally { stop(); }
+});
+
+test("the connection-method filter narrows the list alongside protocol and leaves the overview", async () => {
+  const oauth = { id: "flow", name: "FlowAccount", setupStatus: "available", authMethods: ["oauth"], toolCount: 12 };
+  const secrets = { id: "peak", name: "PEAK", setupStatus: "available", authMethods: ["secrets"] };
+  const both = { id: "slack", name: "Slack Workspace", setupStatus: "available", authMethods: ["oauth", "secrets"] };
+  const unknown = { id: "custom", name: "Custom MCP" };
+  let view;
+  const stop = effect_root(() => {
+    view = harness({ data: { canManage: true, connections: [], hubs: [] } }, dependencies(async () => [oauth, secrets, both, unknown]));
+  });
+  try {
+    await view.load();
+    flush();
+    assert.equal(view.isOverview, true);
+    view.setAuth("secrets");
+    flush();
+    assert.equal(view.isOverview, false);
+    assert.deepEqual(view.matches.map((source) => source.id).sort(), ["peak", "slack"]);
+    view.setAuth("oauth");
+    flush();
+    assert.deepEqual(view.matches.map((source) => source.id).sort(), ["flow", "slack"]);
+    assert.equal(view.matches.find((source) => source.id === "flow").toolCount, 12, "the tool count survives catalog shaping");
+    view.setAuth("all");
+    flush();
+    assert.equal(view.matches.length, 4, "unknown methods stay listed under any method");
+  } finally {
+    stop();
+  }
 });

@@ -47,6 +47,9 @@
   let query = $state("");
   let category = $state("all");
   let protocol = $state<"all" | "MCP" | "API">("all");
+  let auth = $state<"all" | "oauth" | "secrets">("all");
+  // Catalog sources with a successful call in this organization in the last 7 days.
+  let usedSourceIDs = $state<Set<string>>(new Set());
   let tab = $state<"apps" | "tools" | "guides">("apps");
   let generation = 0;
   let catalogToolbar = $state<HTMLDivElement>();
@@ -54,12 +57,14 @@
   const allSources = $derived(directory.filter((source) => !source.guideOnly));
   const guideSources = $derived(directory.filter((source) => source.guideOnly));
   const activeSources = $derived(tab === "guides" ? guideSources : allSources);
-  const protocolSources = $derived(activeSources.filter((source) => protocol === "all" || source.protocol === protocol));
+  const byProtocol = (source: CatalogTool, option = protocol) => option === "all" || source.protocol === option;
+  const byAuth = (source: CatalogTool, option = auth) => option === "all" || (source.authMethods ?? []).includes(option);
+  const protocolSources = $derived(activeSources.filter((source) => byProtocol(source) && byAuth(source)));
   const matches = $derived(filterCatalog(protocolSources, query, category));
   const groupedMatches = $derived(groupCatalog(matches));
   const popular = $derived(popularCatalog(allSources, data));
   const starters = $derived(starterCatalog(allSources));
-  const isOverview = $derived(tab === "apps" && category === "all" && protocol === "all" && !query.trim());
+  const isOverview = $derived(tab === "apps" && category === "all" && protocol === "all" && auth === "all" && !query.trim());
   const inventory = $derived(selectedToolInventory(data));
   const selectedTools = $derived(
     inventory.filter(({ connection, tool }) =>
@@ -153,8 +158,20 @@
           ? "Obot"
           : "";
   }
+  // Advisory only: the catalog works the same when usage cannot load.
+  async function loadUsage() {
+    if (!data.canManage || !OrcaService.connectionHealth) return;
+    try {
+      const result = await OrcaService.connectionHealth();
+      const sourceOf = new Map(data.connections.map((connection) => [connection.id, connection.mcpID]));
+      usedSourceIDs = new Set(result.items.filter((item) => item.succeeded > 0).map((item) => sourceOf.get(item.connectionID)).filter((id): id is string => Boolean(id)));
+    } catch {
+      usedSourceIDs = new Set();
+    }
+  }
   onMount(() => {
     void load();
+    void loadUsage();
   });
   onDestroy(() => {
     generation += 1;
@@ -162,13 +179,22 @@
 </script>
 
 {#snippet authBadges(source: CatalogTool)}
-  <span class="auth-tags" aria-label={t("วิธีเชื่อมต่อ", "Connection methods")}>
+  <span class="auth-tags" aria-label={t("วิธีเชื่อมต่อและสถานะ", "Connection methods and status")}>
     {#each source.authTags as tag (tag.id)}
       <span
         class="k-badge auth-tag"
         title={t(tag.descriptionTh, tag.descriptionEn)}
       >{t(tag.labelTh, tag.label)}</span>
     {/each}
+    {#if source.managedProvider}<span
+        class="k-badge trust-tag managed"
+        title={t("ตัวเชื่อมที่ทีม ORCA สร้างและดูแลเอง", "A connector the ORCA team built and maintains")}
+      ><ShieldCheck size={12} aria-hidden="true" />{t("ORCA ดูแล", "Maintained by ORCA")}</span>{/if}
+    {#if usedSourceIDs.has(source.id)}<span
+        class="k-badge trust-tag used"
+        title={t("มีการเรียกใช้สำเร็จในองค์กรของคุณใน 7 วันที่ผ่านมา", "Used successfully in your organization in the last 7 days")}
+      ><CircleCheck size={12} aria-hidden="true" />{t("ใช้งานสำเร็จแล้ว", "Works for your team")}</span>{/if}
+    {#if source.toolCount}<span class="tool-count">{t(`${source.toolCount} เครื่องมือ`, source.toolCount === 1 ? "1 tool" : `${source.toolCount} tools`)}</span>{/if}
   </span>
 {/snippet}
 
@@ -346,7 +372,15 @@
             {#each ["all", "MCP", "API"] as option}
               <button type="button" class:chosen={protocol === option} aria-pressed={protocol === option} onclick={() => { protocol = option as typeof protocol; category = "all"; }}>
                 {option === "all" ? t("ทั้งหมด", "All") : option}
-                <span>{option === "all" ? activeSources.length : activeSources.filter((source) => source.protocol === option).length}</span>
+                <span>{activeSources.filter((source) => byProtocol(source, option as typeof protocol) && byAuth(source)).length}</span>
+              </button>
+            {/each}
+          </div>
+          <div class="protocol-filter" role="group" aria-label={t("วิธีเชื่อมต่อ", "Connection method")}>
+            {#each ["all", "oauth", "secrets"] as option}
+              <button type="button" class:chosen={auth === option} aria-pressed={auth === option} onclick={() => { auth = option as typeof auth; category = "all"; }}>
+                {option === "all" ? t("ทุกวิธี", "Any method") : option === "oauth" ? "OAuth" : t("คีย์", "Keys")}
+                <span>{activeSources.filter((source) => byProtocol(source) && byAuth(source, option as typeof auth)).length}</span>
               </button>
             {/each}
           </div>
@@ -1087,6 +1121,24 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 4px;
+  }
+  .auth-tags :global(.trust-tag) {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .auth-tags :global(.trust-tag.managed) {
+    background: var(--orca-secondary);
+    color: var(--orca-nav);
+  }
+  .auth-tags :global(.trust-tag.used) {
+    background: var(--orca-ok-bg);
+    color: var(--orca-ok);
+  }
+  .auth-tags .tool-count {
+    color: var(--orca-muted);
+    font-size: 12px;
+    white-space: nowrap;
   }
   .source-type {
     flex-shrink: 0;

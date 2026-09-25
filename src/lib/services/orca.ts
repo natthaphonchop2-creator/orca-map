@@ -147,6 +147,8 @@ export interface OrcaCandidate {
   setupReason?: string;
   /** Whether a source signing in through an operator app has one saved; absent for other sources. */
   oauthApp?: "configured" | "missing";
+  /** From the catalog's tool preview; absent means not known yet. */
+  toolCount?: number;
 }
 
 /** A key a member created for ORCA; its value exists only in the response that created it. */
