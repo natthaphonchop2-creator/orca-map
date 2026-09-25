@@ -12,6 +12,7 @@
   import AppOverview from "$lib/components/orca/AppOverview.svelte";
   import AppShell from "$lib/components/orca/AppShell.svelte";
   import MyConnections from "$lib/components/orca/MyConnections.svelte";
+  import OAuthApps from "$lib/components/orca/OAuthApps.svelte";
   import ConnectionCenter from "$lib/components/orca/ConnectionCenter.svelte";
   import ConnectionSettings from "$lib/components/orca/ConnectionSettings.svelte";
   import ConnectedUsers from "$lib/components/orca/ConnectedUsers.svelte";
@@ -248,6 +249,7 @@
       {:else}<p>{t("คุณยังไม่ได้รับสิทธิ์ในพื้นที่ทำงานใด", "You have not been added to a workspace.")}</p>{/each}
     </section>
   {:else if view === "user-sources"}<UserSources data={currentData!} />
+  {:else if view === "connected-apps"}<OAuthApps data={currentData!} />
   {:else if plannedFeature}<FeatureScaffold feature={plannedFeature} />
   {:else if view === "settings"}<SettingsCenter {data} onchanged={refresh} />
   {:else if view === "executions"}<Audit {data} {hubID} mode="executions" />

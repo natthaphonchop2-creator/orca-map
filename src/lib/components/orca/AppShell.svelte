@@ -21,6 +21,7 @@
     CircleHelp,
     House,
     KeyRound,
+    KeySquare,
     LayoutGrid,
     LogOut,
     Menu,
@@ -107,6 +108,7 @@
         { id: "api-keys", label: t("เชื่อม AI กับ ORCA", "Connect AI to ORCA"), href: "/app?view=api-keys", icon: Sparkles },
         ...(canManage
           ? [
+              { id: "connected-apps", label: t("แอปเชื่อมบัญชี (OAuth)", "OAuth apps"), href: "/app?view=connected-apps", icon: KeySquare },
               { id: "organization", label: t("ข้อมูลองค์กร", "Organization"), href: "/app?view=organization", icon: Building2 },
               { id: "user-sources", label: t("การเข้าสู่ระบบองค์กร", "Sign-in sources"), href: "/app?view=user-sources", icon: ShieldCheck },
             ]

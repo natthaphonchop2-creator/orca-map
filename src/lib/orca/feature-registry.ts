@@ -2,7 +2,6 @@ export type FeatureId =
   | "projects"
   | "user-sources"
   | "secrets"
-  | "connected-apps"
   | "user-verification"
   | "contextual-access"
   | "logging-policy"
@@ -68,22 +67,6 @@ export const featureRegistry: Record<FeatureId, FeatureDefinition> = {
     limitation: {
       th: "หน้านี้ยังไม่รองรับการจัดเก็บ เปลี่ยน หรือลบข้อมูลลับ",
       en: "Storing, rotating or deleting secrets is not available on this page yet.",
-    },
-  },
-  "connected-apps": {
-    id: "connected-apps",
-    title: { th: "แอปที่เชื่อมต่อ", en: "Connected apps" },
-    purpose: {
-      th: "ตั้งค่าการลงชื่อเข้าใช้ด้วยบัญชีของระบบภายนอก (OAuth) สำหรับ ORCA",
-      en: "Configure sign-in with external system accounts (OAuth) for ORCA.",
-    },
-    scope: {
-      th: "จัดการข้อมูล OAuth client ของผู้ให้บริการแต่ละราย การอนุญาตบัญชีของสมาชิกและเครื่องมือที่อนุญาตจัดการแยกจากการตั้งค่านี้",
-      en: "Manage the OAuth client settings for each provider. Member account authorizations and allowed tools are managed separately.",
-    },
-    limitation: {
-      th: "ผู้ดูแลระบบตั้งค่า OAuth client เริ่มต้นสำหรับบางระบบได้แล้ว แต่หน้าจัดการผู้ให้บริการแบบเต็มรูปแบบยังไม่เปิดใช้งาน",
-      en: "Admins can already set up an initial OAuth client for some systems. The full provider management page is not available yet.",
     },
   },
   "user-verification": {
