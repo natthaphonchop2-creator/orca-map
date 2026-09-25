@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from "svelte";
   import { Check, Copy, KeyRound, LoaderCircle, Plus, Power, PowerOff, RefreshCw, ShieldCheck, Trash2, X } from "@lucide/svelte";
   import { t } from "$lib/orca/locale.svelte";
+  import GoogleSignInSettings from "./GoogleSignInSettings.svelte";
   import { memberName, orcaError, type OrcaBootstrap } from "$lib/services/orca";
   import {
     OrcaUserSourcesService,
@@ -184,6 +185,8 @@
   {#if !data.canManage}
     <div class="source-empty"><ShieldCheck size={28} /><h2>{t("หน้านี้สำหรับผู้ดูแลระบบเท่านั้น", "This page is available to Admins only")}</h2></div>
   {:else}
+    <GoogleSignInSettings {data} />
+    <h2 class="source-section-title">{t("ผู้ให้บริการเข้าสู่ระบบสำหรับแอป AI", "Sign-in sources for AI apps")}</h2>
     {#if error}<div class="k-banner error" role="alert">{error}</div>{/if}
     {#if notice}<div class="source-notice" role="status"><Check size={16} />{notice}</div>{/if}
     {#if editing !== undefined}
@@ -232,6 +235,7 @@
   .user-sources { display: grid; gap: 16px; min-width: 0; }
   .source-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px; margin-bottom: 4px; }
   .source-heading h1 { margin: 0; }
+  .source-section-title { margin: 12px 0 0; font-size: 16px; font-weight: 600; }
   .editor-heading, .mapping-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .editor-heading h2, .mapping-heading h3 { margin: 0; }
   .source-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

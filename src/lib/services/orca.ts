@@ -222,6 +222,25 @@ export interface OrcaInvitationPreview {
   status: OrcaInvitation["status"];
 }
 
+/** Signing in to the workspace with Google; the client secret is write-only. */
+export interface OrcaGoogleSignIn {
+  clientID: string;
+  allowedDomains: string[];
+  redirectURI: string;
+  enabled: boolean;
+  secretConfigured: boolean;
+  version: number;
+  updatedAt?: string;
+}
+export interface OrcaGoogleSignInInput {
+  clientID: string;
+  clientSecret?: string;
+  allowedDomains: string[];
+  redirectURI: string;
+  enabled: boolean;
+  version: number;
+}
+
 /** A connected system's last week of finished tool calls, from ORCA's activity records. */
 export interface OrcaConnectionHealth {
   connectionID: string;
@@ -477,6 +496,12 @@ export const OrcaService = {
     const query = new URLSearchParams({ ...(status ? { status } : {}), ...(mine ? { mine: "1" } : {}) }).toString();
     return list<OrcaApproval>(`/orca/approvals${query ? `?${query}` : ""}`);
   },
+  googleSignIn: () => doGet("/orca/sign-in/google", options) as Promise<OrcaGoogleSignIn>,
+  saveGoogleSignIn: (input: OrcaGoogleSignInInput) =>
+    doPut("/orca/sign-in/google", input, options) as Promise<OrcaGoogleSignIn>,
+  /** Public: whether the sign-in page offers Google. */
+  signInMethods: (fetcher?: typeof fetch) =>
+    doGet("/orca/sign-in/methods", { ...options, fetch: fetcher }) as Promise<{ google: boolean }>,
   invitations: () => list<OrcaInvitation>("/orca/invitations"),
   invite: (email: string, role: OrcaInvitation["role"], unitIDs: string[]) =>
     doPost("/orca/invitations", { email, role, unitIDs }, options) as Promise<OrcaInvitationLink>,

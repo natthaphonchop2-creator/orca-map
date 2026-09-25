@@ -182,6 +182,29 @@
 .orca.o-auth-page .o-auth-form > .o-alert {
 	margin-top: 16px;
 }
+/* Google sign-in sits above the password form, split by a quiet rule. */
+.orca.o-auth-page a.o-button {
+	text-decoration: none;
+}
+.orca.o-auth-page .o-google {
+	gap: 10px;
+	margin-top: 20px;
+}
+.orca.o-auth-page .o-auth-divider {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 20px 0 4px;
+	color: var(--orca-muted);
+	font-size: 13px;
+}
+.orca.o-auth-page .o-auth-divider::before,
+.orca.o-auth-page .o-auth-divider::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: var(--orca-line);
+}
 
 /* ---------- Footer ---------- */
 .orca.o-auth-page .o-footer {
