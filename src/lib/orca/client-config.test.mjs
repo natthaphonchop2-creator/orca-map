@@ -4,7 +4,7 @@ import { stripTypeScriptTypes } from 'node:module';
 import { test } from 'node:test';
 
 const source = stripTypeScriptTypes(await readFile(new URL('./client-config.ts', import.meta.url), 'utf8'));
-const { gatewayClientConfig, localGatewayEndpoint } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
+const { gatewayClientConfig, gatewayClientCommands, gatewayInstallLink, AI_APPS, localGatewayEndpoint } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 
 test('client configs preserve the governed endpoint and use client-specific secret references', () => {
   const endpoint = 'https://orca.example/mcp/hub%2Fteam';
@@ -43,7 +43,7 @@ test('Codex config encodes URL quotes instead of allowing TOML injection', () =>
 });
 
 test('refuses credential-bearing or executable endpoints for every copyable client config', () => {
-  for (const client of ['codex', 'cursor', 'vscode']) {
+  for (const client of ['codex', 'cursor', 'vscode', 'windsurf']) {
     for (const endpoint of ['javascript:alert(1)', 'https://secret@example.com/mcp', 'https://user:secret@example.com/mcp', 'https://example.com/mcp?token=secret', 'https://example.com/mcp#secret'])
       assert.throws(() => gatewayClientConfig(endpoint, client));
   }
@@ -66,4 +66,38 @@ test('OAuth configs preserve endpoint and omit all static credential fields', ()
   for (const client of ['codex', 'cursor', 'vscode']) {
     assert.throws(() => gatewayClientConfig('https://orca.example/mcp?token=secret', client, true));
   }
+});
+
+test('one-click install links carry only the endpoint, never a key', () => {
+  const endpoint = 'https://orca.example/api/orca/mcp';
+  const cursor = new URL(gatewayInstallLink(endpoint, 'cursor'));
+  assert.equal(cursor.protocol, 'cursor:');
+  assert.equal(cursor.searchParams.get('name'), 'orca');
+  assert.deepEqual(JSON.parse(atob(cursor.searchParams.get('config'))), { url: endpoint });
+  const keyed = new URL(gatewayInstallLink(endpoint, 'cursor', false));
+  assert.equal(JSON.parse(atob(keyed.searchParams.get('config'))).headers.Authorization, 'Bearer ${env:ORCA_MCP_KEY}');
+  const vscode = gatewayInstallLink(endpoint, 'vscode');
+  assert.ok(vscode.startsWith('vscode:mcp/install?'));
+  assert.deepEqual(JSON.parse(decodeURIComponent(vscode.slice('vscode:mcp/install?'.length))), { name: 'orca', type: 'http', url: endpoint });
+  assert.equal(gatewayInstallLink(endpoint, 'vscode', false), '', 'VS Code asks for a key through inputs, which a link cannot carry');
+  for (const app of ['chatgpt', 'claude', 'claude-code', 'codex', 'windsurf', 'other']) assert.equal(gatewayInstallLink(endpoint, app), '');
+  assert.throws(() => gatewayInstallLink('https://orca.example/mcp?token=secret', 'cursor'));
+});
+
+test('command-line apps get shell-safe commands; a key stays in the environment', () => {
+  const endpoint = 'https://orca.example/api/orca/mcp';
+  assert.deepEqual(gatewayClientCommands(endpoint, 'claude-code'), [`claude mcp add --transport http orca '${endpoint}'`]);
+  assert.deepEqual(gatewayClientCommands(endpoint, 'codex'), [`codex mcp add orca --url '${endpoint}'`, 'codex mcp login orca']);
+  assert.deepEqual(gatewayClientCommands(endpoint, 'codex', false), [`codex mcp add orca --url '${endpoint}' --bearer-token-env-var ORCA_MCP_KEY`]);
+  assert.match(gatewayClientCommands(endpoint, 'claude-code', false)[0], /--header "Authorization: Bearer \$ORCA_MCP_KEY"$/);
+  // A quote in the path cannot end the shell word early.
+  assert.deepEqual(gatewayClientCommands("https://orca.example/mcp/it's", 'claude-code'), [`claude mcp add --transport http orca 'https://orca.example/mcp/it'\\''s'`]);
+  for (const app of ['chatgpt', 'claude', 'cursor', 'vscode', 'windsurf', 'other']) assert.deepEqual(gatewayClientCommands(endpoint, app), []);
+});
+
+test('Windsurf config uses its serverUrl field', () => {
+  const endpoint = 'https://orca.example/api/orca/mcp';
+  assert.deepEqual(JSON.parse(gatewayClientConfig(endpoint, 'windsurf', true)), { mcpServers: { orca: { serverUrl: endpoint } } });
+  assert.equal(JSON.parse(gatewayClientConfig(endpoint, 'windsurf')).mcpServers.orca.headers.Authorization, 'Bearer ${env:ORCA_MCP_KEY}');
+  assert.deepEqual(AI_APPS, ['chatgpt', 'claude', 'claude-code', 'codex', 'cursor', 'vscode', 'windsurf', 'other']);
 });
