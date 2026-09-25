@@ -171,6 +171,21 @@ export interface OrcaSecretSession {
   expiresAt: string;
 }
 
+/** A connected system's last week of finished tool calls, from ORCA's activity records. */
+export interface OrcaConnectionHealth {
+  connectionID: string;
+  status: "healthy" | "degraded" | "failing" | "idle";
+  calls: number;
+  succeeded: number;
+  failed: number;
+  changed: number;
+  needsSignIn: number;
+  toolErrors: number;
+  lastSuccessAt?: string;
+  lastFailureAt?: string;
+  lastFailureCategory?: string;
+}
+
 export interface OrcaSecrets {
   keys: OrcaSecretKey[];
   sessions: OrcaSecretSession[];
@@ -407,6 +422,8 @@ export const OrcaService = {
       { clientID, clientSecret, ...(scopeProfile ? { scopeProfile } : {}), ...(replace ? { replace: true } : {}) },
       options,
     ) as Promise<OrcaSourceSetup>,
+  connectionHealth: () =>
+    doGet("/orca/connections/health", options) as Promise<{ since: string; items: OrcaConnectionHealth[] }>,
   /** Metadata only; administrators revoke a leaver's keys and AI app sign-ins here. */
   secrets: () => doGet("/orca/secrets", options) as Promise<OrcaSecrets>,
   revokeSecretKey: (id: number) =>

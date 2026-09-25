@@ -10,14 +10,18 @@
     type ConnectionFilter,
   } from "$lib/orca/connection-list";
   import { sourcePresentationNames } from "$lib/orca/connection-presentation";
+  import { connectionHealthView, healthByConnection } from "$lib/orca/connection-health";
   import { localeHref, t } from "$lib/orca/locale.svelte";
   import {
     OrcaService,
+    displayDate,
     orcaError,
     type OrcaBootstrap,
     type OrcaCandidate,
+    type OrcaConnectionHealth,
   } from "$lib/services/orca";
   import {
+    Activity,
     Check,
     ChevronLeft,
     ChevronRight,
@@ -39,6 +43,9 @@
     await onchanged();
   }
   let candidates = $state<OrcaCandidate[]>([]);
+  // Health is advisory: if it cannot load, the column says so and the page still works.
+  let health = $state<Map<string, OrcaConnectionHealth>>();
+  let healthUnavailable = $state(false);
   let error = $state("");
   let query = $state("");
   let statusFilter = $state<ConnectionFilter>(
@@ -77,8 +84,24 @@
   $effect(() => {
     if (pageNumber !== currentPage.page) pageNumber = currentPage.page;
   });
+  async function loadHealth() {
+    if (!data.canManage) return;
+    try {
+      const result = await OrcaService.connectionHealth();
+      if (alive) health = healthByConnection(result.items);
+    } catch {
+      if (alive) healthUnavailable = true;
+    }
+  }
+  const failureName = (category?: string) =>
+    category === "timeout" ? t("หมดเวลา", "timed out")
+      : category === "upstream_error" ? t("ระบบปลายทางขัดข้อง", "the system returned an error")
+      : category === "invalid_response" ? t("ข้อมูลตอบกลับอ่านไม่ได้", "unreadable response")
+      : category === "tool_changed" ? t("เครื่องมือเปลี่ยนที่ผู้ให้บริการ", "a tool changed at the vendor")
+      : t("ข้อผิดพลาด", "error");
   onMount(() => {
     void loadCandidates();
+    void loadHealth();
   });
   onDestroy(() => {
     alive = false;
@@ -145,7 +168,7 @@
             ><th scope="col">{t("ชื่อ", "Name")}</th><th scope="col">{t("พื้นที่ทำงาน AI", "AI workspaces")}</th
             ><th scope="col">{t("เครื่องมือ", "Tools")}</th><th scope="col"
               >{t("สถานะ", "Status")}</th
-            ><th scope="col" class="actions-col">{t("จัดการ", "Manage")}</th></tr
+            >{#if data.canManage}<th scope="col">{t("การใช้งาน 7 วัน", "Last 7 days")}</th>{/if}<th scope="col" class="actions-col">{t("จัดการ", "Manage")}</th></tr
           ></thead
         ><tbody>
           {#each currentPage.items as connection (connection.id)}
@@ -205,7 +228,28 @@
                 >{#if connection.reviewedReadOnly}<small
                     >{t("อ่านข้อมูลเท่านั้น", "Read-only")}</small
                   >{:else if connection.reviewedTools}<small>{t("ตามเครื่องมือที่อนุญาต", "Allowed tools")}</small>{/if}</td
-              ><td class="actions-col"
+              >{#if data.canManage}{@const view = connectionHealthView(health?.get(connection.id))}<td
+                class="systems-health"
+                data-label={t("การใช้งาน 7 วัน", "Last 7 days")}
+                title={view.lastFailureAt ? t(`ล้มเหลวล่าสุด ${displayDate(view.lastFailureAt)}: ${failureName(view.lastFailureCategory)}`, `Last failure ${displayDate(view.lastFailureAt)}: ${failureName(view.lastFailureCategory)}`) : undefined}
+                >{#if healthUnavailable}<span class="health-muted">{t("ดูข้อมูลการใช้งานไม่ได้", "Usage unavailable")}</span>{:else if !health}<span class="health-muted">…</span>{:else}<span class="health-badge tone-{view.tone}"
+                    ><Activity size={13} aria-hidden="true" />{view.tone === "ok"
+                      ? t("ปกติ", "Healthy")
+                      : view.tone === "warn"
+                        ? view.changed ? t("ต้องตรวจเครื่องมือ", "Review tools") : t("มีปัญหาบางครั้ง", "Some failures")
+                        : view.tone === "bad"
+                          ? t("ใช้งานไม่ได้", "Failing")
+                          : t("ยังไม่มีการใช้งาน", "No recent use")}</span
+                  ><small
+                    >{view.tone === "idle"
+                      ? t("ใน 7 วันที่ผ่านมา", "in the last 7 days")
+                      : view.tone === "bad" && view.lastFailureCategory
+                        ? t(`ล่าสุด: ${failureName(view.lastFailureCategory)}`, `Latest: ${failureName(view.lastFailureCategory)}`)
+                        : t(`สำเร็จ ${view.succeeded} จาก ${view.attempts} ครั้ง`, `${view.succeeded} of ${view.attempts} succeeded`)}</small
+                  >{#if view.needsSignIn}<small class="health-signin"
+                      >{t(`${view.needsSignIn} ครั้งต้องเข้าสู่ระบบใหม่`, `${view.needsSignIn} needed sign-in`)}</small
+                    >{/if}{/if}</td
+              >{/if}<td class="actions-col"
                 ><div class="systems-row-actions">
                   <a
                     class="k-button small"
@@ -218,7 +262,7 @@
               ></tr
             >
           {:else}<tr class="systems-empty-row"
-              ><td colspan="5"
+              ><td colspan={data.canManage ? 6 : 5}
                 ><div class="systems-empty">
                   {#if query || statusFilter !== "all"}<Search size={24} aria-hidden="true" />{:else}<Plug
                       size={24}
@@ -502,6 +546,47 @@
   .systems-status {
     white-space: nowrap;
   }
+  .systems-health {
+    white-space: nowrap;
+  }
+  .systems-health small {
+    display: block;
+    margin-top: 3px;
+    color: var(--orca-muted);
+    font-size: 12.5px;
+  }
+  .systems-health small.health-signin {
+    color: var(--orca-warn);
+  }
+  .health-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 1px 8px;
+    border-radius: var(--orca-radius-sm);
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+  .health-badge.tone-ok {
+    background: var(--orca-ok-bg);
+    color: var(--orca-ok);
+  }
+  .health-badge.tone-warn {
+    background: var(--orca-warn-bg);
+    color: var(--orca-warn);
+  }
+  .health-badge.tone-bad {
+    background: var(--orca-deny-bg);
+    color: var(--orca-deny);
+  }
+  .health-badge.tone-idle {
+    background: var(--orca-secondary);
+    color: var(--orca-nav);
+  }
+  .health-muted {
+    color: var(--orca-subtle);
+    font-size: 12.5px;
+  }
   .actions-col {
     width: 1%;
     white-space: nowrap;
@@ -631,6 +716,10 @@
       grid-column: 2;
       grid-row: 2;
       text-align: end;
+    }
+    .systems-health {
+      grid-column: 1 / -1;
+      grid-row: 3;
     }
     .systems-table .actions-col {
       grid-column: 1 / -1;
