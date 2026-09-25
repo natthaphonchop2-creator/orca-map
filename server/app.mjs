@@ -176,7 +176,9 @@ async function buildFile(root, relative) {
 async function serveStatic(req, res, pathname, config) {
   if (!SAFE.has(req.method)) return json(res, 405, { error: 'method_not_allowed' });
   if (MARKETING.test(pathname) || pathname.split('/').some((part) => part.startsWith('.'))) return json(res, 404, { error: 'not_found' });
-  const uiRoute = UI_PATHS.has(pathname) || /^\/auth\/(?:oauth\/(?:consent|complete)|mcp\/composite)\/[^/]+$/.test(pathname);
+  // An invitation link carries one URL-safe token; anything else stays not-found.
+  const uiRoute = UI_PATHS.has(pathname) || /^\/auth\/(?:oauth\/(?:consent|complete)|mcp\/composite)\/[^/]+$/.test(pathname) ||
+    /^\/invite\/[A-Za-z0-9_-]{1,128}$/.test(pathname);
   const relative = pathname.replace(/^\//, '');
   let file = relative ? await buildFile(config.buildDir, relative) : null;
   if (!file && uiRoute) file = await buildFile(config.buildDir, relative ? `${relative}.html` : 'index.html');

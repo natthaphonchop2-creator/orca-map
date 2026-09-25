@@ -51,7 +51,7 @@ async function fixture(t, handler = (_req, res) => res.end('upstream'), options 
 test('serves app and auth routes, assets and HEAD without marketing fallback', async (t) => {
   let upstreamRequests = 0;
   const { appURL } = await fixture(t, (_req, res) => { upstreamRequests++; res.end('marketing'); });
-  for (const route of ['/', '/app?view=connections', '/login/local', '/auth/oauth/consent/test-id', '/auth/oauth/complete', '/auth/mcp/composite/test-id']) {
+  for (const route of ['/', '/app?view=connections', '/login/local', '/auth/oauth/consent/test-id', '/auth/oauth/complete', '/auth/mcp/composite/test-id', '/invite/Syn7hetic_Token-0123456789abcdefghijklmnopq']) {
     const result = await request(appURL, route);
     assert.equal(result.status, 200, route);
     assert.match(result.body, /ORCA app/);
@@ -62,7 +62,7 @@ test('serves app and auth routes, assets and HEAD without marketing fallback', a
   assert.equal(head.status, 200);
   assert.equal(head.body, '');
   assert.ok(Number(head.headers['content-length']) > 0);
-  for (const route of ['/pricing', '/pricing.html', '/services/enterprise', '/start', '/missing', '/assets/missing.js', '/api-lookalike']) assert.equal((await request(appURL, route)).status, 404, route);
+  for (const route of ['/pricing', '/pricing.html', '/services/enterprise', '/start', '/missing', '/assets/missing.js', '/api-lookalike', '/invite', '/invite/', '/invite/a/b', '/invite/a.b', '/invite/' + 'x'.repeat(129)]) assert.equal((await request(appURL, route)).status, 404, route);
   assert.equal(upstreamRequests, 0);
 });
 
