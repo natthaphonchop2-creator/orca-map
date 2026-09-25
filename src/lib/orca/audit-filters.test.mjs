@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  DELETED_CONNECTIONS,
   auditEventMode,
   auditFilterOptions,
   auditPage,
   filterAuditEvents,
+  isUnresolvedConnection,
 } from "./audit-filters.ts";
 
 const now = Date.parse("2026-09-18T12:00:00Z");
@@ -241,4 +243,18 @@ test("filter choices contain only distinct values present in the loaded event se
     ),
     ["c1"],
   );
+});
+
+test("every deleted system shares one filter value; sign-in sources are not systems", () => {
+  const runs = [
+    { id: "a", action: "tools.call", connectionID: "khc-live", userID: "u1", hubID: "h1", outcome: "success", createdAt: "2026-09-18T10:00:00Z" },
+    { id: "b", action: "tools.call", connectionID: "khc-gone-1", userID: "u1", hubID: "h1", outcome: "success", createdAt: "2026-09-18T09:00:00Z" },
+    { id: "c", action: "tools.call", connectionID: "khc-gone-2", userID: "u1", hubID: "h1", outcome: "error", createdAt: "2026-09-18T08:00:00Z" },
+    { id: "d", action: "user_source.update", connectionID: "src-1", userID: "u1", hubID: "", outcome: "success", createdAt: "2026-09-18T07:00:00Z" },
+  ];
+  const names = { connections: { "khc-live": "FlowAccount" } };
+  assert.deepEqual(filterAuditEvents(runs, "executions", { connectionID: DELETED_CONNECTIONS }, names, now).map((event) => event.id), ["b", "c"]);
+  assert.deepEqual(filterAuditEvents(runs, "executions", { connectionID: "khc-live" }, names, now).map((event) => event.id), ["a"]);
+  assert.equal(isUnresolvedConnection(runs[3], names), false);
+  assert.equal(isUnresolvedConnection({ id: "e", action: "tools.call" }, names), false, "no system at all is not a deleted one");
 });

@@ -17,6 +17,7 @@
   import AuditDetails from "$lib/components/orca/AuditDetails.svelte";
   import { auditDetailValues, auditDuration } from "$lib/orca/audit-details";
   import {
+    DELETED_CONNECTIONS,
     auditEventMode,
     auditFilterOptions,
     auditPage,
@@ -250,10 +251,31 @@
     if (event.hubID) return hubDisplay(event.hubID);
     return { label: "—" };
   }
-  const connectionOptionLabel = (id: string) => {
-    const display = connectionDisplay(id);
-    return display.id && display.label ? `${display.label} · ${id}` : display.label || id;
-  };
+  // Known systems by name; every system that no longer resolves shares one
+  // option, so the filter never lists raw IDs.
+  const connectionOptions = $derived.by(() => {
+    const known = connections
+      .filter((id) => names.connections[id] || signInSourceIDs.has(id))
+      .map((id) => ({
+        value: id,
+        label:
+          names.connections[id] ||
+          t("การเข้าสู่ระบบองค์กร", "Sign-in source"),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    const gone = connections.filter(
+      (id) => !names.connections[id] && !signInSourceIDs.has(id),
+    ).length;
+    return gone
+      ? [
+          ...known,
+          {
+            value: DELETED_CONNECTIONS,
+            label: `${data.canManage ? t("ระบบที่ถูกลบแล้ว", "Deleted systems") : t("ระบบอื่น", "Other systems")} (${gone})`,
+          },
+        ]
+      : known;
+  });
   async function refresh(id: string) {
     const current = ++requestNumber;
     loading = true;
@@ -308,13 +330,12 @@
 
 {#snippet entity(item: EntityDisplay, secondary: boolean)}
   {#if secondary}<span class="secondary-cell entity-line"
-      >{#if item.label}<span>{item.label}</span>{/if}{#if item.id}<span class="audit-id" title={item.id}
-          >{item.id}</span
+      >{#if item.label}<span title={item.id}>{item.label}</span>{:else if item.id}<span
+          class="audit-id"
+          title={item.id}>{item.id}</span
         >{/if}</span
-    >{:else}{#if item.label}<span class="primary-cell">{item.label}</span>{/if}{#if item.id}<span
-        class="audit-id"
-        title={item.id}>{item.id}</span
-      >{/if}{/if}
+    >{:else}{#if item.label}<span class="primary-cell" title={item.id}>{item.label}</span
+      >{:else if item.id}<span class="audit-id" title={item.id}>{item.id}</span>{/if}{/if}
 {/snippet}
 
 <section class="observability" aria-labelledby="audit-title">
@@ -421,8 +442,8 @@
         ><span>{t("ระบบ", "System")}</span><select
           bind:value={connectionID}
           ><option value="">{t("ทุกระบบ", "All systems")}</option
-          >{#each connections as id}<option value={id}
-              >{connectionOptionLabel(id)}</option
+          >{#each connectionOptions as option (option.value)}<option
+              value={option.value}>{option.label}</option
             >{/each}</select
         ></label
       >{#if mode === "executions"}<label

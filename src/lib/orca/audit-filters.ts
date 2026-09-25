@@ -33,6 +33,21 @@ export function auditEventMode(event: OrcaAuditEvent): AuditMode {
   return event.method === "tools/call" ? "executions" : "administration";
 }
 
+/** One filter value for every system that no longer exists, instead of one raw ID each. */
+export const DELETED_CONNECTIONS = "__deleted__";
+
+/** A system that no longer resolves to a name was deleted; sign-in sources are not systems. */
+export function isUnresolvedConnection(
+  event: OrcaAuditEvent,
+  names: AuditSearchNames = {},
+) {
+  return (
+    Boolean(event.connectionID) &&
+    !names.connections?.[event.connectionID ?? ""] &&
+    !(event.action ?? "").startsWith("user_source.")
+  );
+}
+
 export function filterAuditEvents(
   events: OrcaAuditEvent[],
   mode: AuditMode,
@@ -57,7 +72,11 @@ export function filterAuditEvents(
       if (filters.outcome && event.outcome !== filters.outcome) return false;
       if (filters.userID && event.userID !== filters.userID) return false;
       if (filters.toolName && event.toolName !== filters.toolName) return false;
-      if (filters.connectionID && event.connectionID !== filters.connectionID)
+      if (
+        filters.connectionID === DELETED_CONNECTIONS
+          ? !isUnresolvedConnection(event, names)
+          : filters.connectionID && event.connectionID !== filters.connectionID
+      )
         return false;
       if (filters.action && event.action !== filters.action) return false;
       if (range) {
