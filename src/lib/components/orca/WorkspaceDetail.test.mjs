@@ -24,8 +24,9 @@ export function harness(testProps, OrcaService, personalKeyAvailable, workspaceT
 	const page = $state({ url: new URL('https://orca.example.test/app?tab=connect') });
 	${script}
 	return {
-		createKey, revokeKey, clearCreatedKey, changeStatus, loadUserSources, saveIdentity,
+		createKey, revokeKey, clearCreatedKey, changeStatus, loadUserSources, saveIdentity, saveGuidance,
 		setUserSource(value) { userSourceID = value; },
+		setGuidance(value) { guidance = value; },
 		nameKey(value) { keyName = value; },
 		expiry(value) { expiryDays = value; },
 		setSources(value, connections) { hub = { ...hub, sources: value }; data = { ...data, connections }; },
@@ -39,7 +40,7 @@ export function harness(testProps, OrcaService, personalKeyAvailable, workspaceT
 		pause() { hub = { ...hub, status: 'paused' }; },
 		archive() { hub = { ...hub, status: 'archived' }; },
 		remove() { hub = { ...hub, status: 'deleted' }; },
-		get state() { return { accountSourceID, newKey, newKeyID, revealKey, keyError, archived, canConnect, activeTab, userSourceID, userSources, userSourcesError, identitySaved, selectedUserSource }; }
+		get state() { return { accountSourceID, newKey, newKeyID, revealKey, keyError, archived, canConnect, activeTab, userSourceID, userSources, userSourcesError, identitySaved, selectedUserSource, guidanceSaved, guidanceChanged }; }
 	};
 }`, { filename: 'workspace-detail-test.svelte.js', generate: 'client' }).js.code
 	.replaceAll('svelte/internal/client', pathToFileURL(require.resolve('svelte/internal/client')).href);
@@ -359,4 +360,31 @@ test('Gateway connect renders OAuth first for both ORCA and organization sign-in
 		assert.ok(html.indexOf('data-auth="oauth"') < html.indexOf(keyPanel[0]));
 		assert.ok(html.indexOf('data-auth="key"') > html.indexOf(keyPanel[0]));
 	}
+});
+
+test('guidance saves trimmed text with the other grants, and other saves leave it out so the server keeps it', async (context) => {
+  const writes = [];
+  const { view } = setup(context, {
+    hub: async (input) => writes.push(input),
+    userSourcesList: async () => ({ items: [{ id: 'oidc', name: 'Company sign-in', enabled: true }] }),
+  }, { instructions: 'Old guidance', accessUnitIDs: ['finance'], version: 3 });
+  view.setGuidance('Old guidance');
+  assert.equal(view.state.guidanceChanged, false);
+  await view.saveGuidance();
+  assert.equal(writes.length, 0, 'unchanged guidance is not saved');
+  view.setGuidance('  Reply in Thai and cite document numbers.  ');
+  await view.saveGuidance();
+  assert.equal(writes[0].instructions, 'Reply in Thai and cite document numbers.');
+  assert.deepEqual(writes[0].toolNames, ['read']);
+  assert.deepEqual(writes[0].accessUnitIDs, ['finance']);
+  assert.equal(writes[0].version, 3);
+  assert.equal(view.state.guidanceSaved, true);
+  await view.loadUserSources();
+  view.setUserSource('oidc');
+  await view.saveIdentity();
+  assert.equal('instructions' in writes[1], false, 'forms that do not edit guidance never send it');
+  view.setManager(false);
+  view.setGuidance('Member attempt');
+  await view.saveGuidance();
+  assert.equal(writes.length, 2, 'members cannot change guidance');
 });

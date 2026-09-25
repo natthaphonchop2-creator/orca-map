@@ -97,6 +97,11 @@
 	let revoking = $state<number>();
 	let confirmRevoke = $state<number>();
 	let userSourceID = $state(untrack(() => hub.userSourceID ?? ''));
+	let guidance = $state(untrack(() => hub.instructions ?? ''));
+	let guidanceSaving = $state(false);
+	let guidanceSaved = $state(false);
+	let guidanceError = $state('');
+	const guidanceChanged = $derived(guidance.trim() !== (hub.instructions ?? '').trim());
 	let userSources = $state<OrcaUserSource[]>([]);
 	let loadingUserSources = $state(false);
 	let userSourcesError = $state('');
@@ -244,6 +249,21 @@
 		} catch (cause) {
 			userSourcesError = orcaError(cause);
 		} finally { identitySaving = false; }
+	}
+	async function saveGuidance() {
+		if (!data.canManage || archived || guidanceSaving || !guidanceChanged) return;
+		guidanceSaving = true;
+		guidanceSaved = false;
+		guidanceError = '';
+		try {
+			await OrcaService.hub({ ...hubInput(), instructions: guidance.trim() }, hub.id);
+			await onchanged();
+			guidanceSaved = true;
+		} catch (cause) {
+			guidanceError = orcaError(cause);
+		} finally {
+			guidanceSaving = false;
+		}
 	}
 	async function changeStatus() {
 		if (saving || identitySaving || archived || !data.canManage) return;
@@ -466,6 +486,29 @@
 		</div>
 	</section>
 </div>
+
+<section class="detail-card gateway-guidance" aria-labelledby="detail-guidance-title">
+	<header class="detail-card-head">
+		<h2 id="detail-guidance-title">{t('คำแนะนำสำหรับ AI', 'Guidance for AI')}</h2>
+	</header>
+	<div class="detail-card-body">
+		<p class="detail-muted">{t('ส่งให้แอป AI ทุกครั้งที่เชื่อมพื้นที่ทำงานนี้ ใช้บอกวิธีทำงาน เช่น ภาษาที่ตอบ รูปแบบรายงาน หรือขั้นตอนขององค์กร ข้อความนี้ไม่เพิ่มสิทธิ์ใด ๆ', 'Sent to AI apps each time they connect to this workspace. Use it for how to work, such as the reply language, report format or company steps. It never adds permissions.')}</p>
+		{#if data.canManage}
+			<form onsubmit={(event) => { event.preventDefault(); void saveGuidance(); }}>
+				<label class="guidance-label" for="gateway-guidance">{t('ข้อความคำแนะนำ', 'Guidance text')}</label>
+				<textarea id="gateway-guidance" rows="5" maxlength="4000" bind:value={guidance} disabled={archived || guidanceSaving} oninput={() => (guidanceSaved = false)}
+					placeholder={t('เช่น ตอบเป็นภาษาไทย อ้างเลขที่เอกสารทุกครั้ง และสรุปยอดเป็นบาท', 'For example: reply in Thai, cite document numbers, and total amounts in baht.')}></textarea>
+				<div class="guidance-foot">
+					<span class="guidance-count">{guidance.length.toLocaleString('th-TH')}/4,000</span>
+					<button type="submit" class="k-button primary" disabled={archived || guidanceSaving || !guidanceChanged}>{guidanceSaving ? t('กำลังบันทึก…', 'Saving…') : t('บันทึก', 'Save')}</button>
+				</div>
+			</form>
+			{#if guidanceError}<div class="k-banner error" role="alert">{guidanceError}</div>{/if}
+			{#if guidanceSaved}<div class="k-banner success" role="status"><Check size={16} aria-hidden="true" />{t('บันทึกคำแนะนำแล้ว แอป AI จะได้รับเมื่อเชื่อมครั้งถัดไป', 'Guidance saved. AI apps receive it the next time they connect.')}</div>{/if}
+		{:else if hub.instructions}<p class="guidance-text">{hub.instructions}</p>
+		{:else}<p class="detail-muted">{t('ยังไม่มีคำแนะนำ', 'No guidance yet.')}</p>{/if}
+	</div>
+</section>
 
 {#if !archived}<details class="gateway-guide detail-disclosure"><summary>{t('ขั้นตอนเตรียมพื้นที่ทำงาน', 'Workspace setup guide')}</summary>
 	<WorkspaceReadiness {data} {hub} {keyState} />
@@ -941,6 +984,54 @@
 		justify-content: space-between;
 		gap: 12px;
 		padding: 16px 18px 12px;
+	}
+	.gateway-guidance {
+		margin-top: 16px;
+	}
+	.guidance-label {
+		display: block;
+		margin-top: 12px;
+		font-size: 13.5px;
+		font-weight: 600;
+	}
+	.gateway-guidance textarea {
+		width: 100%;
+		min-height: 120px;
+		margin-top: 6px;
+		padding: 10px 12px;
+		border: 1px solid var(--orca-line-strong);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface);
+		color: var(--orca-ink);
+		font: inherit;
+		font-size: 14px;
+		line-height: 1.6;
+		resize: vertical;
+	}
+	.gateway-guidance textarea:focus-visible {
+		outline: none;
+		border-color: var(--orca-ink);
+		box-shadow: 0 0 0 3px rgba(21, 24, 35, 0.1);
+	}
+	.guidance-foot {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-top: 8px;
+	}
+	.guidance-count {
+		color: var(--orca-subtle);
+		font-size: 12.5px;
+		font-variant-numeric: tabular-nums;
+	}
+	.guidance-text {
+		margin: 10px 0 0;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+	.gateway-guidance .k-banner {
+		margin-top: 10px;
 	}
 	.detail-card-head-ruled {
 		padding-bottom: 16px;

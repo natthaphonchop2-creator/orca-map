@@ -96,6 +96,8 @@ export interface OrcaHub {
   id: string;
   name: string;
   description: string;
+  /** Administrators' guidance sent to AI apps that connect; never adds permissions. */
+  instructions?: string;
   connectionID: string;
   toolNames: string[];
   /** Authoritative when present. Legacy fields project the first source. */
@@ -288,7 +290,7 @@ export type HubInput = Pick<
   | "userSourceID"
   | "dailyLimit"
   | "status"
-> & { version?: number };
+> & { version?: number; instructions?: string };
 export type UnitInput = Pick<OrcaUnit, "name" | "kind" | "parentID"> & {
   version?: number;
 };
