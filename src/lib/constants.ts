@@ -15,6 +15,8 @@ export const UNAUTHORIZED_PATHS = new Set([
 	// profile fetch must not bounce the user back to the provider list.
 	'/login/local'
 ]);
+// Public pages under these prefixes, such as an invitation link opened before sign-in.
+export const UNAUTHORIZED_PATH_PREFIXES = ['/invite/'];
 
 export const PAGE_TRANSITION_DURATION = 200;
 export const PAGE_SIZE = 50;

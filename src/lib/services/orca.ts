@@ -195,6 +195,33 @@ export interface OrcaApproval {
   errorCategory?: string;
 }
 
+/** A manager's invitation for one email; the link's token exists only in the response that made it. */
+export interface OrcaInvitation {
+  id: string;
+  createdAt: string;
+  expiresAt: string;
+  email: string;
+  role: "employee" | "admin";
+  unitIDs: string[];
+  status: "pending" | "accepted" | "revoked" | "expired";
+  invitedBy?: string;
+  acceptedBy?: string;
+  acceptedAt?: string;
+  revokedAt?: string;
+}
+export interface OrcaInvitationLink {
+  invitation: OrcaInvitation;
+  token: string;
+}
+/** What the public invite page may show before sign-in; the email is masked. */
+export interface OrcaInvitationPreview {
+  organization: string;
+  role: "employee" | "admin";
+  email: string;
+  expiresAt: string;
+  status: OrcaInvitation["status"];
+}
+
 /** A connected system's last week of finished tool calls, from ORCA's activity records. */
 export interface OrcaConnectionHealth {
   connectionID: string;
@@ -450,6 +477,17 @@ export const OrcaService = {
     const query = new URLSearchParams({ ...(status ? { status } : {}), ...(mine ? { mine: "1" } : {}) }).toString();
     return list<OrcaApproval>(`/orca/approvals${query ? `?${query}` : ""}`);
   },
+  invitations: () => list<OrcaInvitation>("/orca/invitations"),
+  invite: (email: string, role: OrcaInvitation["role"], unitIDs: string[]) =>
+    doPost("/orca/invitations", { email, role, unitIDs }, options) as Promise<OrcaInvitationLink>,
+  reissueInvitation: (id: string) =>
+    doPost(`/orca/invitations/${part(id)}/reissue`, {}, options) as Promise<OrcaInvitationLink>,
+  revokeInvitation: (id: string) =>
+    doPost(`/orca/invitations/${part(id)}/revoke`, {}, options) as Promise<OrcaInvitation>,
+  previewInvitation: (token: string) =>
+    doPost("/orca/invitations/preview", { token }, options) as Promise<OrcaInvitationPreview>,
+  acceptInvitation: (token: string) =>
+    doPost("/orca/invitations/accept", { token }, options) as Promise<OrcaInvitation>,
   approveRequest: (id: string) => doPost(`/orca/approvals/${part(id)}/approve`, {}, options) as Promise<OrcaApproval>,
   rejectRequest: (id: string, note: string) =>
     doPost(`/orca/approvals/${part(id)}/reject`, { note }, options) as Promise<OrcaApproval>,

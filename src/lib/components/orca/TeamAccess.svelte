@@ -12,6 +12,7 @@
   import TeamLifecycleActions from "./TeamLifecycleActions.svelte";
   import LibraryDepartments from "./LibraryDepartments.svelte";
   import MemberRoleEditor from "./MemberRoleEditor.svelte";
+  import MemberInvitations from "./MemberInvitations.svelte";
   import "./library.css";
   import { LOCAL_AUTH_MIN_PASSWORD_LENGTH } from "$lib/constants";
   import { t, localeHref } from "$lib/orca/locale.svelte";
@@ -34,6 +35,7 @@
     Plus,
     RefreshCw,
     Shield,
+    UserPlus,
     Users,
   } from "@lucide/svelte";
   import { onMount, onDestroy } from "svelte";
@@ -63,6 +65,7 @@
   let departmentDirty = $state(false);
   let navigationBlocked = $state(false);
   let editingRole = $state<OrcaMember>();
+  let inviting = $state(false);
   const currentUser = $derived(
     data.members.find((member) => member.id === data.currentUserID),
   );
@@ -281,10 +284,12 @@
             "Copy sign-in link",
           )}</button
         >{#if localAvailable}<button
-            class="k-button primary"
+            class="k-button"
             onclick={() => start()}
             ><Plus size={16} />{t("เพิ่มบัญชีผู้ใช้", "Add user account")}</button
-          >{/if}
+          >{/if}<button class="k-button primary" onclick={() => (inviting = true)}
+          ><UserPlus size={16} />{t("เชิญสมาชิก", "Invite a member")}</button
+        >
       </div>{/if}
   </div>
 </div>
@@ -564,6 +569,7 @@
         )}
       </p>
     </div>{/if}
+  {#if data.canManage}<MemberInvitations {data} bind:inviting onchanged={memberChanged} />{/if}
   {#if data.canManage && pending.length}<section class="team-pending">
       <div class="team-pending-head">
         <div class="k-section-title">
