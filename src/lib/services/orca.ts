@@ -145,6 +145,8 @@ export interface OrcaCandidate {
   setupStatus?: "available" | "admin_setup_required" | "review_required" | "unknown";
   setupCanConfigure?: boolean;
   setupReason?: string;
+  /** Whether a source signing in through an operator app has one saved; absent for other sources. */
+  oauthApp?: "configured" | "missing";
 }
 
 export interface OrcaSourceSetup {
@@ -371,12 +373,16 @@ export const OrcaService = {
       ready: boolean;
       oauthRequired: boolean;
     }>,
-  configureSourceOAuthClient: (id: string, clientID: string, clientSecret: string, scopeProfile?: OrcaSourceSetup['oauthScopeProfile']) =>
+  /** `replace` swaps a saved app; a new client ID asks members to connect again. */
+  configureSourceOAuthClient: (id: string, clientID: string, clientSecret: string, scopeProfile?: OrcaSourceSetup['oauthScopeProfile'], replace = false) =>
     doPost(
       `/orca/sources/${part(id)}/oauth/client`,
-      { clientID, clientSecret, ...(scopeProfile ? { scopeProfile } : {}) },
+      { clientID, clientSecret, ...(scopeProfile ? { scopeProfile } : {}), ...(replace ? { replace: true } : {}) },
       options,
     ) as Promise<OrcaSourceSetup>,
+  /** Removes the app and every member grant issued through it. */
+  removeSourceOAuthClient: (id: string) =>
+    doPost(`/orca/sources/${part(id)}/oauth/client/remove`, {}, options) as Promise<OrcaSourceSetup>,
   startSourceOAuth: (id: string) =>
     doPost(`/orca/sources/${part(id)}/oauth`, {}, options) as Promise<{
       oauthURL: string;

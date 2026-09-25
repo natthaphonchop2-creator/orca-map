@@ -4,8 +4,19 @@
   import CatalogIcon from "$lib/orca/CatalogIcon.svelte";
   import { catalogSetupHref } from "$lib/orca/catalog";
   import { localeHref, t } from "$lib/orca/locale.svelte";
-  import { oauthApps, type ManagedOAuthApp, type OAuthAppProvider } from "$lib/orca/oauth-apps";
-  import { OrcaService, type OrcaBootstrap, type OrcaCandidate } from "$lib/services/orca";
+  import { oauthApps, type CustomOAuthApp, type ManagedOAuthApp, type OAuthAppProvider } from "$lib/orca/oauth-apps";
+  import { OrcaService, type OrcaBootstrap, type OrcaCandidate, type OrcaSourceSetup } from "$lib/services/orca";
+
+  /** One app the owner is setting up, replacing or removing. */
+  type AppTarget = {
+    key: string;
+    sourceID: string;
+    name: string;
+    provider?: OAuthAppProvider;
+    replace: boolean;
+    scopes: string[];
+    scopeProfile?: OrcaSourceSetup["oauthScopeProfile"];
+  };
 
   let { data }: { data: OrcaBootstrap } = $props();
   let candidates = $state<OrcaCandidate[]>([]);
@@ -13,8 +24,10 @@
   let loaded = $state(false);
   let error = $state("");
   let notice = $state("");
-  let editing = $state<OAuthAppProvider>();
+  let ownerCanManage = $state(false);
   let redirectURL = $state("");
+  let editing = $state<AppTarget>();
+  let removing = $state<AppTarget>();
   let clientID = $state("");
   let clientSecret = $state("");
   let busy = $state(false);
@@ -44,6 +57,31 @@
           t("ใน Certificates & secrets สร้าง Client secret ใหม่ แล้วคัดลอก Application (client) ID และค่า Value ของ secret มาวางด้านล่าง", "Under Certificates & secrets, create a client secret, then paste the Application (client) ID and the secret's Value below."),
         ];
   }
+  function vendorSteps(name: string) {
+    return [
+      t(`เปิดแอป OAuth ของ ${name} ที่ผู้ให้บริการ แล้วสร้าง Client secret ใหม่ หรือสร้างแอปใหม่`, `Open ${name}'s OAuth app with the provider, then create a new client secret or a new app.`),
+      t("ตรวจว่า Callback URL ด้านล่างอยู่ในรายการ Redirect URI ของแอป", "Check that the callback URL below is one of the app's redirect URIs."),
+      t("วาง Client ID และ Client secret ด้านล่าง", "Paste the Client ID and Client secret below."),
+    ];
+  }
+
+  const providerTarget = (app: ManagedOAuthApp, replace: boolean): AppTarget => ({
+    key: app.provider,
+    sourceID: replace ? app.manageSourceID : (app.setupSourceID ?? app.manageSourceID),
+    name: providerName(app.provider),
+    provider: app.provider,
+    replace,
+    scopes: app.scopes,
+  });
+  // Slack apps keep ORCA's reviewed public-read scope set, as in the source setup page.
+  const vendorTarget = (app: CustomOAuthApp): AppTarget => ({
+    key: app.id,
+    sourceID: app.id,
+    name: app.name,
+    replace: true,
+    scopes: [],
+    scopeProfile: app.endpointHost === "mcp.slack.com" ? "slack-public-read-v1" : undefined,
+  });
 
   async function refresh() {
     const current = ++request;
@@ -54,6 +92,18 @@
       if (!alive || current !== request) return;
       candidates = next;
       loaded = true;
+      // Whether this viewer may manage apps, and the callback URL, are the same for every source.
+      const probe = oauthApps(next).probeSourceID;
+      if (probe) {
+        try {
+          const setup = await OrcaService.sourceSetup(probe);
+          if (!alive || current !== request) return;
+          ownerCanManage = setup.oauthClientCanConfigure === true;
+          redirectURL = setup.oauthRedirectURL || redirectURL;
+        } catch {
+          if (alive && current === request) ownerCanManage = false;
+        }
+      }
     } catch {
       if (alive && current === request) error = t("โหลดสถานะแอปไม่สำเร็จ กรุณาลองอีกครั้ง", "The app status could not be loaded. Try again.");
     } finally {
@@ -63,30 +113,38 @@
   onMount(() => { if (data.canManage) void refresh(); });
   onDestroy(() => { alive = false; });
 
-  function closeSetup() {
+  function closeForm() {
     editing = undefined;
     clientID = "";
     clientSecret = "";
     formError = "";
   }
 
-  async function openSetup(app: ManagedOAuthApp) {
-    if (!app.setupSourceID || !app.canConfigure) return;
-    closeSetup();
+  async function openForm(target: AppTarget) {
+    closeForm();
+    removing = undefined;
     notice = "";
-    redirectURL = "";
-    editing = app.provider;
+    editing = target;
+    if (redirectURL) return;
     try {
-      const setup = await OrcaService.sourceSetup(app.setupSourceID);
-      if (alive && editing === app.provider) redirectURL = setup.oauthRedirectURL;
+      const setup = await OrcaService.sourceSetup(target.sourceID);
+      if (alive && editing?.key === target.key) redirectURL = setup.oauthRedirectURL;
     } catch {
-      if (alive && editing === app.provider) formError = t("โหลด Callback URL ไม่สำเร็จ กรุณาปิดแล้วเปิดใหม่", "The callback URL could not be loaded. Close this form and open it again.");
+      if (alive && editing?.key === target.key) formError = t("โหลด Callback URL ไม่สำเร็จ กรุณาปิดแล้วเปิดใหม่", "The callback URL could not be loaded. Close this form and open it again.");
     }
   }
 
-  async function save(event: SubmitEvent, app: ManagedOAuthApp) {
+  function askRemove(target: AppTarget) {
+    closeForm();
+    notice = "";
+    formError = "";
+    removing = target;
+  }
+
+  async function save(event: SubmitEvent) {
     event.preventDefault();
-    if (busy || !app.setupSourceID || !app.canConfigure || !redirectURL) return;
+    const target = editing;
+    if (busy || !target || !redirectURL) return;
     const id = clientID.trim();
     const secret = clientSecret.trim();
     if (!id || !secret) {
@@ -98,14 +156,35 @@
     busy = true;
     formError = "";
     try {
-      const response = await OrcaService.configureSourceOAuthClient(app.setupSourceID, id, secret);
+      const response = await OrcaService.configureSourceOAuthClient(target.sourceID, id, secret, target.scopeProfile, target.replace);
       if (!response.oauthClientConfigured) throw new Error("not configured");
       if (!alive) return;
-      closeSetup();
-      notice = t(`ตั้งค่าแอป ${providerName(app.provider)} แล้ว สมาชิกเชื่อมบัญชีของตัวเองได้ทันที`, `The ${providerName(app.provider)} app is set up. Members can connect their own accounts now.`);
+      closeForm();
+      notice = target.replace
+        ? t(`เปลี่ยนแอป ${target.name} แล้ว ถ้าใช้ Client ID ใหม่ สมาชิกต้องเชื่อมบัญชีอีกครั้ง`, `The ${target.name} app was replaced. With a new Client ID, members connect their accounts again.`)
+        : t(`ตั้งค่าแอป ${target.name} แล้ว สมาชิกเชื่อมบัญชีของตัวเองได้ทันที`, `The ${target.name} app is set up. Members can connect their own accounts now.`);
       await refresh();
     } catch {
       if (alive) formError = t("บันทึกแอปไม่สำเร็จ ตรวจสอบว่าคุณเป็นเจ้าของระบบ ORCA และค่าที่วางถูกต้อง แล้วลองอีกครั้ง", "The app could not be saved. Check that you are the ORCA installation owner and that the values are correct, then try again.");
+    } finally {
+      if (alive) busy = false;
+    }
+  }
+
+  async function remove() {
+    const target = removing;
+    if (busy || !target) return;
+    busy = true;
+    formError = "";
+    try {
+      const response = await OrcaService.removeSourceOAuthClient(target.sourceID);
+      if (response.oauthClientConfigured) throw new Error("still configured");
+      if (!alive) return;
+      removing = undefined;
+      notice = t(`นำแอป ${target.name} ออกแล้ว`, `The ${target.name} app was removed.`);
+      await refresh();
+    } catch {
+      if (alive) formError = t("นำแอปออกไม่สำเร็จ ตรวจสอบว่าคุณเป็นเจ้าของระบบ ORCA แล้วลองอีกครั้ง", "The app could not be removed. Check that you are the ORCA installation owner, then try again.");
     } finally {
       if (alive) busy = false;
     }
@@ -121,6 +200,70 @@
     }
   }
 </script>
+
+{#snippet appForm(target: AppTarget)}
+  <form id={`oauth-setup-${target.key}`} class="setup-panel" onsubmit={save} autocomplete="off">
+    <div class="panel-head">
+      <h3>{target.replace ? t(`เปลี่ยนแอป ${target.name}`, `Replace the ${target.name} app`) : t(`ตั้งค่าแอป ${target.name}`, `Set up the ${target.name} app`)}</h3>
+      <button type="button" class="apps-icon-button" disabled={busy} onclick={closeForm} aria-label={t("ปิด", "Close")} title={t("ปิด", "Close")}><X size={16} /></button>
+    </div>
+    {#if target.replace}
+      <p class="replace-note"><CircleAlert size={16} aria-hidden="true" />{t("ถ้าแค่เปลี่ยน Client secret ของแอปเดิม สมาชิกยังเชื่อมอยู่เหมือนเดิม ถ้าใช้ Client ID ใหม่ สมาชิกทุกคนต้องเชื่อมบัญชีอีกครั้ง", "Rotating the secret of the same app keeps members connected. A new Client ID asks every member to connect again.")}</p>
+    {/if}
+    <ol class="setup-steps">{#each target.provider ? providerSteps(target.provider) : vendorSteps(target.name) as step (step)}<li>{step}</li>{/each}</ol>
+    {#if target.provider}
+      <a class="k-button console-link" href={providerConsole(target.provider)} target="_blank" rel="noopener noreferrer">{target.provider === "google" ? t("เปิด Google Auth Platform", "Open Google Auth Platform") : t("เปิด Microsoft Entra", "Open Microsoft Entra")}<ExternalLink size={14} aria-hidden="true" /></a>
+    {:else}
+      <a class="k-button console-link" href={localeHref(catalogSetupHref(target.sourceID))}>{t("ดูวิธีตั้งค่าแอปของระบบนี้", "View this system's app guide")}<ArrowRight size={14} aria-hidden="true" /></a>
+    {/if}
+    <div class="setup-field">
+      <label for={`oauth-callback-${target.key}`}>Callback URL</label>
+      <div class="field-action">
+        <input id={`oauth-callback-${target.key}`} readonly value={redirectURL} placeholder={t("กำลังโหลด…", "Loading…")} />
+        <button type="button" class="k-button apps-square" disabled={!redirectURL} onclick={() => copy(redirectURL, "callback")} aria-label={t("คัดลอก Callback URL", "Copy callback URL")} title={t("คัดลอก Callback URL", "Copy callback URL")}>{#if copied === "callback"}<Check size={16} />{:else}<Copy size={16} />{/if}</button>
+      </div>
+    </div>
+    {#if target.scopes.length}
+      <div class="setup-field">
+        <div class="field-label-row">
+          <span id={`oauth-scopes-${target.key}`}>{target.provider === "google" ? t("สิทธิ์ที่ต้องเพิ่ม (Scopes)", "Scopes to add") : t("สิทธิ์ Microsoft Graph แบบ Delegated", "Microsoft Graph delegated permissions")}</span>
+          <button type="button" class="k-button small" onclick={() => copy(target.scopes.join("\n"), "scopes")}>{#if copied === "scopes"}<Check size={14} />{:else}<Copy size={14} />{/if}{t("คัดลอก", "Copy")}</button>
+        </div>
+        <ul class="scope-list" aria-labelledby={`oauth-scopes-${target.key}`}>{#each target.scopes as scope (scope)}<li><code>{scope}</code></li>{/each}</ul>
+      </div>
+    {/if}
+    <div class="credential-fields">
+      <div class="setup-field">
+        <label for={`oauth-client-id-${target.key}`}>{target.provider === "microsoft" ? "Application (client) ID" : "Client ID"}</label>
+        <input id={`oauth-client-id-${target.key}`} bind:value={clientID} required autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="setup-field">
+        <label for={`oauth-client-secret-${target.key}`}>Client secret</label>
+        <input id={`oauth-client-secret-${target.key}`} type="password" bind:value={clientSecret} required autocomplete="new-password" spellcheck="false" />
+      </div>
+    </div>
+    <p class="apps-hint">{t("ORCA เก็บ Client secret แบบเข้ารหัสและจะไม่แสดงค่านี้อีก", "ORCA stores the client secret encrypted and never shows it again.")}</p>
+    {#if formError}<p class="form-error" role="alert">{formError}</p>{/if}
+    <footer class="panel-actions">
+      <button type="button" class="k-button" disabled={busy} onclick={closeForm}>{t("ยกเลิก", "Cancel")}</button>
+      <button type="submit" class="k-button primary" disabled={busy || !redirectURL}>{#if busy}<LoaderCircle size={16} class="k-spin" />{/if}{target.replace ? t("เปลี่ยนแอป", "Replace app") : t("บันทึก", "Save")}</button>
+    </footer>
+  </form>
+{/snippet}
+
+{#snippet removeConfirm(target: AppTarget)}
+  <section class="remove-confirm" aria-labelledby={`oauth-remove-${target.key}`}>
+    <h3 id={`oauth-remove-${target.key}`}>{t(`นำแอป ${target.name} ออกไหม`, `Remove the ${target.name} app?`)}</h3>
+    <p>{target.provider
+      ? t(`ทุกระบบของ ${target.name} จะใช้งานไม่ได้ และสมาชิกทุกคนที่เชื่อมบัญชีไว้จะถูกตัดการเชื่อมต่อ จนกว่าจะตั้งค่าแอปใหม่`, `Every ${target.name} system stops working and every member's connection is removed until an app is set up again.`)
+      : t("สมาชิกทุกคนที่เชื่อมบัญชีผ่านแอปนี้จะถูกตัดการเชื่อมต่อ จนกว่าจะตั้งค่าแอปใหม่", "Every member connected through this app is disconnected until an app is set up again.")}</p>
+    {#if formError}<p class="form-error" role="alert">{formError}</p>{/if}
+    <div class="panel-actions">
+      <button class="k-button" disabled={busy} onclick={() => { removing = undefined; formError = ""; }}>{t("ยกเลิก", "Cancel")}</button>
+      <button class="k-button danger" disabled={busy} onclick={remove}>{#if busy}<LoaderCircle size={16} class="k-spin" />{/if}{t("นำแอปออก", "Remove app")}</button>
+    </div>
+  </section>
+{/snippet}
 
 <section class="oauth-apps" aria-labelledby="oauth-apps-title">
   <header class="apps-heading">
@@ -165,10 +308,16 @@
                   {/each}
                 </ul>
                 <footer>
-                  {#if app.ready}
+                  {#if !app.ready && app.canConfigure}
+                    <button class="k-button primary" aria-expanded={editing?.key === app.provider} aria-controls={`oauth-setup-${app.provider}`} onclick={() => (editing?.key === app.provider ? closeForm() : openForm(providerTarget(app, false)))}>{t(`ตั้งค่าแอป ${providerName(app.provider)}`, `Set up the ${providerName(app.provider)} app`)}</button>
+                  {:else if app.ready}
                     <p>{t("สมาชิกกด “อนุญาต” เพื่อเชื่อมบัญชีของตัวเองได้เลย", "Members can connect their own accounts with one “Allow”.")}</p>
-                  {:else if app.canConfigure}
-                    <button class="k-button primary" aria-expanded={editing === app.provider} aria-controls={`oauth-setup-${app.provider}`} onclick={() => (editing === app.provider ? closeSetup() : openSetup(app))}>{t(`ตั้งค่าแอป ${providerName(app.provider)}`, `Set up the ${providerName(app.provider)} app`)}</button>
+                    {#if ownerCanManage}
+                      <div class="card-actions">
+                        <button class="k-button small" aria-expanded={editing?.key === app.provider} aria-controls={`oauth-setup-${app.provider}`} onclick={() => (editing?.key === app.provider ? closeForm() : openForm(providerTarget(app, true)))}>{t("เปลี่ยนแอป", "Replace")}</button>
+                        <button class="k-button small danger" onclick={() => askRemove(providerTarget(app, true))}>{t("นำแอปออก", "Remove")}</button>
+                      </div>
+                    {/if}
                   {:else}
                     <p>{t("เจ้าของระบบ ORCA เป็นผู้ตั้งค่าแอปนี้", "The ORCA installation owner sets up this app.")}</p>
                   {/if}
@@ -176,48 +325,8 @@
               </article>
             {/each}
           </div>
-          {#each apps.managed as app (app.provider)}
-            {#if editing === app.provider}
-              <form id={`oauth-setup-${app.provider}`} class="setup-panel" onsubmit={(event) => save(event, app)} autocomplete="off">
-                <div class="panel-head">
-                  <h3>{t(`ตั้งค่าแอป ${providerName(app.provider)}`, `Set up the ${providerName(app.provider)} app`)}</h3>
-                  <button type="button" class="apps-icon-button" disabled={busy} onclick={closeSetup} aria-label={t("ปิด", "Close")} title={t("ปิด", "Close")}><X size={16} /></button>
-                </div>
-                <ol class="setup-steps">{#each providerSteps(app.provider) as step (step)}<li>{step}</li>{/each}</ol>
-                <a class="k-button console-link" href={providerConsole(app.provider)} target="_blank" rel="noopener noreferrer">{app.provider === "google" ? t("เปิด Google Auth Platform", "Open Google Auth Platform") : t("เปิด Microsoft Entra", "Open Microsoft Entra")}<ExternalLink size={14} aria-hidden="true" /></a>
-                <div class="setup-field">
-                  <label for={`oauth-callback-${app.provider}`}>Callback URL</label>
-                  <div class="field-action">
-                    <input id={`oauth-callback-${app.provider}`} readonly value={redirectURL} placeholder={t("กำลังโหลด…", "Loading…")} />
-                    <button type="button" class="k-button apps-square" disabled={!redirectURL} onclick={() => copy(redirectURL, "callback")} aria-label={t("คัดลอก Callback URL", "Copy callback URL")} title={t("คัดลอก Callback URL", "Copy callback URL")}>{#if copied === "callback"}<Check size={16} />{:else}<Copy size={16} />{/if}</button>
-                  </div>
-                </div>
-                <div class="setup-field">
-                  <div class="field-label-row">
-                    <span id={`oauth-scopes-${app.provider}`}>{app.provider === "google" ? t("สิทธิ์ที่ต้องเพิ่ม (Scopes)", "Scopes to add") : t("สิทธิ์ Microsoft Graph แบบ Delegated", "Microsoft Graph delegated permissions")}</span>
-                    <button type="button" class="k-button small" onclick={() => copy(app.scopes.join("\n"), "scopes")}>{#if copied === "scopes"}<Check size={14} />{:else}<Copy size={14} />{/if}{t("คัดลอก", "Copy")}</button>
-                  </div>
-                  <ul class="scope-list" aria-labelledby={`oauth-scopes-${app.provider}`}>{#each app.scopes as scope (scope)}<li><code>{scope}</code></li>{/each}</ul>
-                </div>
-                <div class="credential-fields">
-                  <div class="setup-field">
-                    <label for={`oauth-client-id-${app.provider}`}>{app.provider === "google" ? "Client ID" : "Application (client) ID"}</label>
-                    <input id={`oauth-client-id-${app.provider}`} bind:value={clientID} required autocomplete="off" spellcheck="false" />
-                  </div>
-                  <div class="setup-field">
-                    <label for={`oauth-client-secret-${app.provider}`}>Client secret</label>
-                    <input id={`oauth-client-secret-${app.provider}`} type="password" bind:value={clientSecret} required autocomplete="new-password" spellcheck="false" />
-                  </div>
-                </div>
-                <p class="apps-hint">{t("ORCA เก็บ Client secret แบบเข้ารหัสและจะไม่แสดงค่านี้อีก", "ORCA stores the client secret encrypted and never shows it again.")}</p>
-                {#if formError}<p class="form-error" role="alert">{formError}</p>{/if}
-                <footer class="panel-actions">
-                  <button type="button" class="k-button" disabled={busy} onclick={closeSetup}>{t("ยกเลิก", "Cancel")}</button>
-                  <button type="submit" class="k-button primary" disabled={busy || !redirectURL}>{#if busy}<LoaderCircle size={16} class="k-spin" />{/if}{t("บันทึก", "Save")}</button>
-                </footer>
-              </form>
-            {/if}
-          {/each}
+          {#if editing?.provider}{@render appForm(editing)}{/if}
+          {#if removing?.provider}{@render removeConfirm(removing)}{/if}
         {:else}
           <p class="apps-muted">{t("ยังไม่มีผู้ให้บริการที่ ORCA ดูแลในระบบนี้", "No ORCA-managed provider is installed.")}</p>
         {/if}
@@ -243,6 +352,31 @@
           <p class="apps-muted">{t("ไม่มีระบบที่ต้องตั้งค่าแอปเพิ่ม", "No system needs its own app.")}</p>
         {/if}
       </section>
+
+      {#if apps.configuredCustom.length}
+        <section class="apps-section" aria-labelledby="configured-apps-title">
+          <div class="section-head">
+            <h2 id="configured-apps-title">{t("แอปของระบบอื่นที่ตั้งค่าแล้ว", "Other systems' apps you have set up")}<span class="apps-count">{apps.configuredCustom.length}</span></h2>
+          </div>
+          <div class="app-list">
+            {#each apps.configuredCustom as app (app.id)}
+              <div class="app-row">
+                <CatalogIcon name={app.name} size={28} />
+                <span class="app-name"><strong>{app.name}</strong>{#if app.endpointHost}<span>{app.endpointHost}</span>{/if}</span>
+                <span class="apps-status ok"><Check size={13} aria-hidden="true" />{t("ตั้งค่าแล้ว", "Set up")}</span>
+                {#if ownerCanManage}
+                  <span class="row-buttons">
+                    <button class="k-button small" aria-expanded={editing?.key === app.id} aria-controls={`oauth-setup-${app.id}`} onclick={() => (editing?.key === app.id ? closeForm() : openForm(vendorTarget(app)))}>{t("เปลี่ยน", "Replace")}</button>
+                    <button class="k-button small danger" onclick={() => askRemove(vendorTarget(app))}>{t("นำออก", "Remove")}</button>
+                  </span>
+                {:else}<span></span>{/if}
+              </div>
+            {/each}
+          </div>
+          {#if editing && !editing.provider}{@render appForm(editing)}{/if}
+          {#if removing && !removing.provider}{@render removeConfirm(removing)}{/if}
+        </section>
+      {/if}
 
       <aside class="ready-note">
         <Check size={16} aria-hidden="true" />
@@ -274,7 +408,7 @@
   .apps-status { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 2px 8px; border-radius: var(--orca-radius-sm); background: var(--orca-secondary); color: var(--orca-nav); font-size: 12px; font-weight: 500; white-space: nowrap; }
   .apps-status.ok { background: var(--orca-ok-bg); color: var(--orca-ok); }
   .apps-status.warn { background: var(--orca-warn-bg); color: var(--orca-warn); }
-  .connector-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .connector-list { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: center; gap: 6px; margin: 0; padding: 0; list-style: none; }
   .connector-list li { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 6px; border: 1px solid var(--orca-line); border-radius: 999px; color: var(--orca-muted); font-size: 12.5px; line-height: 1.5; }
   .connector-list li.ready { color: var(--orca-ink); }
   .connector-list li:not(.ready) { border-style: dashed; }
@@ -320,11 +454,21 @@
   .apps-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 48px 24px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); color: var(--orca-subtle); text-align: center; font-size: 13.5px; }
   .apps-empty h2 { margin: 4px 0 0; color: var(--orca-ink); font-size: 15px; font-weight: 600; }
   .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  .card-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+  .provider-card > footer { gap: 8px 12px; flex-wrap: wrap; }
+  .row-buttons { display: inline-flex; gap: 6px; }
+  .replace-note { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: var(--orca-radius); background: var(--orca-warn-bg); color: var(--orca-warn); font-size: 13.5px; line-height: 1.55; }
+  .replace-note :global(svg) { flex: none; margin-top: 2px; }
+  .remove-confirm { display: grid; gap: 10px; padding: 18px 20px; border: 1px solid color-mix(in srgb, var(--orca-deny) 30%, transparent); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
+  .remove-confirm h3 { margin: 0; font-size: 15px; font-weight: 600; }
+  .remove-confirm p { margin: 0; color: var(--orca-muted); font-size: 14px; line-height: 1.6; }
+  .remove-confirm .panel-actions { padding-top: 4px; border-top: 0; }
   @media (max-width: 600px) {
     .credential-fields { grid-template-columns: minmax(0, 1fr); }
     .setup-panel { padding: 16px; }
     .app-row { grid-template-columns: 28px minmax(0, 1fr) auto; row-gap: 6px; padding: 11px 14px; }
     .app-row .apps-status { grid-column: 2; grid-row: 2; justify-self: start; }
-    .app-row .row-action { grid-column: 3; grid-row: 1 / span 2; }
+    .app-row .row-action, .app-row .row-buttons { grid-column: 3; grid-row: 1 / span 2; }
+    .row-buttons { flex-direction: column; }
   }
 </style>

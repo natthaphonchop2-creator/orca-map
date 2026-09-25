@@ -11,13 +11,15 @@ export type ManagedOAuthApp = {
 	ready: boolean;
 	/** Where a single Client ID and secret covers the whole provider; absent when nothing is missing. */
 	setupSourceID?: string;
+	/** Where to replace or remove the provider's app; the backend applies it to every connector. */
+	manageSourceID: string;
 	/** Only the installation owner may enter app credentials. */
 	canConfigure: boolean;
 	scopes: string[];
 };
 
-/** A catalog system that needs its own app registered with the vendor before anyone can sign in. */
-export type CustomOAuthApp = { id: string; name: string; endpointHost?: string; canConfigure: boolean };
+/** A catalog system that signs in through its own app registered with the vendor. */
+export type CustomOAuthApp = { id: string; name: string; endpointHost?: string; canConfigure: boolean; configured: boolean };
 
 const PROVIDERS: OAuthAppProvider[] = ['google', 'microsoft'];
 
@@ -70,17 +72,31 @@ export function oauthApps(candidates: OrcaCandidate[]) {
 			connectors,
 			ready: connectors.every((connector) => connector.ready),
 			setupSourceID: (preferred ?? missing[0])?.id,
+			manageSourceID: members.find((candidate) => candidate.id === PROVIDER_SETUP_SOURCE[provider])?.id ?? members[0].id,
 			canConfigure: missing.some((candidate) => candidate.setupCanConfigure),
 			scopes
 		});
 	}
-	const custom: CustomOAuthApp[] = candidates
-		.filter((candidate) => !candidate.managedProvider && candidate.setupStatus === 'admin_setup_required')
-		.map((candidate) => ({ id: candidate.id, name: candidate.name, endpointHost: candidate.endpointHost, canConfigure: !!candidate.setupCanConfigure }))
+	// Older servers omit oauthApp; a missing app then shows only as admin setup.
+	const appState = (candidate: OrcaCandidate) =>
+		candidate.oauthApp ?? (candidate.setupStatus === 'admin_setup_required' ? 'missing' : undefined);
+	const vendorApps: CustomOAuthApp[] = candidates
+		.filter((candidate) => !candidate.managedProvider && appState(candidate))
+		.map((candidate) => ({
+			id: candidate.id,
+			name: candidate.name,
+			endpointHost: candidate.endpointHost,
+			canConfigure: !!candidate.setupCanConfigure,
+			configured: appState(candidate) === 'configured'
+		}))
 		.sort(byName);
-	// Systems people can sign in to right away: automatic registration or an app already configured.
+	const custom = vendorApps.filter((app) => !app.configured);
+	const configuredCustom = vendorApps.filter((app) => app.configured);
+	// Systems people can sign in to with no app to manage: automatic registration.
 	const readyToSignIn = candidates.filter((candidate) =>
-		!candidate.managedProvider && candidate.setupStatus === 'available' && (candidate.authMethods ?? []).includes('oauth')
+		!candidate.managedProvider && !appState(candidate) && candidate.setupStatus === 'available' && (candidate.authMethods ?? []).includes('oauth')
 	).length;
-	return { managed, custom, readyToSignIn };
+	// Any source with an operator app tells the page the callback URL and whether this viewer may manage apps.
+	const probeSourceID = managed[0]?.manageSourceID ?? vendorApps[0]?.id;
+	return { managed, custom, configuredCustom, readyToSignIn, probeSourceID };
 }

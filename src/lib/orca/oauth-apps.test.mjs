@@ -83,6 +83,31 @@ test("systems needing their own vendor app are listed by name; ready OAuth syste
   assert.equal(apps.length, 1);
 });
 
+test("saved vendor apps are listed apart and are not counted as needing no app", () => {
+  const { custom, configuredCustom, readyToSignIn, probeSourceID } = oauthApps([
+    { id: "default-slack", name: "Slack Workspace", endpointHost: "mcp.slack.com", authMethods: ["oauth"], setupStatus: "available", oauthApp: "configured" },
+    { id: "default-zoom", name: "Zoom", authMethods: ["oauth"], setupStatus: "admin_setup_required", setupCanConfigure: true, oauthApp: "missing" },
+    { id: "default-notion", name: "Notion", authMethods: ["oauth"], setupStatus: "available" },
+  ]);
+  assert.deepEqual(custom.map((app) => [app.name, app.configured]), [["Zoom", false]]);
+  assert.deepEqual(configuredCustom.map((app) => [app.name, app.configured, app.endpointHost]), [["Slack Workspace", true, "mcp.slack.com"]]);
+  assert.equal(readyToSignIn, 1);
+  assert.equal(probeSourceID, "default-slack");
+});
+
+test("provider apps are managed through the source every connector falls back to", () => {
+  const google = oauthApps([
+    managed("gmail", "google", "available"),
+    managed("google-drive", "google", "available"),
+    managed("google-docs", "google", "available"),
+  ]);
+  assert.equal(google.managed[0].manageSourceID, "default-orca-managed-google-drive");
+  assert.equal(google.probeSourceID, "default-orca-managed-google-drive");
+  // Without a Drive connector, any member reaches the whole provider on the server.
+  const docsOnly = oauthApps([managed("google-docs", "google", "available")]);
+  assert.equal(docsOnly.managed[0].manageSourceID, "default-orca-managed-google-docs");
+});
+
 test("no managed connectors means no provider cards", () => {
-  assert.deepEqual(oauthApps([]), { managed: [], custom: [], readyToSignIn: 0 });
+  assert.deepEqual(oauthApps([]), { managed: [], custom: [], configuredCustom: [], readyToSignIn: 0, probeSourceID: undefined });
 });

@@ -96,6 +96,9 @@
     "user_source.create": t("เพิ่มผู้ให้บริการเข้าสู่ระบบ", "Sign-in source added"),
     "user_source.update": t("แก้ไขผู้ให้บริการเข้าสู่ระบบ", "Sign-in source updated"),
     "user_source.delete": t("ลบผู้ให้บริการเข้าสู่ระบบ", "Sign-in source deleted"),
+    "oauth_app.configure": t("ตั้งค่าแอปเชื่อมบัญชี", "OAuth app set up"),
+    "oauth_app.replace": t("เปลี่ยนแอปเชื่อมบัญชี", "OAuth app replaced"),
+    "oauth_app.remove": t("นำแอปเชื่อมบัญชีออก", "OAuth app removed"),
     "access.inspect": t(
       "ตรวจสอบสิทธิ์การเข้าถึงผ่านแอป AI",
       "Access checked from an AI app",
