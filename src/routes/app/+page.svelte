@@ -13,6 +13,7 @@
   import AppShell from "$lib/components/orca/AppShell.svelte";
   import MyConnections from "$lib/components/orca/MyConnections.svelte";
   import OAuthApps from "$lib/components/orca/OAuthApps.svelte";
+  import Secrets from "$lib/components/orca/Secrets.svelte";
   import ConnectionCenter from "$lib/components/orca/ConnectionCenter.svelte";
   import ConnectionSettings from "$lib/components/orca/ConnectionSettings.svelte";
   import ConnectedUsers from "$lib/components/orca/ConnectedUsers.svelte";
@@ -250,6 +251,7 @@
     </section>
   {:else if view === "user-sources"}<UserSources data={currentData!} />
   {:else if view === "connected-apps"}<OAuthApps data={currentData!} />
+  {:else if view === "secrets"}<Secrets data={currentData!} />
   {:else if plannedFeature}<FeatureScaffold feature={plannedFeature} />
   {:else if view === "settings"}<SettingsCenter {data} onchanged={refresh} />
   {:else if view === "executions"}<Audit {data} {hubID} mode="executions" />

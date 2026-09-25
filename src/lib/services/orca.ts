@@ -149,6 +149,33 @@ export interface OrcaCandidate {
   oauthApp?: "configured" | "missing";
 }
 
+/** A key a member created for ORCA; its value exists only in the response that created it. */
+export interface OrcaSecretKey {
+  id: number;
+  name: string;
+  userID: string;
+  /** Empty for a key that reaches every workspace the member may use. */
+  hubID?: string;
+  createdAt: string;
+  lastUsedAt?: string;
+  expiresAt?: string;
+}
+
+/** An AI app signed in to ORCA through OAuth. */
+export interface OrcaSecretSession {
+  id: string;
+  app: string;
+  userID: string;
+  createdAt: string;
+  lastRefreshedAt: string;
+  expiresAt: string;
+}
+
+export interface OrcaSecrets {
+  keys: OrcaSecretKey[];
+  sessions: OrcaSecretSession[];
+}
+
 export interface OrcaSourceSetup {
   sourceID: string;
   name: string;
@@ -380,6 +407,12 @@ export const OrcaService = {
       { clientID, clientSecret, ...(scopeProfile ? { scopeProfile } : {}), ...(replace ? { replace: true } : {}) },
       options,
     ) as Promise<OrcaSourceSetup>,
+  /** Metadata only; administrators revoke a leaver's keys and AI app sign-ins here. */
+  secrets: () => doGet("/orca/secrets", options) as Promise<OrcaSecrets>,
+  revokeSecretKey: (id: number) =>
+    doPost(`/orca/secrets/keys/${id}/revoke`, {}, options) as Promise<{ revoked: boolean }>,
+  revokeSecretSession: (id: string) =>
+    doPost(`/orca/secrets/sessions/${part(id)}/revoke`, {}, options) as Promise<{ revoked: boolean }>,
   /** Removes the app and every member grant issued through it. */
   removeSourceOAuthClient: (id: string) =>
     doPost(`/orca/sources/${part(id)}/oauth/client/remove`, {}, options) as Promise<OrcaSourceSetup>,

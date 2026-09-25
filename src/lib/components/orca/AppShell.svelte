@@ -23,6 +23,7 @@
     KeyRound,
     KeySquare,
     LayoutGrid,
+    LockKeyhole,
     LogOut,
     Menu,
     Plug,
@@ -109,6 +110,7 @@
         ...(canManage
           ? [
               { id: "connected-apps", label: t("แอปเชื่อมบัญชี (OAuth)", "OAuth apps"), href: "/app?view=connected-apps", icon: KeySquare },
+              { id: "secrets", label: t("ข้อมูลลับ", "Secrets"), href: "/app?view=secrets", icon: LockKeyhole },
               { id: "organization", label: t("ข้อมูลองค์กร", "Organization"), href: "/app?view=organization", icon: Building2 },
               { id: "user-sources", label: t("การเข้าสู่ระบบองค์กร", "Sign-in sources"), href: "/app?view=user-sources", icon: ShieldCheck },
             ]

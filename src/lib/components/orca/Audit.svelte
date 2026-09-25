@@ -99,6 +99,7 @@
     "oauth_app.configure": t("ตั้งค่าแอปเชื่อมบัญชี", "OAuth app set up"),
     "oauth_app.replace": t("เปลี่ยนแอปเชื่อมบัญชี", "OAuth app replaced"),
     "oauth_app.remove": t("นำแอปเชื่อมบัญชีออก", "OAuth app removed"),
+    "oauth_session.revoke": t("ให้แอป AI ออกจากระบบ", "AI app signed out"),
     "access.inspect": t(
       "ตรวจสอบสิทธิ์การเข้าถึงผ่านแอป AI",
       "Access checked from an AI app",

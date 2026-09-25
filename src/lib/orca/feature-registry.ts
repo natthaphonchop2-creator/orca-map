@@ -1,7 +1,6 @@
 export type FeatureId =
   | "projects"
   | "user-sources"
-  | "secrets"
   | "user-verification"
   | "contextual-access"
   | "logging-policy"
@@ -51,22 +50,6 @@ export const featureRegistry: Record<FeatureId, FeatureDefinition> = {
     limitation: {
       th: "หน้านี้ยังไม่รองรับการเพิ่มหรือแก้ไขผู้ให้บริการเข้าสู่ระบบ",
       en: "Adding or changing sign-in sources is not available on this page yet.",
-    },
-  },
-  secrets: {
-    id: "secrets",
-    title: { th: "ข้อมูลลับ", en: "Secrets" },
-    purpose: {
-      th: "จัดการข้อมูลลับที่ใช้เชื่อมต่อกับระบบต่าง ๆ",
-      en: "Manage the secrets used to connect systems.",
-    },
-    scope: {
-      th: "จัดเก็บ แก้ไข และเพิกถอนคีย์ API โทเคน และ Client secret ตามสิทธิ์ที่กำหนด",
-      en: "Store, update and revoke API keys, tokens and client secrets with controlled access.",
-    },
-    limitation: {
-      th: "หน้านี้ยังไม่รองรับการจัดเก็บ เปลี่ยน หรือลบข้อมูลลับ",
-      en: "Storing, rotating or deleting secrets is not available on this page yet.",
     },
   },
   "user-verification": {
