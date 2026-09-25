@@ -146,7 +146,7 @@
     <div class="approvals-empty" role="status"><LoaderCircle size={24} class="k-spin" aria-hidden="true" />{t("กำลังโหลด…", "Loading…")}</div>
   {:else if loaded && !items.length}
     <div class="approvals-empty"><Inbox size={28} aria-hidden="true" /><h2>{tab === "pending" ? t("ไม่มีคำขอที่รออนุมัติ", "Nothing is waiting for approval") : t("ยังไม่มีคำขอที่ตัดสินแล้ว", "No decided requests yet")}</h2>
-      <p>{t("เปิดโหมด “ต้องอนุมัติก่อน” ได้ที่หน้าพื้นที่ทำงาน AI เพื่อให้งานที่แก้ไขข้อมูลต้องผ่านการอนุมัติ", "Turn on “Approve first” on an AI workspace so actions that change data wait here.")}</p></div>
+      <p>{t("เลือก “ผู้ดูแลอนุมัติก่อน” ในการ์ดการแก้ไขข้อมูลของพื้นที่ทำงาน AI แล้วงานที่แก้ไขข้อมูลจะมารออนุมัติที่นี่", "Choose “A manager approves first” on an AI workspace’s changes card, and actions that change data wait here.")}</p></div>
   {:else}
     <div class="approval-list">
       {#each items as item (item.id)}
