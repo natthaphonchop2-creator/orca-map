@@ -21,12 +21,12 @@
 	} from '$lib/services/orca';
 	import {
 		Check,
-		ChevronLeft,
 		ChevronRight,
 		FileCheck2,
 		Folder,
 		Info,
 		Plug,
+		ShieldCheck,
 		Users
 	} from '@lucide/svelte';
 	import { onMount, tick, untrack } from 'svelte';
@@ -49,14 +49,20 @@
 	const editingID = untrack(() => existing?.id);
 	const editingVersion = untrack(() => existing?.version);
 	const toolsOnly = untrack(() => Boolean(existing && initialStep === 'tools'));
-	const flowSteps = toolsOnly ? [3, 4] : [1, 2, 3, 4];
-	const progressSteps = editingID ? flowSteps : [1, 2, 3, 4, 5];
+	// One page with numbered sections, like Arcade's gateway form. Editing only
+	// the tools shows that section alone and keeps everything else as saved.
+	type Section = 'name' | 'tools' | 'people' | 'ai';
+	type IssueSection = 'name' | 'tools' | 'people' | 'advanced';
+	const sections: Section[] = toolsOnly ? ['tools'] : ['name', 'tools', 'people', 'ai'];
 	const requestedConnectionID = untrack(() => (existing ? '' : initialConnectionID));
 	let initialSelection = $state(Boolean(requestedConnectionID));
 	let sourceSetupOpen = $state(false);
-	let step = $state(toolsOnly ? 3 : 1);
 	let name = $state(untrack(() => existing?.name ?? ''));
 	let description = $state(untrack(() => existing?.description ?? ''));
+	let instructions = $state(untrack(() => existing?.instructions ?? ''));
+	let writeMode = $state<'direct' | 'approval'>(
+		untrack(() => (existing?.writeMode === 'approval' ? 'approval' : 'direct'))
+	);
 	const maxSources = 20;
 	type SelectedSource = { connectionID: string; toolNames: string[] };
 	let sources = $state<SelectedSource[]>(
@@ -92,54 +98,14 @@
 	let toolQuery = $state('');
 	let customToolsOpen = $state<string[]>([]);
 	let error = $state('');
+	// Where the error shows: in its own section, in the form (saving), or, when
+	// editing tools only, as a pointer to the full editor.
+	let errorSection = $state<IssueSection | 'form' | 'elsewhere'>('form');
+	let advancedOpen = $state(false);
 	let busy = $state(false);
-	let reviewed = $state(false);
 	let savedHub = $state<OrcaHub>();
 	let versionConflict = $state(false);
-	let title: HTMLHeadingElement | undefined = $state();
-	let stepList: HTMLOListElement | undefined = $state();
-	let errorBox: HTMLDivElement | undefined = $state();
-	const steps = $derived([
-		t('ตั้งชื่อ', 'Name'),
-		t('สิทธิ์และสมาชิก', 'Access and members'),
-		t('ระบบและเครื่องมือ', 'Systems and tools'),
-		t('ตรวจสอบ', 'Review'),
-		t('เชื่อมแอป AI', 'Connect an AI app')
-	]);
-	const stepTitles = $derived([
-		t('ตั้งชื่อพื้นที่ทำงาน AI', 'Name the AI workspace'),
-		t('กำหนดผู้มีสิทธิ์ใช้พื้นที่ทำงานนี้', 'Choose who can use this workspace'),
-		t('เลือกระบบและเครื่องมือที่ทีมต้องใช้', 'Select the systems and tools your team needs'),
-		t('ตรวจสอบก่อนบันทึก', 'Review before saving')
-	]);
-	const stepDescriptions = $derived([
-		t(
-			'พื้นที่ทำงานนี้จะอยู่ในองค์กรปัจจุบันของคุณ ตั้งชื่อที่สมาชิกในทีมเข้าใจได้ทันที',
-			'This workspace belongs to your current organization. Use a name your team will recognize.'
-		),
-		t(
-			'เลือกวิธีเข้าสู่ระบบ จากนั้นให้สิทธิ์แก่แผนก สมาชิกรายบุคคล หรือทั้งสองแบบ',
-			'Choose the sign-in method, then grant access to departments, individual members or both.'
-		),
-		toolsOnly
-			? t(
-					'ปรับเครื่องมือของระบบที่เลือกไว้ โดยสมาชิกและการตั้งค่าอื่นยังคงเดิม',
-					'Adjust the tools for the selected systems. Members and other settings stay the same.'
-				)
-			: t(
-					'เลือกได้หลายระบบ เครื่องมือที่องค์กรอนุญาตไว้จะถูกเลือกให้โดยอัตโนมัติ และปรับเฉพาะสำหรับพื้นที่ทำงานนี้ได้',
-					'Select one or more systems. Each starts with the tools your organization has allowed, which you can adjust for this workspace.'
-				),
-		toolsOnly
-			? t(
-					'ตรวจสอบเครื่องมือก่อนบันทึก สมาชิก แผนก และการตั้งค่าอื่นยังคงเดิม',
-					'Review the tools before saving. Members, departments and other settings stay the same.'
-				)
-			: t(
-					'ตรวจสอบสมาชิกและเครื่องมือ จากนั้นเพิ่มคำอธิบายหรือปรับเพดานการใช้งานต่อวันตามความเหมาะสม',
-					'Review members and tools, then add a description or adjust the daily limit if needed.'
-				)
-	]);
+	let formElement: HTMLFormElement | undefined = $state();
 	const organizationName = $derived(data.organization.displayName || 'ORCA');
 	const selectedConnectionIDs = $derived(sources.map((source) => source.connectionID));
 	const sourceGroups = $derived(
@@ -180,6 +146,25 @@
 			: allReadOnly
 				? t('อ่านข้อมูลเท่านั้น', 'Read only')
 				: t('เฉพาะเครื่องมือที่อนุญาต', 'Allowed tools only')
+	);
+	const selectionSummary = $derived(
+		t(
+			`${sources.length} ระบบ · เครื่องมือ ${selectedToolCount} รายการ`,
+			`Systems: ${sources.length} · Tools: ${selectedToolCount}`
+		)
+	);
+	const audienceSummary = $derived(
+		t(
+			`สมาชิก ${memberIDs.length} คน · ${accessUnitIDs.length} แผนก`,
+			`Members: ${memberIDs.length} · Departments: ${accessUnitIDs.length}`
+		)
+	);
+	const statusLabel = $derived(
+		status === 'active'
+			? t('เปิดใช้งาน', 'Active')
+			: status === 'paused'
+				? t('ระงับการใช้งาน', 'Paused')
+				: t('ฉบับร่าง', 'Draft')
 	);
 	const sourceLinkChanged = $derived(!editingID && initialConnectionID !== requestedConnectionID);
 	const currentMember = $derived(
@@ -290,7 +275,6 @@
 					}
 				: source
 		);
-		reviewed = false;
 		error = '';
 	}
 
@@ -302,9 +286,12 @@
 		} else {
 			if (!selected || !connectionReady(selected)) return;
 			if (sources.length >= maxSources) {
-				error = t(
-					`พื้นที่ทำงานหนึ่งแห่งรวมได้สูงสุด ${maxSources} ระบบ กรุณานำระบบที่ไม่ใช้ออกก่อนเพิ่มระบบใหม่`,
-					`A workspace can include up to ${maxSources} systems. Remove an unused system before adding another.`
+				report(
+					'tools',
+					t(
+						`พื้นที่ทำงานหนึ่งแห่งรวมได้สูงสุด ${maxSources} ระบบ กรุณานำระบบที่ไม่ใช้ออกก่อนเพิ่มระบบใหม่`,
+						`A workspace can include up to ${maxSources} systems. Remove an unused system before adding another.`
+					)
 				);
 				return;
 			}
@@ -316,7 +303,6 @@
 		customToolsOpen = selectedConnectionIDs.includes(id)
 			? [...new Set([...customToolsOpen, id])]
 			: customToolsOpen.filter((sourceID) => sourceID !== id);
-		reviewed = false;
 		error = '';
 	}
 	function toggleSourceTool(connectionID: string, name: string) {
@@ -363,7 +349,6 @@
 		if (currentMember) toggleMember(currentMember.id);
 	}
 	function toggle(values: string[], id: string): string[] {
-		reviewed = false;
 		return values.includes(id) ? values.filter((value) => value !== id) : [...values, id];
 	}
 	function removeUnavailableTool(connectionID: string, name: string) {
@@ -382,12 +367,12 @@
 					}
 				: source
 		);
-		reviewed = false;
 		error = '';
 	}
-	function validation(at: number): string {
-		if (at >= 1 && !name.trim()) return t('กรุณาตั้งชื่อพื้นที่ทำงาน AI', 'Enter a name for the AI workspace.');
-		if (at >= 2) {
+	function sectionIssue(section: IssueSection): string {
+		if (section === 'name')
+			return name.trim() ? '' : t('กรุณาตั้งชื่อพื้นที่ทำงาน AI', 'Enter a name for the AI workspace.');
+		if (section === 'people') {
 			if (userSourceID && userSourceID !== initialUserSourceID && !selectedUserSource?.enabled)
 				return t('กรุณาเลือกการเข้าสู่ระบบองค์กรที่เปิดใช้งาน หรือใช้บัญชี ORCA', 'Choose an active sign-in source or use an ORCA account.');
 			if (!memberIDs.length && !accessUnitIDs.length)
@@ -401,16 +386,17 @@
 				)
 			)
 				return t(
-					'กรุณานำสมาชิกที่ถูกระงับหรือไม่พบในองค์กรออกก่อนดำเนินการต่อ',
-					'Remove suspended or unavailable members before continuing.'
+					'กรุณานำสมาชิกที่ถูกระงับหรือไม่พบในองค์กรออกก่อนบันทึก',
+					'Remove suspended or unavailable members before saving.'
 				);
 			if (accessUnitIDs.some((id) => !departmentActive(data.units.find((unit) => unit.id === id))))
 				return t(
-					'กรุณานำแผนกที่จัดเก็บแล้วหรือไม่พบออกก่อนดำเนินการต่อ',
-					'Remove archived or unavailable departments before continuing.'
+					'กรุณานำแผนกที่จัดเก็บแล้วหรือไม่พบออกก่อนบันทึก',
+					'Remove archived or unavailable departments before saving.'
 				);
+			return '';
 		}
-		if (at >= 3) {
+		if (section === 'tools') {
 			if (sourceIssue) return sourceIssue;
 			if (sources.length > maxSources)
 				return t(
@@ -424,58 +410,44 @@
 				);
 			if (sourceGroups.some((source) => source.unavailableTools.length))
 				return t(
-					'กรุณานำเครื่องมือที่ระบบไม่อนุญาตแล้วออกจากพื้นที่ทำงานนี้ก่อนดำเนินการต่อ',
-					'Remove tools that a system no longer allows before continuing.'
+					'กรุณานำเครื่องมือที่ระบบไม่อนุญาตแล้วออกจากพื้นที่ทำงานนี้ก่อนบันทึก',
+					'Remove tools that a system no longer allows before saving.'
 				);
 			if (sources.some((source) => !source.toolNames.length))
 				return t(
 					'กรุณาเลือกเครื่องมืออย่างน้อย 1 รายการจากแต่ละระบบ หรือนำระบบที่ไม่ใช้ออกจากพื้นที่ทำงานนี้',
 					'Select at least one tool from each system, or remove unused systems from this workspace.'
 				);
+			return '';
 		}
-		if (
-			at >= 4 &&
-			(!Number.isInteger(dailyLimit) || (dailyLimit ?? 0) < 1 || (dailyLimit ?? 0) > 1000000)
-		)
-			return t(
-				'กรุณากำหนดเพดานการใช้งานต่อวันเป็นจำนวนเต็มตั้งแต่ 1 ถึง 1,000,000 ครั้ง',
-				'Set a whole-number daily limit between 1 and 1,000,000 calls.'
-			);
-		return '';
+		return !Number.isInteger(dailyLimit) || (dailyLimit ?? 0) < 1 || (dailyLimit ?? 0) > 1000000
+			? t(
+					'กรุณากำหนดเพดานการใช้งานต่อวันเป็นจำนวนเต็มตั้งแต่ 1 ถึง 1,000,000 ครั้ง',
+					'Set a whole-number daily limit between 1 and 1,000,000 calls.'
+				)
+			: '';
+	}
+	// Checked in page order, so the first problem reported is the first one on the page.
+	function firstIssue(): { section: IssueSection; message: string } | undefined {
+		for (const section of ['name', 'tools', 'people', 'advanced'] as IssueSection[]) {
+			const message = sectionIssue(section);
+			if (message) return { section, message };
+		}
+		return undefined;
+	}
+	function report(section: IssueSection | 'form' | 'elsewhere', message: string) {
+		errorSection = section;
+		error = message;
 	}
 	async function showError() {
 		await tick();
-		errorBox?.focus();
+		const box = formElement?.querySelector<HTMLElement>('[data-setup-error]');
+		box?.scrollIntoView({ block: 'center' });
+		box?.focus({ preventScroll: true });
 	}
 	function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
-		if (step === 4) void save();
-		else void move(flowSteps[flowSteps.indexOf(step) + 1]);
-	}
-	async function move(next: number) {
-		if (
-			busy ||
-			savedHub ||
-			!flowSteps.includes(next) ||
-			(next > step && flowSteps.indexOf(next) > flowSteps.indexOf(step) + 1)
-		)
-			return;
-		error = next > step ? validation(step) : '';
-		if (error) {
-			await showError();
-			return;
-		}
-		step = next;
-		query = '';
-		toolQuery = '';
-		await tick();
-		stepList?.querySelector('[aria-current="step"]')?.scrollIntoView({
-			block: 'nearest',
-			inline: 'center',
-			behavior: 'instant'
-		});
-		title?.focus({ preventScroll: true });
-		window.scrollTo({ top: 0, behavior: 'instant' });
+		void save();
 	}
 	async function save() {
 		if (busy) return;
@@ -484,20 +456,20 @@
 			return;
 		}
 		if (versionConflict) {
-			error = conflictMessage();
+			report('form', conflictMessage());
 			await showError();
 			return;
 		}
-		error = validation(4);
-		if (error || !reviewed) {
-			error ||= t(
-				'กรุณายืนยันว่าได้ตรวจสอบข้อมูลและสิทธิ์แล้วก่อนบันทึก',
-				'Confirm that you have reviewed the settings and access before saving.'
-			);
+		const issue = firstIssue();
+		if (issue) {
+			// Editing tools only shows one section; a problem elsewhere points to the full editor.
+			report(toolsOnly && issue.section !== 'tools' ? 'elsewhere' : issue.section, issue.message);
+			if (issue.section === 'advanced') advancedOpen = true;
 			await showError();
 			return;
 		}
 		busy = true;
+		error = '';
 		const input: HubInput = {
 			name: name.trim(),
 			description: description.trim(),
@@ -513,13 +485,15 @@
 			unitIDs: [...unitIDs],
 			dailyLimit: dailyLimit!,
 			status,
+			// Tools-only editing leaves guidance and the write mode out, so the server keeps them.
+			...(toolsOnly ? {} : { instructions: instructions.trim(), writeMode }),
 			...(editingID ? { version: editingVersion } : {})
 		};
 		try {
 			savedHub = await OrcaService.hub(input, editingID);
 		} catch (cause) {
 			versionConflict = parseErrorContent(cause).status === 409;
-			error = versionConflict ? conflictMessage() : orcaError(cause);
+			report('form', versionConflict ? conflictMessage() : orcaError(cause));
 			await showError();
 		} finally {
 			busy = false;
@@ -539,9 +513,12 @@
 		try {
 			await onsaved(savedHub);
 		} catch {
-			error = t(
-				'บันทึกพื้นที่ทำงาน AI แล้ว แต่เปิดหน้าถัดไปไม่สำเร็จ กรุณากด “เปิดพื้นที่ทำงานที่บันทึกแล้ว” เพื่อลองอีกครั้ง',
-				'The AI workspace is saved, but its page could not be opened. Select “Open saved workspace” to try again.'
+			report(
+				'form',
+				t(
+					'บันทึกพื้นที่ทำงาน AI แล้ว แต่เปิดหน้าถัดไปไม่สำเร็จ กรุณากด “เปิดพื้นที่ทำงานที่บันทึกแล้ว” เพื่อลองอีกครั้ง',
+					'The AI workspace is saved, but its page could not be opened. Select “Open saved workspace” to try again.'
+				)
 			);
 			await showError();
 		} finally {
@@ -549,6 +526,33 @@
 		}
 	}
 </script>
+
+{#snippet sectionHead(id: Section, title: string, description: string, count = '', optional = false)}
+	<header class="setup-section-head">
+		{#if sections.length > 1}<span class="setup-section-number" aria-hidden="true"
+				>{sections.indexOf(id) + 1}</span
+			>{/if}
+		<div class="setup-section-copy">
+			<h2 id={`setup-${id}-title`}>
+				{title}{#if optional}{' '}<span class="setup-optional">{t('(ไม่บังคับ)', '(optional)')}</span>{/if}
+			</h2>
+			<p class="setup-section-description">{description}</p>
+		</div>
+		{#if count}<span class="setup-count">{count}</span>{/if}
+	</header>
+{/snippet}
+
+{#snippet sectionError(section: IssueSection)}
+	{#if error && errorSection === section}<div
+			class="k-banner error setup-section-error"
+			role="alert"
+			data-setup-error
+			tabindex="-1"
+		>
+			<Info size={16} aria-hidden="true" />
+			<p>{error}</p>
+		</div>{/if}
+{/snippet}
 
 {#snippet sourceTools(group: (typeof sourceGroups)[number])}
 	<fieldset class="setup-source-tools">
@@ -678,91 +682,39 @@
 		<p class="k-subtitle">
 			{toolsOnly
 				? t(
-						'เลือกเครื่องมือและตรวจสอบก่อนบันทึก สมาชิก แผนก และการตั้งค่าอื่นยังคงใช้ค่าปัจจุบัน',
-						'Select tools and review them before saving. Members, departments and other settings keep their current values.'
+						'ปรับเครื่องมือของระบบที่เลือกไว้ สมาชิก แผนก และการตั้งค่าอื่นยังคงใช้ค่าปัจจุบัน',
+						'Adjust the tools of the selected systems. Members, departments and other settings keep their current values.'
 					)
 				: t(
-						'รวมระบบ เครื่องมือ และสมาชิกที่ทีมต้องใช้ไว้ในพื้นที่ทำงานเดียว',
-						'Bring the systems, tools and members your team needs into one workspace.'
+						'ตั้งค่าทั้งหมดในหน้าเดียว: ตั้งชื่อ เลือกระบบและเครื่องมือ กำหนดผู้ใช้งาน แล้วบอกวิธีทำงานให้ AI',
+						'Everything on one page: name it, pick systems and tools, choose who can use it, then guide how AI works.'
 					)}
 		</p>
 	</div>
 
 	<div class="setup-layout">
-		<form class="setup-main" onsubmit={handleSubmit} novalidate>
-			<ol
-				bind:this={stepList}
-				class="setup-steps"
-				style:--setup-step-count={progressSteps.length}
-				aria-label={t('ขั้นตอนการตั้งค่าพื้นที่ทำงาน', 'Workspace setup steps')}
-			>
-				{#each progressSteps as stepNumber, index (stepNumber)}
-					<li class:current={step === stepNumber} class:complete={step > stepNumber}>
-						<button
-							type="button"
-							disabled={busy || !!savedHub || stepNumber > step}
-							aria-current={step === stepNumber ? 'step' : undefined}
-							onclick={() => move(stepNumber)}
-						>
-							<span class="setup-step-number"
-								>{#if step > stepNumber}<Check size={14} />{:else}{index + 1}{/if}</span
-							><span class="setup-step-label">{steps[stepNumber - 1]}</span>
-						</button>
-					</li>
-				{/each}
-			</ol>
+		<form class="setup-main" bind:this={formElement} onsubmit={handleSubmit} novalidate>
 			{#if sourceLinkChanged}<div class="k-banner" role="status">
 					<Info size={16} aria-hidden="true" />
 					<p>
 						{t(
-							'ลิงก์ของหน้านี้เปลี่ยนแล้ว แต่ข้อมูลที่กรอกไว้ยังอยู่ เพิ่มหรือนำระบบออกได้ในขั้นตอนระบบและเครื่องมือ',
-							'The page link changed, and your current entries are preserved. Add or remove systems in the Systems and tools step.'
+							'ลิงก์ของหน้านี้เปลี่ยนแล้ว แต่ข้อมูลที่กรอกไว้ยังอยู่ เพิ่มหรือนำระบบออกได้ในส่วนระบบและเครื่องมือ',
+							'The page link changed, and your current entries are preserved. Add or remove systems in the Systems and tools section.'
 						)}
 					</p>
 				</div>{/if}
-			{#if step >= 3 && sourceIssue}<div class="k-banner" role="status">
-					<Info size={16} aria-hidden="true" />
-					<div>
-						<p>{sourceIssue}</p>
-						<a class="k-link-button" href={localeHref('/app?view=servers')}
-							>{t('ตรวจสอบระบบ', 'Review systems')}</a
-						>
-					</div>
-				</div>{/if}
-			{#if error}<div class="k-banner error" role="alert" bind:this={errorBox} tabindex="-1">
-					<Info size={16} aria-hidden="true" />
-					<div>
-						{error}
-						<div class="k-actions">
-							{#if versionConflict && editingID}
-								<a
-									class="k-link-button"
-									href={localeHref(`/app?view=hub&hub=${encodeURIComponent(editingID)}`)}
-									>{t('ยกเลิกและกลับไปที่พื้นที่ทำงาน', 'Cancel and return to the workspace')}</a
-								>
-							{:else if !savedHub}
-								<button type="button" class="k-link-button" disabled={busy} onclick={onreload}
-									>{t('โหลดข้อมูลล่าสุด', 'Reload latest data')}</button
-								>
-							{/if}
-						</div>
-					</div>
-				</div>{/if}
 			<fieldset disabled={busy || !!savedHub} class="setup-fields">
-				<div class="setup-content">
-					<header class="setup-step-intro">
-						<div class="setup-step-heading">
-							<h2 bind:this={title} tabindex="-1">{stepTitles[step - 1]}</h2>
-							<p class="setup-step-count">
-								{t('ขั้นตอนที่', 'Step')}
-								{flowSteps.indexOf(step) + 1}
-								{t('จาก', 'of')}
-								{progressSteps.length}
-							</p>
-						</div>
-						<p class="setup-step-description">{stepDescriptions[step - 1]}</p>
-					</header>
-					{#if step === 1}
+				{#if !toolsOnly}
+					<section class="setup-section" aria-labelledby="setup-name-title">
+						{@render sectionHead(
+							'name',
+							t('ตั้งชื่อพื้นที่ทำงาน', 'Name the workspace'),
+							t(
+								'พื้นที่ทำงานนี้อยู่ในองค์กรปัจจุบันของคุณ ตั้งชื่อที่สมาชิกในทีมเข้าใจได้ทันที',
+								'This workspace belongs to your current organization. Use a name your team will recognize.'
+							)
+						)}
+						{@render sectionError('name')}
 						<div class="setup-organization">
 							<span class="setup-organization-label">{t('องค์กรปัจจุบัน', 'Current organization')}</span
 							><strong>{organizationName}</strong>
@@ -771,16 +723,191 @@
 							<label for="hub-name">{t('ชื่อพื้นที่ทำงาน', 'Workspace name')}</label><input
 								id="hub-name"
 								bind:value={name}
-								oninput={() => (reviewed = false)}
+								oninput={() => (error = '')}
 								maxlength="100"
 								placeholder={t('เช่น ฝ่ายบริการลูกค้า', 'For example, Customer service')}
 								required
 							/>
 						</div>
-					{:else if step === 2}
+						<div class="k-field">
+							<label for="hub-description"
+								>{t('คำอธิบาย', 'Description')}
+								<span class="setup-optional">{t('(ไม่บังคับ)', '(optional)')}</span></label
+							><textarea
+								id="hub-description"
+								bind:value={description}
+								maxlength="500"
+								rows="2"
+								placeholder={t(
+									'เช่น ใช้ค้นหาเอกสารและติดตามงานของทีม',
+									'For example, search documents and track team tasks'
+								)}
+							></textarea>
+						</div>
+					</section>
+				{/if}
+
+				<section class="setup-section" aria-labelledby="setup-tools-title">
+					{@render sectionHead(
+						'tools',
+						t('เลือกระบบและเครื่องมือ', 'Select systems and tools'),
+						toolsOnly
+							? t(
+									'ปรับเครื่องมือของระบบที่เลือกไว้ โดยสมาชิกและการตั้งค่าอื่นยังคงเดิม',
+									'Adjust the tools for the selected systems. Members and other settings stay the same.'
+								)
+							: t(
+									'เลือกได้หลายระบบ เครื่องมือที่องค์กรอนุญาตไว้จะถูกเลือกให้โดยอัตโนมัติ และปรับเฉพาะสำหรับพื้นที่ทำงานนี้ได้',
+									'Select one or more systems. Each starts with the tools your organization has allowed, which you can adjust for this workspace.'
+								),
+						selectionSummary
+					)}
+					{@render sectionError('tools')}
+					{#if sourceIssue && !(error && errorSection === 'tools' && error === sourceIssue)}<div
+							class="k-banner setup-section-error"
+							role="status"
+						>
+							<Info size={16} aria-hidden="true" />
+							<div>
+								<p>{sourceIssue}</p>
+								<a class="k-link-button" href={localeHref('/app?view=servers')}
+									>{t('ตรวจสอบระบบ', 'Review systems')}</a
+								>
+							</div>
+						</div>{/if}
+					<p class="setup-help">
+						{t(
+							'พื้นที่ทำงานนี้ใช้เฉพาะเครื่องมือที่เลือกในครั้งนี้ หากระบบมีเครื่องมือใหม่ภายหลัง ต้องเลือกเพิ่มให้พื้นที่ทำงานนี้เอง',
+							'This workspace includes only the tools selected now. Tools added to a system later must be added to this workspace explicitly.'
+						)}
+					</p>
+					{#if eligibleToolCount > 5}<div class="k-field setup-tool-search">
+							<label for="tool-search"
+								>{t('ค้นหาเครื่องมือในทุกระบบ', 'Search tools across systems')}</label
+							>
+							<input
+								id="tool-search"
+								type="search"
+								bind:value={toolQuery}
+								placeholder={t('ชื่อหรือคำอธิบายเครื่องมือ', 'Tool name or description')}
+							/>
+						</div>{/if}
+
+					{#if toolsOnly}
+						{#each sourceGroups as group (group.connectionID)}{@render sourceTools(group)}{/each}
+					{:else}
+						<fieldset class="setup-source-selection">
+							<legend>{t('ระบบที่เชื่อมต่อ', 'Connected systems')}</legend>
+							<p class="setup-help">
+								{t(
+									'เลือกระบบ แล้วปรับเครื่องมือของแต่ละระบบได้ด้านล่าง',
+									'Select a system, then customize its tools directly below it.'
+								)}
+							</p>
+							<p class="setup-count-line">
+								{t(
+									`เลือกแล้ว ${sources.length} จาก ${maxSources} ระบบ`,
+									`${sources.length} of ${maxSources} systems selected`
+								)}
+							</p>
+							{#if !hasReadyConnection}
+								<div class="setup-prerequisite">
+									<span class="setup-prerequisite-icon" aria-hidden="true"><Plug size={28} /></span>
+									<h3>
+										{t('ยังไม่มีระบบที่พร้อมใช้งาน', 'No systems are ready yet')}
+									</h3>
+									<p>
+										{t(
+											'เชื่อมต่อระบบที่ทีมต้องใช้ แล้วตรวจสอบและเปิดใช้งานเครื่องมือ ระบบที่พร้อมใช้งานจะแสดงให้เลือกในหน้านี้',
+											'Connect a system your team uses, then review and enable its tools. Ready systems will appear here for selection.'
+										)}
+									</p>
+									<button type="button" class="k-button primary" onclick={() => sourceSetupOpen = true}
+										><Plug size={16} aria-hidden="true" />{t('เชื่อมต่อระบบ', 'Connect a system')}<ChevronRight
+											size={16}
+											aria-hidden="true"
+									/></button
+									>
+								</div>
+							{/if}
+							{#if hasReadyConnection}<button type="button" class="k-button setup-connect-more" onclick={() => sourceSetupOpen = true}>
+								<Plug size={16} aria-hidden="true" />{t('เชื่อมต่อระบบเพิ่ม', 'Connect another system')}
+							</button>{/if}
+							{#if availableConnections.length}
+								<div class="setup-choices setup-choices-single">
+									{#each availableConnections as source (source.id)}
+										{@const group = sourceGroups.find((item) => item.connectionID === source.id)}
+										<div class="setup-app-card" class:selected={!!group}>
+											<label
+												class="setup-choice"
+												class:selected={selectedConnectionIDs.includes(source.id)}
+											>
+												<input
+													type="checkbox"
+													name="connection"
+													value={source.id}
+													checked={selectedConnectionIDs.includes(source.id)}
+													disabled={!selectedConnectionIDs.includes(source.id) &&
+														(!connectionReady(source) || sources.length >= maxSources)}
+													onchange={() => selectConnection(source.id)}
+												/>
+												<span class="setup-logo"><CatalogIcon name={source.name} size={20} /></span><span class="setup-choice-copy"
+													><strong>{source.name}</strong>
+													<p>{source.description || source.scopeNote}</p></span
+												><span class="k-badge" class:active={connectionReady(source)}
+													>{source.archivedAt || source.deletedAt
+														? t('จัดเก็บแล้ว', 'Archived')
+														: !source.enabled
+															? t('ปิดใช้งาน', 'Disabled')
+															: connectionReady(source)
+																? t('ตรวจสอบเครื่องมือแล้ว', 'Tools reviewed')
+																: t('รอตรวจสอบ', 'Needs review')}</span
+												>
+											</label>
+											{#if group}{@render sourceTools(group)}{/if}
+										</div>
+									{/each}
+								</div>
+							{/if}
+							{#each missingSources as source (source.connectionID)}
+								<div class="setup-revoked-tool">
+									<span
+										>{t('ไม่พบระบบที่เคยเลือก', 'Selected system is unavailable')}
+										<code>{source.connectionID}</code></span
+									>
+									<button
+										type="button"
+										class="k-button small"
+										onclick={() => selectConnection(source.connectionID)}
+										>{t('นำระบบออก', 'Remove system')}</button
+									>
+								</div>
+							{/each}
+						</fieldset>
+					{/if}
+					<p class="setup-help setup-help-after">
+						{t(
+							'ข้อมูลที่เข้าถึงได้เป็นไปตามบัญชีและสิทธิ์ของผู้ใช้ในแต่ละระบบที่เชื่อมต่อ',
+							'Accessible data follows each user’s account and permissions in every connected system.'
+						)}
+					</p>
+				</section>
+
+				{#if !toolsOnly}
+					<section class="setup-section" aria-labelledby="setup-people-title">
+						{@render sectionHead(
+							'people',
+							t('กำหนดผู้ใช้งาน', 'Choose who can use it'),
+							t(
+								'เลือกวิธีเข้าสู่ระบบ จากนั้นให้สิทธิ์แก่แผนก สมาชิกรายบุคคล หรือทั้งสองแบบ',
+								'Choose the sign-in method, then grant access to departments, individual members or both.'
+							),
+							audienceSummary
+						)}
+						{@render sectionError('people')}
 						<div class="k-field setup-identity">
 							<label for="hub-user-source">{t('วิธีเข้าสู่ระบบของสมาชิก', 'Member sign-in method')}</label>
-							<select id="hub-user-source" bind:value={userSourceID} onchange={() => reviewed = false}>
+							<select id="hub-user-source" bind:value={userSourceID} onchange={() => (error = '')}>
 								<option value="">{t('บัญชี ORCA', 'ORCA account')}</option>
 								{#if userSourceID && !selectedUserSource}<option value={userSourceID} disabled>{t('การเข้าสู่ระบบองค์กรเดิม', 'Previous sign-in source')}</option>{/if}
 								{#each userSources.filter((source) => source.enabled || source.id === userSourceID) as source (source.id)}
@@ -911,8 +1038,8 @@
 							</div>
 							<p class="setup-help setup-help-after">
 								{t(
-									'เจ้าของระบบและผู้ดูแลระบบต้องได้รับสิทธิ์ในฐานะสมาชิกรายบุคคลหรือผ่านแผนกที่เลือกเช่นกัน จึงจะใช้พื้นที่ทำงานนี้ได้',
-									'Owners and admins also need access as an individual member or through a selected department to use this workspace.'
+									'เจ้าของระบบและผู้ดูแลระบบต้องได้รับสิทธิ์ในฐานะสมาชิกรายบุคคลหรือผ่านแผนกที่เลือกเช่นกัน จึงจะใช้พื้นที่ทำงานนี้ได้ การเปลี่ยนแปลงสิทธิ์มีผลเมื่อสมาชิกเรียกใช้งานครั้งถัดไป',
+									'Owners and admins also need access as an individual member or through a selected department to use this workspace. Access changes apply from each member’s next call.'
 								)}
 							</p>
 							{#each missingMemberIDs as id (id)}
@@ -926,339 +1053,183 @@
 								</div>
 							{/each}
 						</fieldset>
-					{:else if step === 3}
-						<div class="setup-group-head">
-							<h3>
-								{t('ระบบและเครื่องมือในพื้นที่ทำงานนี้', 'Systems and tools in this workspace')}
-							</h3>
-							<span class="setup-count"
-								>{t(
-									`${sources.length} ระบบ · เครื่องมือ ${selectedToolCount} รายการ`,
-									`Systems: ${sources.length} · Tools: ${selectedToolCount}`
-								)}</span
-							>
-						</div>
-						<p class="setup-help">
-							{t(
-								'พื้นที่ทำงานนี้ใช้เฉพาะเครื่องมือที่เลือกในครั้งนี้ หากระบบมีเครื่องมือใหม่ภายหลัง ต้องเลือกเพิ่มให้พื้นที่ทำงานนี้เอง',
-								'This workspace includes only the tools selected now. Tools added to a system later must be added to this workspace explicitly.'
-							)}
-						</p>
-						{#if eligibleToolCount > 5}<div class="k-field setup-tool-search">
-								<label for="tool-search"
-									>{t('ค้นหาเครื่องมือในทุกระบบ', 'Search tools across systems')}</label
-								>
-								<input
-									id="tool-search"
-									type="search"
-									bind:value={toolQuery}
-									placeholder={t('ชื่อหรือคำอธิบายเครื่องมือ', 'Tool name or description')}
-								/>
-							</div>{/if}
+					</section>
 
-						{#if toolsOnly}
-							{#each sourceGroups as group (group.connectionID)}{@render sourceTools(group)}{/each}
-						{:else}
-							<fieldset class="setup-source-selection">
-								<legend>{t('ระบบที่เชื่อมต่อ', 'Connected systems')}</legend>
-								<p class="setup-help">
-									{t(
-										'เลือกระบบ แล้วปรับเครื่องมือของแต่ละระบบได้ด้านล่าง',
-										'Select a system, then customize its tools directly below it.'
-									)}
-								</p>
-								<p class="setup-count-line">
-									{t(
-										`เลือกแล้ว ${sources.length} จาก ${maxSources} ระบบ`,
-										`${sources.length} of ${maxSources} systems selected`
-									)}
-								</p>
-								{#if !hasReadyConnection}
-									<div class="setup-prerequisite">
-										<span class="setup-prerequisite-icon" aria-hidden="true"><Plug size={28} /></span>
-										<h3>
-											{t('ยังไม่มีระบบที่พร้อมใช้งาน', 'No systems are ready yet')}
-										</h3>
+					<section class="setup-section" aria-labelledby="setup-ai-title">
+						{@render sectionHead(
+							'ai',
+							t('บอกวิธีทำงานให้ AI', 'Guide how AI works here'),
+							t(
+								'เลือกว่างานที่แก้ไขข้อมูลต้องรอผู้ดูแลอนุมัติหรือไม่ และเขียนคำแนะนำที่แอป AI จะได้รับเมื่อเชื่อมต่อ',
+								'Choose whether actions that change data wait for a manager, and write guidance AI apps receive when they connect.'
+							),
+							'',
+							true
+						)}
+						<fieldset class="setup-audience-group">
+							<legend>{t('การแก้ไขข้อมูลในระบบ', 'Changes to your systems')}</legend>
+							<p class="setup-help">
+								{t(
+									'งานที่อาจแก้ไขข้อมูล เช่น สร้างใบเสนอราคาหรือส่งอีเมล ส่วนการอ่านข้อมูลทำได้ทันทีเสมอ',
+									'Actions that may change data, such as creating a quotation or sending an email. Reading data always runs at once.'
+								)}
+							</p>
+							<div class="setup-choices">
+								<label class="setup-choice" class:selected={writeMode === 'direct'}
+									><input type="radio" name="write-mode" value="direct" bind:group={writeMode} /><span
+										class="setup-choice-copy"
+										><strong>{t('ทำงานทันที', 'Run at once')}</strong>
+										<p>{t('แอป AI ใช้เครื่องมือที่อนุญาตได้เลย', 'AI apps use the allowed tools right away.')}</p></span
+									></label
+								>
+								<label class="setup-choice" class:selected={writeMode === 'approval'}
+									><input type="radio" name="write-mode" value="approval" bind:group={writeMode} /><span
+										class="setup-choice-copy"
+										><strong>{t('ผู้ดูแลอนุมัติก่อน', 'A manager approves first')}</strong>
 										<p>
 											{t(
-												'เชื่อมต่อระบบที่ทีมต้องใช้ แล้วตรวจสอบและเปิดใช้งานเครื่องมือ ระบบที่พร้อมใช้งานจะแสดงให้เลือกในหน้านี้',
-												'Connect a system your team uses, then review and enable its tools. Ready systems will appear here for selection.'
+												'งานที่แก้ไขข้อมูลจะรอในกล่องอนุมัติ แล้ว ORCA จึงทำด้วยบัญชีของผู้ขอ',
+												'Actions that change data wait in Approvals, then ORCA runs them with the requester’s account.'
 											)}
-										</p>
-										<button type="button" class="k-button primary" onclick={() => sourceSetupOpen = true}
-											><Plug size={16} aria-hidden="true" />{t('เชื่อมต่อระบบ', 'Connect a system')}<ChevronRight
-												size={16}
-												aria-hidden="true"
-										/></button
-										>
-									</div>
-								{/if}
-								{#if hasReadyConnection}<button type="button" class="k-button setup-connect-more" onclick={() => sourceSetupOpen = true}>
-									<Plug size={16} aria-hidden="true" />{t('เชื่อมต่อระบบเพิ่ม', 'Connect another system')}
-								</button>{/if}
-								{#if availableConnections.length}
-									<div class="setup-choices setup-choices-single">
-										{#each availableConnections as source (source.id)}
-											{@const group = sourceGroups.find((item) => item.connectionID === source.id)}
-											<div class="setup-app-card" class:selected={!!group}>
-												<label
-													class="setup-choice"
-													class:selected={selectedConnectionIDs.includes(source.id)}
-												>
-													<input
-														type="checkbox"
-														name="connection"
-														value={source.id}
-														checked={selectedConnectionIDs.includes(source.id)}
-														disabled={!selectedConnectionIDs.includes(source.id) &&
-															(!connectionReady(source) || sources.length >= maxSources)}
-														onchange={() => selectConnection(source.id)}
-													/>
-													<span class="setup-logo"><CatalogIcon name={source.name} size={20} /></span><span class="setup-choice-copy"
-														><strong>{source.name}</strong>
-														<p>{source.description || source.scopeNote}</p></span
-													><span class="k-badge" class:active={connectionReady(source)}
-														>{source.archivedAt || source.deletedAt
-															? t('จัดเก็บแล้ว', 'Archived')
-															: !source.enabled
-																? t('ปิดใช้งาน', 'Disabled')
-																: connectionReady(source)
-																	? t('ตรวจสอบเครื่องมือแล้ว', 'Tools reviewed')
-																	: t('รอตรวจสอบ', 'Needs review')}</span
-													>
-												</label>
-												{#if group}{@render sourceTools(group)}{/if}
-											</div>
-										{/each}
-									</div>
-								{/if}
-								{#each missingSources as source (source.connectionID)}
-									<div class="setup-revoked-tool">
-										<span
-											>{t('ไม่พบระบบที่เคยเลือก', 'Selected system is unavailable')}
-											<code>{source.connectionID}</code></span
-										>
-										<button
-											type="button"
-											class="k-button small"
-											onclick={() => selectConnection(source.connectionID)}
-											>{t('นำระบบออก', 'Remove system')}</button
-										>
-									</div>
-								{/each}
-							</fieldset>
-						{/if}
-						<p class="setup-help setup-help-after">
-							{t(
-								'ข้อมูลที่เข้าถึงได้เป็นไปตามบัญชีและสิทธิ์ของผู้ใช้ในแต่ละระบบที่เชื่อมต่อ',
-								'Accessible data follows each user’s account and permissions in every connected system.'
-							)}
-						</p>
-					{:else}
-						<div class="k-field">
-							<label for="hub-description"
-								>{t('คำอธิบายพื้นที่ทำงาน', 'Workspace description')}
+										</p></span
+									></label
+								>
+							</div>
+							{#if writeMode === 'approval' && allReadOnly}<p class="setup-help setup-help-after">
+									{t(
+										'ทุกระบบที่เลือกถูกตรวจว่าอ่านอย่างเดียว จึงยังไม่มีงานที่ต้องอนุมัติ',
+										'Every selected system is reviewed as read-only, so nothing needs approval yet.'
+									)}
+								</p>{/if}
+						</fieldset>
+						<div class="k-field setup-guidance">
+							<label for="hub-guidance"
+								>{t('คำแนะนำสำหรับ AI', 'Guidance for AI')}
 								<span class="setup-optional">{t('(ไม่บังคับ)', '(optional)')}</span></label
 							><textarea
-								id="hub-description"
-								bind:value={description}
-								disabled={toolsOnly}
-								oninput={() => (reviewed = false)}
-								maxlength="500"
-								rows="3"
+								id="hub-guidance"
+								bind:value={instructions}
+								maxlength="4000"
+								rows="4"
 								placeholder={t(
-									'เช่น ใช้ค้นหาเอกสารและติดตามงานของทีม',
-									'For example, search documents and track team tasks'
+									'เช่น ตอบเป็นภาษาไทย อ้างเลขที่เอกสารทุกครั้ง และสรุปยอดเป็นบาท',
+									'For example: reply in Thai, cite document numbers, and total amounts in baht.'
 								)}
-							></textarea>
-						</div>
-						<div class="setup-limit-grid">
-							<div class="k-field">
-								<label for="daily-limit"
-									>{t('เพดานการใช้งานต่อวัน', 'Daily limit')}</label
-								><input
-									id="daily-limit"
-									type="number"
-									min="1"
-									max="1000000"
-									step="1"
-									bind:value={dailyLimit}
-									disabled={toolsOnly}
-									oninput={() => (reviewed = false)}
-									required
-								/><span class="setup-field-help"
-									>{t(
-										'สมาชิกทุกคนในพื้นที่ทำงานใช้ร่วมกัน · เริ่มนับใหม่ทุกเที่ยงคืนตามเวลาประเทศไทย',
-										'Shared by all workspace members · resets at midnight Bangkok time'
-									)}</span
-								>
-							</div>
-							<div class="k-banner setup-reviewed-note">
-								<FileCheck2 size={16} aria-hidden="true" />
-								<div>
-									<strong>{t('เครื่องมือที่ตรวจสอบแล้ว', 'Reviewed tools')}</strong>
-									<p>
-										{allReadOnly
-											? t(
-													'พื้นที่ทำงานนี้ใช้เฉพาะเครื่องมืออ่านข้อมูลที่ผู้ดูแลระบบอนุญาต',
-													'This workspace uses only read tools allowed by an administrator.'
-												)
-											: t(
-													'พื้นที่ทำงานนี้ใช้เฉพาะเครื่องมือที่เลือกจากรายการที่ผู้ดูแลระบบอนุญาต',
-													'This workspace uses only tools selected from the list allowed by an administrator.'
-												)}
-									</p>
-								</div>
-							</div>
-						</div>
-						<div class="setup-group-head setup-review-head">
-							<h3>{t('สรุปการตั้งค่า', 'Settings summary')}</h3>
-							<span class="setup-count">{toolAccessLabel}</span>
-						</div>
-						<div class="setup-review">
-							<dl>
-								<div>
-									<dt>{t('พื้นที่ทำงาน', 'Workspace')}</dt>
-									<dd>
-										<strong>{name}</strong>{#if description}<p class="setup-review-note">
-												{description}
-											</p>{/if}
-									</dd>
-								</div>
-								<div>
-									<dt>{t('ระบบและเครื่องมือ', 'Systems and tools')}</dt>
-									<dd class="setup-review-sources">
-										{#each sourceGroups as group (group.connectionID)}<section>
-												<strong>{group.connection?.name || group.connectionID}</strong>
-												<ul>
-													{#each group.toolNames as tool (tool)}
-														{@const presentation = toolPresentation(
-															group.connection?.tools.find((item) => item.name === tool) || {
-																name: tool
-															},
-															orcaLocale.value
-														)}
-														<li>
-															{presentation.label}<code class="setup-tool-identifier"
-																>{presentation.identifier}</code
-															>
-														</li>
-													{/each}
-												</ul>
-											</section>{/each}
-									</dd>
-								</div>
-								<div>
-									<dt>{t('สมาชิกรายบุคคล', 'Individual members')}</dt>
-									<dd>
-										{data.members
-											.filter((member) => memberIDs.includes(member.id))
-											.map(memberName)
-											.join(', ') ||
-											t('ไม่มี (ให้สิทธิ์ผ่านแผนก)', 'None (access is granted through departments)')}
-									</dd>
-								</div>
-								<div><dt>{t('วิธีเข้าสู่ระบบของสมาชิก', 'Member sign-in method')}</dt><dd>{userSourceLabel}</dd></div>
-								<div>
-									<dt>{t('แผนกที่ได้รับสิทธิ์', 'Departments with access')}</dt>
-									<dd>
-										{data.units
-											.filter((unit) => accessUnitIDs.includes(unit.id))
-											.map((unit) => unit.name)
-											.join(', ') || t('ไม่ได้เลือก', 'None selected')}
-									</dd>
-								</div>
-								<div>
-									<dt>{t('เพดานการใช้งานต่อวัน', 'Daily limit')}</dt>
-									<dd>
-										{dailyLimit?.toLocaleString('th-TH')}
-										{t('ครั้ง (สมาชิกใช้ร่วมกัน)', 'calls, shared by all members')}
-									</dd>
-								</div>
-								{#if unitIDs.length}
-									<div>
-										<dt>{t('ป้ายกำกับแผนกเดิม', 'Previous department labels')}</dt>
-										<dd>
-											{data.units
-												.filter((unit) => unitIDs.includes(unit.id))
-												.map((unit) => unit.name)
-												.join(', ')}
-										</dd>
-									</div>
-								{/if}
-							</dl>
-						</div>
-						<div class="k-field setup-status-field">
-							<label for="hub-status">{t('สถานะหลังบันทึก', 'Status after saving')}</label><select
-								id="hub-status"
-								bind:value={status}
-								disabled={toolsOnly}
-								onchange={() => (reviewed = false)}
-								><option value="active"
-									>{t(
-										'เปิดใช้งาน (สมาชิกเชื่อมแอป AI ได้ทันที)',
-										'Active (members can connect their AI apps)'
-									)}</option
-								><option value="draft"
-									>{t(
-										'ฉบับร่าง (ยังเข้าถึงข้อมูลไม่ได้)',
-										'Draft (data is not accessible yet)'
-									)}</option
-								>{#if existing}<option value="paused">{t('ระงับการใช้งาน', 'Paused')}</option
-									>{/if}</select
+							></textarea><span class="setup-field-help"
+								>{t(
+									'ส่งให้แอป AI ทุกครั้งที่เชื่อมต่อ ใช้บอกวิธีทำงาน ข้อความนี้ไม่เพิ่มสิทธิ์ใด ๆ',
+									'Sent to AI apps each time they connect, to explain how to work. It never adds permissions.'
+								)} · {instructions.length.toLocaleString('th-TH')}/4,000</span
 							>
 						</div>
-						<label class="setup-choice setup-confirmation"
-							><input type="checkbox" bind:checked={reviewed} /><span class="setup-choice-copy"
-								><strong
-									>{t(
-										'ยืนยันว่าระบบ เครื่องมือ และผู้มีสิทธิ์ใช้งานถูกต้อง',
-										'I confirm that the systems, tools and access are correct.'
-									)}</strong
-								>
-								<p>
-									{t(
-										'การเปลี่ยนแปลงสิทธิ์จะมีผลเมื่อสมาชิกเรียกใช้งานครั้งถัดไป',
-										'Access changes apply from each member’s next call.'
-									)}
-								</p></span
-							></label
+					</section>
+
+					<details class="setup-advanced" bind:open={advancedOpen}>
+						<summary
+							>{t('ตั้งค่าขั้นสูง', 'Advanced settings')}<span
+								>{t(
+									`เพดาน ${(dailyLimit ?? 0).toLocaleString('th-TH')} ครั้งต่อวัน · ${statusLabel}`,
+									`${(dailyLimit ?? 0).toLocaleString('en-US')} calls a day · ${statusLabel}`
+								)}</span
+							></summary
 						>
-					{/if}
-				</div>
+						<div class="setup-advanced-body">
+							{@render sectionError('advanced')}
+							<div class="setup-limit-grid">
+								<div class="k-field">
+									<label for="daily-limit">{t('เพดานการใช้งานต่อวัน', 'Daily limit')}</label><input
+										id="daily-limit"
+										type="number"
+										min="1"
+										max="1000000"
+										step="1"
+										bind:value={dailyLimit}
+										oninput={() => (error = '')}
+										required
+									/><span class="setup-field-help"
+										>{t(
+											'สมาชิกทุกคนในพื้นที่ทำงานใช้ร่วมกัน · เริ่มนับใหม่ทุกเที่ยงคืนตามเวลาประเทศไทย',
+											'Shared by all workspace members · resets at midnight Bangkok time'
+										)}</span
+									>
+								</div>
+								<div class="k-field setup-status-field">
+									<label for="hub-status">{t('สถานะหลังบันทึก', 'Status after saving')}</label><select
+										id="hub-status"
+										bind:value={status}
+										><option value="active"
+											>{t(
+												'เปิดใช้งาน (สมาชิกเชื่อมแอป AI ได้ทันที)',
+												'Active (members can connect their AI apps)'
+											)}</option
+										><option value="draft"
+											>{t(
+												'ฉบับร่าง (ยังเข้าถึงข้อมูลไม่ได้)',
+												'Draft (data is not accessible yet)'
+											)}</option
+										>{#if existing}<option value="paused">{t('ระงับการใช้งาน', 'Paused')}</option
+											>{/if}</select
+									>
+								</div>
+							</div>
+						</div>
+					</details>
+				{/if}
 			</fieldset>
+			{#if error && (errorSection === 'form' || errorSection === 'elsewhere')}<div
+					class="k-banner error setup-form-error"
+					role="alert"
+					data-setup-error
+					tabindex="-1"
+				>
+					<Info size={16} aria-hidden="true" />
+					<div>
+						{error}
+						<div class="k-actions">
+							{#if versionConflict && editingID}
+								<a
+									class="k-link-button"
+									href={localeHref(`/app?view=hub&hub=${encodeURIComponent(editingID)}`)}
+									>{t('ยกเลิกและกลับไปที่พื้นที่ทำงาน', 'Cancel and return to the workspace')}</a
+								>
+							{:else if errorSection === 'elsewhere' && editingID}
+								<a
+									class="k-link-button"
+									href={localeHref(`/app?view=new&edit=${encodeURIComponent(editingID)}`)}
+									>{t('เปิดหน้าแก้ไขทั้งหมด', 'Open the full editor')}</a
+								>
+							{:else if !savedHub}
+								<button type="button" class="k-link-button" disabled={busy} onclick={onreload}
+									>{t('โหลดข้อมูลล่าสุด', 'Reload latest data')}</button
+								>
+							{/if}
+						</div>
+					</div>
+				</div>{/if}
 			<div class="setup-actions">
-				{#if step === flowSteps[0]}<a
-						class="k-button"
-						href={localeHref(
-							existing
-								? `/app?view=hub&hub=${encodeURIComponent(existing.id)}${toolsOnly ? '&tab=tools' : ''}`
-								: '/app?view=workspaces'
-						)}>{t('ยกเลิก', 'Cancel')}</a
-					>{:else}<button
-						type="button"
-						class="k-button"
-						disabled={busy || !!savedHub}
-						onclick={() => move(flowSteps[flowSteps.indexOf(step) - 1])}
-						><ChevronLeft size={16} aria-hidden="true" /> {t('ย้อนกลับ', 'Back')}</button
-					>{/if}
-				{#if step < 4}<button type="submit" class="k-button primary" disabled={busy}
-						>{t('ถัดไป', 'Continue')} <ChevronRight size={16} aria-hidden="true" /></button
-					>{:else}<button
-						type="submit"
-						class="k-button primary"
-						disabled={busy || (!savedHub && !reviewed)}
-						>{busy
-							? t('กำลังบันทึก…', 'Saving…')
-							: savedHub
-								? t('เปิดพื้นที่ทำงานที่บันทึกแล้ว', 'Open saved workspace')
-								: existing
-									? t('บันทึกการเปลี่ยนแปลง', 'Save changes')
-									: status === 'active'
-										? t('สร้างและเปิดใช้งาน', 'Create and activate')
-										: t('บันทึกฉบับร่าง', 'Save draft')}
-						<Check size={16} aria-hidden="true" /></button
-					>{/if}
+				<a
+					class="k-button"
+					href={localeHref(
+						existing
+							? `/app?view=hub&hub=${encodeURIComponent(existing.id)}${toolsOnly ? '&tab=tools' : ''}`
+							: '/app?view=workspaces'
+					)}>{t('ยกเลิก', 'Cancel')}</a
+				>
+				<p class="setup-actions-summary">
+					{toolsOnly ? selectionSummary : `${selectionSummary} · ${audienceSummary}`}
+				</p>
+				<button type="submit" class="k-button primary" disabled={busy}
+					>{busy
+						? t('กำลังบันทึก…', 'Saving…')
+						: savedHub
+							? t('เปิดพื้นที่ทำงานที่บันทึกแล้ว', 'Open saved workspace')
+							: existing
+								? t('บันทึกการเปลี่ยนแปลง', 'Save changes')
+								: status === 'active'
+									? t('สร้างและเปิดใช้งาน', 'Create and activate')
+									: t('บันทึกฉบับร่าง', 'Save draft')}
+					<Check size={16} aria-hidden="true" /></button
+				>
 			</div>
 		</form>
 		<aside class="setup-summary" aria-label={t('สรุปพื้นที่ทำงาน', 'Workspace summary')}>
@@ -1307,11 +1278,17 @@
 					<dt>{t('สมาชิกและแผนก:', 'Members and departments:')}</dt>
 					<dd>
 						{memberIDs.length || accessUnitIDs.length
-							? t(
-									`สมาชิก ${memberIDs.length} คน · ${accessUnitIDs.length} แผนก`,
-									`Members: ${memberIDs.length} · Departments: ${accessUnitIDs.length}`
-								)
-							: t('เลือกในขั้นตอนสิทธิ์และสมาชิก', 'Select in the Access and members step')}
+							? audienceSummary
+							: t('เลือกในส่วนกำหนดผู้ใช้งาน', 'Choose in the people section')}
+					</dd>
+				</div>
+				<div class="setup-summary-row">
+					<span class="setup-summary-tile" aria-hidden="true"><ShieldCheck size={16} /></span>
+					<dt>{t('การแก้ไขข้อมูล:', 'Changes to data:')}</dt>
+					<dd>
+						{writeMode === 'approval'
+							? t('ผู้ดูแลอนุมัติก่อน', 'A manager approves first')
+							: t('ทำงานทันที', 'Run at once')}
 					</dd>
 				</div>
 			</dl>
@@ -1363,97 +1340,6 @@
 		background: var(--orca-surface);
 	}
 
-	/* ---------- Stepper ---------- */
-	.setup-steps {
-		display: flex;
-		align-items: center;
-		margin: 0;
-		padding: 10px 20px;
-		overflow-x: auto;
-		scrollbar-width: none;
-		list-style: none;
-		border-bottom: 1px solid var(--orca-line);
-	}
-	.setup-steps::-webkit-scrollbar {
-		display: none;
-	}
-	.setup-steps li {
-		display: flex;
-		align-items: center;
-		flex: 1 1 auto;
-		min-width: 0;
-	}
-	.setup-steps li:last-child {
-		flex: 0 0 auto;
-	}
-	.setup-steps li:not(:last-child)::after {
-		content: '';
-		flex: 1 1 auto;
-		min-width: 16px;
-		height: 1px;
-		margin: 0 12px;
-		background: var(--orca-line);
-	}
-	.setup-steps button {
-		display: inline-flex;
-		align-items: center;
-		gap: 8px;
-		flex: none;
-		min-height: 36px;
-		padding: 4px 2px;
-		border: 0;
-		border-radius: var(--orca-radius-sm);
-		background: transparent;
-		color: var(--orca-muted);
-		font: inherit;
-		font-size: 13.5px;
-		font-weight: 500;
-		line-height: 1.4;
-		white-space: nowrap;
-	}
-	.setup-steps button:disabled {
-		opacity: 1;
-		cursor: default;
-	}
-	.setup-steps button:not(:disabled) {
-		cursor: pointer;
-	}
-	.setup-steps button:not(:disabled):hover .setup-step-label {
-		text-decoration: underline;
-		text-underline-offset: 3px;
-	}
-	.setup-step-number {
-		display: grid;
-		place-items: center;
-		flex: none;
-		width: 24px;
-		height: 24px;
-		border: 1px solid var(--orca-line-strong);
-		border-radius: 50%;
-		background: var(--orca-surface);
-		color: var(--orca-muted);
-		font-size: 12px;
-		font-weight: 600;
-		line-height: 1;
-	}
-	.setup-steps .current button {
-		color: var(--orca-ink);
-		font-weight: 600;
-	}
-	.setup-steps .current .setup-step-number {
-		border-color: var(--orca-ink);
-		background: var(--orca-ink);
-		color: #fff;
-	}
-	.setup-steps .complete button {
-		color: var(--orca-ink);
-	}
-	.setup-steps .complete .setup-step-number {
-		border-color: transparent;
-		background: var(--orca-ok-bg);
-		color: var(--orca-ok);
-	}
-
 	/* ---------- Form body ---------- */
 	.setup-main > .k-banner {
 		margin: 16px 20px 0;
@@ -1461,34 +1347,109 @@
 	.setup-fields {
 		min-width: 0;
 		margin: 0;
-		padding: 20px 20px 24px;
+		padding: 0;
 		border: 0;
 	}
-	.setup-step-intro {
-		margin-bottom: 20px;
+	/* ---------- Numbered sections ---------- */
+	.setup-section {
+		min-width: 0;
+		padding: 24px 24px 28px;
 	}
-	.setup-step-heading {
+	.setup-section + .setup-section {
+		border-top: 1px solid var(--orca-line);
+	}
+	.setup-section-head {
 		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-		flex-wrap: wrap;
-		gap: 4px 16px;
+		align-items: flex-start;
+		gap: 12px;
+		margin-bottom: 18px;
 	}
-	.setup-step-heading h2 {
-		margin: 0;
-	}
-	.setup-step-count {
-		color: var(--orca-muted);
+	.setup-section-number {
+		display: grid;
+		place-items: center;
+		flex: none;
+		width: 28px;
+		height: 28px;
+		margin-top: 1px;
+		border-radius: 50%;
+		background: var(--orca-ink);
+		color: #fff;
 		font-size: 13px;
-		font-weight: 500;
-		white-space: nowrap;
+		font-weight: 600;
+		line-height: 1;
+		font-variant-numeric: tabular-nums;
 	}
-	.setup-step-description {
+	.setup-section-copy {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+	.setup-section-copy h2 {
+		margin: 0;
+		overflow-wrap: anywhere;
+	}
+	.setup-section-description {
 		max-width: 72ch;
 		margin-top: 4px;
 		color: var(--orca-muted);
 		font-size: 13.5px;
 		line-height: 1.65;
+	}
+	.setup-section-head > .setup-count {
+		flex: none;
+		margin-top: 4px;
+	}
+	.workspace-setup .setup-section-error {
+		margin: 0 0 16px;
+	}
+	.setup-guidance {
+		margin-top: 20px;
+	}
+	.setup-guidance textarea {
+		min-height: 104px;
+		resize: vertical;
+	}
+	/* ---------- Advanced settings ---------- */
+	.setup-advanced {
+		border-top: 1px solid var(--orca-line);
+	}
+	.setup-advanced > summary {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 4px 12px;
+		padding: 16px 24px;
+		font-size: 14.5px;
+		font-weight: 600;
+		list-style: none;
+		cursor: pointer;
+	}
+	.setup-advanced > summary::-webkit-details-marker {
+		display: none;
+	}
+	.setup-advanced > summary::before {
+		content: '';
+		flex: none;
+		width: 16px;
+		height: 16px;
+		background-color: var(--orca-subtle);
+		-webkit-mask: var(--setup-chevron) center / 16px 16px no-repeat;
+		mask: var(--setup-chevron) center / 16px 16px no-repeat;
+		transform: rotate(-90deg);
+		transition: transform 0.15s;
+	}
+	.setup-advanced[open] > summary::before {
+		transform: none;
+	}
+	.setup-advanced > summary:hover {
+		background: var(--orca-surface-2);
+	}
+	.setup-advanced > summary span {
+		color: var(--orca-muted);
+		font-size: 13px;
+		font-weight: 400;
+	}
+	.setup-advanced-body {
+		padding: 0 24px 24px;
 	}
 	.setup-help {
 		margin: 4px 0 12px;
@@ -1968,117 +1929,46 @@
 		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 		align-items: start;
 		gap: 16px;
-		margin-top: 20px;
 	}
 	.setup-limit-grid input {
 		max-width: 240px;
 	}
-	.setup-reviewed-note {
-		margin: 0;
-	}
-	.setup-reviewed-note strong {
-		display: block;
-		font-size: 13.5px;
-		font-weight: 600;
-	}
-	.setup-reviewed-note p {
-		margin-top: 2px;
-		color: var(--orca-muted);
-		font-size: 13px;
-		line-height: 1.6;
-	}
-	.setup-review-head {
-		margin: 28px 0 10px;
-	}
-	/* The settings summary reads as a two-column definition table. */
-	.setup-review {
-		border: 1px solid var(--orca-line);
-		border-radius: var(--orca-radius-lg);
-		overflow: hidden;
-	}
-	.setup-review dl {
-		margin: 0;
-	}
-	.setup-review dl > div {
-		display: grid;
-		grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
-	}
-	.setup-review dl > div + div {
-		border-top: 1px solid #eff0f2;
-	}
-	.setup-review dt {
-		padding: 10px 14px;
-		border-right: 1px solid #eff0f2;
-		background: var(--orca-surface-2);
-		color: var(--orca-nav);
-		font-size: 13px;
-		font-weight: 500;
-		line-height: 1.6;
-	}
-	.setup-review dd {
-		min-width: 0;
-		margin: 0;
-		padding: 10px 14px;
-		font-size: 14px;
-		line-height: 1.6;
-		overflow-wrap: anywhere;
-	}
-	.setup-review dd strong {
-		font-weight: 600;
-	}
-	.setup-review-note {
-		margin-top: 2px;
-		color: var(--orca-muted);
-		font-size: 13px;
-	}
-	.setup-review-sources section + section {
-		margin-top: 12px;
-	}
-	.setup-review-sources ul {
-		margin: 4px 0 0;
-		padding: 0;
-		list-style: none;
-	}
-	.setup-review-sources li {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
-		gap: 0 8px;
-		font-size: 13.5px;
-		line-height: 1.6;
-	}
-	.setup-review-sources li + li {
-		margin-top: 2px;
-	}
-	.setup-review-sources .setup-tool-identifier {
-		display: inline;
-		margin: 0;
-	}
-	.setup-status-field {
-		margin-top: 20px;
-	}
 	.setup-status-field select {
 		max-width: 480px;
 	}
-	.workspace-setup .setup-confirmation {
-		margin-top: 16px;
-	}
-	.workspace-setup .setup-confirmation:has(input:checked) {
-		border-color: var(--orca-ink);
-		background: var(--orca-citron-soft);
-	}
-
 	/* ---------- Footer ---------- */
+	.setup-main > .setup-form-error {
+		margin: 0 24px 16px;
+	}
+	/* The create button stays in reach while the page scrolls, like Arcade's footer. */
 	.setup-actions {
+		position: sticky;
+		bottom: 0;
+		z-index: 2;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		gap: 12px;
-		padding: 14px 20px;
+		padding: 14px 24px;
 		border-top: 1px solid var(--orca-line);
+		border-radius: 0 0 var(--orca-radius-lg) var(--orca-radius-lg);
+		background: var(--orca-surface);
+		box-shadow: 0 -6px 16px -12px rgba(21, 24, 35, 0.35);
 	}
 	.setup-actions .k-button {
+		flex: none;
 		min-width: 96px;
+	}
+	.setup-actions-summary {
+		flex: 1 1 auto;
+		min-width: 0;
+		margin: 0;
+		overflow: hidden;
+		color: var(--orca-muted);
+		font-size: 13px;
+		text-align: end;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	/* ---------- Summary ---------- */
@@ -2187,32 +2077,30 @@
 		}
 	}
 	@media (max-width: 760px) {
-		.setup-steps {
-			padding: 8px 16px;
-		}
-		.setup-steps li:not(:last-child)::after {
-			min-width: 12px;
-			margin: 0 8px;
-		}
-		/* Phones show every step number but only the current step's name. */
-		.setup-steps li:not(.current) .setup-step-label {
-			position: absolute;
-			width: 1px;
-			height: 1px;
-			padding: 0;
-			overflow: hidden;
-			clip: rect(0, 0, 0, 0);
-			white-space: nowrap;
-			border: 0;
-		}
 		.setup-main > .k-banner {
 			margin: 12px 16px 0;
 		}
-		.setup-fields {
-			padding: 16px 16px 20px;
+		.setup-section {
+			padding: 20px 16px 24px;
+		}
+		/* Each section repeats its own count below, so phones keep the title beside its number. */
+		.setup-section-head > .setup-count {
+			display: none;
+		}
+		.setup-advanced > summary {
+			padding: 14px 16px;
+		}
+		.setup-advanced-body {
+			padding: 0 16px 20px;
+		}
+		.setup-main > .setup-form-error {
+			margin: 0 16px 12px;
 		}
 		.setup-actions {
 			padding: 12px 16px;
+		}
+		.setup-actions-summary {
+			display: none;
 		}
 		.setup-actions .k-button.primary {
 			flex: 1;
@@ -2224,16 +2112,19 @@
 		.setup-source-tools {
 			padding-inline: 14px;
 		}
+		/* The status badge moves under the system's name instead of squeezing it. */
+		.setup-app-card > .setup-choice {
+			display: grid;
+			grid-template-columns: auto auto minmax(0, 1fr);
+			row-gap: 6px;
+		}
+		.setup-app-card > .setup-choice .k-badge {
+			grid-column: 3;
+			justify-self: start;
+		}
 		.setup-my-membership {
 			flex-direction: column;
 			align-items: stretch;
-		}
-		.setup-review dl > div {
-			grid-template-columns: minmax(0, 1fr);
-		}
-		.setup-review dt {
-			padding-block: 6px;
-			border-right: 0;
 		}
 		.setup-prerequisite {
 			padding: 24px 16px;
