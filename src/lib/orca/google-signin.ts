@@ -22,6 +22,11 @@ export function parseDomains(value: string): string[] {
 	return domains;
 }
 
+/** Anyone can make an account in Google's consumer domains, so they never let people join by themselves. */
+export function consumerDomains(domains: string[]): string[] {
+	return domains.filter((domain) => domain === 'gmail.com' || domain === 'googlemail.com');
+}
+
 export type GoogleSignInReason =
 	| 'off'
 	| 'unreachable'
@@ -31,11 +36,12 @@ export type GoogleSignInReason =
 	| 'domain'
 	| 'workspace'
 	| 'organization'
+	| 'member'
 	| 'failed';
 
 /** The reason in /login?error=google_<reason>, or undefined for other errors. */
 export function googleSignInReason(error: string | null): GoogleSignInReason | undefined {
 	if (!error?.startsWith('google_')) return undefined;
 	const reason = error.slice('google_'.length);
-	return (['off', 'unreachable', 'expired', 'cancelled', 'unverified', 'domain', 'workspace', 'organization'] as const).find((value) => value === reason) ?? 'failed';
+	return (['off', 'unreachable', 'expired', 'cancelled', 'unverified', 'domain', 'workspace', 'organization', 'member'] as const).find((value) => value === reason) ?? 'failed';
 }

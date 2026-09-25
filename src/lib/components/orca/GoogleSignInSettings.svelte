@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { Check, Copy, LoaderCircle } from "@lucide/svelte";
-  import { googleRedirectURI, parseDomains } from "$lib/orca/google-signin";
+  import { consumerDomains, googleRedirectURI, parseDomains } from "$lib/orca/google-signin";
   import { t } from "$lib/orca/locale.svelte";
   import { OrcaService, orcaError, type OrcaBootstrap, type OrcaGoogleSignIn } from "$lib/services/orca";
 
   // Signing in to the workspace with Google, beside the password. Managers see
-  // it; only an owner changes it, because it decides who may join.
+  // it; only an owner changes it, because its domains decide who may join.
   let { data }: { data: OrcaBootstrap } = $props();
   let setting = $state<OrcaGoogleSignIn>();
   let clientID = $state("");
@@ -43,20 +43,29 @@
 
   async function save() {
     if (busy || !owner || !setting) return;
-    busy = true;
     error = notice = "";
+    const joining = parseDomains(domains);
+    const gmail = consumerDomains(joining);
+    if (gmail.length) {
+      error = t(
+        `ใส่ ${gmail.join(", ")} ไม่ได้ เพราะใครก็สมัคร Gmail ได้ ให้เชิญคนที่ใช้ Gmail ทีละคนแทน แล้วเขาจะเข้าด้วย Google ได้`,
+        `${gmail.join(", ")} can't be added, because anyone can make a Gmail account. Invite Gmail users one by one instead; they can then sign in with Google.`,
+      );
+      return;
+    }
+    busy = true;
     try {
       const saved = await OrcaService.saveGoogleSignIn({
         clientID: clientID.trim(),
         ...(clientSecret.trim() ? { clientSecret: clientSecret.trim() } : {}),
-        allowedDomains: parseDomains(domains),
+        allowedDomains: joining,
         redirectURI,
         enabled,
         version: setting.version,
       });
       fill(saved);
       notice = saved.enabled
-        ? t("บันทึกแล้ว พนักงานในโดเมนที่อนุญาตเข้าสู่ระบบด้วย Google ได้แล้ว", "Saved. People in the allowed domains can now sign in with Google.")
+        ? t("บันทึกแล้ว สมาชิกเข้าสู่ระบบด้วย Google ได้แล้ว", "Saved. Members can now sign in with Google.")
         : t("บันทึกแล้ว การเข้าสู่ระบบด้วย Google ยังปิดอยู่", "Saved. Google sign-in is still off.");
     } catch (cause) {
       error = orcaError(cause);
@@ -79,7 +88,7 @@
   <header>
     <div>
       <h2 id="google-signin-title">{t("เข้าสู่ระบบ ORCA ด้วย Google", "Sign in to ORCA with Google")}</h2>
-      <p>{t("ให้พนักงานเข้าสู่ระบบด้วยบัญชี Google Workspace ของบริษัท คู่กับอีเมลและรหัสผ่านเดิม อีเมลเดียวกันคือบัญชีเดียวกัน คนใหม่ในโดเมนที่อนุญาตจะเข้ามาเป็นสมาชิกทั่วไป", "Let staff sign in with their company Google Workspace account, beside email and password. The same email is the same account. New people in an allowed domain join as members.")}</p>
+      <p>{t("ให้ทีมเข้าสู่ระบบด้วยบัญชี Google คู่กับอีเมลและรหัสผ่านเดิม อีเมลเดียวกันคือบัญชีเดียวกัน สมาชิกที่มีบัญชีอยู่แล้ว (รวมบัญชี Gmail) และคนที่ได้รับคำเชิญ ใช้ Google ได้ทันที", "Let your team sign in with Google, beside email and password. The same email is the same account. Existing members, Gmail included, and invited people can use Google right away.")}</p>
     </div>
     {#if setting}<span class="google-status" class:on={setting.enabled}>{setting.enabled ? t("เปิดใช้งาน", "On") : t("ปิดอยู่", "Off")}</span>{/if}
   </header>
@@ -94,9 +103,9 @@
         <input id="google-client-id" bind:value={clientID} autocomplete="off" spellcheck="false" placeholder="1234-abc.apps.googleusercontent.com" />
         <label for="google-client-secret">{setting.secretConfigured ? t("Client secret ใหม่ (เว้นว่างเพื่อใช้ค่าเดิม)", "New client secret (leave blank to keep the saved one)") : "Client secret"}</label>
         <input id="google-client-secret" type="password" bind:value={clientSecret} autocomplete="new-password" spellcheck="false" />
-        <label for="google-domains">{t("โดเมนบริษัทที่อนุญาต", "Allowed company domains")}</label>
+        <label for="google-domains">{t("โดเมนบริษัทที่เข้าร่วมได้เอง (ไม่บังคับ)", "Company domains that can join by themselves (optional)")}</label>
         <input id="google-domains" bind:value={domains} autocomplete="off" spellcheck="false" placeholder="example.co.th" />
-        <p class="google-help">{t("คั่นหลายโดเมนด้วยจุลภาค ต้องเป็นบัญชี Google Workspace ของโดเมนนั้น บัญชี Gmail ส่วนตัวเข้าได้เฉพาะเมื่อใส่ gmail.com", "Separate several with commas. Accounts must belong to that domain's Google Workspace; personal Gmail works only if you add gmail.com.")}</p>
+        <p class="google-help">{t("คนที่มีบัญชี Google Workspace ของโดเมนเหล่านี้ เข้ามาเป็นสมาชิกทั่วไปได้เองโดยไม่ต้องเชิญ คั่นหลายโดเมนด้วยจุลภาค ใส่ gmail.com ไม่ได้ เพราะใครก็สมัคร Gmail ได้ ให้เชิญคนที่ใช้ Gmail แทน", "People with a Google Workspace account in these domains join as members without an invitation. Separate several with commas. gmail.com can't be added, because anyone can make a Gmail account; invite Gmail users instead.")}</p>
         <label for="google-redirect">{t("Redirect URI สำหรับลงทะเบียนใน Google Cloud", "Redirect URI to register in Google Cloud")}</label>
         <div class="google-copy">
           <input id="google-redirect" readonly value={redirectURI} />
@@ -116,7 +125,7 @@
       <ol class="k-numbered">
         <li>{t("ใน Google Cloud สร้าง OAuth client แบบ Web application และใส่ Redirect URI ด้านบนให้ตรงทุกตัวอักษร", "In Google Cloud, create a Web application OAuth client and add the redirect URI above exactly.")}</li>
         <li>{t("กรอก Client ID และ Client secret ของ client นั้น (ORCA เก็บ secret แบบเข้ารหัสและไม่แสดงอีก)", "Enter that client's ID and secret. ORCA stores the secret encrypted and never shows it again.")}</li>
-        <li>{t("ใส่โดเมนอีเมลของบริษัท แล้วเปิดใช้งาน", "Add your company's email domain, then turn it on.")}</li>
+        <li>{t("ถ้าอยากให้คนในโดเมนบริษัทเข้าร่วมได้เองโดยไม่ต้องเชิญ ใส่โดเมนนั้น แล้วเปิดใช้งาน", "To let people in your company domain join without an invitation, add it. Then turn it on.")}</li>
         <li>{t("ลองเข้าสู่ระบบในหน้าต่างส่วนตัวด้วยบัญชีบริษัท รหัสผ่านเดิมยังใช้ได้เสมอ", "Try signing in from a private window with a company account. Passwords keep working.")}</li>
       </ol>
     </details>

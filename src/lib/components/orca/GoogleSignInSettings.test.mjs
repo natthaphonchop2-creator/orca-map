@@ -17,7 +17,7 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(testProps, dependencies) {
-  const { OrcaService, onMount, googleRedirectURI, parseDomains, t, orcaError, navigator, testOrigin } = dependencies;
+  const { OrcaService, onMount, consumerDomains, googleRedirectURI, parseDomains, t, orcaError, navigator, testOrigin } = dependencies;
   ${script}
   return {
     load, save,
@@ -91,6 +91,22 @@ test("a refused save explains itself and keeps what was typed", async () => {
     assert.match(view.state.error, /before turning Google sign-in on/);
     assert.equal(view.state.domains, "example.co.th");
     assert.equal(view.state.enabled, true);
+  } finally { stop(); }
+});
+
+test("Gmail is refused as a joining domain before anything is sent", async () => {
+  const { view, saves, stop } = mount(true, fresh);
+  try {
+    await view.load();
+    view.set({ clientID: "1-abc.apps.googleusercontent.com", clientSecret: "s3cret", domains: "example.co.th, Gmail.com", enabled: true });
+    await view.save();
+    assert.equal(saves.length, 0, "nothing reached ORCA");
+    assert.match(view.state.error, /gmail\.com ไม่ได้/);
+    assert.equal(view.state.domains, "example.co.th, Gmail.com", "what was typed stays to be fixed");
+    view.set({ domains: "" });
+    await view.save();
+    assert.deepEqual(saves[0].allowedDomains, [], "without joining domains, Google serves members and invited people");
+    assert.equal(view.state.error, "");
   } finally { stop(); }
 });
 

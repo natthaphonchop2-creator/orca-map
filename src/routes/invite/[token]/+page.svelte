@@ -120,7 +120,11 @@
             >{busy ? t("กำลังรับคำเชิญ…", "Accepting…") : t("รับคำเชิญ", "Accept invitation")} <ArrowRight size={16} /></button
           >
         {:else}
-          <p>{t("เข้าสู่ระบบด้วยอีเมลที่ได้รับเชิญ แล้ว ORCA จะพากลับมาหน้านี้เพื่อรับคำเชิญ", "Sign in with the invited email, and ORCA brings you back here to accept.")}</p>
+          <p>
+            {data.google
+              ? t("เข้าสู่ระบบด้วยอีเมลที่ได้รับเชิญ หรือเลือก “เข้าสู่ระบบด้วย Google” ด้วยบัญชี Google ของอีเมลนั้น (ยังไม่มีรหัสผ่านก็ได้) แล้ว ORCA จะพากลับมาหน้านี้เพื่อรับคำเชิญ", "Sign in with the invited email, or choose “Sign in with Google” with that email's Google account (no password needed). ORCA brings you back here to accept.")
+              : t("เข้าสู่ระบบด้วยอีเมลที่ได้รับเชิญ แล้ว ORCA จะพากลับมาหน้านี้เพื่อรับคำเชิญ", "Sign in with the invited email, and ORCA brings you back here to accept.")}
+          </p>
           <a class="o-button" href={signInHref}>{t("เข้าสู่ระบบเพื่อรับคำเชิญ", "Sign in to accept")} <ArrowRight size={16} /></a>
         {/if}
       {/if}

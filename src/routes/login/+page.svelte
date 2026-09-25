@@ -39,9 +39,10 @@
       expired: t("การเข้าสู่ระบบหมดเวลาหรือเริ่มจากหน้าต่างอื่น กรุณาลองอีกครั้ง", "The sign-in expired or started in another window. Please try again."),
       cancelled: t("ยกเลิกการเข้าสู่ระบบด้วย Google แล้ว", "Google sign-in was cancelled."),
       unverified: t("อีเมลของบัญชี Google นี้ยังไม่ได้ยืนยัน", "This Google account's email is not verified."),
-      domain: t("บัญชี Google นี้ไม่ได้อยู่ในโดเมนที่องค์กรอนุญาต กรุณาใช้บัญชีของบริษัท", "This Google account is not in a domain your organization allows. Use your company account."),
+      domain: t("อีเมลโดเมนนี้ยังไม่ได้รับอนุญาตให้เข้าสู่ระบบ ORCA นี้ กรุณาติดต่อผู้ดูแล", "This email's domain is not allowed to sign in to this ORCA. Contact your administrator."),
       workspace: t("กรุณาใช้บัญชี Google Workspace ของบริษัท ไม่ใช่บัญชี Google ส่วนตัวที่สมัครด้วยอีเมลงาน", "Use your company's Google Workspace account, not a personal Google account made with a work email."),
       organization: t("บัญชี Google นี้เป็นขององค์กรอื่น", "This Google account belongs to another organization."),
+      member: t("บัญชี Google นี้ยังไม่ได้เป็นสมาชิก ขอคำเชิญจากผู้ดูแล หรือใช้บัญชี Google ของบริษัท", "This Google account is not a member yet. Ask your administrator for an invitation, or use your company Google account."),
       failed: t("เข้าสู่ระบบด้วย Google ไม่สำเร็จ กรุณาลองอีกครั้ง", "Google sign-in failed. Please try again."),
     }[reason];
   }
