@@ -28,11 +28,11 @@
   import {
     Building2,
     Check,
-    Copy,
     Crown,
+    Ellipsis,
     Info,
     KeyRound,
-    Plus,
+    MailPlus,
     RefreshCw,
     Shield,
     UserPlus,
@@ -56,16 +56,25 @@
   let availabilityError = $state("");
   let success = $state("");
   let query = $state("");
-  let section = $state<"members" | "departments">("members");
+  let section = $state<"members" | "invitations" | "departments">("members");
   let memberStatus = $state("active");
-  let roleFilter = $state("all");
-  let departmentFilter = $state("all");
   let departments = $state<LibraryDepartment[]>([]);
   let departmentError = $state("");
   let departmentDirty = $state(false);
   let navigationBlocked = $state(false);
   let editingRole = $state<OrcaMember>();
   let inviting = $state(false);
+  // Open invitations, reported by MemberInvitations for the tab and reminder.
+  let invitationCount = $state(0);
+  // One small menu at a time: the page's "more" menu or one member row's.
+  let moreOpen = $state(false);
+  let menuFor = $state("");
+  // Each manageable row keeps its confirmation dialog; its menu items open it.
+  const lifecycle = $state<Record<string, { request: (action: "suspend" | "restore" | "delete") => void } | undefined>>({});
+  function closeMenus() {
+    moreOpen = false;
+    menuFor = "";
+  }
   const currentUser = $derived(
     data.members.find((member) => member.id === data.currentUserID),
   );
@@ -121,7 +130,7 @@
     await onchanged();
     await refreshDepartments();
   }
-  function changeSection(next: "members" | "departments") {
+  function changeSection(next: "members" | "invitations" | "departments") {
     if (departmentDirty || saving) return;
     section = next;
     navigationBlocked = false;
@@ -153,25 +162,19 @@
         account.email.toLowerCase().includes(query.toLowerCase()),
     ),
   );
+  const active = (member: OrcaMember) => !member.status || member.status === "active";
+  const hubsFor = (member: OrcaMember) => data.hubs.filter((hub) => gatewayHasMember(hub, member.id));
+  const departmentsFor = (member: OrcaMember) =>
+    departments
+      .filter((department) => department.memberIDs.includes(member.id))
+      .map((department) => data.units.find((unit) => unit.id === department.unitID)?.name || department.name);
+  const activeMembers = $derived(data.members.filter(active));
+  const suspendedMembers = $derived(data.members.filter((member) => member.status === "suspended"));
+  // Being a member is not data access: that comes from an AI workspace.
+  const withoutAccess = $derived(activeMembers.filter((member) => !hubsFor(member).length));
   const members = $derived(
-    data.members.filter(
-      (member) =>
-        (memberStatus === "suspended" ? member.status === "suspended" : !member.status || member.status === "active") &&
-        `${memberName(member)} ${member.email}`
-          .toLowerCase()
-          .includes(query.toLowerCase()) &&
-        (roleFilter === "all" ||
-          organizationRole(member.role) === roleFilter) &&
-        (departmentFilter === "all" ||
-          (departmentFilter === "none"
-            ? !departments.some((department) =>
-                department.memberIDs.includes(member.id),
-              )
-            : departments.some(
-                (department) =>
-                  department.unitID === departmentFilter &&
-                  department.memberIDs.includes(member.id),
-              ))),
+    (memberStatus === "suspended" ? suspendedMembers : memberStatus === "noaccess" ? withoutAccess : activeMembers).filter((member) =>
+      `${memberName(member)} ${member.email}`.toLowerCase().includes(query.toLowerCase()),
     ),
   );
   async function refresh() {
@@ -241,23 +244,17 @@
       password = "";
     }
   }
-  async function copyLogin() {
-    try {
-      await navigator.clipboard.writeText(
-        new URL(localeHref("/login"), window.location.origin).href,
-      );
-      success = t(
-        "คัดลอกลิงก์เข้าสู่ระบบแล้ว ORCA ไม่ได้ส่งข้อความหรืออีเมลใดถึงสมาชิก",
-        "Sign-in link copied. ORCA has not sent any message or email.",
-      );
-    } catch {
-      error = t(
-        "คัดลอกลิงก์ไม่สำเร็จ กรุณาเปิดหน้าเข้าสู่ระบบและคัดลอกที่อยู่จากแถบที่อยู่ของเบราว์เซอร์",
-        "Copy failed. Open the sign-in page and copy its address from the browser.",
-      );
-    }
-  }
 </script>
+
+<svelte:window
+  onclick={(event) => {
+    const target = event.target as Element | null;
+    if (!target?.closest?.(".team-menu")) closeMenus();
+  }}
+  onkeydown={(event) => {
+    if (event.key === "Escape") closeMenus();
+  }}
+/>
 
 <div class="k-intro">
   <div class="k-heading-row">
@@ -266,81 +263,82 @@
         {t("สมาชิกและแผนก", "Members and departments")}
       </h1>
       <p class="k-subtitle">
-        {t(
-          "กำหนดบทบาทในองค์กร จัดสมาชิกตามแผนก และกำหนดสิทธิ์การเข้าถึงตามหน้าที่",
-          "Assign organization roles, organize members into departments and grant access according to each person’s responsibilities.",
-        )}
+        {data.canManage
+          ? t(
+              "คนที่ใช้ ORCA ของบริษัทนี้ เชิญคนใหม่ด้วยลิงก์ แล้วเขาเข้าสู่ระบบด้วยบัญชี Google ของตัวเอง",
+              "People who use this company's ORCA. Invite someone with a link; they sign in with their own Google account.",
+            )
+          : t("คนที่ใช้ ORCA ของบริษัทนี้", "People who use this company's ORCA.")}
       </p>
     </div>
-    {#if data.canManage && section === "members"}<div class="team-heading-actions">
+    {#if data.canManage && section !== "departments"}<div class="team-heading-actions">
+        <div class="team-menu">
+          <button
+            class="k-button team-more"
+            aria-haspopup="menu"
+            aria-expanded={moreOpen}
+            aria-label={t("ตัวเลือกเพิ่มเติม", "More options")}
+            onclick={() => {
+              menuFor = "";
+              moreOpen = !moreOpen;
+            }}><Ellipsis size={18} aria-hidden="true" /></button
+          >
+          <div class="team-menu-panel" role="menu" hidden={!moreOpen}>
+            <button
+              role="menuitem"
+              disabled={loading || saving}
+              onclick={async () => {
+                moreOpen = false;
+                await refresh();
+                await onchanged();
+                await refreshDepartments();
+              }}><RefreshCw size={16} aria-hidden="true" />{t("โหลดข้อมูลใหม่", "Refresh")}</button
+            >{#if operator && localAvailable}<button
+                role="menuitem"
+                onclick={() => {
+                  moreOpen = false;
+                  section = "members";
+                  start();
+                }}
+                ><KeyRound size={16} aria-hidden="true" /><span
+                  >{t("สร้างบัญชีด้วยรหัสผ่าน", "Create a password account")}<small
+                    >{t("สำหรับกรณีพิเศษ เห็นเฉพาะเจ้าของแพลตฟอร์ม", "For special cases. Only the platform operator sees this.")}</small
+                  ></span
+                ></button
+              >{/if}
+          </div>
+        </div>
         <button
-          class="k-button"
-          disabled={loading || saving}
-          onclick={async () => {
-            await refresh();
-            await onchanged();
-            await refreshDepartments();
-          }}><RefreshCw size={16} />{t("โหลดข้อมูลใหม่", "Refresh")}</button
-        ><button class="k-button" onclick={copyLogin}
-          ><Copy size={16} />{t(
-            "คัดลอกลิงก์เข้าสู่ระบบ",
-            "Copy sign-in link",
-          )}</button
-        >{#if operator && localAvailable}<button
-            class="k-button"
-            onclick={() => start()}
-            ><Plus size={16} />{t("เพิ่มบัญชีผู้ใช้", "Add user account")}</button
-          >{/if}<button class="k-button primary" onclick={() => (inviting = true)}
-          ><UserPlus size={16} />{t("เชิญสมาชิก", "Invite a member")}</button
+          class="k-button primary"
+          onclick={() => {
+            moreOpen = false;
+            inviting = true;
+          }}><UserPlus size={16} />{t("เชิญสมาชิก", "Invite a member")}</button
         >
       </div>{/if}
   </div>
 </div>
-<div class="team-role-overview">
-  {#each roleGroups as group}<article>
-      <span class="team-role-icon" aria-hidden="true"><group.icon size={16} /></span>
-      <div>
-        <strong>{group.label}</strong>
-        <p>{group.detail}</p>
-      </div>
-      <span class="team-role-count"
-        >{data.members.filter(
-          (member) => (!member.status || member.status === "active") && organizationRole(member.role) === group.id,
-        ).length}</span
-      >
-    </article>{/each}
-</div>
 {#if !data.canManage}<div class="k-banner">
     <Info size={16} />{t(
-      "บัญชีนี้ดูรายชื่อสมาชิกได้ แต่ไม่สามารถเปลี่ยนบทบาทหรือจัดการแผนก กรุณาติดต่อเจ้าของระบบหรือผู้ดูแลระบบเพื่อขอปรับสิทธิ์",
-      "This account can view members but cannot change roles or manage departments. Contact an Owner or Admin to request access changes.",
+      "บัญชีนี้ดูรายชื่อได้อย่างเดียว ถ้าต้องการเปลี่ยนบทบาทหรือแผนก ติดต่อเจ้าของหรือผู้ดูแลระบบ",
+      "This account can view members only. To change roles or departments, contact an Owner or Admin.",
     )}
-  </div>{:else if !canManageRoles}<p class="k-small k-muted team-role-note">
-    {organizationRole(currentUser?.role ?? "") === "admin"
-      ? t(
-          "ผู้ดูแลระบบจัดการสมาชิกและแผนกได้ ส่วนการเปลี่ยนบทบาทต้องดำเนินการโดยเจ้าของระบบ",
-          "Admins manage members and departments. Only an Owner can change roles.",
-        )
-      : t(
-          "ยังไม่สามารถยืนยันสิทธิ์การจัดการบทบาท กรุณาโหลดข้อมูลใหม่เพื่อตรวจสอบสิทธิ์ล่าสุด",
-          "Role management access could not be confirmed. Refresh to check your latest access.",
-        )}
-  </p>{/if}
-{#if data.canManage && !operator}<p class="k-small k-muted team-role-note">
-    {t(
-      "เพิ่มสมาชิกด้วยลิงก์เชิญ ผู้ได้รับเชิญเข้าสู่ระบบด้วยบัญชีของตัวเอง เช่น Google ผู้ดูแลตั้งหรือเปลี่ยนรหัสผ่านแทนสมาชิกไม่ได้ เพื่อความปลอดภัยของบัญชี",
-      "Add members with an invitation link. Invited people sign in with their own account, such as Google. Managers can’t set or change a member’s password, to keep accounts safe.",
-    )}
-  </p>{/if}
+  </div>{/if}
 <nav class="team-tabs" aria-label={t("การจัดการสมาชิก", "Member management")}>
   <button
     class:active={section === "members"}
     aria-pressed={section === "members"}
     disabled={departmentDirty || saving}
     onclick={() => changeSection("members")}
-    ><Users size={16} />{t("สมาชิกและบทบาท", "Members & roles")}</button
+    ><Users size={16} />{t("สมาชิก", "Members")}<span>{activeMembers.length}</span></button
   >
   {#if data.canManage}<button
+      class:active={section === "invitations"}
+      aria-pressed={section === "invitations"}
+      disabled={departmentDirty || saving}
+      onclick={() => changeSection("invitations")}
+      ><MailPlus size={16} />{t("คำเชิญที่รอตอบรับ", "Open invitations")}{#if invitationCount}<span class="team-tab-alert">{invitationCount}</span>{/if}</button
+    ><button
       class:active={section === "departments"}
       aria-pressed={section === "departments"}
       disabled={departmentDirty || saving}
@@ -365,7 +363,7 @@
       ondirty={(value) => (departmentDirty = value)}
       context="team"
     />
-  </div>{:else}
+  </div>{:else if section === "members"}
   {#if editingRole && canManageRoles}{#key editingRole.id}<MemberRoleEditor
         member={editingRole}
         currentUserID={data.currentUserID}
@@ -441,42 +439,32 @@
         </div>
       </fieldset>
     </form>{/if}
-
-  <div class="team-toolbar" class:compact={!data.canManage}>
-    <div class="k-field team-search">
-      <label for="team-search">{t("ค้นหาสมาชิก", "Search members")}</label><input
-        id="team-search"
+  {#if data.canManage && invitationCount}<div class="team-reminder" role="status">
+      <MailPlus size={16} aria-hidden="true" /><span
+        >{t(`มีคำเชิญที่ยังไม่ได้ตอบรับ ${invitationCount} รายการ`, `${invitationCount} invitation${invitationCount === 1 ? "" : "s"} not accepted yet`)}</span
+      ><button class="k-link-button" onclick={() => changeSection("invitations")}>{t("ดูคำเชิญ", "View invitations")}</button>
+    </div>{/if}
+  <div class="team-toolbar">
+    <div class="team-filter" role="group" aria-label={t("ตัวกรองสมาชิก", "Member filters")}>
+      <button class:active={memberStatus === "active"} aria-pressed={memberStatus === "active"} onclick={() => (memberStatus = "active")}
+        >{t("ทั้งหมด", "All")}<span>{activeMembers.length}</span></button
+      >{#if data.canManage && (withoutAccess.length || memberStatus === "noaccess")}<button
+          class:active={memberStatus === "noaccess"}
+          aria-pressed={memberStatus === "noaccess"}
+          onclick={() => (memberStatus = "noaccess")}>{t("ยังไม่เข้าถึงข้อมูล", "No data access")}<span>{withoutAccess.length}</span></button
+        >{/if}{#if suspendedMembers.length || memberStatus === "suspended"}<button
+          class:active={memberStatus === "suspended"}
+          aria-pressed={memberStatus === "suspended"}
+          onclick={() => (memberStatus = "suspended")}>{t("ถูกระงับ", "Suspended")}<span>{suspendedMembers.length}</span></button
+        >{/if}
+    </div>
+    {#if data.members.length > 8 || query}<input
+        class="team-search"
         type="search"
         bind:value={query}
-        placeholder={t("ชื่อหรืออีเมล", "Name or email")}
-      />
-    </div>
-    <div class="team-filters">
-      <div class="k-field"><label for="member-status">{t('สถานะสมาชิก','Member status')}</label><select id="member-status" bind:value={memberStatus}><option value="active">{t('เปิดใช้งาน','Active')}</option><option value="suspended">{t('ระงับ','Suspended')}</option></select></div>
-      <div class="k-field">
-        <label for="team-role-filter">{t("บทบาท", "Role")}</label><select
-          id="team-role-filter"
-          bind:value={roleFilter}
-          ><option value="all">{t("ทุกบทบาท", "All roles")}</option
-          >{#each roleGroups as group}<option value={group.id}
-              >{group.label}</option
-            >{/each}</select
-        >
-      </div>
-      {#if data.canManage}<div class="k-field">
-          <label for="team-department-filter">{t("แผนก", "Department")}</label
-          ><select
-            id="team-department-filter"
-            bind:value={departmentFilter}
-            disabled={!!departmentError}
-            ><option value="all">{t("ทุกแผนก", "All departments")}</option
-            ><option value="none">{t("ยังไม่มีแผนก", "No department")}</option
-            >{#each data.units.filter((unit) => unit.kind === "department" && !unit.archivedAt && !unit.deletedAt) as unit}<option
-                value={unit.id}>{unit.name}</option
-              >{/each}</select
-          >
-        </div>{/if}
-    </div>
+        aria-label={t("ค้นหาสมาชิก", "Search members")}
+        placeholder={t("ค้นหาชื่อหรืออีเมล", "Search name or email")}
+      />{/if}
   </div>
   {#if departmentError}<div class="k-banner" role="alert">
       <Info size={16} />{t(
@@ -488,138 +476,119 @@
       <table class="k-table team-table">
         <thead
           ><tr
-            ><th scope="col">{t("สมาชิก", "Member")}</th><th scope="col"
-              >{t("บทบาท", "Role")}</th
-            >{#if data.canManage}<th scope="col">{t("แผนก", "Department")}</th>{/if}<th scope="col"
-              >{t("พื้นที่ทำงาน AI", "AI workspaces")}</th
-            >{#if operator && localAvailable}<th scope="col"
-                >{t("บัญชีผู้ใช้", "Account")}</th
-              >{/if}{#if data.canManage}<th scope="col" class="team-actions-col">{t('การจัดการสมาชิก', 'Member actions')}</th>{/if}</tr
+            ><th scope="col">{t("สมาชิก", "Member")}</th><th scope="col">{t("บทบาท", "Role")}</th><th scope="col"
+              >{t("เข้าถึงข้อมูล", "Data access")}</th
+            >{#if data.canManage}<th scope="col" class="team-actions-col"><span class="sr-only">{t("การจัดการสมาชิก", "Member actions")}</span></th>{/if}</tr
           ></thead
         ><tbody
-          >{#each members as member (member.id)}<tr
+          >{#each members as member (member.id)}{@const hubs = hubsFor(member)}{@const account =
+              operator && localAvailable ? accounts.find((item) => normalized(item.email) === normalized(member.email)) : undefined}{@const canReset =
+              !!account && passwordAllowed(member)}{@const canChangeRole =
+              canManageRoles && typeof member.role === "number" && !member.roleLocked && active(member)}{@const manageable = canManageMember(member)}<tr
               ><td class="team-member"
-                ><strong>{memberName(member)}</strong>
-                {#if memberName(member) !== member.email}<p class="k-small k-muted">{member.email}</p>{/if}</td
+                ><strong
+                  >{memberName(member)}{#if member.id === data.currentUserID}<span class="team-you">{t(" (คุณ)", " (you)")}</span>{/if}</strong
+                >{#if departmentsFor(member).length || memberName(member) !== member.email}<p class="k-small k-muted">
+                    {[...departmentsFor(member), memberName(member) !== member.email ? member.email : ""].filter(Boolean).join(" · ")}
+                  </p>{/if}{#if member.status === "suspended"}<span class="team-status">{t("บัญชีถูกระงับ", "Account suspended")}</span>{/if}</td
               ><td class="team-role"
-                ><span class="role-badge">{memberRole(member.role)}</span
-                >{#if member.roleLocked}<small class="role-locked"
-                    >{t(
-                      "กำหนดโดยการตั้งค่า ORCA",
-                      "Set by ORCA configuration",
-                    )}</small
-                  >{:else if canManageRoles && typeof member.role === "number" && (!member.status || member.status === "active")}<button
-                    class="k-link-button team-role-change"
-                    onclick={() => (editingRole = member)}
-                    >{t("เปลี่ยนบทบาท", "Change role")}</button
-                  >{/if}</td
-              >{#if data.canManage}<td class="team-departments"
-                  ><div class="team-chips">{#each departments.filter( (department) => department.memberIDs.includes(member.id), ) as department}{@const departmentLabel = data.units.find((unit) => unit.id === department.unitID)
-                        ?.name || department.name}<span
-                      class="department-badge"
-                      title={departmentLabel}
-                      >{departmentLabel}</span
-                    >{:else}<span class="team-none"
-                      >{departmentError
-                        ? "—"
-                        : t("ยังไม่มีแผนก", "No department")}</span
-                    >{/each}</div></td
-                >{/if}<td class="team-hubs"
-                >{#each data.hubs.filter( (hub) => gatewayHasMember(hub, member.id), ) as hub}<a
-                    class="team-hub-link"
-                    href={localeHref(
-                      `/app?view=hub&hub=${encodeURIComponent(hub.id)}`,
-                    )}
-                    title={hub.name}>{hub.name}</a
-                  >{:else}<span class="team-none"
-                    >{t(
-                      "ยังไม่มีพื้นที่ทำงาน AI",
-                      "No AI workspace yet",
-                    )}</span
-                  >{/each}</td
-              >{#if operator && localAvailable}{@const account =
-                  accounts.find(
-                    (item) =>
-                      normalized(item.email) === normalized(member.email),
-                  )}<td class="team-account"
-                  >{#if account && passwordAllowed(member)}<button
+                ><span class="role-badge role-{organizationRole(member.role)}">{memberRole(member.role)}</span
+                >{#if member.roleLocked}<small class="role-locked">{t("กำหนดโดยการตั้งค่า ORCA", "Set by ORCA configuration")}</small>{/if}</td
+              ><td class="team-hubs"
+                >{#if !active(member)}<span class="team-none">—</span>{:else if hubs.length}{#each hubs as hub}<a
+                      class="team-hub-link"
+                      href={localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}`)}
+                      title={hub.name}><Check size={14} aria-hidden="true" />{hub.name}</a
+                    >{/each}{:else}<span class="team-noaccess">{t("ยังไม่เข้าถึงข้อมูล", "No data access yet")}</span
+                  >{#if data.canManage}<a class="team-noaccess-link" href={localeHref("/app?view=workspaces")}
+                      >{t("เพิ่มเข้าพื้นที่ทำงาน", "Add to a workspace")}</a
+                    >{/if}{/if}</td
+              >{#if data.canManage}<td class="team-actions-col"
+                  ><div class="team-menu team-row-menu">
+                    <button
                       class="team-icon-button"
-                      aria-label={t(`ตั้งรหัสผ่านใหม่ให้ ${member.email}`, `Reset password for ${member.email}`)}
-                      title={t("ตั้งรหัสผ่านใหม่", "Reset password")}
-                      onclick={() => start(account)}
-                      ><KeyRound size={16} aria-hidden="true" /></button
-                    >{:else}<span class="team-account-note"
-                      >{member.status === 'suspended'
-                        ? t('บัญชีถูกระงับ', 'Account suspended')
-                        : account
-                          ? t(
-                              "บัญชีผู้ดูแลระบบที่ได้รับการป้องกัน",
-                              "Protected administrator account",
-                            )
-                          : t(
-                              "บัญชีจากผู้ให้บริการเข้าสู่ระบบภายนอก",
-                              "External sign-in account",
-                            )}</span
-                    >{/if}</td
-                >{/if}{#if data.canManage}<td class="team-actions-col">
-                  {#if canManageMember(member)}<TeamLifecycleActions kind="member" id={member.id} name={memberName(member)} version={member.version ?? 0} inactive={member.status === 'suspended'} disabled={saving || !!editingRole || open} compact onbusy={(value) => saving = value} onchanged={memberChanged} />
-                  {:else}<span class="team-account-note">{member.id === data.currentUserID ? t('บัญชีของคุณ', 'Your account') : t('จัดการได้โดยเจ้าของระบบ', 'Managed by an Owner')}</span>{/if}
-                </td>{/if}</tr
+                      aria-haspopup="menu"
+                      aria-expanded={menuFor === member.id}
+                      aria-label={t(`จัดการ ${memberName(member)}`, `Manage ${memberName(member)}`)}
+                      onclick={() => {
+                        moreOpen = false;
+                        menuFor = menuFor === member.id ? "" : member.id;
+                      }}><Ellipsis size={18} aria-hidden="true" /></button
+                    >
+                    <div class="team-menu-panel" role="menu" hidden={menuFor !== member.id}>
+                      {#if canChangeRole}<button
+                          role="menuitem"
+                          onclick={() => {
+                            menuFor = "";
+                            editingRole = member;
+                          }}>{t("เปลี่ยนบทบาท", "Change role")}</button
+                        >{/if}{#if active(member)}<a role="menuitem" href={localeHref("/app?view=workspaces")}
+                          >{t("เพิ่มเข้าพื้นที่ทำงาน", "Add to a workspace")}</a
+                        >{/if}{#if canReset}<button
+                          role="menuitem"
+                          aria-label={t(`ตั้งรหัสผ่านใหม่ให้ ${member.email}`, `Reset password for ${member.email}`)}
+                          onclick={() => {
+                            menuFor = "";
+                            start(account);
+                          }}>{t("ตั้งรหัสผ่านใหม่", "Reset password")}</button
+                        >{/if}{#if manageable}<button
+                          role="menuitem"
+                          onclick={() => {
+                            menuFor = "";
+                            lifecycle[member.id]?.request(member.status === "suspended" ? "restore" : "suspend");
+                          }}>{member.status === "suspended" ? t("เปิดใช้งานอีกครั้ง", "Restore") : t("ระงับการใช้งาน", "Suspend")}</button
+                        ><button
+                          role="menuitem"
+                          class="danger"
+                          onclick={() => {
+                            menuFor = "";
+                            lifecycle[member.id]?.request("delete");
+                          }}>{t("นำออกจากบริษัท", "Remove from company")}</button
+                        >{/if}
+                    </div>
+                  </div>{#if manageable}<TeamLifecycleActions
+                      bind:this={lifecycle[member.id]}
+                      menu
+                      kind="member"
+                      id={member.id}
+                      name={memberName(member)}
+                      version={member.version ?? 0}
+                      inactive={member.status === "suspended"}
+                      disabled={saving || !!editingRole || open}
+                      onbusy={(value) => (saving = value)}
+                      onchanged={memberChanged}
+                    />{/if}</td
+                >{/if}</tr
             >{/each}</tbody
         >
       </table>
     </div>{:else}<div class="k-empty team-empty">
       <Users size={28} />
-      <h2>{t("ไม่พบสมาชิก", "No members found")}</h2>
+      <h2>{memberStatus === "noaccess" ? t("ทุกคนเข้าถึงข้อมูลแล้ว", "Everyone has data access") : t("ไม่พบสมาชิก", "No members found")}</h2>
       <p>
-        {t(
-          "ค้นหาด้วยชื่อหรืออีเมลอื่น หรือเปลี่ยนตัวกรอง",
-          "Search for another name or email, or change the filters.",
-        )}
+        {memberStatus === "noaccess"
+          ? t("สมาชิกที่เปิดใช้งานอยู่ทุกคนอยู่ในพื้นที่ทำงาน AI อย่างน้อยหนึ่งแห่ง", "Every active member is in at least one AI workspace.")
+          : t("ลองค้นหาด้วยชื่อหรืออีเมลอื่น หรือเลือกตัวกรองอื่น", "Try another name or email, or another filter.")}
       </p>
     </div>{/if}
-  {#if data.canManage}<MemberInvitations {data} bind:inviting onchanged={memberChanged} />{/if}
-  {#if operator && pending.length}<section class="team-pending">
-      <div class="team-pending-head">
-        <div class="k-section-title">
-          <h2>{t("รอเข้าสู่ระบบครั้งแรก", "Waiting for first sign-in")}</h2>
-          <span class="k-badge">{pending.length}</span>
-        </div>
-        <p class="k-small k-muted">
-          {t(
-            "บัญชีเหล่านี้เข้าสู่ระบบได้แล้ว แต่ยังเพิ่มเป็นสมาชิกของพื้นที่ทำงาน AI ไม่ได้จนกว่าผู้ใช้จะเข้าสู่ระบบครั้งแรก จากนั้นกดโหลดข้อมูลใหม่",
-            "These accounts can sign in but cannot be added to an AI workspace until each user signs in once. Then refresh the list.",
-          )}
-        </p>
-      </div>
-      <div class="team-pending-table">
-        <table class="k-table team-table">
-          <thead
-            ><tr
-              ><th scope="col">{t("อีเมล", "Email")}</th><th scope="col">{t("สถานะ", "Status")}</th><th scope="col" class="team-actions-col"
-                >{t("การจัดการ", "Actions")}</th
-              ></tr
-            ></thead
-          ><tbody
-            >{#each pending as account}<tr
-                ><td>{account.email}</td><td
-                  ><span class="k-badge paused"
-                    >{t("รอเข้าสู่ระบบ", "Pending sign-in")}</span
-                  ></td
-                ><td class="team-actions-col"
-                  ><button
-                    class="k-button small"
-                    disabled={organizationRole(currentUser?.role ?? "") !==
-                      "owner"}
-                    onclick={() => start(account)}
-                    ><KeyRound size={16} aria-hidden="true" />{t("ตั้งรหัสผ่านใหม่", "Reset password")}</button
-                  ></td
-                ></tr
-              >{/each}</tbody
-          >
-        </table>
-      </div>
-    </section>{/if}
+  {#if operator && pending.length}<details class="team-pending">
+      <summary>{t(`รอเข้าสู่ระบบครั้งแรก (${pending.length})`, `Waiting for first sign-in (${pending.length})`)}</summary>
+      <p class="k-small k-muted">
+        {t(
+          "บัญชีรหัสผ่านที่ยังไม่เคยเข้าสู่ระบบ จะเพิ่มเข้าพื้นที่ทำงาน AI ได้หลังจากเจ้าของบัญชีเข้าสู่ระบบครั้งแรก",
+          "Password accounts that haven't signed in yet. They can join an AI workspace after their first sign-in.",
+        )}
+      </p>
+      <ul class="team-pending-list">
+        {#each pending as account (account.id)}<li>
+            <span>{account.email}</span><button
+              class="k-button small"
+              disabled={organizationRole(currentUser?.role ?? "") !== "owner"}
+              onclick={() => start(account)}><KeyRound size={16} aria-hidden="true" />{t("ตั้งรหัสผ่านใหม่", "Reset password")}</button
+            >
+          </li>{/each}
+      </ul>
+    </details>{/if}
   {#if operator && availabilityError}<div class="k-banner">
       <Info size={16} />
       <div>
@@ -638,13 +607,27 @@
         </p>
       </div>
     </div>{/if}
-  <p class="k-small k-muted team-footnote">
-    {t(
-      "บทบาทผู้ดูแลระบบไม่ได้ให้สิทธิ์เข้าถึงข้อมูลโดยอัตโนมัติ หากต้องการให้ผู้ใดเข้าถึงข้อมูล กรุณาเพิ่มเป็นสมาชิกในการตั้งค่าพื้นที่ทำงาน AI",
-      "The Admin role does not grant data access automatically. To give someone access, add them as a member in the AI workspace settings.",
-    )}
-  </p>
+  <details class="team-role-help">
+    <summary><Info size={15} aria-hidden="true" />{t("บทบาทแต่ละแบบทำอะไรได้", "What each role can do")}</summary>
+    <ul>
+      {#each roleGroups as group}<li>
+          <span class="team-role-icon" aria-hidden="true"><group.icon size={15} /></span><span
+            ><strong>{group.label}</strong>{group.detail}</span
+          >
+        </li>{/each}
+    </ul>
+    <p>
+      {t(
+        "บทบาทไม่ได้เปิดให้เห็นข้อมูลเอง คนจะใช้ AI กับข้อมูลของบริษัทได้เมื่ออยู่ในพื้นที่ทำงาน AI",
+        "A role doesn't open data by itself. People use AI with company data once they're in an AI workspace.",
+      )}
+    </p>
+    {#if data.canManage && !canManageRoles}<p>
+        {t("ผู้ดูแลระบบจัดการสมาชิกและแผนกได้ ส่วนการเปลี่ยนบทบาทต้องให้เจ้าของระบบทำ", "Admins manage members and departments. Only an Owner changes roles.")}
+      </p>{/if}
+  </details>
 {/if}
+{#if data.canManage}<MemberInvitations {data} bind:inviting bind:openCount={invitationCount} showList={section === "invitations"} onchanged={memberChanged} />{/if}
 
 <style>
   .team-heading {
@@ -653,62 +636,92 @@
   }
   .team-heading-actions {
     display: flex;
-    flex-wrap: wrap;
+    align-items: center;
     gap: 8px;
     flex: none;
   }
-  /* Role summary */
-  .team-role-overview {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-    margin: 0 0 20px;
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
-  .team-role-overview article {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    min-width: 0;
-    padding: 14px 16px;
+  /* Small menus: the page's "more" menu and each member row's menu */
+  .team-menu {
+    position: relative;
+  }
+  .team-more {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+  .team-menu-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 30;
+    display: grid;
+    min-width: 230px;
+    padding: 6px;
     border: 1px solid var(--orca-line);
     border-radius: var(--orca-radius-lg);
     background: var(--orca-surface);
+    box-shadow: 0 12px 32px -12px rgba(21, 24, 35, 0.28);
+    text-align: start;
+    white-space: normal;
   }
-  .team-role-icon {
-    display: grid;
-    place-items: center;
-    flex: none;
-    width: 32px;
-    height: 32px;
+  .team-menu-panel[hidden] {
+    display: none;
+  }
+  .team-menu-panel > button,
+  .team-menu-panel > a {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0;
     border-radius: var(--orca-radius);
-    background: var(--orca-secondary);
-    color: var(--orca-nav);
-  }
-  .team-role-overview article > div {
-    flex: 1;
-    min-width: 0;
-  }
-  .team-role-overview strong {
-    display: block;
+    background: transparent;
+    color: var(--orca-ink);
+    font: inherit;
     font-size: 14px;
-    font-weight: 600;
-    line-height: 1.45;
+    line-height: 1.5;
+    text-align: start;
+    text-decoration: none;
+    cursor: pointer;
   }
-  .team-role-overview p {
-    margin: 2px 0 0;
+  .team-menu-panel > button:hover:not(:disabled),
+  .team-menu-panel > a:hover {
+    background: var(--orca-hover);
+  }
+  .team-menu-panel > button:disabled {
     color: var(--orca-muted);
-    font-size: 13px;
-    line-height: 1.55;
+    cursor: not-allowed;
   }
-  .team-role-count {
+  .team-menu-panel > button :global(svg) {
     flex: none;
-    font-size: 20px;
-    font-weight: 700;
-    line-height: 1.3;
-    font-variant-numeric: tabular-nums;
+    margin-top: 3px;
+    color: var(--orca-subtle);
   }
-  .team-role-note {
-    margin: 0 0 14px;
+  .team-menu-panel > button span {
+    display: grid;
+    gap: 1px;
+  }
+  .team-menu-panel small {
+    color: var(--orca-muted);
+    font-size: 12.5px;
+  }
+  .team-menu-panel > button.danger {
+    color: var(--orca-deny);
+  }
+  .team-menu-panel > button.danger:hover {
+    background: var(--orca-deny-bg);
   }
   /* Section tabs */
   .team-tabs {
@@ -761,6 +774,31 @@
     font-size: 12px;
     font-weight: 500;
   }
+  .team-tabs button span.team-tab-alert {
+    background: var(--orca-warn-bg);
+    color: var(--orca-warn);
+  }
+  /* A reminder that invitations are still waiting */
+  .team-reminder {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 16px;
+    padding: 10px 14px;
+    border-radius: var(--orca-radius);
+    background: var(--orca-warn-bg);
+    color: var(--orca-warn);
+    font-size: 14px;
+  }
+  .team-reminder span {
+    flex: 1;
+    min-width: 0;
+  }
+  .team-reminder .k-link-button {
+    color: inherit;
+    font-weight: 600;
+    white-space: nowrap;
+  }
   /* Add or reset an account */
   .team-form {
     margin-bottom: 20px;
@@ -777,26 +815,61 @@
   .team-form-actions {
     margin-top: 16px;
   }
-  /* Filters */
+  /* Quick filters and search */
   .team-toolbar {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
-    align-items: end;
-    gap: 12px;
-    margin: 0 0 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    margin: 0 0 12px;
   }
-  .team-toolbar.compact {
-    grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
+  .team-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
   }
-  .team-filters {
-    display: contents;
+  .team-filter button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--orca-line-strong);
+    border-radius: 999px;
+    background: var(--orca-surface);
+    color: var(--orca-nav);
+    font: inherit;
+    font-size: 13.5px;
+    cursor: pointer;
   }
-  .team-toolbar .k-field {
-    margin: 0;
+  .team-filter button span {
+    color: var(--orca-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .team-filter button.active {
+    border-color: var(--orca-ink);
+    background: var(--orca-ink);
+    color: var(--orca-surface);
+  }
+  .team-filter button.active span {
+    color: inherit;
+    opacity: 0.8;
+  }
+  .team-search {
+    width: min(280px, 100%);
+    min-height: 36px;
+    padding: 6px 11px;
+    border: 1px solid var(--orca-line-strong);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface);
+    color: var(--orca-ink);
+    font: inherit;
+    font-size: 14px;
   }
   /* Members table */
   .team-table-wrap {
-    overflow-x: auto;
+    overflow: visible;
   }
   table.team-table {
     min-width: 0;
@@ -804,91 +877,95 @@
   .team-table th {
     white-space: nowrap;
   }
-  .team-table-wrap .team-table td,
-  .team-pending-table .team-table td {
+  .team-table-wrap .team-table td {
     vertical-align: middle;
   }
   .team-member {
-    min-width: 200px;
+    min-width: 220px;
   }
   .team-member strong {
     display: block;
     font-weight: 600;
     overflow-wrap: anywhere;
   }
+  .team-you {
+    color: var(--orca-muted);
+    font-weight: 400;
+  }
   .team-member p {
     margin: 1px 0 0;
     overflow-wrap: anywhere;
   }
+  .team-status {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 1px 8px;
+    border-radius: var(--orca-radius-sm);
+    background: var(--orca-deny-bg);
+    color: var(--orca-deny);
+    font-size: 12px;
+    font-weight: 500;
+  }
   .role-badge {
-    display: block;
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--orca-secondary);
+    color: var(--orca-nav);
+    font-size: 12.5px;
     font-weight: 500;
     white-space: nowrap;
   }
+  .role-badge.role-owner,
+  .role-badge.role-admin {
+    background: var(--orca-ink);
+    color: var(--orca-surface);
+  }
   .role-locked {
     display: block;
-    margin-top: 2px;
+    margin-top: 4px;
     color: var(--orca-muted);
     font-size: 12px;
     white-space: nowrap;
   }
-  .team-role .team-role-change {
-    display: inline-block;
-    margin-top: 2px;
-    padding: 0;
-    font-size: 13px;
-    white-space: nowrap;
-    text-decoration-color: var(--orca-line-strong);
-  }
-  .team-role .team-role-change:hover {
-    text-decoration-color: currentColor;
-  }
-  .team-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    max-width: 220px;
-  }
-  .department-badge {
-    display: inline-block;
-    max-width: 100%;
-    padding: 1px 8px;
-    overflow: hidden;
-    border-radius: var(--orca-radius-sm);
-    background: var(--orca-secondary);
-    color: var(--orca-nav);
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 1.6;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .team-none,
-  .team-account-note {
+  .team-none {
     color: var(--orca-muted);
     font-size: 13px;
   }
   .team-hub-link {
-    display: block;
-    max-width: 240px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 260px;
     overflow: hidden;
     color: var(--orca-ink);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .team-hub-link :global(svg) {
+    flex: none;
+    color: var(--orca-ok);
+  }
   .team-hub-link:hover {
     text-underline-offset: 3px;
   }
-  .team-account-note {
+  .team-noaccess {
     display: block;
-    max-width: 180px;
-    line-height: 1.5;
+    color: var(--orca-warn);
+    font-size: 13.5px;
+  }
+  .team-noaccess-link {
+    color: var(--orca-ink);
+    font-size: 13.5px;
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
   .team-icon-button {
     display: inline-grid;
     place-items: center;
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     padding: 0;
     border: 0;
     border-radius: var(--orca-radius);
@@ -896,17 +973,18 @@
     color: var(--orca-subtle);
     cursor: pointer;
   }
-  .team-icon-button:hover {
+  .team-icon-button:hover,
+  .team-icon-button[aria-expanded="true"] {
     background: var(--orca-hover);
     color: var(--orca-ink);
   }
   .team-actions-col {
     width: 1%;
+    text-align: end;
     white-space: nowrap;
   }
-  .team-actions-col .team-account-note {
-    max-width: none;
-    white-space: nowrap;
+  .team-row-menu {
+    display: inline-block;
   }
   .team-empty {
     margin-top: 0;
@@ -920,47 +998,92 @@
     margin: 0;
     font-size: 13.5px;
   }
-  /* Accounts waiting for their first sign-in */
+  /* Password accounts waiting for their first sign-in (platform operator) */
   .team-pending {
-    margin-top: 20px;
-    overflow: hidden;
+    margin-top: 16px;
+    padding: 12px 16px;
     border: 1px solid var(--orca-line);
     border-radius: var(--orca-radius-lg);
     background: var(--orca-surface);
   }
-  .team-pending-head {
-    padding: 16px 18px 14px;
+  .team-pending summary {
+    color: var(--orca-nav);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
   }
-  .team-pending-head .k-section-title {
-    justify-content: flex-start;
+  .team-pending p {
+    margin: 8px 0 0;
+  }
+  .team-pending-list {
+    display: grid;
     gap: 8px;
-    margin: 0;
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
   }
-  .team-pending-head p {
-    margin: 2px 0 0;
+  .team-pending-list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    overflow-wrap: anywhere;
   }
-  .team-pending-table {
-    overflow-x: auto;
-    border-top: 1px solid var(--orca-line);
+  .team-pending-list .k-button {
+    white-space: nowrap;
   }
-  .team-footnote {
-    margin: 20px 0 0;
+  /* What each role can do */
+  .team-role-help {
+    margin-top: 16px;
+    color: var(--orca-muted);
+    font-size: 13.5px;
   }
-  @media (max-width: 1100px) {
-    .team-toolbar {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-    .team-toolbar.compact {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .team-toolbar .team-search {
-      grid-column: 1 / -1;
-    }
-    .team-role-overview {
-      grid-template-columns: minmax(0, 1fr);
-      gap: 8px;
-    }
-    /* Member rows stack on narrower screens: name and role, then departments, workspaces and actions. */
+  .team-role-help summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .team-role-help summary:hover {
+    color: var(--orca-ink);
+  }
+  .team-role-help ul {
+    display: grid;
+    gap: 8px;
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .team-role-help li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .team-role-help li > span:last-child {
+    display: grid;
+    gap: 1px;
+  }
+  .team-role-help strong {
+    color: var(--orca-ink);
+    font-weight: 600;
+  }
+  .team-role-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--orca-radius);
+    background: var(--orca-secondary);
+    color: var(--orca-nav);
+  }
+  .team-role-help p {
+    margin: 10px 0 0;
+    line-height: 1.6;
+  }
+  @media (max-width: 900px) {
+    /* Member rows stack: name and menu, then role and data access. */
     .team-table-wrap table.team-table,
     .team-table-wrap .team-table tbody {
       display: block;
@@ -971,9 +1094,9 @@
     .team-table-wrap .team-table tr {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
-      gap: 8px 12px;
+      gap: 6px 12px;
       padding: 12px 14px;
-      border-bottom: 1px solid #eff0f2;
+      border-bottom: 1px solid var(--orca-line);
     }
     .team-table-wrap .team-table tr:last-child {
       border-bottom: 0;
@@ -984,36 +1107,34 @@
       border: 0;
     }
     .team-member {
+      grid-column: 1;
+      grid-row: 1;
       min-width: 0;
     }
-    .team-role {
-      text-align: end;
+    .team-table-wrap .team-actions-col {
+      grid-column: 2;
+      grid-row: 1;
+      width: auto;
+      align-self: start;
     }
-    .team-departments,
+    .team-role,
     .team-hubs {
       grid-column: 1 / -1;
     }
-    .team-chips {
-      max-width: none;
-    }
     .team-hub-link {
       max-width: 100%;
-    }
-    .team-table-wrap .team-actions-col {
-      width: auto;
-      justify-self: end;
     }
   }
   @media (max-width: 760px) {
     .team-heading-actions {
       width: 100%;
     }
-    .team-heading-actions > * {
+    .team-heading-actions > .k-button {
       flex: 1 1 auto;
+      justify-content: center;
     }
-    .team-toolbar,
-    .team-toolbar.compact {
-      grid-template-columns: minmax(0, 1fr);
+    .team-search {
+      width: 100%;
     }
   }
 </style>

@@ -14,6 +14,7 @@ const helpers = await importTypeScript(new URL("../../orca/invitations.ts", impo
 const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
   .replace(/^\s*import[^;]+;/gm, "")
   .replace("$bindable(false)", "false")
+  .replace("$bindable(0)", "0")
   .replace("$props()", "$state(testProps)");
 const require = createRequire(import.meta.url);
 const code = compileModule(

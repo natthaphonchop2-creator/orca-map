@@ -7,11 +7,15 @@
 
   // Invitation links until ORCA sends mail itself: the manager shares each link
   // by LINE or email, and the person accepts it after signing in.
+  // The list shows in the members page's invitations tab; the dialog works from
+  // any tab, and openCount feeds the tab badge and the members-tab reminder.
   let {
     data,
     inviting = $bindable(false),
+    openCount = $bindable(0),
+    showList = true,
     onchanged,
-  }: { data: OrcaBootstrap; inviting?: boolean; onchanged?: () => void | Promise<void> } = $props();
+  }: { data: OrcaBootstrap; inviting?: boolean; openCount?: number; showList?: boolean; onchanged?: () => void | Promise<void> } = $props();
   let items = $state<OrcaInvitation[]>([]);
   let loaded = $state(false);
   let listError = $state("");
@@ -33,6 +37,9 @@
   // Only an owner changes roles, so only an owner invites administrators.
   const canInviteAdmins = $derived(data.canManageRoles === true);
   const groups = $derived(splitInvitations(items));
+  $effect(() => {
+    openCount = groups.open.length;
+  });
   const roleLabel = (value: OrcaInvitation["role"]) => (value === "admin" ? t("ผู้ดูแลระบบ", "Admin") : t("สมาชิกทั่วไป", "Member"));
   const statusLabel = (value: OrcaInvitation["status"]) =>
     ({ pending: t("รอตอบรับ", "Waiting"), accepted: t("ตอบรับแล้ว", "Accepted"), revoked: t("ยกเลิกแล้ว", "Revoked"), expired: t("หมดอายุ", "Expired") })[value];
@@ -163,7 +170,17 @@
   }
 </script>
 
-{#if loaded && items.length}
+{#if showList && loaded && !items.length}
+  <div class="k-empty inv-empty">
+    <MailPlus size={28} aria-hidden="true" />
+    <h2>{t("ยังไม่มีคำเชิญ", "No invitations yet")}</h2>
+    <p>{t("เชิญคนใหม่ด้วยลิงก์ แล้วคำเชิญที่ยังไม่ได้ตอบรับจะแสดงที่นี่", "Invite someone with a link. Invitations waiting for an answer show here.")}</p>
+    <button class="k-button primary" onclick={() => (inviting = true)}>{t("เชิญสมาชิก", "Invite a member")}</button>
+  </div>
+{:else if showList && listError && !loaded}
+  <div class="k-banner error" role="alert">{listError}</div>
+{/if}
+{#if showList && loaded && items.length}
   <section class="team-invitations" aria-labelledby="team-invitations-title">
     <div class="inv-head">
       <div class="k-section-title">
@@ -305,7 +322,10 @@
 </dialog>
 
 <style>
-  .team-invitations { margin-top: 20px; overflow: hidden; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
+  .inv-empty { margin-top: 0; gap: 8px; }
+  .inv-empty h2 { margin-top: 4px; font-size: 15px; }
+  .inv-empty p { margin: 0 0 8px; font-size: 13.5px; }
+  .team-invitations { margin-top: 0; overflow: hidden; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
   .team-invitations > :global(.k-banner) { margin: 0 18px 12px; }
   .inv-head { padding: 16px 18px 14px; }
   .inv-head :global(.k-section-title) { justify-content: flex-start; gap: 8px; margin: 0; }

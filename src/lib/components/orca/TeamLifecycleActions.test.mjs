@@ -7,13 +7,13 @@ import { compile, compileModule } from 'svelte/compiler';
 import { effect_root, flush } from 'svelte/internal/client';
 const require = createRequire(import.meta.url);
 const source = await readFile(new URL('./TeamLifecycleActions.svelte', import.meta.url), 'utf8');
-const script = stripTypeScriptTypes(source.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1]).replace(/^\s*import[^;]+;/gm, '').replace('$props()', '$state(testProps)');
+const script = stripTypeScriptTypes(source.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1]).replace(/^\s*import[^;]+;/gm, '').replace(/^(\s*)export function/gm, '$1function').replace('$props()', '$state(testProps)');
 const code = compileModule(`export function harness(testProps, OrcaService, t, orcaError, getHttpStatusCode) {
 ${script}
 let focused = false;
 const modal = { open: false, isConnected: true, showModal() { this.open = true; }, close() { this.open = false; } };
 dialog = modal; cancelButton = { focus() { focused = true; } };
-return { open, confirm, modal, replace(nextID, nextVersion) { id = nextID; version = nextVersion; }, get state() { return { saving, stale, error, completed, focused }; } };
+return { open, request, confirm, modal, replace(nextID, nextVersion) { id = nextID; version = nextVersion; }, get state() { return { saving, stale, error, completed, focused }; } };
 }`, { filename: 'team-lifecycle-test.svelte.js', generate: 'client' }).js.code.replaceAll('svelte/internal/client', pathToFileURL(require.resolve('svelte/internal/client')).href);
 const { harness } = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
 function setup(context, props = {}, service = {}) {
@@ -45,3 +45,8 @@ test('refresh failure after successful mutation remains visible and cannot dupli
  const {view,writes}=setup(context,{onchanged:async()=>{throw new Error('Refresh unavailable');}});view.open('suspend');await view.confirm();await view.confirm();assert.equal(writes.length,1);assert.equal(view.modal.open,true);assert.match(view.state.error,/Saved, but/);assert.equal(view.state.completed,true);
 });
 for(const file of ['TeamLifecycleActions.svelte','TeamAccess.svelte','LibraryDepartments.svelte']) test(`${file} compiles without warnings`,async()=>{const input=await readFile(new URL(file,import.meta.url),'utf8');assert.deepEqual(compile(input,{filename:file,generate:'client'}).warnings,[]);});
+
+test('a row menu opens the same reviewed confirmation through request', async context => {
+ const state = setup(context); state.view.request('delete'); assert.equal(state.view.modal.open, true);
+ await state.view.confirm(); assert.deepEqual(state.writes, [['member', 'member-one', 'delete', 7]]);
+});

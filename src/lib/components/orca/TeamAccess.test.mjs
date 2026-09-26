@@ -12,12 +12,12 @@ const source=await readFile(new URL('./TeamAccess.svelte',import.meta.url),'utf8
 const code=compile(source,{filename:'TeamAccess.svelte',generate:'server'}).js.code.replace(/^import[\s\S]*?;\n/gm,'').replace('export default function TeamAccess','function TeamAccess').replace('let accounts = [];','let accounts = testAccounts;').replace('let memberStatus = "active";','let memberStatus = testStatus;').replace('let localAvailable = false;','let localAvailable = testLocalAvailable;');
 const {organizationRole,canResetMemberPassword}=await import('data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(await readFile(new URL('../../orca/member-access.ts',import.meta.url),'utf8'))).toString('base64'));
 const module=`import * as $ from ${JSON.stringify(pathToFileURL(require.resolve('svelte/internal/server')).href)};
-export function component(deps) { const { gatewayHasMember, testAccounts, testStatus, testLocalAvailable, beforeNavigate, organizationRole, canResetMemberPassword, OrcaLibraryService, TeamLifecycleActions, LibraryDepartments, MemberRoleEditor, MemberInvitations, LOCAL_AUTH_MIN_PASSWORD_LENGTH, t,localeHref,OrcaService,orcaError,memberName,memberRole,Building2,Check,Copy,Crown,Info,KeyRound,Plus,RefreshCw,Shield,UserPlus,Users,onMount,onDestroy }=deps; ${code}; return TeamAccess; }`;
+export function component(deps) { const { gatewayHasMember, testAccounts, testStatus, testLocalAvailable, beforeNavigate, organizationRole, canResetMemberPassword, OrcaLibraryService, TeamLifecycleActions, LibraryDepartments, MemberRoleEditor, MemberInvitations, LOCAL_AUTH_MIN_PASSWORD_LENGTH, t,localeHref,OrcaService,orcaError,memberName,memberRole,Building2,Check,Crown,Ellipsis,Info,KeyRound,MailPlus,RefreshCw,Shield,UserPlus,Users,onMount,onDestroy }=deps; ${code}; return TeamAccess; }`;
 const {component}=await import('data:text/javascript;base64,'+Buffer.from(module).toString('base64'));
 function screen(actorRole,targets=[],props={},testState={}) {
  const actions=[];const noop=()=>{};
- const view=component({gatewayHasMember,testAccounts:testState.accounts||[],testStatus:testState.status||'active',testLocalAvailable:testState.localAvailable||false,beforeNavigate:noop,organizationRole,canResetMemberPassword,OrcaLibraryService:{},TeamLifecycleActions:(_r,input)=>actions.push(input),LibraryDepartments:noop,MemberRoleEditor:noop,MemberInvitations:noop,LOCAL_AUTH_MIN_PASSWORD_LENGTH:12,t:(_th,en)=>en,localeHref:x=>x,OrcaService:{},orcaError:()=>'',memberName:m=>m.displayName||m.email,memberRole:organizationRole,Building2:noop,Check:noop,Copy:noop,Crown:noop,Info:noop,KeyRound:noop,Plus:noop,RefreshCw:noop,Shield:noop,UserPlus:noop,Users:noop,onMount:noop,onDestroy:noop});
- const data={currentUserID:'actor',canManage:actorRole!=='employee',canManageRoles:actorRole==='owner',platformOperator:testState.operator===true,connections:[],hubs:[],units:[],members:[{id:'actor',email:'actor@example.test',role:actorRole},...targets]};
+ const view=component({gatewayHasMember,testAccounts:testState.accounts||[],testStatus:testState.status||'active',testLocalAvailable:testState.localAvailable||false,beforeNavigate:noop,organizationRole,canResetMemberPassword,OrcaLibraryService:{},TeamLifecycleActions:(_r,input)=>actions.push(input),LibraryDepartments:noop,MemberRoleEditor:noop,MemberInvitations:noop,LOCAL_AUTH_MIN_PASSWORD_LENGTH:12,t:(_th,en)=>en,localeHref:x=>x,OrcaService:{},orcaError:()=>'',memberName:m=>m.displayName||m.email,memberRole:organizationRole,Building2:noop,Check:noop,Crown:noop,Ellipsis:noop,Info:noop,KeyRound:noop,MailPlus:noop,RefreshCw:noop,Shield:noop,UserPlus:noop,Users:noop,onMount:noop,onDestroy:noop});
+ const data={currentUserID:'actor',canManage:actorRole!=='employee',canManageRoles:actorRole==='owner',platformOperator:testState.operator===true,connections:[],hubs:testState.hubs||[],units:[],members:[{id:'actor',email:'actor@example.test',role:actorRole},...targets]};
  const result=render(view,{props:{data,onchanged:async()=>{},...props}}); return {actions,html:result.body};
 }
 const employee={id:'employee',email:'employee@example.test',role:'employee',version:5};
@@ -59,12 +59,29 @@ test('suspended local employee account is labeled suspended rather than protecte
 test('company managers who are not platform operators get invitations, never password controls',()=>{
  for(const role of ['owner','admin']){
   const result=screen(role,[employee],{}, {localAvailable:true,accounts:[{id:'local-employee',email:employee.email},{id:'local-new',email:'new@example.test'}]});
-  assert.doesNotMatch(result.html,/Add user account|Reset password|Set a new password|Waiting for first sign-in|Protected administrator account/,role);
-  assert.match(result.html,/Add members with an invitation link/,role);
+  assert.doesNotMatch(result.html,/Create a password account|Reset password|Set a new password|Waiting for first sign-in|Protected administrator account/,role);
+  assert.match(result.html,/Invite someone with a link/,role);
  }
 });
 test('the platform operator keeps break-glass password controls',()=>{
  const result=screen('owner',[employee],{}, {localAvailable:true,operator:true,accounts:[{id:'local-employee',email:employee.email},{id:'local-new',email:'new@example.test'}]});
- assert.match(result.html,/Add user account/);assert.match(result.html,/Reset password for employee@example.test/);assert.match(result.html,/Waiting for first sign-in/);
- assert.doesNotMatch(result.html,/Add members with an invitation link/);
+ assert.match(result.html,/Create a password account/);assert.match(result.html,/Reset password for employee@example.test/);assert.match(result.html,/Waiting for first sign-in/);
+});
+
+test('the header offers one invite button, a small menu, and no sign-in link to copy',()=>{
+ const result=screen('owner',[employee]);
+ assert.match(result.html,/Invite a member/);assert.match(result.html,/More options/);
+ assert.doesNotMatch(result.html,/Copy sign-in link/);
+});
+test('each member shows whether they can reach company data, and how to fix it',()=>{
+ const hub={id:'hub-1',name:'Main workspace',memberIDs:['employee']};
+ const result=screen('owner',[employee,{id:'new',email:'new@example.test',role:'employee',version:1}],{},{hubs:[hub]});
+ assert.match(result.html,/Main workspace/);
+ assert.match(result.html,/No data access yet/);assert.match(result.html,/Add to a workspace/);
+ assert.match(result.html,/No data access<span[^>]*>2<\/span>/,'the filter counts members without a workspace');
+});
+test('a view-only member sees the list without management menus',()=>{
+ const result=screen('employee',[employee]);
+ assert.doesNotMatch(result.html,/Invite a member|More options|Manage employee@example.test|Add to a workspace/);
+ assert.match(result.html,/can view members only/);
 });

@@ -3,9 +3,10 @@
   import { OrcaService, orcaError } from '$lib/services/orca';
   import { getHttpStatusCode } from '$lib/errors';
   import { Archive, Ban, RotateCcw, Trash2 } from '@lucide/svelte';
-  let { kind, id, name, version, inactive = false, disabled = false, compact = false, onchanged, onbusy = () => {} }: {
+  // In a menu the row's own menu items open these confirmations through request().
+  let { kind, id, name, version, inactive = false, disabled = false, compact = false, menu = false, onchanged, onbusy = () => {} }: {
     kind: 'department' | 'member'; id: string; name: string; version: number;
-    inactive?: boolean; disabled?: boolean; compact?: boolean; onchanged: () => Promise<void>; onbusy?: (value: boolean) => void;
+    inactive?: boolean; disabled?: boolean; compact?: boolean; menu?: boolean; onchanged: () => Promise<void>; onbusy?: (value: boolean) => void;
   } = $props();
   let dialog: HTMLDialogElement;
   let cancelButton: HTMLButtonElement;
@@ -20,6 +21,9 @@
   function open(next: typeof action) {
     if (saving || disabled) return;
     action = next; error = ''; stale = false; notice = ''; completed = false; snapshot = { id, name, kind, version }; dialog.showModal(); cancelButton?.focus();
+  }
+  export function request(next: 'suspend' | 'restore' | 'delete') {
+    open(next);
   }
   async function confirm() {
     if (saving || stale || disabled || completed || !snapshot) return;
@@ -42,12 +46,12 @@
   }
 </script>
 <!-- Compact mode shows icon buttons for table rows; the accessible name comes from aria-label. -->
-<div class="team-lifecycle" class:compact>
+{#if !menu}<div class="team-lifecycle" class:compact>
   <button class="lifecycle-button" class:k-button={!compact} class:small={!compact} aria-haspopup="dialog" aria-label={`${inactive ? t('กู้คืน', 'Restore') : kind === 'member' ? t('ระงับ', 'Suspend') : t('จัดเก็บ', 'Archive')} ${name}`} title={compact ? (inactive ? t('กู้คืน', 'Restore') : kind === 'member' ? t('ระงับ', 'Suspend') : t('จัดเก็บ', 'Archive')) : undefined} disabled={disabled || saving} onclick={() => open(inactive ? 'restore' : kind === 'member' ? 'suspend' : 'archive')}>
     {#if inactive}<RotateCcw size={16} aria-hidden="true" />{#if !compact}{t('กู้คืน', 'Restore')}{/if}{:else}{#if kind === 'member'}<Ban size={16} aria-hidden="true" />{:else}<Archive size={16} aria-hidden="true" />{/if}{#if !compact}{kind === 'member' ? t('ระงับ', 'Suspend') : t('จัดเก็บ', 'Archive')}{/if}{/if}
   </button>
   <button class="lifecycle-button delete-action" class:k-button={!compact} class:small={!compact} class:danger={!compact} aria-haspopup="dialog" aria-label={`${kind === 'member' ? t('นำออก', 'Remove') : t('ลบ', 'Delete')} ${name}`} title={compact ? (kind === 'member' ? t('นำออก', 'Remove') : t('ลบ', 'Delete')) : undefined} disabled={disabled || saving} onclick={() => open('delete')}><Trash2 size={16} aria-hidden="true" />{#if !compact}{kind === 'member' ? t('นำออก', 'Remove') : t('ลบ', 'Delete')}{/if}</button>
-</div>
+</div>{/if}
 {#if notice}<span class="k-small lifecycle-notice" role="status">{notice}</span>{/if}
 <dialog bind:this={dialog} class="team-dialog" aria-label={label} oncancel={(event) => {if (saving) event.preventDefault();}}>
   <div class="dialog-icon" class:danger={action === 'delete'} aria-hidden="true">
