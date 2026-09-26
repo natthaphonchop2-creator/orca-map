@@ -106,6 +106,12 @@
           )}
         </div>{/if}
       {#if googleReason}<div class="o-alert" role="alert">{googleMessage(googleReason)}</div>{/if}
+      {#if data.signedIn}
+        <p>
+          {t("คุณยังเข้าสู่ระบบด้วยบัญชีเดิมอยู่", "You are still signed in with your current account.")}
+          <a class="o-link" href={localeHref(data.rd)}>{t("กลับไปหน้าเดิม", "Go back")}</a>
+        </p>
+      {/if}
       {#if localProvider && data.google}
         <a class="o-button outline o-google" href={googleHref}
           ><svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"

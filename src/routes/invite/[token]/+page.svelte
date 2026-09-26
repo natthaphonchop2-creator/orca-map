@@ -128,7 +128,14 @@
         {#if data.signedIn}
           <p>{t(`คุณเข้าสู่ระบบด้วย ${data.email}`, `You are signed in as ${data.email}.`)}</p>
           {#if error && !needsGoogle}<div class="o-alert" role="alert">{error}{#if wrongAccount}{" "}<a href={signOutHref}>{t("ออกจากระบบ", "Sign out")}</a>{/if}</div>{/if}
-          {#if needsGoogle}
+          {#if needsGoogle && !data.google}
+            <p role="status">
+              {t(
+                "ต้องยืนยันอีเมลด้วย Google ก่อนรับคำเชิญ แต่ ORCA นี้ยังไม่เปิดการเข้าสู่ระบบด้วย Google ติดต่อผู้ดูแลที่เชิญคุณ",
+                "The invitation needs your email confirmed with Google, but Google sign-in is not turned on for this ORCA. Contact the person who invited you.",
+              )}
+            </p>
+          {:else if needsGoogle}
             <p role="status">{error}</p>
             <a class="o-button outline o-google" href={googleHref}
               ><svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"

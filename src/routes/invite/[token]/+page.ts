@@ -10,13 +10,12 @@ export const prerender = false;
 export const load: PageLoad = async ({ params, parent, fetch }) => {
 	const { profile } = await parent();
 	const signedIn = Boolean(profile?.id) && !profile?.unauthorized;
+	// Signed out, Google can make the account; signed in, it confirms the email.
 	let google = false;
-	if (!signedIn) {
-		try {
-			google = (await OrcaService.signInMethods(fetch)).google === true;
-		} catch {
-			google = false;
-		}
+	try {
+		google = (await OrcaService.signInMethods(fetch)).google === true;
+	} catch {
+		google = false;
 	}
 	return { token: params.token, signedIn, email: signedIn ? (profile?.email ?? '') : '', google };
 };

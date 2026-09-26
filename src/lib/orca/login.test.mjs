@@ -5,12 +5,14 @@ import test from 'node:test';
 
 const navigation = stripTypeScriptTypes(await readFile(new URL('./navigation.ts', import.meta.url), 'utf8'));
 const { safeReturnPath } = await import('data:text/javascript;base64,' + Buffer.from(navigation).toString('base64'));
+const googleSignIn = stripTypeScriptTypes(await readFile(new URL('./google-signin.ts', import.meta.url), 'utf8'));
+const { googleSignInReason } = await import('data:text/javascript;base64,' + Buffer.from(googleSignIn).toString('base64'));
 const redirect = (status, location) => ({ status, location });
 async function route(path, providers = []) {
   const source = stripTypeScriptTypes(await readFile(new URL(path, import.meta.url), 'utf8'))
     .replace(/^import[^;]+;\s*/gm, '').replaceAll('export const ', 'const ');
-  return new Function('safeReturnPath', 'redirect', 'UserService', source + ';return load;')(
-    safeReturnPath, redirect, { listAuthProviders: async () => providers });
+  return new Function('safeReturnPath', 'googleSignInReason', 'redirect', 'UserService', source + ';return load;')(
+    safeReturnPath, googleSignInReason, redirect, { listAuthProviders: async () => providers });
 }
 const legacy = await route('../../routes/login/local/+page.ts');
 const page = await route('../../routes/login/+page.ts', [{ id: 'local-auth-provider', name: 'Local' }]);
@@ -38,6 +40,13 @@ test('legacy return cannot send a user to another host or loop through login', (
 test('an authenticated user bypasses the unified sign-in form to the requested page', async () => {
   await assert.rejects(() => run(page, '/login?rd=%2Fapp%3Fview%3Dcatalog', { loaded: true, unauthorized: false }),
     (result) => result.status === 302 && result.location === '/app?view=catalog');
+});
+test('a signed-in user whose Google sign-in failed sees why before going back', async () => {
+  const result = await run(page, '/login?rd=%2Finvite%2Ftoken&error=google_workspace', { loaded: true, unauthorized: false });
+  assert.equal(result.signedIn, true);
+  assert.equal(result.rd, '/invite/token');
+  await assert.rejects(() => run(page, '/login?rd=%2Fapp&error=1', { loaded: true, unauthorized: false }),
+    (redirected) => redirected.status === 302 && redirected.location === '/app', 'other errors still send a signed-in user back');
 });
 test('an anonymous user remains on the unified form with configured providers', async () => {
   const result = await run(page, '/login?rd=%2Fapp%3Fview%3Dcatalog', { unauthorized: true });
