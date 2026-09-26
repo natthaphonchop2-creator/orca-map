@@ -127,6 +127,8 @@ export interface OrcaBootstrap {
   canManage: boolean;
   canManageRoles?: boolean;
   canReviewPilotRequests?: boolean;
+  /** A live ORCA platform operator; only they may manage Local passwords, as break-glass. */
+  platformOperator?: boolean;
   members: OrcaMember[];
   units: OrcaUnit[];
   connections: OrcaConnection[];

@@ -70,6 +70,9 @@
     data.members.find((member) => member.id === data.currentUserID),
   );
   const canManageRoles = $derived(data.canManageRoles === true);
+  // One person may belong to several companies, so a company manager never
+  // chooses someone's password. Only a platform operator keeps these controls.
+  const operator = $derived(data.platformOperator === true);
   const roleGroups = $derived([
     {
       id: "owner",
@@ -172,7 +175,7 @@
     ),
   );
   async function refresh() {
-    if (!data.canManage) return;
+    if (!data.canManage || !operator) return;
     loading = true;
     availabilityError = "";
     try {
@@ -283,7 +286,7 @@
             "คัดลอกลิงก์เข้าสู่ระบบ",
             "Copy sign-in link",
           )}</button
-        >{#if localAvailable}<button
+        >{#if operator && localAvailable}<button
             class="k-button"
             onclick={() => start()}
             ><Plus size={16} />{t("เพิ่มบัญชีผู้ใช้", "Add user account")}</button
@@ -322,6 +325,12 @@
           "ยังไม่สามารถยืนยันสิทธิ์การจัดการบทบาท กรุณาโหลดข้อมูลใหม่เพื่อตรวจสอบสิทธิ์ล่าสุด",
           "Role management access could not be confirmed. Refresh to check your latest access.",
         )}
+  </p>{/if}
+{#if data.canManage && !operator}<p class="k-small k-muted team-role-note">
+    {t(
+      "เพิ่มสมาชิกด้วยลิงก์เชิญ ผู้ได้รับเชิญเข้าสู่ระบบด้วยบัญชีของตัวเอง เช่น Google ผู้ดูแลตั้งหรือเปลี่ยนรหัสผ่านแทนสมาชิกไม่ได้ เพื่อความปลอดภัยของบัญชี",
+      "Add members with an invitation link. Invited people sign in with their own account, such as Google. Managers can’t set or change a member’s password, to keep accounts safe.",
+    )}
   </p>{/if}
 <nav class="team-tabs" aria-label={t("การจัดการสมาชิก", "Member management")}>
   <button
@@ -369,7 +378,7 @@
   {#if success}<div class="k-banner success" role="status">
       <Check size={16} />{success}
     </div>{/if}
-  {#if open && data.canManage && localAvailable}<form
+  {#if open && operator && localAvailable}<form
       class="k-panel team-form"
       onsubmit={(event) => {
         event.preventDefault();
@@ -483,7 +492,7 @@
               >{t("บทบาท", "Role")}</th
             >{#if data.canManage}<th scope="col">{t("แผนก", "Department")}</th>{/if}<th scope="col"
               >{t("พื้นที่ทำงาน AI", "AI workspaces")}</th
-            >{#if data.canManage && localAvailable}<th scope="col"
+            >{#if operator && localAvailable}<th scope="col"
                 >{t("บัญชีผู้ใช้", "Account")}</th
               >{/if}{#if data.canManage}<th scope="col" class="team-actions-col">{t('การจัดการสมาชิก', 'Member actions')}</th>{/if}</tr
           ></thead
@@ -528,7 +537,7 @@
                       "No AI workspace yet",
                     )}</span
                   >{/each}</td
-              >{#if data.canManage && localAvailable}{@const account =
+              >{#if operator && localAvailable}{@const account =
                   accounts.find(
                     (item) =>
                       normalized(item.email) === normalized(member.email),
@@ -570,7 +579,7 @@
       </p>
     </div>{/if}
   {#if data.canManage}<MemberInvitations {data} bind:inviting onchanged={memberChanged} />{/if}
-  {#if data.canManage && pending.length}<section class="team-pending">
+  {#if operator && pending.length}<section class="team-pending">
       <div class="team-pending-head">
         <div class="k-section-title">
           <h2>{t("รอเข้าสู่ระบบครั้งแรก", "Waiting for first sign-in")}</h2>
@@ -611,7 +620,7 @@
         </table>
       </div>
     </section>{/if}
-  {#if data.canManage && availabilityError}<div class="k-banner">
+  {#if operator && availabilityError}<div class="k-banner">
       <Info size={16} />
       <div>
         <strong
