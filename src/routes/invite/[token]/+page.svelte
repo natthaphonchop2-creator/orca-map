@@ -5,6 +5,7 @@
   import "$lib/components/orca/orca.css";
   import { parseErrorContent } from "$lib/errors";
   import { initializeLocale, localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
+  import { googleStartHref } from "$lib/orca/google-signin";
   import { OrcaService, displayDate, orcaError, type OrcaInvitationPreview } from "$lib/services/orca";
   import { ArrowRight, Check, LoaderCircle } from "@lucide/svelte";
   import { onMount } from "svelte";
@@ -15,10 +16,14 @@
   let phase = $state<"loading" | "ready" | "invalid" | "failed" | "joined">("loading");
   let error = $state("");
   let wrongAccount = $state(false);
+  // The account is the invited email, but nothing has proven the person owns
+  // it yet; signing in with Google does, then brings them back here.
+  let needsGoogle = $state(false);
   let busy = $state(false);
   const returnPath = $derived(`/invite/${encodeURIComponent(data.token)}`);
   const signInHref = $derived(localeHref(`/login?rd=${encodeURIComponent(returnPath)}`));
   const signOutHref = $derived(`/oauth2/sign_out?rd=${encodeURIComponent(returnPath)}`);
+  const googleHref = $derived(googleStartHref(window.location.origin, localeHref(returnPath), { id: "local-auth-provider" }));
   const roleLabel = $derived(preview?.role === "admin" ? t("ผู้ดูแลระบบ", "an admin") : t("สมาชิก", "a member"));
 
   onMount(async () => {
@@ -37,12 +42,19 @@
     busy = true;
     error = "";
     wrongAccount = false;
+    needsGoogle = false;
     try {
       await OrcaService.acceptInvitation(data.token);
       phase = "joined";
     } catch (cause) {
       const status = parseErrorContent(cause).status;
-      if (status === 403) {
+      if (status === 428) {
+        needsGoogle = true;
+        error = t(
+          `ยืนยันอีเมลก่อนรับคำเชิญ: เลือก “เข้าสู่ระบบด้วย Google” ด้วยบัญชี Google ของ ${preview?.email ?? "อีเมลที่ได้รับเชิญ"} แล้ว ORCA จะพากลับมาหน้านี้ให้กดรับคำเชิญอีกครั้ง`,
+          `Confirm your email first: choose “Sign in with Google” with the Google account for ${preview?.email ?? "the invited email"}. ORCA brings you back here to accept.`,
+        );
+      } else if (status === 403) {
         wrongAccount = true;
         error = t(
           `คำเชิญนี้ส่งถึง ${preview?.email ?? ""} แต่ตอนนี้คุณเข้าสู่ระบบด้วย ${data.email || "บัญชีอื่น"} กรุณาออกจากระบบ แล้วเข้าสู่ระบบด้วยอีเมลที่ได้รับเชิญ`,
@@ -115,10 +127,19 @@
         </dl>
         {#if data.signedIn}
           <p>{t(`คุณเข้าสู่ระบบด้วย ${data.email}`, `You are signed in as ${data.email}.`)}</p>
-          {#if error}<div class="o-alert" role="alert">{error}{#if wrongAccount}{" "}<a href={signOutHref}>{t("ออกจากระบบ", "Sign out")}</a>{/if}</div>{/if}
-          <button class="o-button" disabled={busy} onclick={accept}
-            >{busy ? t("กำลังรับคำเชิญ…", "Accepting…") : t("รับคำเชิญ", "Accept invitation")} <ArrowRight size={16} /></button
-          >
+          {#if error && !needsGoogle}<div class="o-alert" role="alert">{error}{#if wrongAccount}{" "}<a href={signOutHref}>{t("ออกจากระบบ", "Sign out")}</a>{/if}</div>{/if}
+          {#if needsGoogle}
+            <p role="status">{error}</p>
+            <a class="o-button outline o-google" href={googleHref}
+              ><svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"
+                ><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" /><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" /><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" /><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" /></svg
+              >{t("เข้าสู่ระบบด้วย Google", "Sign in with Google")}</a
+            >
+          {:else}
+            <button class="o-button" disabled={busy} onclick={accept}
+              >{busy ? t("กำลังรับคำเชิญ…", "Accepting…") : t("รับคำเชิญ", "Accept invitation")} <ArrowRight size={16} /></button
+            >
+          {/if}
         {:else}
           <p>
             {data.google
