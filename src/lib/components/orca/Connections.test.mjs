@@ -473,6 +473,17 @@ function initialScreen(props = {}) {
 }
 const settleMount = () => new Promise(resolve => setImmediate(resolve));
 
+// Adding a system writes the catalog every company shares, so only the ORCA
+// team sees that option; a company's managers are told to ask for it.
+test('only the ORCA team can add a system by MCP URL', () => {
+  const manager = initialScreen({ initiallyAddSource: true });
+  assert.doesNotMatch(manager, /Add a system with an MCP URL/);
+  assert.match(manager, /Ask the ORCA team to add it/);
+  const operator = initialScreen({ initiallyAddSource: true, data: { canManage: true, platformOperator: true, connections: [existingServer], hubs: [] } });
+  assert.match(operator, /Add a system with an MCP URL/);
+  assert.doesNotMatch(operator, /Ask the ORCA team to add it/);
+});
+
 test('Add Server first render shows the loading picker instead of existing account cards', () => {
   const html = initialScreen({ initiallyAddSource: true });
   assert.match(html, /id="candidate"[^>]*disabled/);

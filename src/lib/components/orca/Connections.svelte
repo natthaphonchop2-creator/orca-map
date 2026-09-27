@@ -61,6 +61,8 @@
 	let formOpen = $state(untrack(() => addSourceFlow && data.canManage));
 	let step = $state<1 | 2 | 3>(1);
 	let creatingSource = $state(false);
+	// Adding a system writes the catalog every company shares (design §14c, EP3c).
+	const operator = $derived(data.platformOperator === true);
 	let sourceReady = $state(false);
 	let setupBusy = $state(false);
 	let suggestedName = $state('');
@@ -550,10 +552,15 @@
 			</p>{/if}
 		{#if loading}<p class="k-muted k-small" role="status">{t('กำลังโหลดรายชื่อระบบ…', 'Loading systems…')}</p>
 		{:else if !selectableCandidates.length}<p class="k-muted k-small">
-				{t(
-					'ยังไม่มีระบบในคลังระบบ เพิ่มระบบด้วย MCP URL ได้ที่ “ตัวเลือกเพิ่มเติม” ด้านล่าง',
-					'The system catalog is empty. Add a system with an MCP URL under More options below.'
-				)}
+				{operator
+					? t(
+							'ยังไม่มีระบบในคลังระบบ เพิ่มระบบด้วย MCP URL ได้ที่ “ตัวเลือกเพิ่มเติม” ด้านล่าง',
+							'The system catalog is empty. Add a system with an MCP URL under More options below.'
+						)
+					: t(
+							'ยังไม่มีระบบในคลังระบบ ติดต่อทีม ORCA เพื่อเพิ่มระบบที่องค์กรต้องการ',
+							'The system catalog is empty. Ask the ORCA team to add the systems your organization needs.'
+						)}
 			</p>{/if}
 		{#if mcpID || creatingSource}
 			<SourceSetup
@@ -561,7 +568,7 @@
 				{sourceLabel}
 				endpointHost={selectedSource?.endpointHost}
 				managedProvider={selectedSource?.managedProvider}
-				canCreate
+				canCreate={operator}
 				oncreated={async (id) => {
 					await loadCandidates();
 					if (!alive || !formOpen) return;
@@ -590,7 +597,8 @@
 		<details class="connection-options">
 			<summary>{t('ตัวเลือกเพิ่มเติม', 'More options')}</summary>
 			<div class="k-actions">
-				{#if !editing}<button
+				<!-- The catalog is shared by every company, so only the ORCA team adds to it. -->
+				{#if !editing && operator}<button
 						type="button"
 						class="k-button quiet"
 						disabled={busy || setupBusy}
@@ -599,7 +607,12 @@
 							sourceChanged();
 							creatingSource = true;
 						}}>{t('เพิ่มระบบด้วย MCP URL', 'Add a system with an MCP URL')}</button
-					>{/if}
+					>{:else if !editing}<p class="k-small k-muted">
+						{t(
+							'ต้องการระบบที่ไม่มีในคลัง? ติดต่อทีม ORCA เพื่อเพิ่มระบบให้',
+							'Need a system that is not in the catalog? Ask the ORCA team to add it.'
+						)}
+					</p>{/if}
 				<button
 					type="button"
 					class="k-link-button"
