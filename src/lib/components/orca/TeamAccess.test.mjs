@@ -43,6 +43,11 @@ test('in the default company only the platform operator suspends or removes peop
   assert.deepEqual(inactive.actions,[],role);assert.doesNotMatch(inactive.html,/Manage suspended@example.test|>Restore</,role);
  }
  assert.deepEqual(screen('owner',[employee],{}, {changeStatus:true}).actions.map(x=>x.id),['employee']);
+ // The server's answer wins over the operator flag, which is only the fallback.
+ const operatorRefused=screen('owner',[employee],{}, {changeStatus:false,operator:true});
+ assert.deepEqual(operatorRefused.actions,[]);assert.doesNotMatch(operatorRefused.html,/>Suspend<|Remove from company/);
+ const operatorSuspended=screen('owner',[suspended],{}, {status:'suspended',changeStatus:false,operator:true});
+ assert.deepEqual(operatorSuspended.actions,[]);assert.doesNotMatch(operatorSuspended.html,/>Restore<|Remove from company/);
 });
 test('a server that does not say leaves suspending and removing to the platform operator',()=>{
  assert.deepEqual(screen('owner',[employee],{}, {changeStatus:undefined}).actions,[]);
