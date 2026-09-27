@@ -4,7 +4,7 @@ import { stripTypeScriptTypes } from 'node:module';
 import test from 'node:test';
 
 const navigation = stripTypeScriptTypes(await readFile(new URL('./navigation.ts', import.meta.url), 'utf8'));
-const { safeReturnPath } = await import('data:text/javascript;base64,' + Buffer.from(navigation).toString('base64'));
+const { safeReturnPath, loginHref } = await import('data:text/javascript;base64,' + Buffer.from(navigation).toString('base64'));
 const googleSignIn = stripTypeScriptTypes(await readFile(new URL('./google-signin.ts', import.meta.url), 'utf8'));
 const { googleSignInReason } = await import('data:text/javascript;base64,' + Buffer.from(googleSignIn).toString('base64'));
 const redirect = (status, location) => ({ status, location });
@@ -53,4 +53,17 @@ test('an anonymous user remains on the unified form with configured providers', 
   assert.equal(result.rd, '/app?view=catalog');
   assert.deepEqual(result.authProviders, [{ id: 'local-auth-provider', name: 'Local' }]);
   assert.equal(result.unavailable, false);
+});
+
+test('an expired session signs in again and returns to the same view', async () => {
+  const href = loginHref({ pathname: '/app', search: '?view=members&tab=invitations' });
+  assert.equal(href, '/login?rd=%2Fapp%3Fview%3Dmembers%26tab%3Dinvitations');
+  const back = await run(page, href, { loaded: true, unauthorized: false }).catch((result) => result);
+  assert.deepEqual(back, { status: 302, location: '/app?view=members&tab=invitations' });
+  // Both places that send an expired session to sign-in use the same address.
+  for (const path of ['../services/http.ts', '../components/ReLoginDialog.svelte']) {
+    const source = await readFile(new URL(path, import.meta.url), 'utf8');
+    assert.match(source, /window\.location\.href = loginHref\(window\.location\);/, path);
+    assert.doesNotMatch(source, /login\?rd=/, path);
+  }
 });

@@ -19,6 +19,11 @@ export function safeReturnPath(value: string | null | undefined, fallback = '/ap
 	}
 }
 
+/** Sign in again and come back to this page, including its view and filters. */
+export function loginHref(location: { pathname: string; search: string }) {
+	return `/login?rd=${encodeURIComponent(location.pathname + location.search)}`;
+}
+
 /** Resolve navigation without discarding legacy detail URLs or their parameters. */
 export function appNavigation(params: URLSearchParams) {
   const requestedView = params.get("view") ?? "dashboard";

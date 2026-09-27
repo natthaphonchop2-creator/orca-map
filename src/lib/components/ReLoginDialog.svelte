@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { loginHref } from '$lib/orca/navigation';
 	import { profile } from '$lib/stores';
 
 	let dialog: HTMLDialogElement;
@@ -10,7 +11,7 @@
 	});
 
 	function handleLogin() {
-		window.location.href = `/login?rd=${encodeURIComponent(window.location.pathname)}`;
+		window.location.href = loginHref(window.location);
 	}
 </script>
 
