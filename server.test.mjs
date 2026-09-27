@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { mkdtemp, mkdir, writeFile, symlink, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, symlink, rm, readdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { once } from 'node:events';
@@ -164,6 +164,20 @@ test('finishes a source sign-in the backend hands off, with the member session',
   assert.equal(result.status, 302);
   assert.equal(result.headers.location, '/auth/oauth/complete');
   assert.deepEqual(seen, [{ url: '/oauth/mcp/callback' + query, cookie: 'obot_access_token=member-session' }]);
+});
+
+// Production serves a static build: nothing answers a route's __data.json, so
+// a server-only loader breaks its page. The debugger's return page, which a
+// handed-off sign-in can reach, relies on the static server's no-store instead.
+test('serves pages without server data, including the uncached debugger return', async (t) => {
+  const { appURL } = await fixture(t);
+  const page = await request(appURL, '/oauth-debugger/callback?code=a%2Bb&state=c');
+  assert.equal(page.status, 200);
+  assert.match(page.body, /ORCA app/);
+  assert.equal(page.headers['cache-control'], 'no-store');
+  assert.equal((await request(appURL, '/oauth-debugger/callback/__data.json')).status, 404);
+  const routes = await readdir(new URL('./src/routes', import.meta.url), { recursive: true });
+  assert.deepEqual(routes.filter((file) => /(^|\/)\+(?:page|layout)\.server\.|(^|\/)\+server\./.test(file)), []);
 });
 
 test('rewrites only exact backend Location origin and leaves nested OAuth redirect_uri intact', async (t) => {
