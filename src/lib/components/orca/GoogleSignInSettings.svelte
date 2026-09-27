@@ -6,7 +6,8 @@
   import { OrcaService, orcaError, type OrcaBootstrap, type OrcaGoogleSignIn } from "$lib/services/orca";
 
   // Signing in to the workspace with Google, beside the password. Managers see
-  // it; only an owner changes it, because its domains decide who may join.
+  // it; only the platform operator changes it: the Google client serves the
+  // whole platform, and its domains decide who may join.
   let { data }: { data: OrcaBootstrap } = $props();
   let setting = $state<OrcaGoogleSignIn>();
   let clientID = $state("");
@@ -17,7 +18,7 @@
   let error = $state("");
   let notice = $state("");
   let copied = $state(false);
-  const owner = $derived(data.canManageRoles === true);
+  const owner = $derived(data.platformOperator === true);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   const suggested = $derived(googleRedirectURI(origin));
   // The saved address wins; a new setup starts from this workspace's address.

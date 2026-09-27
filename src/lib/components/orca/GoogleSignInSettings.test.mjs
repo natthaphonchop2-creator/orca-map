@@ -33,7 +33,7 @@ function mount(owner, stored, save) {
   const saves = [];
   let view;
   const stop = effect_root(() => {
-    view = harness({ data: { canManageRoles: owner } }, {
+    view = harness({ data: { platformOperator: owner } }, {
       ...helpers,
       OrcaService: {
         googleSignIn: async () => stored,
@@ -51,7 +51,7 @@ function mount(owner, stored, save) {
 
 const fresh = { clientID: "", allowedDomains: [], redirectURI: "", enabled: false, secretConfigured: false, version: 0 };
 
-test("an owner saves the client, a typed secret and the company domains", async () => {
+test("the platform operator saves the client, a typed secret and the company domains", async () => {
   const { view, saves, stop } = mount(true, fresh);
   try {
     await view.load();
@@ -67,7 +67,7 @@ test("an owner saves the client, a typed secret and the company domains", async 
   } finally { stop(); }
 });
 
-test("admins see the setting but cannot save it, and a moved address is pointed out", async () => {
+test("other managers, owners included, see the setting but cannot save it, and a moved address is pointed out", async () => {
   const stored = { clientID: "1-abc.apps.googleusercontent.com", allowedDomains: ["example.co.th"], redirectURI: "https://old-workspace.example/oauth2/callback", enabled: true, secretConfigured: true, version: 4 };
   const { view, saves, stop } = mount(false, stored);
   try {
