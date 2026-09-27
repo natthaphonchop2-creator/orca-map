@@ -147,6 +147,25 @@ test('allows OAuth browser navigation and maps root callback without changing en
   assert.equal((await request(appURL, '/oauth2/sign_out', { headers })).status, 403);
 });
 
+// A member signed in only here returns from a provider to the backend, which
+// hands the browser back here without a Referer. The provider started the
+// redirect chain, so it arrives cross-site; the member's Lax session cookie
+// travels with the top-level GET, and the backend's completion page stays here.
+test('finishes a source sign-in the backend hands off, with the member session', async (t) => {
+  const seen = [];
+  const { appURL } = await fixture(t, (req, res) => {
+    seen.push({ url: req.url, cookie: req.headers.cookie });
+    res.writeHead(302, { location: '/auth/oauth/complete' });
+    res.end();
+  });
+  const headers = { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', cookie: 'obot_access_token=member-session' };
+  const query = '?code=a%2Bb&state=c%2Fd&scope=read+write&orca_handoff=1';
+  const result = await request(appURL, '/oauth/mcp/callback' + query, { headers });
+  assert.equal(result.status, 302);
+  assert.equal(result.headers.location, '/auth/oauth/complete');
+  assert.deepEqual(seen, [{ url: '/oauth/mcp/callback' + query, cookie: 'obot_access_token=member-session' }]);
+});
+
 test('rewrites only exact backend Location origin and leaves nested OAuth redirect_uri intact', async (t) => {
   let location;
   const f = await fixture(t, (_req, res) => { res.writeHead(302, { location }); res.end(); });
