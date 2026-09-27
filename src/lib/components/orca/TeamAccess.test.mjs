@@ -17,7 +17,7 @@ const {component}=await import('data:text/javascript;base64,'+Buffer.from(module
 function screen(actorRole,targets=[],props={},testState={}) {
  const actions=[];const noop=()=>{};
  const view=component({gatewayHasMember,testAccounts:testState.accounts||[],testStatus:testState.status||'active',testLocalAvailable:testState.localAvailable||false,beforeNavigate:noop,organizationRole,canResetMemberPassword,OrcaLibraryService:{},TeamLifecycleActions:(_r,input)=>actions.push(input),LibraryDepartments:noop,MemberRoleEditor:noop,MemberInvitations:noop,LOCAL_AUTH_MIN_PASSWORD_LENGTH:12,t:(_th,en)=>en,localeHref:x=>x,OrcaService:{},orcaError:()=>'',memberName:m=>m.displayName||m.email,memberRole:organizationRole,Building2:noop,Check:noop,Crown:noop,Ellipsis:noop,Info:noop,KeyRound:noop,MailPlus:noop,RefreshCw:noop,Shield:noop,UserPlus:noop,Users:noop,onMount:noop,onDestroy:noop});
- const data={currentUserID:'actor',canManage:actorRole!=='employee',canManageRoles:actorRole==='owner',platformOperator:testState.operator===true,connections:[],hubs:testState.hubs||[],units:[],members:[{id:'actor',email:'actor@example.test',role:actorRole},...targets]};
+ const data={currentUserID:'actor',canManage:actorRole!=='employee',canManageRoles:actorRole==='owner',platformOperator:testState.operator===true,canChangeMemberStatus:'changeStatus' in testState?testState.changeStatus:true,connections:[],hubs:testState.hubs||[],units:[],members:[{id:'actor',email:'actor@example.test',role:actorRole},...targets]};
  const result=render(view,{props:{data,onchanged:async()=>{},...props}}); return {actions,html:result.body};
 }
 const employee={id:'employee',email:'employee@example.test',role:'employee',version:5};
@@ -32,6 +32,22 @@ test('admin cannot act on protected or inherited-privilege accounts',()=>{
  assert.deepEqual(screen('admin',[{...employee,roleLocked:true}]).actions,[]);
 });
 test('employee view exposes no lifecycle controls',()=>{assert.deepEqual(screen('employee',[employee]).actions,[]);});
+test('in the default company only the platform operator suspends or removes people',()=>{
+ const suspended={id:'suspended',email:'suspended@example.test',role:'employee',status:'suspended',version:3};
+ for(const role of ['owner','admin']){
+  const result=screen(role,[employee],{}, {changeStatus:false});
+  assert.deepEqual(result.actions,[],role);assert.doesNotMatch(result.html,/>Suspend<|Remove from company/,role);
+  assert.match(result.html,/Manage employee@example.test/,role);
+  // A suspended person has nothing left to manage here, so no empty menu.
+  const inactive=screen(role,[suspended],{}, {status:'suspended',changeStatus:false});
+  assert.deepEqual(inactive.actions,[],role);assert.doesNotMatch(inactive.html,/Manage suspended@example.test|>Restore</,role);
+ }
+ assert.deepEqual(screen('owner',[employee],{}, {changeStatus:true}).actions.map(x=>x.id),['employee']);
+});
+test('a server that does not say leaves suspending and removing to the platform operator',()=>{
+ assert.deepEqual(screen('owner',[employee],{}, {changeStatus:undefined}).actions,[]);
+ assert.deepEqual(screen('owner',[employee],{}, {changeStatus:undefined,operator:true}).actions.map(x=>x.id),['employee']);
+});
 test('suspended and removed members stay out of initial active member list',()=>{
  const result=screen('owner',[employee,{id:'suspended',email:'suspended@example.test',role:'employee',status:'suspended'},{id:'removed',email:'removed@example.test',role:'employee',status:'removed'}]);
  assert.deepEqual(result.actions.map(x=>x.id),['employee']);assert.doesNotMatch(result.html,/suspended@example.test|removed@example.test/);

@@ -82,6 +82,10 @@
   // One person may belong to several companies, so a company manager never
   // chooses someone's password. Only a platform operator keeps these controls.
   const operator = $derived(data.platformOperator === true);
+  // Suspending or removing someone in the default company changes their
+  // account in every company, so there the server allows it only to the
+  // platform operator. A server that doesn't say serves only that company.
+  const canChangeStatus = $derived(data.canChangeMemberStatus ?? operator);
   const roleGroups = $derived([
     {
       id: "owner",
@@ -484,7 +488,7 @@
           >{#each members as member (member.id)}{@const hubs = hubsFor(member)}{@const account =
               operator && localAvailable ? accounts.find((item) => normalized(item.email) === normalized(member.email)) : undefined}{@const canReset =
               !!account && passwordAllowed(member)}{@const canChangeRole =
-              canManageRoles && typeof member.role === "number" && !member.roleLocked && active(member)}{@const manageable = canManageMember(member)}<tr
+              canManageRoles && typeof member.role === "number" && !member.roleLocked && active(member)}{@const manageable = canChangeStatus && canManageMember(member)}<tr
               ><td class="team-member"
                 ><strong
                   >{memberName(member)}{#if member.id === data.currentUserID}<span class="team-you">{t(" (คุณ)", " (you)")}</span>{/if}</strong
@@ -504,7 +508,7 @@
                       >{t("เพิ่มเข้าพื้นที่ทำงาน", "Add to a workspace")}</a
                     >{/if}{/if}</td
               >{#if data.canManage}<td class="team-actions-col"
-                  ><div class="team-menu team-row-menu">
+                  >{#if canChangeRole || active(member) || canReset || manageable}<div class="team-menu team-row-menu">
                     <button
                       class="team-icon-button"
                       aria-haspopup="menu"
@@ -546,7 +550,7 @@
                           }}>{t("นำออกจากบริษัท", "Remove from company")}</button
                         >{/if}
                     </div>
-                  </div>{#if manageable}<TeamLifecycleActions
+                  </div>{/if}{#if manageable}<TeamLifecycleActions
                       bind:this={lifecycle[member.id]}
                       menu
                       kind="member"

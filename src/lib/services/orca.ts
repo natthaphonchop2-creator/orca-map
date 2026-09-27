@@ -127,6 +127,8 @@ export interface OrcaBootstrap {
   canManage: boolean;
   canManageRoles?: boolean;
   canReviewPilotRequests?: boolean;
+  /** Suspending, restoring and removing members. In the default company that changes the person's account, so only the platform operator may. */
+  canChangeMemberStatus?: boolean;
   /** A live ORCA platform operator; only they may manage Local passwords, as break-glass. */
   platformOperator?: boolean;
   members: OrcaMember[];
