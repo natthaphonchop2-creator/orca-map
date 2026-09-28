@@ -10,6 +10,7 @@
   } from "$lib/services/orca";
   import Brand from "./Brand.svelte";
   import LocaleSwitch from "./LocaleSwitch.svelte";
+  import ThemeSwitch from "./ThemeSwitch.svelte";
   import "./app-workspace.css";
   import "./orca-system.css";
   import {
@@ -379,6 +380,7 @@
             "Account settings",
           )}</a
         >
+        <ThemeSwitch compact label />
         <a href="/oauth2/sign_out?rd=/"
           ><LogOut size={17} aria-hidden="true" />{t(
             "ออกจากระบบ",

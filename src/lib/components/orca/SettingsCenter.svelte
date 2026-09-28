@@ -7,6 +7,7 @@
   import PilotInbox from "./PilotInbox.svelte";
   import PlatformCompanies from "./PlatformCompanies.svelte";
   import OrcaMCPAccess from "./OrcaMCPAccess.svelte";
+  import ThemeSetting from "./ThemeSetting.svelte";
   let {
     data,
     onchanged,
@@ -62,6 +63,7 @@
       </div>
       <LocaleSwitch />
     </div>
+    <ThemeSetting />
   </section>
 {:else if section === "ai"}<OrcaMCPAccess {data} />
 {:else if section === "additional"}<section class="settings-panel">

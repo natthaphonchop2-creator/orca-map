@@ -12,13 +12,14 @@ const result = compile(source, { filename: 'SettingsCenter.svelte', generate: 's
 const code = result.js.code.replace(/^import[\s\S]*?;\n/gm, '').replace('export default function SettingsCenter', 'function SettingsCenter');
 const module = `import * as $ from ${JSON.stringify(pathToFileURL(require.resolve('svelte/internal/server')).href)};
 export function component(deps) {
-	const { page, localeHref, t, ArrowRight, BookOpen, Globe, LocaleSwitch, PilotInbox, OrcaMCPAccess, PlatformCompanies } = deps;
+	const { page, localeHref, t, ArrowRight, BookOpen, Globe, LocaleSwitch, PilotInbox, OrcaMCPAccess, PlatformCompanies, ThemeSetting } = deps;
 	${code}
 	return SettingsCenter;
 }`;
 const { component } = await import('data:text/javascript;base64,' + Buffer.from(module).toString('base64'));
 function screen(section, data = {}) {
 	const calls = [];
+	const themes = [];
 	const noop = () => {};
 	const Screen = component({
 		page: { url: new URL(`https://orca.example/app?view=settings&section=${section}`) },
@@ -26,8 +27,9 @@ function screen(section, data = {}) {
 		ArrowRight: noop, BookOpen: noop, Globe: noop, LocaleSwitch: noop, PilotInbox: noop,
 		OrcaMCPAccess: (_renderer, props) => calls.push(props),
 		PlatformCompanies: () => calls.push('companies'),
+		ThemeSetting: (renderer) => { themes.push(section); renderer.push('<div data-theme-setting></div>'); },
 	});
-	return { html: render(Screen, { props: { data, onchanged: async () => {} } }).body, calls };
+	return { html: render(Screen, { props: { data, onchanged: async () => {} } }).body, calls, themes };
 }
 test('Connect AI is a settings tab available to an ordinary signed-in member', () => {
 	const data = { currentUserID: 'member-one', canManage: false };
@@ -55,5 +57,18 @@ test('only the platform operator gets the customer companies section', () => {
 	// Other sections never mount it, even for the operator.
 	for (const section of ['preferences', 'ai', 'additional', 'owner']) {
 		assert.ok(!screen(section, operator).calls.includes('companies'), section);
+	}
+});
+test('the theme choice is a row of General, after the display language, and nowhere else', () => {
+	const { html, themes } = screen('preferences');
+	assert.equal(themes.length, 1);
+	// The last row of the same panel as the display language.
+	assert.match(html, /<section class="settings-panel[^"]*">(?:(?!<\/section>)[\s\S])*Display language(?:(?!<\/section>)[\s\S])*<div data-theme-setting><\/div>(?:<!---->|\s)*<\/section>/);
+	assert.equal(screen('unknown').themes.length, 1, 'an unknown section falls back to General');
+	const everyone = { currentUserID: '1', canManage: true, platformOperator: true, canReviewPilotRequests: true };
+	for (const section of ['ai', 'additional', 'companies', 'owner']) {
+		const other = screen(section, everyone);
+		assert.deepEqual(other.themes, [], section);
+		assert.doesNotMatch(other.html, /data-theme-setting/, section);
 	}
 });
