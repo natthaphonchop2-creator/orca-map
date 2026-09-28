@@ -353,7 +353,7 @@
   .invitation-history summary { color: var(--orca-muted); cursor: pointer; }
   .invitation-history ul { display: grid; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
   .invitation-history li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; overflow-wrap: anywhere; }
-  .invitation-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 24px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); color: var(--orca-ink); box-shadow: 0 16px 48px -12px rgba(21, 24, 35, 0.28); }
+  .invitation-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 24px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); color: var(--orca-ink); box-shadow: var(--orca-dialog-shadow, 0 16px 48px -12px rgba(21, 24, 35, 0.28)); }
   .invitation-dialog::backdrop { background: rgba(21, 24, 35, 0.45); }
   .invitation-dialog h2 { margin: 16px 0 4px; font-size: 18px; font-weight: 600; line-height: 1.4; }
   .invitation-dialog p { margin: 8px 0; color: var(--orca-muted); font-size: 14px; line-height: 1.7; }
@@ -361,18 +361,18 @@
   .dialog-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--orca-radius); background: var(--orca-secondary); color: var(--orca-nav); }
   .dialog-icon.ok { background: var(--orca-ok-bg); color: var(--orca-ok); }
   .invitation-dialog .invitation-label { display: block; margin: 16px 0 6px; color: var(--orca-ink); font-size: 13.5px; font-weight: 600; }
-  .invitation-input, .invitation-link { width: 100%; min-height: 38px; padding: 8px 11px; border: 1px solid var(--orca-line-strong); border-radius: var(--orca-radius); background: var(--orca-surface); color: var(--orca-ink); font: inherit; font-size: 14px; }
+  .invitation-input, .invitation-link { width: 100%; min-height: 38px; padding: 8px 11px; border: 1px solid var(--orca-field-line, var(--orca-line-strong)); border-radius: var(--orca-radius); background: var(--orca-surface); color: var(--orca-ink); font: inherit; font-size: 14px; }
   .invitation-link { background: var(--orca-surface-2); font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 12.5px; }
   .invitation-roles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .invitation-roles label { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border: 1px solid var(--orca-line-strong); border-radius: var(--orca-radius); cursor: pointer; }
   .invitation-roles label.chosen, .invitation-departments label.chosen { border-color: var(--orca-ink); box-shadow: inset 0 0 0 1px var(--orca-ink); }
-  .invitation-roles input { margin-top: 3px; accent-color: var(--orca-ink); }
+  .invitation-roles input { margin-top: 3px; accent-color: var(--orca-control, var(--orca-ink)); }
   .invitation-roles span { display: grid; gap: 2px; min-width: 0; }
   .invitation-roles strong { font-size: 14px; }
   .invitation-roles small { color: var(--orca-muted); font-size: 12.5px; line-height: 1.5; }
   .invitation-departments { display: flex; flex-wrap: wrap; gap: 6px; }
   .invitation-departments label { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--orca-line-strong); border-radius: 999px; font-size: 13.5px; cursor: pointer; }
-  .invitation-departments input { accent-color: var(--orca-ink); }
+  .invitation-departments input { accent-color: var(--orca-control, var(--orca-ink)); }
   .invitation-dialog .invitation-note { margin-top: 10px; font-size: 13px; }
   .invitation-share { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .line-share { text-decoration: none; }

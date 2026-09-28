@@ -674,7 +674,7 @@
     padding: 6px;
     border: 1px solid var(--orca-line);
     border-radius: var(--orca-radius-lg);
-    background: var(--orca-surface);
+    background: var(--orca-popover, var(--orca-surface));
     box-shadow: 0 12px 32px -12px rgba(21, 24, 35, 0.28);
     text-align: start;
     white-space: normal;
@@ -854,7 +854,7 @@
   .team-filter button.active {
     border-color: var(--orca-ink);
     background: var(--orca-ink);
-    color: var(--orca-surface);
+    color: var(--orca-on-ink, #fff);
   }
   .team-filter button.active span {
     color: inherit;
@@ -864,7 +864,7 @@
     width: min(280px, 100%);
     min-height: 36px;
     padding: 6px 11px;
-    border: 1px solid var(--orca-line-strong);
+    border: 1px solid var(--orca-field-line, var(--orca-line-strong));
     border-radius: var(--orca-radius);
     background: var(--orca-surface);
     color: var(--orca-ink);
@@ -923,7 +923,7 @@
   .role-badge.role-owner,
   .role-badge.role-admin {
     background: var(--orca-ink);
-    color: var(--orca-surface);
+    color: var(--orca-on-ink, #fff);
   }
   .role-locked {
     display: block;

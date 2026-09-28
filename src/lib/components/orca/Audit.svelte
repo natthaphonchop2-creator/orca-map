@@ -860,7 +860,7 @@
     width: 100%;
     height: 36px;
     padding: 0 28px 0 11px;
-    border: 1px solid var(--orca-line-strong);
+    border: 1px solid var(--orca-field-line, var(--orca-line-strong));
     border-radius: var(--orca-radius);
     background-color: var(--orca-surface);
     color: var(--orca-ink);
@@ -873,7 +873,7 @@
     gap: 8px;
     height: 36px;
     padding: 0 11px;
-    border: 1px solid var(--orca-line-strong);
+    border: 1px solid var(--orca-field-line, var(--orca-line-strong));
     border-radius: var(--orca-radius);
     background: var(--orca-surface);
     color: var(--orca-subtle);
@@ -891,9 +891,9 @@
   }
   .search-field:focus-within,
   .audit-toolbar select:focus-visible {
-    border-color: var(--orca-ink);
+    border-color: var(--orca-focus, var(--orca-ink));
     outline: none;
-    box-shadow: 0 0 0 3px rgba(21, 24, 35, 0.1);
+    box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1));
   }
   .search-field input:focus-visible {
     outline: none;
@@ -952,7 +952,7 @@
   td {
     max-width: 280px;
     padding: 10px 14px;
-    border-bottom: 1px solid #eff0f2;
+    border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
     color: var(--orca-ink);
     vertical-align: middle;
   }
@@ -1106,7 +1106,7 @@
     width: 72px;
     height: 32px;
     padding: 0 8px;
-    border: 1px solid var(--orca-line-strong);
+    border: 1px solid var(--orca-field-line, var(--orca-line-strong));
     border-radius: var(--orca-radius);
     background-color: var(--orca-surface);
     font-size: 13px;
@@ -1264,14 +1264,14 @@
   .identity-details {
     display: grid;
     margin: 14px 0 0;
-    border-top: 1px solid #eff0f2;
+    border-top: 1px solid var(--orca-line-soft, #eff0f2);
   }
   .identity-details > div {
     display: grid;
     grid-template-columns: 150px minmax(0, 1fr);
     gap: 4px 16px;
     padding: 10px 0;
-    border-bottom: 1px solid #eff0f2;
+    border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
   }
   dt {
     color: var(--orca-muted);

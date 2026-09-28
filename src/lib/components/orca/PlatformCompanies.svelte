@@ -358,7 +358,7 @@
   .dialog-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--orca-radius); background: var(--orca-secondary); color: var(--orca-nav); }
   .dialog-icon.ok { background: var(--orca-ok-bg); color: var(--orca-ok); }
   .dialog-label { display: block; margin: 16px 0 6px; color: var(--orca-ink); font-size: 13.5px; font-weight: 600; }
-  .dialog-input, .dialog-link { width: 100%; min-height: 38px; padding: 8px 11px; border: 1px solid var(--orca-line-strong); border-radius: var(--orca-radius); background: var(--orca-surface); color: var(--orca-ink); font: inherit; font-size: 14px; }
+  .dialog-input, .dialog-link { width: 100%; min-height: 38px; padding: 8px 11px; border: 1px solid var(--orca-field-line, var(--orca-line-strong)); border-radius: var(--orca-radius); background: var(--orca-surface); color: var(--orca-ink); font: inherit; font-size: 14px; }
   .dialog-link { background: var(--orca-surface-2); font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 12.5px; }
   .dialog-share { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .line-share { text-decoration: none; }
