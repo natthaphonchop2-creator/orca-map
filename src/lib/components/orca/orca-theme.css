@@ -168,3 +168,16 @@
 :root[data-orca-theme-switching] *::after {
 	transition: none !important;
 }
+
+/* ---------- 8. Print ---------- */
+/* The ORCA dark block above is screen-only, but the boot script also sets the Tailwind
+   and daisyUI dark hooks (.dark, data-theme=nanobotdark), whose base layer paints the
+   canvas black. Paper stays light. */
+@media print {
+	:root[data-orca-theme='dark'],
+	:root[data-orca-theme='dark'] body {
+		background-color: #ffffff;
+		color: #151823;
+		color-scheme: light;
+	}
+}
