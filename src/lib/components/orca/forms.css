@@ -262,3 +262,109 @@
 		font-size: 16px;
 	}
 }
+
+/* ---------- Dark theme: the company chooser ---------- */
+/*
+ * CompanyGate (shown on /app until a company is open) follows the workspace theme, and in dark
+ * it reads like the sign-in page it comes right after (login.css): the website's #08090a canvas,
+ * #0e0f11 cards on white-alpha hairlines, and the citron primary button.
+ * - <html data-orca-theme="dark"> is set on /app only for a dark choice (or "system" on a dark
+ *   device). /invite always resolves light, so it keeps the look above; :not(.o-login) leaves the
+ *   sign-in page to login.css.
+ * - Colours and corners only: sizes and layout stay the light ones, so nothing moves when the
+ *   theme changes. Inside @media screen, so printing stays light.
+ * - The values are the workspace's dark tokens (orca-theme.css), which do not reach this page.
+ */
+@media screen {
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) {
+		--orca-bg: #08090a;
+		--orca-ink: #f7f8f8;
+		--orca-surface: #0e0f11;
+		--orca-surface-2: #141517;
+		--orca-hover: rgba(255, 255, 255, 0.05);
+		--orca-line: rgba(255, 255, 255, 0.08);
+		--orca-line-strong: rgba(255, 255, 255, 0.12);
+		--orca-line-hover: rgba(255, 255, 255, 0.18);
+		--orca-muted: #8a8f98;
+		--orca-deny: #f0616d;
+		--orca-deny-bg: rgba(240, 97, 109, 0.1);
+		--orca-citron: #d7f471;
+		--orca-citron-hover: #e3f794;
+		--orca-on-citron: #151823;
+		--orca-focus: #d7f471;
+		--orca-focus-halo: rgba(215, 244, 113, 0.18);
+		--orca-field: #141517;
+		--orca-field-line: rgba(255, 255, 255, 0.34);
+		--orca-dialog-shadow: 0 40px 120px -40px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+		background:
+			radial-gradient(900px 520px at 12% -8%, rgba(215, 244, 113, 0.07), transparent 62%),
+			radial-gradient(760px 520px at 100% 110%, rgba(255, 255, 255, 0.035), transparent 60%),
+			var(--orca-bg);
+		color-scheme: dark;
+	}
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) :focus-visible {
+		outline-color: var(--orca-focus);
+	}
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-simple-header {
+		border-bottom: 1px solid var(--orca-line);
+	}
+	/* The ink story panel becomes a card, as the website's panels are. */
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-auth-story {
+		border: 1px solid var(--orca-line);
+		border-radius: 16px;
+		background: var(--orca-surface);
+	}
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-auth-form {
+		border-radius: 16px;
+		box-shadow: var(--orca-dialog-shadow);
+	}
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-field input {
+		border-color: var(--orca-field-line);
+		background: var(--orca-field);
+		color: var(--orca-ink);
+	}
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-field input:focus-visible {
+		border-color: var(--orca-focus);
+		box-shadow: 0 0 0 3px var(--orca-focus-halo);
+	}
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-field input:-webkit-autofill {
+		-webkit-text-fill-color: var(--orca-ink);
+		caret-color: var(--orca-ink);
+		box-shadow: 0 0 0 1000px var(--orca-field) inset;
+	}
+	/* Primary: the citron button. !important beats orca.css's white .o-button label. */
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-button {
+		border-radius: 10px;
+		background: var(--orca-citron);
+		color: var(--orca-on-citron) !important;
+	}
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-button:hover {
+		background: var(--orca-citron-hover);
+	}
+	/* Secondary: an outline on the dark card. The class "outline" also matches Tailwind's
+	   .outline utility (a 1px currentColor ring), which would draw a white ring in dark. */
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-button.outline {
+		border-color: var(--orca-line-strong);
+		outline-color: transparent;
+		background: transparent;
+		color: var(--orca-ink) !important;
+	}
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-button.outline:hover {
+		border-color: var(--orca-line-hover);
+		background: var(--orca-hover);
+	}
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-button.outline:focus-visible {
+		outline: 2px solid var(--orca-focus);
+		outline-offset: 2px;
+	}
+	/* The companies to choose from (CompanyGate's own rules read the tokens above). */
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .company-gate-list a {
+		border-color: var(--orca-line-strong);
+		background: var(--orca-surface-2);
+	}
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .company-gate-list a:hover,
+	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .company-gate-list a:focus-visible {
+		border-color: var(--orca-line-hover);
+		background: var(--orca-hover);
+	}
+}
