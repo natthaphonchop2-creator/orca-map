@@ -35,8 +35,8 @@
   <h1>{t("ตั้งค่า", "Settings")}</h1>
   <p class="k-subtitle">
     {t(
-      "จัดการภาษาที่แสดง การเชื่อมต่อ AI และการตั้งค่าอื่นของบัญชีคุณ",
-      "Manage your display language, AI connection and other account settings.",
+      "จัดการภาษาที่แสดง ธีม การเชื่อมต่อ AI และการตั้งค่าอื่นของบัญชีคุณ",
+      "Manage your display language, theme, AI connection and other account settings.",
     )}
   </p>
 </div>
