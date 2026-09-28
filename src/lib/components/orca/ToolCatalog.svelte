@@ -856,9 +856,10 @@
     background: var(--orca-hover);
     color: var(--orca-ink);
   }
+  /* Chosen: an inverse pill, like the top bar's TH/EN. */
   .protocol-filter button.chosen {
-    background: var(--orca-secondary);
-    color: var(--orca-ink);
+    background: var(--orca-ink);
+    color: var(--orca-on-ink, #fff);
     font-weight: 600;
   }
   .protocol-filter button span {
@@ -866,6 +867,10 @@
     font-size: 12px;
     font-weight: 500;
     font-variant-numeric: tabular-nums;
+  }
+  .protocol-filter button.chosen span {
+    color: inherit;
+    opacity: 0.72;
   }
   .result-count {
     margin-left: auto;

@@ -435,9 +435,10 @@
     background: var(--orca-hover);
     color: var(--orca-ink);
   }
+  /* Chosen: an inverse pill, like the top bar's TH/EN. */
   .systems-filter button.selected {
-    background: var(--orca-secondary);
-    color: var(--orca-ink);
+    background: var(--orca-ink);
+    color: var(--orca-on-ink, #fff);
     font-weight: 600;
   }
   .systems-panel {

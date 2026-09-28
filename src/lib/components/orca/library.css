@@ -898,13 +898,14 @@
 	font-weight: 500;
 	white-space: nowrap;
 }
-.business-library .library-segmented button:hover:not(:disabled) {
+.business-library .library-segmented button:hover:not(:disabled):not(.chosen) {
 	background: var(--orca-hover);
 	color: var(--orca-ink);
 }
+/* Chosen: an inverse pill, like the top bar's TH/EN. */
 .business-library .library-segmented button.chosen {
-	background: var(--orca-secondary);
-	color: var(--orca-ink);
+	background: var(--orca-ink);
+	color: var(--orca-on-ink, #fff);
 	font-weight: 600;
 }
 .business-library .library-department-list > button {

@@ -215,8 +215,9 @@
   .approvals-square { width: 36px; padding: 0; flex: none; justify-content: center; }
   .approvals-tabs { display: inline-flex; gap: 2px; justify-self: start; padding: 3px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius); background: var(--orca-surface); }
   .approvals-tabs button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 0; border-radius: var(--orca-radius-sm); background: transparent; color: var(--orca-muted); font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; }
-  .approvals-tabs button.chosen { background: var(--orca-secondary); color: var(--orca-ink); }
+  .approvals-tabs button.chosen { background: var(--orca-ink); color: var(--orca-on-ink, #fff); }
   .approvals-tabs button span { padding: 0 6px; border-radius: 999px; background: var(--orca-surface); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .approvals-tabs button.chosen span { background: color-mix(in srgb, var(--orca-on-ink, #fff) 18%, transparent); }
   .approval-list { display: grid; gap: 12px; }
   .approval-card { display: grid; gap: 10px; min-width: 0; padding: 16px 18px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
   .approval-card > header { display: flex; align-items: center; gap: 12px; min-width: 0; }
