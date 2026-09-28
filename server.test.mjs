@@ -184,6 +184,22 @@ test('sends /home to the public website, keeping only a known page and the langu
   assert.equal(res.headers.location, 'https://orca.example/');
 });
 
+test('Vite middleware sends /home to the public website too', async (t) => {
+  const f = await fixture(t, (_req, res) => res.end('upstream'), { backendPublicOrigin: 'https://orca.example' });
+  const middleware = createBackendMiddleware({ backendURL: f.backendURL, backendPublicOrigin: 'https://orca.example' });
+  const vite = http.createServer((req, res) => middleware(req, res, () => res.end('vite')));
+  const viteURL = await listen(vite);
+  t.after(async () => { vite.closeAllConnections(); await new Promise((resolve) => vite.close(resolve)); });
+  let res = await request(viteURL, '/home?to=pricing&lang=en');
+  assert.equal(res.status, 302);
+  assert.equal(res.headers.location, 'https://orca.example/pricing?lang=en');
+  res = await request(viteURL, '/home', { method: 'HEAD' });
+  assert.equal(res.status, 302);
+  assert.equal(res.headers.location, 'https://orca.example/');
+  assert.equal((await request(viteURL, '/home', { method: 'POST', headers: { origin: viteURL } })).status, 405);
+  assert.equal((await request(viteURL, '/homepage')).body, 'vite');
+});
+
 test('serves pages without server data, including the uncached debugger return', async (t) => {
   const { appURL } = await fixture(t);
   const page = await request(appURL, '/oauth-debugger/callback?code=a%2Bb&state=c');

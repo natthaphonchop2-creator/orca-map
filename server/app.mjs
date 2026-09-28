@@ -242,6 +242,13 @@ export function createBackendMiddleware(options = {}) {
       const rawPath = (req.url ?? '').split('?')[0];
       const url = new URL(req.url, 'http://orca.invalid');
       const rootCallback = rawPath === '/' && ['code', 'error', 'state'].some((key) => url.searchParams.has(key));
+      if (rawPath === '/home') {
+        // Same as the production server: the sign-in page's links to the public website.
+        const appOrigin = localOrigin(req, config.publicOrigin);
+        if (!appOrigin) return json(res, 421, { error: 'unexpected_host' });
+        if (!validBrowserRequest(req, appOrigin, rawPath, false)) return json(res, 403, { error: 'cross_origin_request' });
+        return publicSite(req, res, config, url);
+      }
       if (!rootCallback && !BACKEND_PREFIXES.some((prefix) => rawPath.startsWith(prefix))) return next();
       const appOrigin = localOrigin(req, config.publicOrigin);
       if (!appOrigin) return json(res, 421, { error: 'unexpected_host' });
