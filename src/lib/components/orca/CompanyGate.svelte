@@ -14,7 +14,7 @@
     companies = [],
     account,
   }: {
-    mode: "choose" | "none" | "denied";
+    mode: "choose" | "none" | "denied" | "error";
     companies?: OrcaCompanyChoice[];
     account: string;
   } = $props();
@@ -60,10 +60,16 @@
           )}
           {#if companies.length > 0}{t("เปิดบริษัทของคุณแทน:", "Open one of your companies instead:")}{/if}
         </p>
+      {:else if mode === "error"}
+        <h2>{t("โหลดรายชื่อบริษัทไม่สำเร็จ", "Your companies could not be loaded")}</h2>
+        <p>{t("ORCA ไม่ได้เลือกบริษัทให้แทน ลองอีกครั้ง", "ORCA won't pick a company for you instead. Please try again.")}</p>
+        <button class="o-button" onclick={() => window.location.reload()}>{t("ลองอีกครั้ง", "Try again")}</button>
       {:else}
         <h2>{t("บัญชีนี้ยังไม่อยู่ในบริษัทใด", "This account isn't in a company yet")}</h2>
       {/if}
-      {#if companies.length === 0}
+      {#if mode === "error"}
+        <!-- Nothing to choose from until the list loads. -->
+      {:else if companies.length === 0}
         <p>
           {t(
             "เปิดลิงก์คำเชิญที่ได้รับ หรือขอลิงก์ใหม่จากผู้ดูแลบริษัทของคุณ",

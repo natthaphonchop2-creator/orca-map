@@ -3,7 +3,7 @@ import test from 'node:test';
 import { importTypeScript } from './test-import.mjs';
 
 const company = await importTypeScript(new URL('./company.ts', import.meta.url));
-const { chooseCompany, companyDenied, companySwitch, invitationReturnPath, keepCompany, orcaPath, rememberCompany, rememberedCompany, setPageCompany, validCompanyID } = company;
+const { chooseCompany, companyDenied, companySwitch, invitationReturnPath, keepCompany, orcaPath, rememberCompany, rememberedCompany, resolvePlace, setPageCompany, validCompanyID } = company;
 
 const A = 'org-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const B = 'org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -125,4 +125,19 @@ test('an accepted invitation opens its company\'s page, and nothing else', () =>
 		assert.equal(invitationReturnPath({ returnTo }), '/app', returnTo);
 	}
 	assert.equal(invitationReturnPath(undefined), '/app');
+});
+
+test('only a server without the list opens "default"; any other failure opens nothing', async () => {
+	const missing = (error) => error.status === 404;
+	const fail = (status) => async () => { throw Object.assign(new Error(`${status}`), { status }); };
+	// An older server: no list, so "default" as before companies.
+	assert.deepEqual(await resolvePlace(fail(404), missing, null, B), { kind: 'company', id: 'default' });
+	// Unavailable, refused or offline: no company is picked, not even the remembered one.
+	for (const status of [401, 403, 500, 503]) {
+		assert.deepEqual(await resolvePlace(fail(status), missing, null, B), { kind: 'error' }, String(status));
+	}
+	assert.deepEqual(await resolvePlace(async () => { throw new TypeError('Failed to fetch'); }, missing, null, B), { kind: 'error' });
+	assert.deepEqual(await resolvePlace(fail(503), missing, B, null), { kind: 'error' }, 'even an explicit company waits for the list');
+	// A list: the usual precedence.
+	assert.deepEqual(await resolvePlace(async () => [choice('default'), choice(B)], missing, null, B), { kind: 'company', id: B, companies: [choice('default'), choice(B)] });
 });

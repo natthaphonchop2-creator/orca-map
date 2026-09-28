@@ -74,3 +74,47 @@ test('"default" keeps every legacy path', async () => {
 	assert.deepEqual(byName.approvals, ['/orca/approvals?status=id-1&mine=1']);
 	assert.deepEqual(byName.companies, ['/orca/companies']);
 });
+
+// The library service: every call for "default" and for another company.
+const libraryCode = stripTypeScriptTypes(await readFile(new URL('../services/orca-library.ts', import.meta.url), 'utf8'))
+	.replace(/^import[^;]+;/gm, '')
+	.replace(/^export /gm, '');
+const { library } = await import('data:text/javascript;base64,' + Buffer.from(`import { orcaPath } from ${JSON.stringify(companyURL)};
+export function library(doGet, doPost, doPut) {
+	${libraryCode};
+	return OrcaLibraryService;
+}`).toString('base64'));
+
+async function libraryPaths(company) {
+	const calls = [];
+	const record = async (path) => { calls.push(path); return { items: [], departments: [], knowledge: [] }; };
+	const service = library(record, record, record);
+	setPageCompany(company, company === 'default' ? [] : [{ id: company }]);
+	const result = {};
+	try {
+		for (const [name, call] of Object.entries(service)) {
+			if (typeof call !== 'function') continue;
+			calls.length = 0;
+			await call.call(service, 'id-1', { title: 'x', memberIDs: [], unitIDs: [], parameters: [], knowledgeIDs: [] }, 'x');
+			result[name] = [...calls];
+		}
+	} finally {
+		setPageCompany('default', []);
+	}
+	return result;
+}
+
+test('the library, departments included, uses the page\'s company', async () => {
+	const inB = await libraryPaths(B);
+	const names = Object.keys(inB);
+	assert.ok(names.includes('departments'), 'the department list is covered');
+	for (const name of names) {
+		assert.ok(inB[name].length > 0, `${name} made a request`);
+		for (const path of inB[name]) assert.ok(path.startsWith(`/orca/orgs/${B}/`), `${name}: ${path}`);
+	}
+	const inDefault = await libraryPaths('default');
+	for (const [name, list] of Object.entries(inDefault)) {
+		for (const path of list) assert.ok(path.startsWith('/orca/') && !path.includes('/orgs/'), `${name}: ${path}`);
+	}
+	assert.deepEqual(inDefault.departments, ['/orca/library/departments']);
+});

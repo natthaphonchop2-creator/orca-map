@@ -20,3 +20,17 @@ test("waiting and expired invitations stay actionable; the rest is history", () 
   assert.deepEqual(open.map((item) => item.id), ["a", "c"]);
   assert.deepEqual(closed.map((item) => item.id), ["b", "d"]);
 });
+
+test("an accepted invitation signs in back to itself, then opens its company's page", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(new URL("../../routes/invite/[token]/+page.svelte", import.meta.url), "utf8");
+  // Signed out: sign in and come back here (login keeps rd, see login.test.mjs),
+  // where the server shows the person who accepted it where it leads.
+  assert.match(source, /const returnPath = \$derived\(`\/invite\/\$\{encodeURIComponent\(data\.token\)\}`\);/);
+  assert.match(source, /const signInHref = \$derived\(localeHref\(`\/login\?rd=\$\{encodeURIComponent\(returnPath\)\}`\)\);/);
+  assert.match(source, /preview\.status === "accepted"\}<a class="o-button" href=\{data\.signedIn \? openHref\(preview\.target\) : signInHref\} data-sveltekit-reload>/);
+  // Accepting opens the server's target, as a new page for that company.
+  assert.match(source, /target = \(await OrcaService\.acceptInvitation\(data\.token\)\)\.target;/);
+  assert.match(source, /<a class="o-button" href=\{openHref\(target\)\} data-sveltekit-reload>/);
+  assert.match(source, /function openHref\(to\?: OrcaInvitationTarget\) \{\s*return localeHref\(invitationReturnPath\(to\)\);/);
+});

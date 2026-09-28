@@ -15,7 +15,8 @@ export type OrcaCompanyChoice = { id: string; displayName: string; role: string;
 export type CompanyPlace =
 	| { kind: 'company'; id: string; companies?: OrcaCompanyChoice[] }
 	| { kind: 'choose'; companies: OrcaCompanyChoice[] }
-	| { kind: 'none' };
+	| { kind: 'none' }
+	| { kind: 'error' };
 
 export function validCompanyID(id: unknown): id is string {
 	return typeof id === 'string' && (id === DEFAULT_COMPANY || companyIDPattern.test(id));
@@ -71,6 +72,28 @@ export function chooseCompany(explicit: string | null, remembered: string | null
 	if (companies.length === 0) return { kind: 'none' };
 	if (companies.length === 1) return { kind: 'company', id: companies[0].id, companies };
 	return { kind: 'choose', companies };
+}
+
+/**
+ * Resolves where a fresh page opens. Only an older server, whose list is
+ * missing (`missingList`), opens "default" as before companies. Any other
+ * failure to read the list opens nothing, so a page never falls into a
+ * company the person didn't choose.
+ */
+export async function resolvePlace(
+	listCompanies: () => Promise<OrcaCompanyChoice[]>,
+	missingList: (error: unknown) => boolean,
+	explicit: string | null,
+	remembered: string | null
+): Promise<CompanyPlace> {
+	let companies: OrcaCompanyChoice[] | undefined;
+	try {
+		companies = await listCompanies();
+	} catch (error) {
+		if (!missingList(error)) return { kind: 'error' };
+		companies = undefined;
+	}
+	return chooseCompany(explicit, remembered, companies);
 }
 
 // Only the chosen company's ID is kept, per account: never company data,

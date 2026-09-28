@@ -91,7 +91,7 @@ export const OrcaLibraryService = {
 		return { ...result, knowledge: result.knowledge ?? [] };
 	},
 	async departments(): Promise<LibraryDepartment[]> {
-		const result = (await doGet('/orca/library/departments', options)) as {
+		const result = (await doGet(orcaPath('/library/departments'), options)) as {
 			items: LibraryDepartment[] | null;
 		};
 		return (result.items ?? []).map((item) => ({ ...item, memberIDs: item.memberIDs ?? [] }));

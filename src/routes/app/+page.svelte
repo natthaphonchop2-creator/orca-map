@@ -3,6 +3,7 @@
   import { page } from "$app/state";
   import CompanyGate from "$lib/components/orca/CompanyGate.svelte";
   import { companyDenied, validCompanyID } from "$lib/orca/company";
+  import { guardPage, reloadForAccount } from "$lib/services/writes";
   import Approvals from "$lib/components/orca/Approvals.svelte";
   import Audit from "$lib/components/orca/Audit.svelte";
   import OrganizationSettings from "$lib/components/orca/OrganizationSettings.svelte";
@@ -48,10 +49,11 @@
   const gate = $derived(
     route.place.kind === "choose" ? "choose"
       : route.place.kind === "none" ? "none"
+      : route.place.kind === "error" ? "error"
       : companyDenied(route.place) ? "denied"
       : undefined,
   );
-  const companies = $derived(route.place.kind === "none" ? [] : (route.place.companies ?? []));
+  const companies = $derived(route.place.kind === "company" || route.place.kind === "choose" ? (route.place.companies ?? []) : []);
   let data = $state<OrcaBootstrap>();
   let error = $state("");
   let refreshing = $state(false);
@@ -97,9 +99,11 @@
     try {
       const result = await OrcaService.bootstrap();
       if (request === refreshGeneration) {
-        // Another tab signed in as someone else: start again as them.
-        if (data && result.currentUserID !== data.currentUserID) {
-          window.location.reload();
+        // The session is someone else's than this page's (another tab signed
+        // in as them): start again as them, never show their data here.
+        if (result.currentUserID !== route.account) {
+          if (!reloadForAccount(() => window.location.reload(), sessionStorageOrNothing()))
+            error = t("คุณเข้าสู่ระบบด้วยบัญชีอื่นในอีกแท็บ กรุณาโหลดหน้านี้ใหม่", "You signed in as someone else in another tab. Reload this page.");
           return;
         }
         data = result;
@@ -125,10 +129,20 @@
       // Keep the last count; the inbox itself shows any error.
     }
   }
+  function sessionStorageOrNothing() {
+    try {
+      return window.sessionStorage;
+    } catch {
+      return undefined;
+    }
+  }
   onMount(() => {
     initializeLocale();
-    if (gate) return;
-    void refresh();
+    // A page restored from the back-forward cache opens afresh, and leaving
+    // while a save is in flight asks first.
+    const stopGuard = guardPage(window, () => window.location.reload());
+    if (!gate) void refresh();
+    return stopGuard;
   });
   // An address naming another company than this page's (going back or
   // forward, or any navigation that skips a reload) opens it afresh. The

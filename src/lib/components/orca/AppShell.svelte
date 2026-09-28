@@ -1,7 +1,7 @@
 <script lang="ts">
   import { companyHref, companySwitch, currentCompany, rememberCompany, type OrcaCompanyChoice } from "$lib/orca/company";
   import { localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
-  import { writesInFlight } from "$lib/services/http";
+  import { writesInFlight } from "$lib/services/writes";
   import { activeNavigationView } from "$lib/orca/navigation";
   import {
     memberName,

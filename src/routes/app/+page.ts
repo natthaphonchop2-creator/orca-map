@@ -1,7 +1,9 @@
 import type { PageLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
-import { chooseCompany, companyPinned, rememberedCompany, setPageCompany, type CompanyPlace, type OrcaCompanyChoice } from '$lib/orca/company';
+import { companyPinned, rememberedCompany, resolvePlace, setPageCompany, type CompanyPlace } from '$lib/orca/company';
+import { parseErrorContent } from '$lib/errors';
 import { OrcaService } from '$lib/services/orca';
+import { setPageAccount } from '$lib/services/writes';
 
 export const ssr = false;
 export const prerender = false;
@@ -16,16 +18,13 @@ export const load: PageLoad = async ({ parent, url }) => {
 		const rd = `${url.pathname}${url.search}`;
 		throw redirect(307, `/login?rd=${encodeURIComponent(rd)}`);
 	}
+	// Every request this page makes names this account, its first included.
+	setPageAccount(profile.id);
 	const explicit = url.searchParams.get('org');
 	place ??= (async () => {
-		let companies: OrcaCompanyChoice[] | undefined;
-		try {
-			companies = await OrcaService.companies();
-		} catch {
-			// An older server has no list: open "default", as before companies.
-			companies = undefined;
-		}
-		const chosen = chooseCompany(explicit, rememberedCompany(profile.id), companies);
+		// An older server has no list (404): it opens "default", as before
+		// companies. Any other failure opens nothing.
+		const chosen = await resolvePlace(OrcaService.companies, (error) => parseErrorContent(error).status === 404, explicit, rememberedCompany(profile.id));
 		if (chosen.kind === 'company') setPageCompany(chosen.id, chosen.companies);
 		return chosen;
 	})();

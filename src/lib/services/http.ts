@@ -3,6 +3,7 @@ import { createHttpError } from '$lib/errors';
 import { loginHref } from '$lib/orca/navigation';
 import errors from '$lib/stores/errors.svelte';
 import profile from '$lib/stores/profile.svelte';
+import { counted, orcaAccountChanged, orcaAccountHeaders, pageAccountOr, reloadForAccount, writesInFlight } from './writes';
 
 // For SSR, use VITE_API_TARGET if set (for remote API development)
 // For browser, use window.location.origin (requests go through Vite proxy)
@@ -16,22 +17,26 @@ if (typeof window !== 'undefined') {
 	baseURL = apiTarget.endsWith('/api') ? apiTarget : apiTarget + '/api';
 }
 
-function getAuthHeaders(): Record<string, string> { return {}; }
-
-// Writes still in flight. Switching company loads a new page, so it waits
-// for these rather than cutting one off.
-let writes = 0;
-export function writesInFlight(): number {
-	return writes;
+// Every ORCA request names the account this page was opened for.
+function getAuthHeaders(path: string): Record<string, string> {
+	return orcaAccountHeaders(path, pageAccountOr(profile.current.id));
 }
-async function counted<T>(write: () => Promise<T>): Promise<T> {
-	writes++;
-	try {
-		return await write();
-	} finally {
-		writes--;
+
+// Another tab signed in as someone else: this page belongs to the old
+// account, so open it afresh as the new one.
+function accountChanged(status: number, body: string) {
+	if (typeof window !== 'undefined' && orcaAccountChanged(status, body)) {
+		let storage: Storage | undefined;
+		try {
+			storage = window.sessionStorage;
+		} catch {
+			storage = undefined;
+		}
+		reloadForAccount(() => window.location.reload(), storage);
 	}
 }
+
+export { writesInFlight };
 
 interface GetOptions {
 	blob?: boolean;
@@ -80,7 +85,7 @@ export async function doGetForResponse(path: string, opts?: GetOptions): Promise
 	const f = opts?.fetch || fetch;
 	const resp = await f(baseURL + path, {
 		headers: {
-			...getAuthHeaders(),
+			...getAuthHeaders(path),
 			// Pass the browser timezone as a request header.
 			// This is consumed during authentication to set the user's default timezone in Obot.
 			// The timezone is plumbed down to tools at runtime as an environment variable.
@@ -94,6 +99,7 @@ export async function doGetForResponse(path: string, opts?: GetOptions): Promise
 			handle401Redirect();
 		}
 		const body = await resp.text();
+		accountChanged(resp.status, body);
 		const e = createHttpError(resp.status, path, body);
 		if (opts?.dontLogErrors) {
 			throw e;
@@ -121,17 +127,20 @@ export async function doDelete(
 		keepalive?: boolean;
 	}
 ): Promise<unknown> {
-	const f = opts?.fetch || fetch;
-	const resp = await counted(() => f(baseURL + path, {
-		method: 'DELETE',
-		headers: getAuthHeaders(),
-		...(opts?.keepalive ? { keepalive: true } : { signal: opts?.signal })
-	}));
+	// Counted until its response is handled, so a switch never cuts it off.
+	return counted(async () => {
+		const f = opts?.fetch || fetch;
+		const resp = await f(baseURL + path, {
+			method: 'DELETE',
+			headers: getAuthHeaders(path),
+			...(opts?.keepalive ? { keepalive: true } : { signal: opts?.signal })
+		});
 
-	if (!resp.ok && resp.status === 401) {
-		handle401Redirect();
-	}
-	return opts?.responseHandler?.(resp, path, opts) ?? handleResponse(resp, path, opts);
+		if (!resp.ok && resp.status === 401) {
+			handle401Redirect();
+		}
+		return opts?.responseHandler?.(resp, path, opts) ?? handleResponse(resp, path, opts);
+	});
 }
 
 export async function doPut(
@@ -155,6 +164,7 @@ export async function handleResponse(
 ): Promise<unknown> {
 	if (!resp.ok) {
 		const body = await resp.text();
+		accountChanged(resp.status, body);
 		const e = createHttpError(resp.status, path, body);
 		if (opts?.dontLogErrors) {
 			throw e;
@@ -198,18 +208,21 @@ export async function doWithBody(
 	}
 
 	try {
-		const f = opts?.fetch || fetch;
-		const resp = await counted(() => f(baseURL + path, {
-			method,
-			headers: { ...getAuthHeaders(), ...headers, ...opts?.headers },
-			body,
-			signal: opts?.signal
-		}));
+		// Counted until its response is handled, so a switch never cuts it off.
+		return await counted(async () => {
+			const f = opts?.fetch || fetch;
+			const resp = await f(baseURL + path, {
+				method,
+				headers: { ...getAuthHeaders(path), ...headers, ...opts?.headers },
+				body,
+				signal: opts?.signal
+			});
 
-		if (!resp.ok && resp.status === 401) {
-			handle401Redirect();
-		}
-		return handleResponse(resp, path, opts);
+			if (!resp.ok && resp.status === 401) {
+				handle401Redirect();
+			}
+			return handleResponse(resp, path, opts);
+		});
 	} catch (e) {
 		if (opts?.dontLogErrors) {
 			throw e;

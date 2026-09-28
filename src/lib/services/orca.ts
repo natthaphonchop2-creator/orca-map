@@ -577,6 +577,11 @@ export const OrcaService = {
 
 export function orcaError(error: unknown): string {
   const parsed = parseErrorContent(error);
+  if (parsed.status === 412 && parsed.message.includes("orca_account_changed"))
+    return t(
+      "คุณเข้าสู่ระบบด้วยบัญชีอื่นในอีกแท็บ กรุณาโหลดหน้านี้ใหม่",
+      "You signed in as someone else in another tab. Reload this page.",
+    );
   if (parsed.status === 409)
     return t(
       "ข้อมูลนี้มีการเปลี่ยนแปลงแล้ว กรุณาโหลดข้อมูลล่าสุดก่อนบันทึกอีกครั้ง",
