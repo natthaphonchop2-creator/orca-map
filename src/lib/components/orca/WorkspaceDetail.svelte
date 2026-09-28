@@ -10,6 +10,7 @@
 	import { matchesToolSearch, toolPresentation } from '$lib/orca/tool-presentation';
 	import CatalogIcon from '$lib/orca/CatalogIcon.svelte';
 	import { t, localeHref, orcaLocale } from '$lib/orca/locale.svelte';
+	import { companyPinned } from '$lib/orca/company';
 	import { OrcaUserSourcesService, type OrcaUserSource } from '$lib/services/orca-user-sources';
 	import {
 		OrcaService,
@@ -49,6 +50,8 @@
 		hub,
 		onchanged
 	}: { data: OrcaBootstrap; hub: OrcaHub; onchanged: () => Promise<void> } = $props();
+	// Named when this person has several companies, so each connection says which.
+	const companyName = $derived(companyPinned() ? data.organization.displayName : '');
 	const selectedTab = $derived(page.url.hash === '#connect-ai' ? 'connect' : (page.url.searchParams.get('tab') || 'overview'));
 	const archived = $derived(hub.status === 'archived' || hub.status === 'deleted');
 	const activeTab = $derived(archived && selectedTab === 'connect' ? 'overview' : ['overview', 'tools', 'access', 'connect'].includes(selectedTab) ? selectedTab : 'overview');
@@ -586,7 +589,7 @@
 			<h2 id="connect-title">{t('เชื่อมแอป AI กับพื้นที่ทำงานนี้', 'Connect your AI app to this workspace')}</h2>
 		</header>
 		<div class="detail-card-body">
-			<GatewayClientSetup endpoint={hub.connectURL} ready={canConnect} oauth={true} />
+			<GatewayClientSetup endpoint={hub.connectURL} ready={canConnect} oauth={true} {companyName} />
 		</div>
 	</div><div class="detail-card gateway-unified-intro">
 		<div><h2>{t('เชื่อม AI กับ ORCA เพียงครั้งเดียว', 'Connect to ORCA once')}</h2><p>{t('ใช้เครื่องมือจากทุกพื้นที่ทำงาน AI ที่คุณได้รับสิทธิ์ รวมถึงพื้นที่ทำงานนี้', 'Use tools from every AI workspace you can access, including this one.')}</p></div>
@@ -608,7 +611,7 @@
 				{t('คีย์ API', 'API key')}
 			</h2>
 		</div>
-		<GatewayClientSetup endpoint={hub.connectURL} ready={canConnect} oauth={false} />
+		<GatewayClientSetup endpoint={hub.connectURL} ready={canConnect} oauth={false} {companyName} />
 		{#if !isMember}<div class="k-banner">
 				<ShieldCheck size={16} aria-hidden="true" />
 				<p>

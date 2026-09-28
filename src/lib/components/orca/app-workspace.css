@@ -1493,3 +1493,78 @@
     animation: none !important;
   }
 }
+
+/* The company switcher: in the breadcrumb and the account menu, for people
+   in several companies. Each choice opens that company's page. */
+.orca-workspace .workspace-company-switch {
+  position: relative;
+  min-width: 0;
+}
+.orca-workspace .workspace-company-switch > summary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 6px;
+}
+.orca-workspace .workspace-company-switch > summary::-webkit-details-marker {
+  display: none;
+}
+.orca-workspace .workspace-company-switch > summary:focus-visible {
+  outline: 2px solid var(--k-ink);
+  outline-offset: 2px;
+}
+.orca-workspace .workspace-company-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  display: grid;
+  gap: 2px;
+  width: 260px;
+  max-width: calc(100vw - 32px);
+  padding: 8px;
+  border: 1px solid var(--k-line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 9px 28px #101e3414;
+}
+.orca-workspace .workspace-company-menu > small {
+  padding: 4px 8px;
+  color: var(--k-muted);
+  font-size: 11px;
+}
+.orca-workspace .workspace-company-menu > a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--k-ink);
+  font-size: 13px;
+}
+.orca-workspace .workspace-company-menu > a span {
+  max-width: none;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.orca-workspace .workspace-company-menu > a:hover,
+.orca-workspace .workspace-company-menu > a:focus-visible {
+  background: #f4f6f1;
+}
+.orca-workspace .workspace-company-menu > a[aria-current="true"],
+.orca-workspace .workspace-account-menu > a[aria-current="true"] {
+  font-weight: 600;
+}
+.orca-workspace .workspace-account-menu > .workspace-account-heading {
+  margin-top: 11px;
+}
+.orca-workspace .workspace-company-wait {
+  margin: 4px 8px 0;
+  color: var(--k-muted);
+  font-size: 12px;
+}

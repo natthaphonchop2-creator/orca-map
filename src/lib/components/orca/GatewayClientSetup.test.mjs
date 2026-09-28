@@ -6,19 +6,19 @@ import { pathToFileURL } from 'node:url';
 import { compile, compileModule } from 'svelte/compiler';
 import { render } from 'svelte/server';
 import { effect_root, flush } from 'svelte/internal/client';
+import { typescriptModuleURL } from '../../orca/test-import.mjs';
 
 const require = createRequire(import.meta.url);
 const moduleURL = (code) => 'data:text/javascript;base64,' + Buffer.from(code).toString('base64');
-const configURL = moduleURL(stripTypeScriptTypes(await readFile(new URL('../../orca/client-config.ts', import.meta.url), 'utf8')));
-const instructionsURL = moduleURL(stripTypeScriptTypes(await readFile(new URL('../../orca/client-instructions.ts', import.meta.url), 'utf8'))
-	.replace("'./client-config'", JSON.stringify(configURL)));
+const configURL = await typescriptModuleURL(new URL('../../orca/client-config.ts', import.meta.url));
+const instructionsURL = await typescriptModuleURL(new URL('../../orca/client-instructions.ts', import.meta.url));
 const lib = { ...(await import(configURL)), ...(await import(instructionsURL)) };
 const source = await readFile(new URL('./GatewayClientSetup.svelte', import.meta.url), 'utf8');
 const script = stripTypeScriptTypes(source.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
 	.replace(/^\s*import[^;]+;/gm, '')
 	.replace('$props()', '$state(testProps)');
 const compiled = compileModule(`export function harness(testProps, lib, orcaLocale, t, navigator, localStorage) {
-	const { AI_APPS, gatewayClientCommands, gatewayClientConfig, gatewayInstallLink, localGatewayEndpoint, gatewayClientInstructions } = lib;
+	const { AI_APPS, clientNames, gatewayClientCommands, gatewayClientConfig, gatewayInstallLink, localGatewayEndpoint, gatewayClientInstructions } = lib;
 	${script}
 	return { copy, get app() { return app; }, get instructions() { return instructions; }, get config() { return config; }, get installLink() { return installLink; }, get commands() { return commands; }, get copied() { return copied; }, get error() { return error; }, setApp(value) { app = value; }, setEndpoint(value) { endpoint = value; } };
 }`, { filename: 'gateway-setup-test.svelte.js', generate: 'client' }).js.code.replaceAll('svelte/internal/client', pathToFileURL(require.resolve('svelte/internal/client')).href);

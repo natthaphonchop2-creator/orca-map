@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { compile, compileModule } from 'svelte/compiler';
 import { render } from 'svelte/server';
 import { effect_root, flush, untrack } from 'svelte/internal/client';
+import { typescriptModuleURL } from '../../orca/test-import.mjs';
 
 const require = createRequire(import.meta.url);
 const moduleURL = (code) => 'data:text/javascript;base64,' + Buffer.from(code).toString('base64');
@@ -14,13 +15,14 @@ const activationURL = moduleURL(stripTypeScriptTypes(await readFile(new URL('../
 	.replace(/(['"])\.\/gateway-sources(?:\.ts)?\1/, JSON.stringify(gatewayURL)));
 const { gatewaySources, gatewayToolCount, gatewayHasMember } = await import(gatewayURL);
 const { workspaceToolingReady } = await import(activationURL);
-const configURL = moduleURL(stripTypeScriptTypes(await readFile(new URL('../../orca/client-config.ts', import.meta.url), 'utf8')));
+const configURL = await typescriptModuleURL(new URL('../../orca/client-config.ts', import.meta.url));
 const { gatewayClientConfig } = await import(configURL);
+const { companyPinned } = await import(await typescriptModuleURL(new URL('../../orca/company.ts', import.meta.url)));
 const source = await readFile(new URL('./OrcaMCPAccess.svelte', import.meta.url), 'utf8');
 const script = stripTypeScriptTypes(source.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
 	.replace(/^\s*import[^;]+;/gm, '')
 	.replace('$props()', '$state(testProps)');
-const compiled = compileModule(`export function harness(testProps, OrcaService, workspaceToolingReady, gatewayClientConfig, gatewaySources, gatewayToolCount, gatewayHasMember, t, orcaError, onDestroy, untrack, navigator) {
+const compiled = compileModule(`export function harness(testProps, OrcaService, workspaceToolingReady, gatewayClientConfig, gatewaySources, gatewayToolCount, gatewayHasMember, t, orcaError, onDestroy, untrack, navigator, companyPinned = () => false) {
 	${script}
 	return {
 		loadKeys, createKey, requestRevoke, revokeKey, dismissCreatedKey, toggleReveal, copyKey,
@@ -274,7 +276,7 @@ test('component compiles without warnings and renders unified setup without pass
 	const code = result.js.code.replace(/^import[\s\S]*?;\n/gm, '').replace('export default function OrcaMCPAccess', 'function OrcaMCPAccess');
 	const module = `import * as $ from ${JSON.stringify(pathToFileURL(require.resolve('svelte/internal/server')).href)};
 		export function component(deps) {
-			const { onDestroy, untrack, Check, Copy, Eye, EyeOff, KeyRound, RefreshCw, Trash2, workspaceToolingReady, gatewayClientConfig, gatewaySources, gatewayToolCount, gatewayHasMember, localeHref, t, OrcaService, displayDate, orcaError, GatewayClientSetup } = deps;
+			const { onDestroy, untrack, Check, Copy, Eye, EyeOff, KeyRound, RefreshCw, Trash2, workspaceToolingReady, gatewayClientConfig, gatewaySources, gatewayToolCount, gatewayHasMember, localeHref, t, OrcaService, displayDate, orcaError, GatewayClientSetup, companyPinned } = deps;
 			${code}
 			return OrcaMCPAccess;
 		}`;
@@ -285,7 +287,7 @@ test('component compiles without warnings and renders unified setup without pass
 		onDestroy: noop, untrack, Check: noop, Copy: noop, Eye: noop, EyeOff: noop, KeyRound: noop, RefreshCw: noop, Trash2: noop,
 		workspaceToolingReady, gatewayClientConfig, gatewaySources, gatewayToolCount, gatewayHasMember, localeHref: (url) => url, t: (_th, en) => en,
 		OrcaService: {}, displayDate: (value) => value || '—', orcaError: (error) => error.message,
-		GatewayClientSetup: (_renderer, props) => calls.push(props)
+		GatewayClientSetup: (_renderer, props) => calls.push(props), companyPinned: () => false
 	});
 	const html = render(Screen, { props: { data: bootstrap({ hubs: [hub('allowed'), hub('private', { memberIDs: ['other'] })] }) } }).body;
 	assert.match(html, /Connect your AI to ORCA once/);
@@ -297,7 +299,9 @@ test('component compiles without warnings and renders unified setup without pass
 	assert.equal(calls[0].endpoint, endpoint);
 	assert.equal(calls[0].scope, 'orca');
 	assert.equal(calls[0].ready, true);
-	assert.deepEqual(Object.keys(calls[0]).sort(), ['endpoint', 'oauth', 'ready', 'scope']);
+	assert.deepEqual(Object.keys(calls[0]).sort(), ['companyName', 'endpoint', 'oauth', 'ready', 'scope']);
+	// One company: no company name in the AI app's setup.
+	assert.equal(calls[0].companyName, '');
 	assert.equal(calls[0].oauth, true);
 	assert.equal(calls[1].oauth, false);
 	assert.equal(calls[1].endpoint, endpoint);

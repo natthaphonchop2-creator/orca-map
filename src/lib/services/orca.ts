@@ -1,4 +1,5 @@
 import { parseErrorContent } from "$lib/errors";
+import { orcaPath, type OrcaCompanyChoice } from "$lib/orca/company";
 import { orcaLocale, t } from "$lib/orca/locale.svelte";
 import {
   organizationRole,
@@ -224,6 +225,15 @@ export interface OrcaInvitationPreview {
   email: string;
   expiresAt: string;
   status: OrcaInvitation["status"];
+  /** Only for the signed-in person who accepted it. */
+  target?: OrcaInvitationTarget;
+}
+
+/** Where an accepted invitation leads: its company, and the page that opens it. */
+export interface OrcaInvitationTarget {
+  companyID: string;
+  companyName: string;
+  returnTo: string;
 }
 
 /** Signing in to the workspace with Google; the client secret is write-only. */
@@ -376,11 +386,11 @@ async function list<T>(path: string): Promise<T[]> {
 
 export const OrcaService = {
   departmentLifecycle: (id: string, action: "archive" | "restore" | "delete", version: number) =>
-    doWithBody(action === "delete" ? "DELETE" : "POST", `/orca/units/${part(id)}${action === "delete" ? "" : `/${action}`}`, {version}, options) as Promise<OrcaUnit>,
+    doWithBody(action === "delete" ? "DELETE" : "POST", orcaPath(`/units/${part(id)}${action === "delete" ? "" : `/${action}`}`), {version}, options) as Promise<OrcaUnit>,
   memberLifecycle: (id: string, action: "suspend" | "restore" | "delete", version: number) =>
-    doWithBody(action === "delete" ? "DELETE" : "POST", `/orca/members/${part(id)}${action === "delete" ? "" : `/${action}`}`, {version}, options) as Promise<OrcaMember>,
+    doWithBody(action === "delete" ? "DELETE" : "POST", orcaPath(`/members/${part(id)}${action === "delete" ? "" : `/${action}`}`), {version}, options) as Promise<OrcaMember>,
   async bootstrap(): Promise<OrcaBootstrap> {
-    const data = (await doGet("/orca/bootstrap", options)) as OrcaBootstrap;
+    const data = (await doGet(orcaPath("/bootstrap"), options)) as OrcaBootstrap;
     return {
       ...data,
       members: data.members ?? [],
@@ -391,59 +401,59 @@ export const OrcaService = {
   },
   organization: (displayName: string, version: number, logoDataURL?: string) =>
     doPut(
-      "/orca/organization",
+      orcaPath("/organization"),
       { displayName, version, logoDataURL },
       options,
     ) as Promise<OrcaOrganization>,
   unit: (input: UnitInput, id?: string) =>
     (id
-      ? doPut(`/orca/units/${part(id)}`, input, options)
-      : doPost("/orca/units", input, options)) as Promise<OrcaUnit>,
-  candidates: () => list<OrcaCandidate>("/orca/candidates"),
+      ? doPut(orcaPath(`/units/${part(id)}`), input, options)
+      : doPost(orcaPath("/units"), input, options)) as Promise<OrcaUnit>,
+  candidates: () => list<OrcaCandidate>(orcaPath("/candidates")),
   async discover(mcpID: string): Promise<OrcaTool[]> {
-    const response = (await doPost("/orca/discover", { mcpID }, options)) as {
+    const response = (await doPost(orcaPath("/discover"), { mcpID }, options)) as {
       tools: OrcaTool[] | null;
     };
     return response.tools ?? [];
   },
   connection: (input: ConnectionInput, id?: string) =>
     (id
-      ? doPut(`/orca/connections/${part(id)}`, input, options)
-      : doPost("/orca/connections", input, options)) as Promise<OrcaConnection>,
+      ? doPut(orcaPath(`/connections/${part(id)}`), input, options)
+      : doPost(orcaPath("/connections"), input, options)) as Promise<OrcaConnection>,
   hub: (input: HubInput, id?: string) =>
     (id
-      ? doPut(`/orca/hubs/${part(id)}`, input, options)
-      : doPost("/orca/hubs", input, options)) as Promise<OrcaHub>,
+      ? doPut(orcaPath(`/hubs/${part(id)}`), input, options)
+      : doPost(orcaPath("/hubs"), input, options)) as Promise<OrcaHub>,
   archiveHub: (id: string, version: number) =>
-    doPost(`/orca/hubs/${part(id)}/archive`, { version }, options) as Promise<OrcaHub>,
+    doPost(orcaPath(`/hubs/${part(id)}/archive`), { version }, options) as Promise<OrcaHub>,
   restoreHub: (id: string, version: number) =>
-    doPost(`/orca/hubs/${part(id)}/restore`, { version }, options) as Promise<OrcaHub>,
+    doPost(orcaPath(`/hubs/${part(id)}/restore`), { version }, options) as Promise<OrcaHub>,
   deleteHub: (id: string, version: number) =>
-    doWithBody("DELETE", `/orca/hubs/${part(id)}`, { version }, options) as Promise<OrcaHub>,
+    doWithBody("DELETE", orcaPath(`/hubs/${part(id)}`), { version }, options) as Promise<OrcaHub>,
   archiveConnection: (id: string, version: number) =>
-    doPost(`/orca/connections/${part(id)}/archive`, { version }, options) as Promise<OrcaConnection>,
+    doPost(orcaPath(`/connections/${part(id)}/archive`), { version }, options) as Promise<OrcaConnection>,
   restoreConnection: (id: string, version: number) =>
-    doPost(`/orca/connections/${part(id)}/restore`, { version }, options) as Promise<OrcaConnection>,
+    doPost(orcaPath(`/connections/${part(id)}/restore`), { version }, options) as Promise<OrcaConnection>,
   deleteConnection: (id: string, version: number) =>
-    doWithBody("DELETE", `/orca/connections/${part(id)}`, { version }, options) as Promise<OrcaConnection>,
-  keys: (hubID: string) => list<OrcaKey>(`/orca/hubs/${part(hubID)}/keys`),
+    doWithBody("DELETE", orcaPath(`/connections/${part(id)}`), { version }, options) as Promise<OrcaConnection>,
+  keys: (hubID: string) => list<OrcaKey>(orcaPath(`/hubs/${part(hubID)}/keys`)),
   createKey: (hubID: string, name: string, expiresInDays: number) =>
     doPost(
-      `/orca/hubs/${part(hubID)}/keys`,
+      orcaPath(`/hubs/${part(hubID)}/keys`),
       { name, ...(expiresInDays === 0 ? { neverExpires: true } : { expiresInDays }) },
       options,
     ) as Promise<OrcaCreatedKey>,
   revokeKey: (hubID: string, keyID: number) =>
-    doDelete(`/orca/hubs/${part(hubID)}/keys/${part(String(keyID))}`, options),
-  orcaKeys: () => list<OrcaKey>("/orca/keys"),
+    doDelete(orcaPath(`/hubs/${part(hubID)}/keys/${part(String(keyID))}`), options),
+  orcaKeys: () => list<OrcaKey>(orcaPath("/keys")),
   createOrcaKey: (name: string, expiresInDays: number) =>
-    doPost("/orca/keys", { name, ...(expiresInDays === 0 ? { neverExpires: true } : { expiresInDays }) }, options) as Promise<OrcaCreatedKey>,
+    doPost(orcaPath("/keys"), { name, ...(expiresInDays === 0 ? { neverExpires: true } : { expiresInDays }) }, options) as Promise<OrcaCreatedKey>,
   revokeOrcaKey: (keyID: number) =>
-    doDelete(`/orca/keys/${part(String(keyID))}`, options),
+    doDelete(orcaPath(`/keys/${part(String(keyID))}`), options),
   audit: (hubID?: string) =>
-    list<OrcaAuditEvent>(`/orca/audit${hubID ? `?hubID=${part(hubID)}` : ""}`),
+    list<OrcaAuditEvent>(orcaPath(`/audit${hubID ? `?hubID=${part(hubID)}` : ""}`)),
   connectionMembers: (connectionID: string, signal?: AbortSignal) =>
-    doGet(`/orca/connections/${part(connectionID)}/members`, {
+    doGet(orcaPath(`/connections/${part(connectionID)}/members`), {
       ...options,
       signal,
     }) as Promise<OrcaConnectionMembers>,
@@ -453,7 +463,7 @@ export const OrcaService = {
     expectedRole: number,
   ) =>
     doPut(
-      `/orca/members/${part(id)}/role`,
+      orcaPath(`/members/${part(id)}/role`),
       { role, expectedRole },
       options,
     ) as Promise<OrcaMember>,
@@ -475,17 +485,17 @@ export const OrcaService = {
     ) as Promise<MCPCatalogEntry>,
   sourceSetup: (id: string, signal?: AbortSignal) =>
     doGet(
-      `/orca/sources/${part(id)}/setup`,
+      orcaPath(`/sources/${part(id)}/setup`),
       { ...options, signal },
     ) as Promise<OrcaSourceSetup>,
   configureSource: (id: string, values: Record<string, string>, url?: string) =>
     doPost(
-      `/orca/sources/${part(id)}/configure`,
+      orcaPath(`/sources/${part(id)}/configure`),
       { values, ...(url ? { url } : {}) },
       options,
     ) as Promise<OrcaSourceSetup>,
   checkSource: (id: string) =>
-    doPost(`/orca/sources/${part(id)}/check`, {}, options) as Promise<{
+    doPost(orcaPath(`/sources/${part(id)}/check`), {}, options) as Promise<{
       ready: boolean;
       oauthRequired: boolean;
     }>,
@@ -498,7 +508,7 @@ export const OrcaService = {
     ) as Promise<OrcaSourceSetup>,
   approvals: (status?: "pending" | "decided", mine = false) => {
     const query = new URLSearchParams({ ...(status ? { status } : {}), ...(mine ? { mine: "1" } : {}) }).toString();
-    return list<OrcaApproval>(`/orca/approvals${query ? `?${query}` : ""}`);
+    return list<OrcaApproval>(orcaPath(`/approvals${query ? `?${query}` : ""}`));
   },
   googleSignIn: () => doGet("/orca/sign-in/google", options) as Promise<OrcaGoogleSignIn>,
   saveGoogleSignIn: (input: OrcaGoogleSignInInput) =>
@@ -506,38 +516,40 @@ export const OrcaService = {
   /** Public: whether the sign-in page offers Google. */
   signInMethods: (fetcher?: typeof fetch) =>
     doGet("/orca/sign-in/methods", { ...options, fetch: fetcher }) as Promise<{ google: boolean }>,
-  invitations: () => list<OrcaInvitation>("/orca/invitations"),
+  invitations: () => list<OrcaInvitation>(orcaPath("/invitations")),
   invite: (email: string, role: OrcaInvitation["role"], unitIDs: string[]) =>
-    doPost("/orca/invitations", { email, role, unitIDs }, options) as Promise<OrcaInvitationLink>,
+    doPost(orcaPath("/invitations"), { email, role, unitIDs }, options) as Promise<OrcaInvitationLink>,
   reissueInvitation: (id: string) =>
-    doPost(`/orca/invitations/${part(id)}/reissue`, {}, options) as Promise<OrcaInvitationLink>,
+    doPost(orcaPath(`/invitations/${part(id)}/reissue`), {}, options) as Promise<OrcaInvitationLink>,
   revokeInvitation: (id: string) =>
-    doPost(`/orca/invitations/${part(id)}/revoke`, {}, options) as Promise<OrcaInvitation>,
+    doPost(orcaPath(`/invitations/${part(id)}/revoke`), {}, options) as Promise<OrcaInvitation>,
   previewInvitation: (token: string) =>
     doPost("/orca/invitations/preview", { token }, options) as Promise<OrcaInvitationPreview>,
   acceptInvitation: (token: string) =>
-    doPost("/orca/invitations/accept", { token }, options) as Promise<OrcaInvitation>,
-  approveRequest: (id: string) => doPost(`/orca/approvals/${part(id)}/approve`, {}, options) as Promise<OrcaApproval>,
+    doPost("/orca/invitations/accept", { token }, options) as Promise<OrcaInvitation & { target?: OrcaInvitationTarget }>,
+  /** The companies the signed-in person may use now; never per company. */
+  companies: () => list<OrcaCompanyChoice>("/orca/companies"),
+  approveRequest: (id: string) => doPost(orcaPath(`/approvals/${part(id)}/approve`), {}, options) as Promise<OrcaApproval>,
   rejectRequest: (id: string, note: string) =>
-    doPost(`/orca/approvals/${part(id)}/reject`, { note }, options) as Promise<OrcaApproval>,
+    doPost(orcaPath(`/approvals/${part(id)}/reject`), { note }, options) as Promise<OrcaApproval>,
   connectionHealth: () =>
-    doGet("/orca/connections/health", options) as Promise<{ since: string; items: OrcaConnectionHealth[] }>,
+    doGet(orcaPath("/connections/health"), options) as Promise<{ since: string; items: OrcaConnectionHealth[] }>,
   /** Metadata only; administrators revoke a leaver's keys and AI app sign-ins here. */
-  secrets: () => doGet("/orca/secrets", options) as Promise<OrcaSecrets>,
+  secrets: () => doGet(orcaPath("/secrets"), options) as Promise<OrcaSecrets>,
   revokeSecretKey: (id: number) =>
-    doPost(`/orca/secrets/keys/${id}/revoke`, {}, options) as Promise<{ revoked: boolean }>,
+    doPost(orcaPath(`/secrets/keys/${id}/revoke`), {}, options) as Promise<{ revoked: boolean }>,
   revokeSecretSession: (id: string) =>
-    doPost(`/orca/secrets/sessions/${part(id)}/revoke`, {}, options) as Promise<{ revoked: boolean }>,
+    doPost(orcaPath(`/secrets/sessions/${part(id)}/revoke`), {}, options) as Promise<{ revoked: boolean }>,
   /** Removes the app and every member grant issued through it. */
   removeSourceOAuthClient: (id: string) =>
     doPost(`/orca/sources/${part(id)}/oauth/client/remove`, {}, options) as Promise<OrcaSourceSetup>,
   startSourceOAuth: (id: string) =>
-    doPost(`/orca/sources/${part(id)}/oauth`, {}, options) as Promise<{
+    doPost(orcaPath(`/sources/${part(id)}/oauth`), {}, options) as Promise<{
       oauthURL: string;
     }>,
   disconnectSourceOAuth: (id: string) =>
     doPost(
-      `/orca/sources/${part(id)}/oauth/disconnect`,
+      orcaPath(`/sources/${part(id)}/oauth/disconnect`),
       {},
       options,
     ) as Promise<{

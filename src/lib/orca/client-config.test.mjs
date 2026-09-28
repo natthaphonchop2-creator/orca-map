@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
 import { test } from 'node:test';
+import { importTypeScript } from './test-import.mjs';
 
-const source = stripTypeScriptTypes(await readFile(new URL('./client-config.ts', import.meta.url), 'utf8'));
-const { gatewayClientConfig, gatewayClientCommands, gatewayInstallLink, AI_APPS, localGatewayEndpoint } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
+const { gatewayClientConfig, gatewayClientCommands, gatewayInstallLink, AI_APPS, localGatewayEndpoint, clientNames } = await importTypeScript(new URL('./client-config.ts', import.meta.url));
 
 test('client configs preserve the governed endpoint and use client-specific secret references', () => {
   const endpoint = 'https://orca.example/mcp/hub%2Fteam';
@@ -100,4 +100,43 @@ test('Windsurf config uses its serverUrl field', () => {
   assert.deepEqual(JSON.parse(gatewayClientConfig(endpoint, 'windsurf', true)), { mcpServers: { orca: { serverUrl: endpoint } } });
   assert.equal(JSON.parse(gatewayClientConfig(endpoint, 'windsurf')).mcpServers.orca.headers.Authorization, 'Bearer ${env:ORCA_MCP_KEY}');
   assert.deepEqual(AI_APPS, ['chatgpt', 'claude', 'claude-code', 'codex', 'cursor', 'vscode', 'windsurf', 'other']);
+});
+
+test('one app holds "default", A and B side by side, each with its own credential', async () => {
+  const endpoint = (path) => `https://orca.example/api/orca${path}/mcp`;
+  const A = 'org-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const B = 'org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const companies = [['default', ''], [A, `/orgs/${A}`], [B, `/orgs/${B}`]];
+  assert.deepEqual(clientNames('default'), { server: 'orca', keyEnv: 'ORCA_MCP_KEY', vscodeInput: 'orca-key' });
+  assert.deepEqual(clientNames(B), { server: 'orca-bbbbbbbb', keyEnv: 'ORCA_MCP_KEY_BBBBBBBB', vscodeInput: 'orca-bbbbbbbb-key' });
+  // VS Code: one file, three servers, three prompted keys.
+  const vscode = { servers: {}, inputs: [] };
+  for (const [id, path] of companies) {
+    const config = JSON.parse(gatewayClientConfig(endpoint(path), 'vscode', false, clientNames(id)));
+    Object.assign(vscode.servers, config.servers);
+    vscode.inputs.push(...config.inputs);
+  }
+  assert.deepEqual(Object.keys(vscode.servers), ['orca', 'orca-aaaaaaaa', 'orca-bbbbbbbb']);
+  assert.deepEqual(vscode.inputs.map((input) => input.id), ['orca-key', 'orca-aaaaaaaa-key', 'orca-bbbbbbbb-key']);
+  assert.equal(vscode.servers['orca-bbbbbbbb'].url, endpoint(`/orgs/${B}`));
+  assert.equal(vscode.servers['orca-bbbbbbbb'].headers.Authorization, 'Bearer ${input:orca-bbbbbbbb-key}');
+  assert.equal(vscode.servers.orca.headers.Authorization, 'Bearer ${input:orca-key}');
+  // Cursor, Codex and the command lines name each company's key.
+  const cursor = JSON.parse(gatewayClientConfig(endpoint(`/orgs/${A}`), 'cursor', false, clientNames(A)));
+  assert.equal(cursor.mcpServers['orca-aaaaaaaa'].headers.Authorization, 'Bearer ${env:ORCA_MCP_KEY_AAAAAAAA}');
+  assert.equal(gatewayClientConfig(endpoint(`/orgs/${A}`), 'codex', false, clientNames(A)), [
+    '[mcp_servers.orca-aaaaaaaa]',
+    `url = "${endpoint(`/orgs/${A}`)}"`,
+    'bearer_token_env_var = "ORCA_MCP_KEY_AAAAAAAA"'
+  ].join('\n'));
+  assert.deepEqual(gatewayClientCommands(endpoint(`/orgs/${B}`), 'codex', true, clientNames(B)), [
+    `codex mcp add orca-bbbbbbbb --url '${endpoint(`/orgs/${B}`)}'`,
+    'codex mcp login orca-bbbbbbbb'
+  ]);
+  assert.deepEqual(gatewayClientCommands(endpoint(`/orgs/${B}`), 'claude-code', false, clientNames(B)), [
+    `claude mcp add --transport http orca-bbbbbbbb '${endpoint(`/orgs/${B}`)}' --header "Authorization: Bearer $ORCA_MCP_KEY_BBBBBBBB"`
+  ]);
+  assert.match(gatewayInstallLink(endpoint(`/orgs/${B}`), 'cursor', true, clientNames(B)), /[?&]name=orca-bbbbbbbb&/);
+  // Nothing but the default names without a company.
+  assert.equal(JSON.parse(gatewayClientConfig(endpoint(''), 'windsurf')).mcpServers.orca.headers.Authorization, 'Bearer ${env:ORCA_MCP_KEY}');
 });

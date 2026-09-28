@@ -3,12 +3,15 @@
 	import { Check, Copy, Eye, EyeOff, KeyRound, RefreshCw, Trash2 } from '@lucide/svelte';
 	import { workspaceToolingReady } from '$lib/orca/activation';
 	import { gatewayClientConfig } from '$lib/orca/client-config';
+	import { companyPinned } from '$lib/orca/company';
 	import { gatewaySources, gatewayToolCount, gatewayHasMember } from '$lib/orca/gateway-sources';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { OrcaService, displayDate, orcaError, type OrcaBootstrap, type OrcaKey } from '$lib/services/orca';
 	import GatewayClientSetup from './GatewayClientSetup.svelte';
 
 	let { data }: { data: OrcaBootstrap } = $props();
+	// Named when this person has several companies, so each connection says which.
+	const companyName = $derived(companyPinned() ? data.organization.displayName : '');
 	const endpoint = $derived(data.unifiedConnectURL?.trim() || '');
 	const hasEndpoint = $derived.by(() => {
 		try { gatewayClientConfig(endpoint, 'codex'); return true; } catch { return false; }
@@ -203,12 +206,12 @@
 	</details>
 
 	<div class="setup-step access-panel"><div class="step-title"><h3>{t('เพิ่ม ORCA ในแอป AI', 'Add ORCA to your AI app')}</h3></div>
-		<div class="step-body">{#if hasEndpoint}<GatewayClientSetup {endpoint} ready={canCreate} scope="orca" {oauth} />{:else}<p>{t('ยังไม่มีลิงก์เชื่อม AI สำหรับ ORCA กรุณาโหลดข้อมูลล่าสุดหรือติดต่อผู้ดูแลระบบ', 'The AI connection link for ORCA is not available yet. Reload the latest data or contact your administrator.')}</p>{/if}</div>
+		<div class="step-body">{#if hasEndpoint}<GatewayClientSetup {endpoint} ready={canCreate} scope="orca" {oauth} {companyName} />{:else}<p>{t('ยังไม่มีลิงก์เชื่อม AI สำหรับ ORCA กรุณาโหลดข้อมูลล่าสุดหรือติดต่อผู้ดูแลระบบ', 'The AI connection link for ORCA is not available yet. Reload the latest data or contact your administrator.')}</p>{/if}</div>
 	</div>
 	<details class="api-key-option access-panel">
 		<summary>{t('คีย์ API (ไม่บังคับ)', 'API key (optional)')}</summary>
 		<div class="api-key-body">
-		{#if hasEndpoint}<GatewayClientSetup {endpoint} ready={canCreate} scope="orca" oauth={false} />{/if}
+		{#if hasEndpoint}<GatewayClientSetup {endpoint} ready={canCreate} scope="orca" oauth={false} {companyName} />{/if}
 		<div class="key-step"><div class="step-title"><h3>{t('สร้างคีย์ส่วนตัวสำหรับแอป AI', 'Create a personal key for your AI app')}</h3></div>
 			{#if notice}<p class="key-notice" role="status"><Check size={16} aria-hidden="true" />{notice}</p>{/if}
 			{#if keyError}<div class="k-banner error" role="alert"><div>{keyError}<button class="k-link-button" onclick={loadKeys} disabled={loadingKeys}>{t('โหลดรายการคีย์อีกครั้ง', 'Reload keys')}</button></div></div>{/if}

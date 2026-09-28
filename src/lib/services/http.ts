@@ -18,6 +18,21 @@ if (typeof window !== 'undefined') {
 
 function getAuthHeaders(): Record<string, string> { return {}; }
 
+// Writes still in flight. Switching company loads a new page, so it waits
+// for these rather than cutting one off.
+let writes = 0;
+export function writesInFlight(): number {
+	return writes;
+}
+async function counted<T>(write: () => Promise<T>): Promise<T> {
+	writes++;
+	try {
+		return await write();
+	} finally {
+		writes--;
+	}
+}
+
 interface GetOptions {
 	blob?: boolean;
 	/** When true, return response body as plain text (e.g. for text/markdown). */
@@ -107,11 +122,11 @@ export async function doDelete(
 	}
 ): Promise<unknown> {
 	const f = opts?.fetch || fetch;
-	const resp = await f(baseURL + path, {
+	const resp = await counted(() => f(baseURL + path, {
 		method: 'DELETE',
 		headers: getAuthHeaders(),
 		...(opts?.keepalive ? { keepalive: true } : { signal: opts?.signal })
-	});
+	}));
 
 	if (!resp.ok && resp.status === 401) {
 		handle401Redirect();
@@ -184,12 +199,12 @@ export async function doWithBody(
 
 	try {
 		const f = opts?.fetch || fetch;
-		const resp = await f(baseURL + path, {
+		const resp = await counted(() => f(baseURL + path, {
 			method,
 			headers: { ...getAuthHeaders(), ...headers, ...opts?.headers },
 			body,
 			signal: opts?.signal
-		});
+		}));
 
 		if (!resp.ok && resp.status === 401) {
 			handle401Redirect();

@@ -1,3 +1,4 @@
+import { orcaPath } from '$lib/orca/company';
 import { doGet, doPost, doPut } from './http';
 import type { OrcaMember } from './orca';
 
@@ -49,7 +50,7 @@ export interface RenderedTemplate {
 
 const options = { dontLogErrors: true };
 const part = encodeURIComponent;
-const base = (hubID: string) => `/orca/hubs/${part(hubID)}/library`;
+const base = (hubID: string) => orcaPath(`/hubs/${part(hubID)}/library`);
 const normalizeItem = (item: LibraryItem): LibraryItem => ({
 	...item,
 	parameters: item.parameters ?? [],
@@ -97,7 +98,7 @@ export const OrcaLibraryService = {
 	},
 	saveDepartment: (unitID: string, memberIDs: string[], version: number) =>
 		doPut(
-			`/orca/library/departments/${part(unitID)}`,
+			orcaPath(`/library/departments/${part(unitID)}`),
 			{ memberIDs, version },
 			options
 		) as Promise<LibraryDepartment>

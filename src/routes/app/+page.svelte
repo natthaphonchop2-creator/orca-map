@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
+  import { goto, replaceState } from "$app/navigation";
   import { page } from "$app/state";
+  import CompanyGate from "$lib/components/orca/CompanyGate.svelte";
+  import { companyDenied, companyPinned, currentCompany, validCompanyID } from "$lib/orca/company";
   import Approvals from "$lib/components/orca/Approvals.svelte";
   import Audit from "$lib/components/orca/Audit.svelte";
   import OrganizationSettings from "$lib/components/orca/OrganizationSettings.svelte";
@@ -39,7 +41,17 @@
   } from "$lib/services/orca";
   import { ArrowRight, Folder, Info, KeyRound, LoaderCircle } from "@lucide/svelte";
   import { onMount } from "svelte";
+  import type { PageProps } from "./$types";
 
+  // The company this page opens was picked before it rendered (+page.ts).
+  let { data: route }: PageProps = $props();
+  const gate = $derived(
+    route.place.kind === "choose" ? "choose"
+      : route.place.kind === "none" ? "none"
+      : companyDenied(route.place) ? "denied"
+      : undefined,
+  );
+  const companies = $derived(route.place.kind === "none" ? [] : (route.place.companies ?? []));
   let data = $state<OrcaBootstrap>();
   let error = $state("");
   let refreshing = $state(false);
@@ -85,6 +97,11 @@
     try {
       const result = await OrcaService.bootstrap();
       if (request === refreshGeneration) {
+        // Another tab signed in as someone else: start again as them.
+        if (data && result.currentUserID !== data.currentUserID) {
+          window.location.reload();
+          return;
+        }
         data = result;
         void refreshApprovals();
       }
@@ -110,7 +127,23 @@
   }
   onMount(() => {
     initializeLocale();
+    if (gate) return;
+    // Keep the company in the address, so a reload or a copied link stays in
+    // it whatever another tab chooses.
+    if (companyPinned() && !page.url.searchParams.has("org")) {
+      const url = new URL(page.url);
+      url.searchParams.set("org", currentCompany());
+      replaceState(url, page.state);
+    }
     void refresh();
+  });
+  // An address naming another company than this page's (going back or
+  // forward, or any navigation that skips a reload) opens it afresh. The
+  // chooser and the no-company page have no company, so any company counts.
+  const pageCompany = $derived(route.place.kind === "company" ? route.place.id : "");
+  $effect(() => {
+    const org = page.url.searchParams.get("org");
+    if (validCompanyID(org) && org !== pageCompany) window.location.reload();
   });
   async function reloadWizard() {
     await refresh();
@@ -146,7 +179,9 @@
   /></svelte:head
 >
 
-<AppShell {data} {view} {refreshing} {pendingApprovals} onrefresh={refresh}>
+{#if gate}<CompanyGate mode={gate} {companies} account={route.account} />
+{:else}
+<AppShell {data} {view} {refreshing} {pendingApprovals} {companies} account={route.account} onrefresh={refresh}>
   {#if error}<div class="k-banner error" role="alert">
       <Info size={20} />
       <div>
@@ -370,3 +405,4 @@
     >
   </footer>
 </AppShell>
+{/if}

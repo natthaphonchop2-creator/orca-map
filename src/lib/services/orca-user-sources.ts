@@ -1,3 +1,4 @@
+import { orcaPath } from "$lib/orca/company";
 import { doDelete, doGet, doPost, doPut } from "./http";
 
 export interface OrcaUserSourceBinding {
@@ -36,7 +37,8 @@ export interface OrcaIdentityDiscovery {
   jwksURI: string;
 }
 
-const path = "/orca/user-sources";
+// Read per request: the page picks its company before its first request.
+const path = () => orcaPath("/user-sources");
 const options = { dontLogErrors: true };
 // Keep credentials out of client state even if a future server response adds fields.
 const source = (value: OrcaUserSource): OrcaUserSource => ({
@@ -54,18 +56,18 @@ const source = (value: OrcaUserSource): OrcaUserSource => ({
 
 export const OrcaUserSourcesService = {
   async list(signal?: AbortSignal): Promise<OrcaUserSourcesResponse> {
-    const result = await doGet(path, { ...options, signal }) as OrcaUserSourcesResponse;
+    const result = await doGet(path(), { ...options, signal }) as OrcaUserSourcesResponse;
     return { items: (result.items ?? []).map(source), callbackURL: result.callbackURL ?? "" };
   },
   async save(input: OrcaUserSourceInput, id?: string): Promise<OrcaUserSource> {
     return source(await (id
-      ? doPut(`${path}/${encodeURIComponent(id)}`, input, options)
-      : doPost(path, input, options)) as OrcaUserSource);
+      ? doPut(`${path()}/${encodeURIComponent(id)}`, input, options)
+      : doPost(path(), input, options)) as OrcaUserSource);
   },
   remove(id: string, version: number) {
-    return doDelete(`${path}/${encodeURIComponent(id)}?version=${encodeURIComponent(version)}`, options);
+    return doDelete(`${path()}/${encodeURIComponent(id)}?version=${encodeURIComponent(version)}`, options);
   },
   discover(issuerURL: string): Promise<OrcaIdentityDiscovery> {
-    return doPost(`${path}/discover`, { issuerURL }, options) as Promise<OrcaIdentityDiscovery>;
+    return doPost(`${path()}/discover`, { issuerURL }, options) as Promise<OrcaIdentityDiscovery>;
   },
 };

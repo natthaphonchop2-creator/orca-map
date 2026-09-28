@@ -2,12 +2,9 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
 import test from 'node:test';
+import { importTypeScript } from './test-import.mjs';
 
-const moduleURL = (code) => 'data:text/javascript;base64,' + Buffer.from(code).toString('base64');
-const configURL = moduleURL(stripTypeScriptTypes(await readFile(new URL('./client-config.ts', import.meta.url), 'utf8')));
-const source = stripTypeScriptTypes(await readFile(new URL('./client-instructions.ts', import.meta.url), 'utf8'))
-	.replace("'./client-config'", JSON.stringify(configURL));
-const { gatewayClientInstructions } = await import(moduleURL(source));
+const { gatewayClientInstructions } = await importTypeScript(new URL('./client-instructions.ts', import.meta.url));
 const endpoint = 'https://orca.example/api/orca/hubs/team/mcp';
 
 test('the setup prompt is English and client-neutral with safe connection instructions', () => {
@@ -63,4 +60,22 @@ test('OAuth instructions verify client capability and use browser identity sign-
   assert.match(prompt, /verify tools\/list only/);
   assert.doesNotMatch(prompt, /ORCA_MCP_KEY|Bearer <personal-key>|Codex|Cursor|VS Code|[\u0E00-\u0E7F]/);
   assert.match(gatewayClientInstructions('http://localhost:8787/api/orca/mcp', 'orca', true), /cloud AI service cannot reach it/);
+});
+
+test('another company\'s prompt names the company and its own server and key names', async () => {
+  const { clientNames } = await importTypeScript(new URL('./client-config.ts', import.meta.url));
+  const B = 'org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const prompt = gatewayClientInstructions(`https://orca.example/api/orca/orgs/${B}/mcp`, 'orca', false, 'Company B', clientNames(B));
+  assert.match(prompt, /Server name: orca-bbbbbbbb/);
+  assert.match(prompt, /Company: Company B\. Keep this connection separate/);
+  assert.match(prompt, /ORCA_MCP_KEY_BBBBBBBB/);
+  assert.match(prompt, /a connection named orca-bbbbbbbb already points/);
+  assert.doesNotMatch(prompt, /Server name: orca$/m);
+  const oauth = gatewayClientInstructions(`https://orca.example/api/orca/orgs/${B}/mcp`, 'orca', true, 'Company B', clientNames(B));
+  assert.match(oauth, /Server name: orca-bbbbbbbb/);
+  assert.match(oauth, /Company: Company B/);
+  // One company: exactly as before.
+  const single = gatewayClientInstructions(endpoint);
+  assert.match(single, /Server name: orca$/m);
+  assert.doesNotMatch(single, /Company:/);
 });

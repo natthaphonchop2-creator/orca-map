@@ -1,9 +1,13 @@
 <script lang="ts">
-  import { AI_APPS, gatewayClientCommands, gatewayClientConfig, gatewayInstallLink, localGatewayEndpoint, type AIApp, type GatewayClient } from '$lib/orca/client-config';
+  import { AI_APPS, clientNames, gatewayClientCommands, gatewayClientConfig, gatewayInstallLink, localGatewayEndpoint, type AIApp, type GatewayClient } from '$lib/orca/client-config';
   import { gatewayClientInstructions, type GatewaySetupScope } from '$lib/orca/client-instructions';
   import { orcaLocale, t } from '$lib/orca/locale.svelte';
   import { Copy, Check, ExternalLink, ChevronDown, ArrowRight } from '@lucide/svelte';
-  let { endpoint, ready = true, scope = 'gateway', oauth = true }: { endpoint: string; ready?: boolean; scope?: GatewaySetupScope; oauth?: boolean } = $props();
+  // companyName is set when the person has several companies, so each AI app
+  // connection says which company it is for.
+  let { endpoint, ready = true, scope = 'gateway', oauth = true, companyName = '' }: { endpoint: string; ready?: boolean; scope?: GatewaySetupScope; oauth?: boolean; companyName?: string } = $props();
+  const clientName = clientNames();
+  const connectorName = $derived(companyName ? `ORCA · ${companyName}` : 'ORCA');
   const endpointID = $derived(`mcp-endpoint-${scope}-${oauth ? 'oauth' : 'key'}`);
   const appID = $derived(`ai-app-${scope}-${oauth ? 'oauth' : 'key'}`);
   // The chosen app is a per-viewer convenience; storage may be unavailable.
@@ -26,7 +30,7 @@
   const installLink = $derived.by(() => { try { return gatewayInstallLink(endpoint, app, oauth); } catch { return ''; } });
   const commands = $derived.by(() => { try { return gatewayClientCommands(endpoint, app, oauth); } catch { return []; } });
   const instructions = $derived.by(() => {
-    try { return gatewayClientInstructions(endpoint, scope, oauth); } catch { return ''; }
+    try { return gatewayClientInstructions(endpoint, scope, oauth, companyName); } catch { return ''; }
   });
   // Chat apps connect only through OAuth, in their own settings.
   const chatApp = $derived(app === 'chatgpt' || app === 'claude');
@@ -35,12 +39,12 @@
     if (app === 'chatgpt') return [
       t('เปิด ChatGPT แล้วไปที่ ตั้งค่า → Apps & Connectors', 'In ChatGPT, open Settings → Apps & Connectors.'),
       t('ใน Advanced settings เปิด Developer mode (ใช้ได้กับแพ็กเกจที่รองรับ เช่น Plus, Pro, Business)', 'Under Advanced settings, turn on Developer mode (on plans that support it, such as Plus, Pro and Business).'),
-      t('กด Create ตั้งชื่อ ORCA วางลิงก์เชื่อม AI ด้านบน แล้วเลือกการยืนยันตัวตนแบบ OAuth', 'Choose Create, name it ORCA, paste the AI connection link above, and choose OAuth authentication.'),
+      t(`กด Create ตั้งชื่อ ${connectorName} วางลิงก์เชื่อม AI ด้านบน แล้วเลือกการยืนยันตัวตนแบบ OAuth`, `Choose Create, name it ${connectorName}, paste the AI connection link above, and choose OAuth authentication.`),
       t('กด Create แล้วเข้าสู่ระบบด้วยบัญชี ORCA ของคุณ', 'Choose Create, then sign in with your ORCA account.')
     ];
     if (app === 'claude') return [
       t('เปิด Claude (เว็บหรือแอปเดสก์ท็อป) แล้วไปที่ Settings → Connectors', 'In Claude (web or desktop), open Settings → Connectors.'),
-      t('กด Add custom connector ตั้งชื่อ ORCA แล้ววางลิงก์เชื่อม AI ด้านบน', 'Choose Add custom connector, name it ORCA, and paste the AI connection link above.'),
+      t(`กด Add custom connector ตั้งชื่อ ${connectorName} แล้ววางลิงก์เชื่อม AI ด้านบน`, `Choose Add custom connector, name it ${connectorName}, and paste the AI connection link above.`),
       t('กด Add แล้ว Connect จากนั้นเข้าสู่ระบบด้วยบัญชี ORCA ของคุณ', 'Choose Add, then Connect, and sign in with your ORCA account.'),
       t('ถ้าใช้ Claude แบบองค์กร (Team หรือ Enterprise) ผู้ดูแลต้องเพิ่ม connector ในการตั้งค่าองค์กรก่อน', 'On a Team or Enterprise plan, an owner adds the connector in the organization settings first.')
     ];
@@ -49,8 +53,8 @@
   const afterInstall = $derived.by(() => {
     if (app === 'cursor') return t('ใน Cursor กด Install แล้วกด Connect เพื่อเข้าสู่ระบบ ORCA', 'In Cursor, choose Install, then Connect to sign in to ORCA.');
     if (app === 'vscode') return t('ใน VS Code กด Install แล้วเริ่มการเชื่อมต่อ ระบบจะเปิดหน้าเข้าสู่ระบบ ORCA', 'In VS Code, choose Install and start the server; it opens the ORCA sign-in page.');
-    if (app === 'claude-code') return oauth ? t('จากนั้นพิมพ์ /mcp ใน Claude Code แล้วเลือก orca เพื่อเข้าสู่ระบบ', 'Then type /mcp in Claude Code and choose orca to sign in.') : t('ตั้งตัวแปร ORCA_MCP_KEY ก่อนรันคำสั่ง', 'Set ORCA_MCP_KEY before running the command.');
-    if (app === 'codex') return oauth ? t('คำสั่งที่สองจะเปิดหน้าเข้าสู่ระบบ ORCA', 'The second command opens the ORCA sign-in page.') : t('ตั้งตัวแปร ORCA_MCP_KEY ในสภาพแวดล้อมที่ใช้เปิด Codex', 'Set ORCA_MCP_KEY in the environment Codex starts from.');
+    if (app === 'claude-code') return oauth ? t(`จากนั้นพิมพ์ /mcp ใน Claude Code แล้วเลือก ${clientName.server} เพื่อเข้าสู่ระบบ`, `Then type /mcp in Claude Code and choose ${clientName.server} to sign in.`) : t(`ตั้งตัวแปร ${clientName.keyEnv} ก่อนรันคำสั่ง`, `Set ${clientName.keyEnv} before running the command.`);
+    if (app === 'codex') return oauth ? t('คำสั่งที่สองจะเปิดหน้าเข้าสู่ระบบ ORCA', 'The second command opens the ORCA sign-in page.') : t(`ตั้งตัวแปร ${clientName.keyEnv} ในสภาพแวดล้อมที่ใช้เปิด Codex`, `Set ${clientName.keyEnv} in the environment Codex starts from.`);
     if (app === 'windsurf') return t('บันทึกไฟล์แล้วกด Refresh ในแผง MCP ของ Windsurf', 'Save the file, then choose Refresh in Windsurf’s MCP panel.');
     return '';
   });

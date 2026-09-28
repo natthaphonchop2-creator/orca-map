@@ -6,7 +6,8 @@
   import { parseErrorContent } from "$lib/errors";
   import { initializeLocale, localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
   import { googleStartHref } from "$lib/orca/google-signin";
-  import { OrcaService, displayDate, orcaError, type OrcaInvitationPreview } from "$lib/services/orca";
+  import { invitationReturnPath } from "$lib/orca/company";
+  import { OrcaService, displayDate, orcaError, type OrcaInvitationPreview, type OrcaInvitationTarget } from "$lib/services/orca";
   import { ArrowRight, Check, LoaderCircle } from "@lucide/svelte";
   import { onMount } from "svelte";
   import type { PageProps } from "./$types";
@@ -25,6 +26,11 @@
   const signOutHref = $derived(`/oauth2/sign_out?rd=${encodeURIComponent(returnPath)}`);
   const googleHref = $derived(googleStartHref(window.location.origin, localeHref(returnPath), { id: "local-auth-provider" }));
   const roleLabel = $derived(preview?.role === "admin" ? t("ผู้ดูแลระบบ", "an admin") : t("สมาชิก", "a member"));
+  // Where the server says the accepted invitation leads: its company's page.
+  let target = $state<OrcaInvitationTarget>();
+  function openHref(to?: OrcaInvitationTarget) {
+    return localeHref(invitationReturnPath(to));
+  }
 
   onMount(async () => {
     initializeLocale();
@@ -44,7 +50,7 @@
     wrongAccount = false;
     needsGoogle = false;
     try {
-      await OrcaService.acceptInvitation(data.token);
+      target = (await OrcaService.acceptInvitation(data.token)).target;
       phase = "joined";
     } catch (cause) {
       const status = parseErrorContent(cause).status;
@@ -103,7 +109,7 @@
         <span class="invite-done" aria-hidden="true"><Check size={22} /></span>
         <h2>{t("เข้าร่วมเรียบร้อยแล้ว", "You're in")}</h2>
         <p>{t(`ตอนนี้คุณเป็น${roleLabel}ของ ${preview?.organization ?? "ORCA"} แล้ว`, `You are now ${roleLabel} of ${preview?.organization ?? "ORCA"}.`)}</p>
-        <a class="o-button" href={localeHref("/app")}>{t("เปิด ORCA", "Open ORCA")} <ArrowRight size={16} /></a>
+        <a class="o-button" href={openHref(target)} data-sveltekit-reload>{t("เปิด ORCA", "Open ORCA")} <ArrowRight size={16} /></a>
       {:else if preview && preview.status !== "pending"}
         <h2>
           {preview.status === "accepted"
@@ -117,7 +123,8 @@
             ? t("ถ้าคุณเป็นคนที่รับคำเชิญ เข้าสู่ระบบได้เลย", "If you accepted it, sign in to continue.")
             : t("ขอลิงก์ใหม่จากผู้ดูแลที่เชิญคุณ", "Ask the person who invited you for a new link.")}
         </p>
-        {#if preview.status === "accepted"}<a class="o-button" href={localeHref(data.signedIn ? "/app" : "/login")}>{data.signedIn ? t("เปิด ORCA", "Open ORCA") : t("เข้าสู่ระบบ", "Sign in")} <ArrowRight size={16} /></a>{/if}
+        <!-- Signing in comes back here, where the server shows the acceptor where it leads. -->
+        {#if preview.status === "accepted"}<a class="o-button" href={data.signedIn ? openHref(preview.target) : signInHref} data-sveltekit-reload>{data.signedIn ? t("เปิด ORCA", "Open ORCA") : t("เข้าสู่ระบบ", "Sign in")} <ArrowRight size={16} /></a>{/if}
       {:else if preview}
         <h2>{t(`เข้าร่วม ${preview.organization}`, `Join ${preview.organization}`)}</h2>
         <dl class="invite-facts">

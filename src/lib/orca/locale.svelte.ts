@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import { replaceState } from '$app/navigation';
 import { page } from '$app/state';
+import { keepCompany } from './company';
 
 export type OrcaLocale = 'th' | 'en';
 export const orcaLocale = $state<{ value: OrcaLocale }>({ value: 'th' });
@@ -45,6 +46,8 @@ export function t(th: string, en: string) {
 export function localeHref(path: string) {
 	const url = new URL(path, 'https://orca.invalid');
 	url.searchParams.set('lang', orcaLocale.value);
+	// Links inside the workspace stay in this page's company.
+	keepCompany(url);
 	return url.pathname + url.search + url.hash;
 }
 

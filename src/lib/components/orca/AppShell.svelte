@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { companyHref, companySwitch, currentCompany, rememberCompany, type OrcaCompanyChoice } from "$lib/orca/company";
   import { localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
+  import { writesInFlight } from "$lib/services/http";
   import { activeNavigationView } from "$lib/orca/navigation";
   import {
     memberName,
@@ -15,6 +17,7 @@
     BookOpen,
     Boxes,
     Building2,
+    Check,
     ChevronDown,
     ChevronsLeft,
     ChevronsRight,
@@ -43,6 +46,8 @@
     view,
     refreshing,
     pendingApprovals = 0,
+    companies = [],
+    account = "",
     onrefresh,
     children,
   }: {
@@ -50,9 +55,32 @@
     view: string;
     refreshing: boolean;
     pendingApprovals?: number;
+    /** The person's companies; the switcher shows when there are several. */
+    companies?: OrcaCompanyChoice[];
+    account?: string;
     onrefresh: () => void;
     children: Snippet;
   } = $props();
+  const company = currentCompany();
+  const switchable = $derived(companies.length > 1);
+  let switchWaiting = $state(false);
+  // Switching opens the other company's page, a new page. A save still in
+  // flight would be cut off, so the switch waits for it to finish.
+  function switchCompany(event: MouseEvent, id: string) {
+    const decision = companySwitch(id, writesInFlight());
+    if (decision === "stay") {
+      event.preventDefault();
+      closeAccounts();
+      return;
+    }
+    if (decision === "wait") {
+      event.preventDefault();
+      switchWaiting = true;
+      return;
+    }
+    switchWaiting = false;
+    rememberCompany(account, id);
+  }
   const preferenceKey = "orca.workspace.sidebar.collapsed";
   function readSidebarPreference() {
     try {
@@ -149,9 +177,10 @@
   const accountInitial = $derived(
     (accountName.trim()[0] || "O").toLocaleUpperCase(),
   );
+  const menus = ".workspace-account[open], .workspace-company-switch[open]";
   function closeAccounts() {
     shell
-      ?.querySelectorAll<HTMLDetailsElement>(".workspace-account[open]")
+      ?.querySelectorAll<HTMLDetailsElement>(menus)
       .forEach((account) => {
         account.open = false;
       });
@@ -171,9 +200,7 @@
   }
   function onAccountKeydown(event: KeyboardEvent) {
     if (event.key !== "Escape" || !(event.target instanceof Element)) return;
-    const account = event.target.closest<HTMLDetailsElement>(
-      ".workspace-account[open]",
-    );
+    const account = event.target.closest<HTMLDetailsElement>(menus);
     if (!account || !shell?.contains(account)) return;
     event.preventDefault();
     event.stopPropagation();
@@ -195,7 +222,7 @@
       const target = event.target;
       if (!(target instanceof Node)) return;
       shell
-        ?.querySelectorAll<HTMLDetailsElement>(".workspace-account[open]")
+        ?.querySelectorAll<HTMLDetailsElement>(menus)
         .forEach((account) => {
           if (!account.contains(target)) account.open = false;
         });
@@ -218,6 +245,22 @@
     if (currentView) closeDrawer();
   });
 </script>
+
+{#snippet companyLinks()}
+  {#each companies as choice (choice.id)}
+    <!-- A new page: nothing from this company carries over to the next. -->
+    <a
+      href={localeHref(companyHref(choice.id))}
+      data-sveltekit-reload
+      aria-current={choice.id === company ? "true" : undefined}
+      onclick={(event) => switchCompany(event, choice.id)}
+    >
+      <Building2 size={16} strokeWidth={1.7} aria-hidden="true" /><span>{choice.displayName}</span>
+      {#if choice.id === company}<Check size={15} aria-hidden="true" />{/if}
+    </a>
+  {/each}
+  {#if switchWaiting}<p class="workspace-company-wait" role="status">{t("กำลังบันทึกอยู่ รอสักครู่แล้วลองอีกครั้ง", "Still saving. Try again in a moment.")}</p>{/if}
+{/snippet}
 
 {#snippet sidebar(compact: boolean = false, mobile: boolean = false)}
   <div class="workspace-sidebar-header">
@@ -318,6 +361,7 @@
         <strong>{accountName}</strong>
         {#if currentUser?.email}<span>{currentUser.email}</span>{/if}
         <small>{organization}</small>
+        {#if switchable}<small class="workspace-account-heading">{t("เปลี่ยนบริษัท", "Switch company")}</small>{@render companyLinks()}{/if}
         <a
           href={localeHref("/app?view=accounts")}
           onclick={closeDrawer}
@@ -386,7 +430,20 @@
       <div class="workspace-location">
         <div class="workspace-organization">
           <Building2 size={16} strokeWidth={1.6} aria-hidden="true" />
-          <span title={organization}>{organization}</span>
+          {#if switchable}
+            <details class="workspace-company-switch">
+              <summary aria-label={t(`บริษัท ${organization} เปลี่ยนบริษัท`, `Company: ${organization}. Switch company`)}>
+                <span title={organization}>{organization}</span>
+                <ChevronDown size={14} aria-hidden="true" />
+              </summary>
+              <div class="workspace-company-menu">
+                <small>{t("เปลี่ยนบริษัท", "Switch company")}</small>
+                {@render companyLinks()}
+              </div>
+            </details>
+          {:else}
+            <span title={organization}>{organization}</span>
+          {/if}
         </div>
         <span class="workspace-breadcrumb-divider" aria-hidden="true">/</span>
         <strong class="workspace-current-page" aria-current="page"
