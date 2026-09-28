@@ -173,11 +173,15 @@
 }
 .orca-workspace.orca-app .workspace-nav a.active {
   background: var(--orca-citron);
-  color: var(--orca-ink);
+  color: var(--orca-on-citron, #151823);
   font-weight: 600;
 }
 .orca-workspace.orca-app .workspace-nav a.active svg {
-  color: var(--orca-ink);
+  color: var(--orca-on-citron, #151823);
+}
+/* The count pill is an ink fill (app-workspace.css); its label follows the theme. */
+.orca-workspace.orca-app .workspace-nav-count {
+  color: var(--orca-on-ink, #fff);
 }
 .orca-workspace.orca-app .workspace-sidebar-bottom {
   margin-top: 12px;
@@ -196,7 +200,7 @@
   width: 30px;
   height: 30px;
   background: var(--orca-ink);
-  color: #fff;
+  color: var(--orca-on-ink, #fff);
   font-size: 12.5px;
   font-weight: 600;
 }
@@ -217,6 +221,7 @@
   padding: 14px;
   border: 1px solid var(--orca-line);
   border-radius: var(--orca-radius-lg);
+  background: var(--orca-popover, #fff);
   color: var(--orca-ink);
   box-shadow: var(--orca-popover-shadow);
 }
@@ -237,7 +242,7 @@
 .orca-workspace.orca-app .workspace-topbar {
   padding: 0 28px;
   border-bottom: 1px solid var(--orca-line);
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--orca-topbar, rgba(255, 255, 255, 0.94));
   backdrop-filter: saturate(160%) blur(10px);
   -webkit-backdrop-filter: saturate(160%) blur(10px);
 }
@@ -297,7 +302,7 @@
   max-width: 1280px;
 }
 .orca-workspace.orca-app :is(a, button, summary, input, select, textarea):focus-visible {
-  outline: 2px solid var(--orca-ink);
+  outline: 2px solid var(--orca-focus, var(--orca-ink));
   outline-offset: 2px;
 }
 
@@ -327,14 +332,14 @@
 .orca-workspace.orca-app .k-button.primary {
   background: var(--orca-citron);
   border-color: transparent;
-  color: var(--orca-ink) !important;
+  color: var(--orca-on-citron, #151823) !important;
 }
 .orca-workspace.orca-app .k-button.primary:hover {
   background: var(--orca-citron-hover);
   box-shadow: none;
 }
 .orca-workspace.orca-app .k-button.danger {
-  border-color: #f1c9cd;
+  border-color: var(--orca-deny-line, #f1c9cd);
   color: var(--orca-deny) !important;
 }
 .orca-workspace.orca-app .k-button.danger:hover {
@@ -343,17 +348,17 @@
 /* Solid destructive confirm (dialogs): white label on red. Disabled keeps a
    readable red label instead of fading to an empty pink block. */
 .orca-workspace.orca-app .k-button.danger-solid {
-  border-color: var(--orca-deny);
-  background: var(--orca-deny);
-  color: #fff !important;
+  border-color: var(--orca-deny-solid, var(--orca-deny));
+  background: var(--orca-deny-solid, var(--orca-deny));
+  color: var(--orca-on-deny, #fff) !important;
 }
 .orca-workspace.orca-app .k-button.danger-solid:hover {
-  border-color: #962029;
-  background: #962029;
+  border-color: var(--orca-deny-solid-hover, #962029);
+  background: var(--orca-deny-solid-hover, #962029);
 }
 .orca-workspace.orca-app .k-button.danger-solid:disabled {
   opacity: 1;
-  border-color: #f1c9cd;
+  border-color: var(--orca-deny-line, #f1c9cd);
   background: var(--orca-deny-bg);
   color: var(--orca-deny) !important;
 }
@@ -408,8 +413,8 @@
 .orca-workspace.orca-app .k-field :is(input, select, textarea):focus-visible,
 .orca-workspace.orca-app .k-search:focus-visible {
   outline: none;
-  border-color: var(--orca-ink);
-  box-shadow: 0 0 0 3px rgba(21, 24, 35, 0.1);
+  border-color: var(--orca-focus, var(--orca-ink));
+  box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1));
 }
 .orca-workspace.orca-app .k-field input[readonly] {
   background: var(--orca-surface-2);
@@ -418,7 +423,7 @@
 .orca-workspace.orca-app input[type='radio'] {
   width: 18px;
   height: 18px;
-  accent-color: var(--orca-ink);
+  accent-color: var(--orca-control, var(--orca-ink));
 }
 
 /* ---------- Surfaces ---------- */
@@ -452,7 +457,7 @@
   color: var(--orca-subtle);
 }
 .orca-workspace.orca-app .k-banner.error {
-  border-color: #f1ccd0;
+  border-color: var(--orca-deny-line, #f1ccd0);
   background: var(--orca-deny-bg);
   color: var(--orca-deny);
 }
@@ -460,7 +465,7 @@
   color: var(--orca-deny);
 }
 .orca-workspace.orca-app .k-banner.success {
-  border-color: #c7e5d3;
+  border-color: var(--orca-ok-line, #c7e5d3);
   background: var(--orca-ok-bg);
   color: var(--orca-ok);
 }
@@ -490,7 +495,7 @@
 }
 .orca-workspace.orca-app .k-badge.accent {
   background: var(--orca-citron-soft);
-  border-color: #e3f0b0;
+  border-color: var(--orca-citron-line, #e3f0b0);
   color: var(--orca-ink);
 }
 
@@ -557,7 +562,7 @@
 }
 .orca-workspace.orca-app .k-table td {
   padding: 10px 12px;
-  border-bottom: 1px solid #eff0f2;
+  border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
   font-size: 14px;
 }
 
@@ -600,5 +605,61 @@
 @media (prefers-reduced-motion: reduce) {
   .orca-workspace.orca-app * {
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Dark: legacy layers ---------- */
+/* app-workspace.css and workspace-base.css are never edited (build plan C11). Their
+   light literals that still paint in the workspace are re-coloured here, in dark only,
+   so the light theme keeps them exactly. Screen only, like the dark tokens
+   (orca-theme.css): printing stays light. */
+@media screen {
+  /* Company switcher menu (app-workspace.css .workspace-company-menu). */
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-company-menu {
+    background: var(--orca-popover);
+    box-shadow: var(--orca-popover-shadow);
+  }
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-company-menu > a:hover,
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-company-menu > a:focus-visible {
+    background: var(--orca-hover);
+  }
+  /* Breadcrumb "/" (decorative): --orca-line-strong is too faint on the dark bar. */
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-breadcrumb-divider {
+    color: var(--orca-subtle);
+  }
+  /* Phone drawer: the same colours as the small-screen rules above, at any width. */
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-drawer {
+    background: var(--orca-sidebar);
+    color: var(--orca-ink);
+  }
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-close {
+    background: var(--orca-surface);
+    color: var(--orca-ink);
+  }
+  /* Skip link (workspace-base.css .k-skip { background: white }). */
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app .k-skip {
+    border: 1px solid var(--orca-line-strong);
+    background: var(--orca-surface);
+    color: var(--orca-ink);
+  }
+  /* Check lists and icon tiles (workspace-base.css). Safety nets for markup that no
+     component styles: the theme hook is inside :where(), so each rule is one step above
+     the legacy rule it replaces and below every scoped component rule (Connections'
+     .k-check-list rows are (0,3,0) and up). */
+  :where(:root[data-orca-theme='dark']) .orca-app .k-check-list {
+    border-color: var(--orca-line-strong);
+  }
+  :where(:root[data-orca-theme='dark']) .orca-app .k-check-row + .k-check-row {
+    border-top-color: var(--orca-line-soft);
+  }
+  :where(:root[data-orca-theme='dark']) .orca-app .k-check-row:hover {
+    background: var(--orca-hover);
+  }
+  :where(:root[data-orca-theme='dark']) .orca-app .k-check-row.selected {
+    border-color: var(--orca-citron-line);
+    background: var(--orca-citron-soft);
+  }
+  :where(:root[data-orca-theme='dark']) .orca-app .k-icon {
+    background: var(--orca-secondary);
   }
 }
