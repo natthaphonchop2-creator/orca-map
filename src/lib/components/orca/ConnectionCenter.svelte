@@ -380,14 +380,14 @@
     width: min(320px, 100%);
     height: 36px;
     padding: 0 11px;
-    border: 1px solid var(--orca-line-strong);
+    border: 1px solid var(--orca-field-line, var(--orca-line-strong));
     border-radius: var(--orca-radius);
     background: var(--orca-surface);
     color: var(--orca-subtle);
   }
   .systems-search:focus-within {
-    border-color: var(--orca-ink);
-    box-shadow: 0 0 0 3px rgba(21, 24, 35, 0.1);
+    border-color: var(--orca-focus, var(--orca-ink));
+    box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1));
   }
   .systems-search :global(svg) {
     flex: none;
@@ -471,7 +471,7 @@
   }
   .systems-table td {
     padding: 10px 14px;
-    border-bottom: 1px solid #eff0f2;
+    border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
     font-size: 14px;
     line-height: 1.4;
     vertical-align: middle;
@@ -676,7 +676,7 @@
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 12px 16px;
       padding: 14px 16px;
-      border-bottom: 1px solid #eff0f2;
+      border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
     }
     .systems-table tbody tr:last-child {
       border-bottom: 0;

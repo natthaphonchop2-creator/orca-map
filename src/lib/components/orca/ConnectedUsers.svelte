@@ -297,7 +297,7 @@
   .connected-user-search {
     min-width: 0;
     height: 36px;
-    border: 1px solid var(--orca-line-strong);
+    border: 1px solid var(--orca-field-line, var(--orca-line-strong));
     border-radius: var(--orca-radius);
     background: var(--orca-surface);
     color: var(--orca-ink);
@@ -311,8 +311,8 @@
   .connected-user-controls select:focus-visible,
   .connected-user-search:focus-within {
     outline: none;
-    border-color: var(--orca-ink);
-    box-shadow: 0 0 0 3px rgba(21, 24, 35, 0.1);
+    border-color: var(--orca-focus, var(--orca-ink));
+    box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1));
   }
   .connected-user-search {
     display: flex;
@@ -389,7 +389,7 @@
   }
   .users-table td {
     padding: 10px 14px;
-    border-bottom: 1px solid #eff0f2;
+    border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
     font-size: 14px;
     vertical-align: middle;
   }
@@ -479,7 +479,7 @@
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 8px 12px;
       padding: 12px 16px;
-      border-bottom: 1px solid #eff0f2;
+      border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
     }
     .users-table tbody tr:last-child {
       border-bottom: 0;

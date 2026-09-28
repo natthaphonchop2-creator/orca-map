@@ -153,7 +153,7 @@
     grid-template-columns: 150px minmax(0, 1fr);
     gap: 4px 16px;
     padding: 10px 0;
-    border-bottom: 1px solid #eff0f2;
+    border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
   }
   summary {
     width: fit-content;
@@ -168,7 +168,7 @@
   }
   summary:focus-visible,
   button:focus-visible {
-    outline: 2px solid var(--orca-ink);
+    outline: 2px solid var(--orca-focus, var(--orca-ink));
     outline-offset: 2px;
   }
   dl {

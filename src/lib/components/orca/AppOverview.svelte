@@ -313,14 +313,14 @@
 		width: min(320px, 100%);
 		height: 36px;
 		padding: 0 11px;
-		border: 1px solid var(--orca-line-strong);
+		border: 1px solid var(--orca-field-line, var(--orca-line-strong));
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface);
 		color: var(--orca-subtle);
 	}
 	.spaces-search:focus-within {
-		border-color: var(--orca-ink);
-		box-shadow: 0 0 0 3px rgba(21, 24, 35, 0.1);
+		border-color: var(--orca-focus, var(--orca-ink));
+		box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1));
 	}
 	.spaces-search input {
 		flex: 1;
@@ -401,7 +401,7 @@
 		margin: 0;
 	}
 	.spaces-panel-head h2:focus-visible {
-		outline: 2px solid var(--orca-ink);
+		outline: 2px solid var(--orca-focus, var(--orca-ink));
 		outline-offset: 3px;
 		border-radius: 4px;
 	}
@@ -438,7 +438,7 @@
 	}
 	.spaces-table td {
 		padding: 12px 14px;
-		border-bottom: 1px solid #eff0f2;
+		border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
 		font-size: 14px;
 		vertical-align: middle;
 	}
@@ -680,7 +680,7 @@
 			grid-template-columns: minmax(0, 1fr) auto;
 			gap: 8px 12px;
 			padding: 14px 16px;
-			border-bottom: 1px solid #eff0f2;
+			border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
 		}
 		.spaces-table tbody tr:last-child {
 			border-bottom: 0;

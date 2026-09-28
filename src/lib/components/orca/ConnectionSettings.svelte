@@ -539,7 +539,7 @@
     align-items: center;
     gap: 12px;
     padding: 12px 18px;
-    border-top: 1px solid #eff0f2;
+    border-top: 1px solid var(--orca-line-soft, #eff0f2);
   }
   .detail-steps li > div {
     flex: 1;
@@ -580,7 +580,7 @@
     grid-template-columns: 180px minmax(0, 1fr);
     gap: 16px;
     padding: 10px 18px;
-    border-top: 1px solid #eff0f2;
+    border-top: 1px solid var(--orca-line-soft, #eff0f2);
     font-size: 14px;
   }
   .detail-list dt {
@@ -596,7 +596,7 @@
     align-items: flex-start;
     gap: 12px;
     padding: 12px 18px;
-    border-top: 1px solid #eff0f2;
+    border-top: 1px solid var(--orca-line-soft, #eff0f2);
     color: var(--orca-ok);
   }
   .detail-tool :global(svg) {
@@ -643,7 +643,7 @@
     align-items: center;
     gap: 12px;
     padding: 12px 18px;
-    border-top: 1px solid #eff0f2;
+    border-top: 1px solid var(--orca-line-soft, #eff0f2);
     color: var(--orca-ink);
     text-decoration: none;
   }
@@ -686,7 +686,7 @@
     justify-content: space-between;
     gap: 16px;
     padding: 10px 18px;
-    border-top: 1px solid #eff0f2;
+    border-top: 1px solid var(--orca-line-soft, #eff0f2);
     font-size: 14px;
   }
   .detail-event > span:first-child {

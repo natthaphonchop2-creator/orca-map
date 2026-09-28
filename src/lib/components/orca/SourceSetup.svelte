@@ -1334,7 +1334,7 @@
   .api-onboarding li.current::before {
     border-color: var(--orca-ink);
     background: var(--orca-ink);
-    color: #fff;
+    color: var(--orca-on-ink, #fff);
   }
   .client-actions {
     display: flex;

@@ -507,7 +507,7 @@
   }
   .org-table td {
     padding: 10px 14px;
-    border-bottom: 1px solid #eff0f2;
+    border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
     font-size: 14px;
     vertical-align: middle;
   }

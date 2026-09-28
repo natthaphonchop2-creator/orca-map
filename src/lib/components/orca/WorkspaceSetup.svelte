@@ -188,7 +188,7 @@
 	.next .step-marker {
 		border-color: var(--orca-ink);
 		background: var(--orca-ink);
-		color: #fff;
+		color: var(--orca-on-ink, #fff);
 	}
 	.step-marker.done {
 		border-color: transparent;

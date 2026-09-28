@@ -12,7 +12,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 10px;
-		color: #151823;
+		color: var(--orca-ink, #151823);
 		line-height: 1;
 		white-space: nowrap;
 	}

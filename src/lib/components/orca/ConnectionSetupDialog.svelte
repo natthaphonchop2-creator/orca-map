@@ -82,7 +82,7 @@
     border-radius: var(--orca-radius-lg, 10px);
     background: var(--orca-surface, #fff);
     color: var(--orca-ink, #151823);
-    box-shadow: 0 16px 48px -12px rgba(21, 24, 35, 0.28);
+    box-shadow: var(--orca-dialog-shadow, 0 16px 48px -12px rgba(21, 24, 35, 0.28));
     overflow: auto;
     overscroll-behavior: contain;
   }

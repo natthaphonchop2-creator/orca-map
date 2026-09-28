@@ -34,7 +34,7 @@
 	min-width: 0;
 	min-height: 36px;
 	padding: 7px 11px;
-	border: 1px solid var(--orca-line-strong);
+	border: 1px solid var(--orca-field-line, var(--orca-line-strong));
 	border-radius: var(--orca-radius);
 	background: var(--orca-surface);
 	color: var(--orca-ink);
@@ -59,13 +59,13 @@
 }
 .orca-workspace .business-library :is(input:not([type='checkbox']), select, textarea):focus-visible {
 	outline: none;
-	border-color: var(--orca-ink);
-	box-shadow: 0 0 0 3px rgba(21, 24, 35, 0.1);
+	border-color: var(--orca-focus, var(--orca-ink));
+	box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1));
 }
 .business-library input[type='checkbox'] {
 	flex: none;
 	margin: 0;
-	accent-color: var(--orca-ink);
+	accent-color: var(--orca-control, var(--orca-ink));
 }
 .business-library .library-field {
 	display: flex;
@@ -320,7 +320,7 @@
 	text-decoration: none;
 }
 .business-library .library-workspace-grid a + a {
-	border-top: 1px solid #eff0f2;
+	border-top: 1px solid var(--orca-line-soft, #eff0f2);
 }
 .business-library .library-workspace-grid a:hover {
 	background: var(--orca-surface-2);
@@ -394,7 +394,7 @@
 	text-align: start;
 }
 .business-library .library-card + .library-card {
-	border-top: 1px solid #eff0f2;
+	border-top: 1px solid var(--orca-line-soft, #eff0f2);
 }
 .business-library .library-card:hover {
 	background: var(--orca-surface-2);
@@ -1102,5 +1102,13 @@
 @media (prefers-reduced-motion: reduce) {
 	.business-library .library-icon-button {
 		transition: none;
+	}
+}
+
+/* ---------- Dark theme ---------- */
+/* Muted text on a checked choice (citron-soft over the dark surface) is just under 4.5:1; use the brighter secondary text. */
+@media screen {
+	:root[data-orca-theme='dark'] .business-library .library-choice:has(input:checked) small {
+		color: var(--orca-nav);
 	}
 }

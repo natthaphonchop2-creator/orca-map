@@ -413,7 +413,7 @@
     align-items: center;
     gap: 6px;
     padding: 2px 9px;
-    border: 1px solid #c7e5d3;
+    border: 1px solid var(--orca-ok-line, #c7e5d3);
     border-radius: var(--orca-radius-sm);
     background: var(--orca-ok-bg);
     color: var(--orca-ok);
@@ -421,7 +421,7 @@
     font-weight: 500;
   }
   .home-state.warn {
-    border-color: #f0dca3;
+    border-color: var(--orca-warn-line, #f0dca3);
     background: var(--orca-warn-bg);
     color: var(--orca-warn);
   }
@@ -510,7 +510,7 @@
   .home-steps li.done .home-step-n {
     border-color: transparent;
     background: var(--orca-citron);
-    color: var(--orca-ink);
+    color: var(--orca-on-citron, #151823);
   }
   .home-step-copy strong {
     display: block;
@@ -609,7 +609,7 @@
     text-decoration: none;
   }
   .home-space + .home-space {
-    border-top: 1px solid #eff0f2;
+    border-top: 1px solid var(--orca-line-soft, #eff0f2);
   }
   .home-space:hover {
     background: var(--orca-surface-2);
@@ -655,7 +655,7 @@
     border-radius: 6px;
     display: inline-grid;
     place-items: center;
-    background: #fff;
+    background: var(--orca-logo-tile, #fff);
     border: 1px solid var(--orca-line);
     overflow: hidden;
   }
@@ -733,7 +733,7 @@
   }
   .home-activity td {
     padding: 10px 18px;
-    border-bottom: 1px solid #eff0f2;
+    border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
     vertical-align: middle;
   }
   .home-activity tr:last-child td {
@@ -765,7 +765,7 @@
     gap: 12px;
     align-items: center;
     padding: 12px 18px;
-    border-top: 1px solid #eff0f2;
+    border-top: 1px solid var(--orca-line-soft, #eff0f2);
     color: var(--orca-warn);
     text-decoration: none;
   }
@@ -802,7 +802,7 @@
     align-items: center;
     gap: 12px;
     padding: 10px 18px;
-    border-top: 1px solid #eff0f2;
+    border-top: 1px solid var(--orca-line-soft, #eff0f2);
     color: var(--orca-ink);
     text-decoration: none;
   }
@@ -849,7 +849,7 @@
     display: grid;
     place-items: center;
     background: var(--orca-citron);
-    color: var(--orca-ink);
+    color: var(--orca-on-citron, #151823);
   }
   .home-knowledge strong {
     display: block;
@@ -950,7 +950,7 @@
       align-items: center;
       gap: 6px 12px;
       padding: 12px 14px;
-      border-bottom: 1px solid #eff0f2;
+      border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
     }
     .home-activity tr:last-child {
       border-bottom: 0;

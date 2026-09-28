@@ -158,7 +158,7 @@
   .delete-action { color: var(--orca-deny, #b3262f); }
   .compact .delete-action { color: var(--orca-subtle, #6b7280); }
   /* The dialog lives inside table action cells (white-space: nowrap); reset what it would inherit. */
-  .lifecycle-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 24px; border: 1px solid var(--orca-line, #e5e7eb); border-radius: var(--orca-radius-lg, 10px); background: #fff; color: var(--orca-ink, #151823); box-shadow: 0 16px 48px -12px rgba(21, 24, 35, 0.28); white-space: normal; text-align: start; }
+  .lifecycle-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 24px; border: 1px solid var(--orca-line, #e5e7eb); border-radius: var(--orca-radius-lg, 10px); background: var(--orca-surface, #fff); color: var(--orca-ink, #151823); box-shadow: var(--orca-dialog-shadow, 0 16px 48px -12px rgba(21, 24, 35, 0.28)); white-space: normal; text-align: start; }
   .lifecycle-dialog::backdrop { background: rgba(21, 24, 35, 0.45); }
   .dialog-icon { width: 40px; height: 40px; display: grid; place-items: center; background: var(--orca-secondary, #f4f4f5); color: var(--orca-nav, #3f4452); border-radius: var(--orca-radius, 8px); }
   .dialog-icon.danger { background: var(--orca-deny-bg, #fdecee); color: var(--orca-deny, #b3262f); }
@@ -174,5 +174,5 @@
   .affected-gateways a { color: var(--orca-ink, #151823); text-decoration: underline; text-underline-offset: 3px; }
   .dialog-error { margin-top: 14px; color: var(--orca-deny, #b3262f); background: var(--orca-deny-bg, #fdecee); border-radius: var(--orca-radius, 8px); padding: 10px 12px; font-size: 13px; line-height: 1.7; }
   .dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 22px; }
-  button:focus-visible, a:focus-visible { outline: 2px solid var(--orca-ink, #151823); outline-offset: 2px; }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--orca-focus, var(--orca-ink, #151823)); outline-offset: 2px; }
 </style>

@@ -202,18 +202,18 @@
   .stat-note { color: var(--orca-muted); font-size: 12.5px; }
   .stat-note.warn { color: var(--orca-warn); }
   .stat.link:hover { background: var(--orca-surface-2); }
-  .stat.link:focus-visible { outline: 2px solid var(--orca-ink); outline-offset: 2px; }
+  .stat.link:focus-visible { outline: 2px solid var(--orca-focus, var(--orca-ink)); outline-offset: 2px; }
   .stat-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; font-size: 14px; font-weight: 500; }
   .holder-filter { display: flex; align-items: center; gap: 10px; }
   .holder-filter label { font-size: 13.5px; font-weight: 600; }
-  .holder-filter select { height: 36px; min-width: 0; max-width: 280px; padding: 0 10px; border: 1px solid var(--orca-line-strong); border-radius: var(--orca-radius); background: var(--orca-surface); color: var(--orca-ink); font: inherit; font-size: 14px; }
+  .holder-filter select { height: 36px; min-width: 0; max-width: 280px; padding: 0 10px; border: 1px solid var(--orca-field-line, var(--orca-line-strong)); border-radius: var(--orca-radius); background: var(--orca-surface); color: var(--orca-ink); font: inherit; font-size: 14px; }
   .secret-section { display: grid; gap: 12px; min-width: 0; }
   .section-head h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 600; }
   .section-head p { max-width: 760px; margin: 4px 0 0; color: var(--orca-muted); font-size: 13.5px; line-height: 1.6; }
   .secrets-count { padding: 0 7px; border-radius: 999px; background: var(--orca-secondary); color: var(--orca-nav); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .secret-list { overflow: hidden; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
   .secret-row { display: grid; grid-template-columns: 32px minmax(0, 1.4fr) minmax(0, 1.3fr) minmax(0, 0.9fr) 128px; align-items: center; gap: 14px; padding: 12px 18px; }
-  .secret-row + .secret-row { border-top: 1px solid #eff0f2; }
+  .secret-row + .secret-row { border-top: 1px solid var(--orca-line-soft, #eff0f2); }
   .secret-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--orca-radius); background: var(--orca-secondary); color: var(--orca-nav); }
   .secret-name { min-width: 0; }
   .secret-name strong { display: block; overflow: hidden; font-size: 14px; font-weight: 600; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
