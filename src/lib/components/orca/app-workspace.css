@@ -1563,6 +1563,9 @@
 .orca-workspace .workspace-account-menu > .workspace-account-heading {
   margin-top: 11px;
 }
+.orca-workspace .workspace-account-menu > a[aria-current="true"] > svg:last-child {
+  margin-left: auto;
+}
 .orca-workspace .workspace-company-wait {
   margin: 4px 8px 0;
   color: var(--k-muted);

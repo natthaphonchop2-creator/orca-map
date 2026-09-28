@@ -1,6 +1,6 @@
 import type { PageLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
-import { chooseCompany, rememberedCompany, setPageCompany, type CompanyPlace, type OrcaCompanyChoice } from '$lib/orca/company';
+import { chooseCompany, companyPinned, rememberedCompany, setPageCompany, type CompanyPlace, type OrcaCompanyChoice } from '$lib/orca/company';
 import { OrcaService } from '$lib/services/orca';
 
 export const ssr = false;
@@ -29,5 +29,14 @@ export const load: PageLoad = async ({ parent, url }) => {
 		if (chosen.kind === 'company') setPageCompany(chosen.id, chosen.companies);
 		return chosen;
 	})();
-	return { place: await place, account: profile.id };
+	const chosen = await place;
+	// Keep the company in the address, so a reload or a copied link stays in
+	// it whatever another tab chooses. Done here, before the page renders:
+	// the router can't change the address while the first page mounts.
+	if (chosen.kind === 'company' && companyPinned() && !url.searchParams.has('org')) {
+		const target = new URL(url);
+		target.searchParams.set('org', chosen.id);
+		throw redirect(307, `${target.pathname}${target.search}${target.hash}`);
+	}
+	return { place: chosen, account: profile.id };
 };

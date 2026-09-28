@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { goto, replaceState } from "$app/navigation";
+  import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import CompanyGate from "$lib/components/orca/CompanyGate.svelte";
-  import { companyDenied, companyPinned, currentCompany, validCompanyID } from "$lib/orca/company";
+  import { companyDenied, validCompanyID } from "$lib/orca/company";
   import Approvals from "$lib/components/orca/Approvals.svelte";
   import Audit from "$lib/components/orca/Audit.svelte";
   import OrganizationSettings from "$lib/components/orca/OrganizationSettings.svelte";
@@ -128,13 +128,6 @@
   onMount(() => {
     initializeLocale();
     if (gate) return;
-    // Keep the company in the address, so a reload or a copied link stays in
-    // it whatever another tab chooses.
-    if (companyPinned() && !page.url.searchParams.has("org")) {
-      const url = new URL(page.url);
-      url.searchParams.set("org", currentCompany());
-      replaceState(url, page.state);
-    }
     void refresh();
   });
   // An address naming another company than this page's (going back or

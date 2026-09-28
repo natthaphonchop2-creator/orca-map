@@ -26,7 +26,7 @@
   }
 </script>
 
-<svelte:head><title>{t("เลือกบริษัท · ORCA", "Choose a company · ORCA")}</title></svelte:head>
+<svelte:head><title>{mode === "choose" ? t("เลือกบริษัท · ORCA", "Choose a company · ORCA") : "ORCA"}</title></svelte:head>
 <div class="orca o-auth-page" lang={orcaLocale.value}>
   <header class="o-simple-header o-wrap">
     <a href={localeHref("/")} aria-label={t("หน้าหลัก ORCA", "ORCA home")}><Brand /></a>
