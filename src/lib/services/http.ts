@@ -3,7 +3,7 @@ import { createHttpError } from '$lib/errors';
 import { loginHref } from '$lib/orca/navigation';
 import errors from '$lib/stores/errors.svelte';
 import profile from '$lib/stores/profile.svelte';
-import { counted, orcaAccountChanged, orcaAccountHeaders, pageAccountOr, reloadForAccount, writesInFlight } from './writes';
+import { accountHeaders, counted, orcaAccountChanged, pageAccountOr, reloadForAccount, writesInFlight } from './writes';
 
 // For SSR, use VITE_API_TARGET if set (for remote API development)
 // For browser, use window.location.origin (requests go through Vite proxy)
@@ -17,9 +17,9 @@ if (typeof window !== 'undefined') {
 	baseURL = apiTarget.endsWith('/api') ? apiTarget : apiTarget + '/api';
 }
 
-// Every ORCA request names the account this page was opened for.
-function getAuthHeaders(path: string): Record<string, string> {
-	return orcaAccountHeaders(path, pageAccountOr(profile.current.id));
+// Every request names the account this page was opened for.
+function getAuthHeaders(_path: string): Record<string, string> {
+	return accountHeaders(pageAccountOr(profile.current.id));
 }
 
 // Another tab signed in as someone else: this page belongs to the old

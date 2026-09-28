@@ -33,10 +33,12 @@ export function pageAccountOr(fallback: string | undefined): string | undefined 
 export const ORCA_ACCOUNT_HEADER = 'X-Orca-Account';
 const ORCA_ACCOUNT_CHANGED = 'orca_account_changed';
 
-/** Binds an ORCA request to the account this page was opened for, so the
- * server refuses it if another tab has since signed in as someone else. */
-export function orcaAccountHeaders(path: string, account: string | undefined): Record<string, string> {
-	return account && path.startsWith('/orca/') ? { [ORCA_ACCOUNT_HEADER]: account } : {};
+/** Binds a request to the account this page was opened for, so the server
+ * refuses it if another tab has since signed in as someone else. Every
+ * request counts, not only ORCA's: a page also creates local accounts and
+ * catalog entries through the engine's routes. */
+export function accountHeaders(account: string | undefined): Record<string, string> {
+	return account ? { [ORCA_ACCOUNT_HEADER]: account } : {};
 }
 
 /** Whether a response says this page's account is no longer the session's. */
@@ -49,16 +51,18 @@ type Storage = Pick<globalThis.Storage, 'getItem' | 'setItem'>;
 /**
  * Opens the page afresh after the session changed account, at most once in
  * ten seconds: a page that keeps disagreeing with its session shows the error
- * instead of reloading forever.
+ * instead of reloading forever. Without storage to remember the last reload,
+ * it never reloads by itself; the page asks the person to.
  */
 export function reloadForAccount(reload: () => void, storage: Storage | undefined, now = Date.now()): boolean {
 	const key = 'orca.accountReload';
+	if (!storage) return false;
 	try {
-		const last = storage?.getItem(key);
+		const last = storage.getItem(key);
 		if (last && now - Number(last) < 10_000) return false;
-		storage?.setItem(key, String(now));
+		storage.setItem(key, String(now));
 	} catch {
-		/* storage is optional */
+		return false;
 	}
 	reload();
 	return true;

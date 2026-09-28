@@ -3,7 +3,7 @@ import test from 'node:test';
 import { importTypeScript } from './test-import.mjs';
 
 const company = await importTypeScript(new URL('./company.ts', import.meta.url));
-const { chooseCompany, companyDenied, companySwitch, invitationReturnPath, keepCompany, orcaPath, rememberCompany, rememberedCompany, resolvePlace, setPageCompany, validCompanyID } = company;
+const { chooseCompany, companyDenied, companySwitch, invitationReturnPath, keepCompany, orcaPath, reloadForAddress, rememberCompany, rememberedCompany, resolvePlace, setPageCompany, validCompanyID } = company;
 
 const A = 'org-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const B = 'org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -140,4 +140,18 @@ test('only a server without the list opens "default"; any other failure opens no
 	assert.deepEqual(await resolvePlace(fail(503), missing, B, null), { kind: 'error' }, 'even an explicit company waits for the list');
 	// A list: the usual precedence.
 	assert.deepEqual(await resolvePlace(async () => [choice('default'), choice(B)], missing, null, B), { kind: 'company', id: B, companies: [choice('default'), choice(B)] });
+});
+
+test('an address naming another company opens it afresh, but a failed list never reloads by itself', () => {
+	const inB = { kind: 'company', id: B, companies: [choice(B)] };
+	assert.equal(reloadForAddress(inB, B), false);
+	assert.equal(reloadForAddress(inB, 'default'), true);
+	assert.equal(reloadForAddress(inB, null), false);
+	assert.equal(reloadForAddress(inB, 'not-a-company'), false);
+	// The chooser and the no-company page have no company: any company counts.
+	assert.equal(reloadForAddress({ kind: 'choose', companies: [choice('default'), choice(B)] }, B), true);
+	assert.equal(reloadForAddress({ kind: 'none' }, 'default'), true);
+	// The list failed with org=B in the address: reloading would fail again, forever.
+	assert.equal(reloadForAddress({ kind: 'error' }, B), false);
+	assert.equal(reloadForAddress({ kind: 'error' }, 'default'), false);
 });

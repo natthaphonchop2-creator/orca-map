@@ -3,7 +3,7 @@ import test from 'node:test';
 import { importTypeScript } from './test-import.mjs';
 
 const writes = await importTypeScript(new URL('../services/writes.ts', import.meta.url));
-const { counted, guardPage, orcaAccountChanged, orcaAccountHeaders, reloadForAccount, writesInFlight } = writes;
+const { accountHeaders, counted, guardPage, orcaAccountChanged, reloadForAccount, writesInFlight } = writes;
 
 function deferred() {
 	let resolve;
@@ -26,13 +26,10 @@ test('a write counts until it has finished, response body and all', async () => 
 	assert.equal(writesInFlight(), 0, 'a failed write stops counting too');
 });
 
-test('ORCA requests name the page\'s account; others and signed-out pages don\'t', () => {
-	assert.deepEqual(orcaAccountHeaders('/orca/keys', '7'), { 'X-Orca-Account': '7' });
-	assert.deepEqual(orcaAccountHeaders('/orca/orgs/org-x/bootstrap', '7'), { 'X-Orca-Account': '7' });
-	assert.deepEqual(orcaAccountHeaders('/me', '7'), {});
-	assert.deepEqual(orcaAccountHeaders('/local-auth/users', '7'), {});
-	assert.deepEqual(orcaAccountHeaders('/orca/keys', undefined), {});
-	assert.deepEqual(orcaAccountHeaders('/orca/keys', ''), {});
+test('every request names the page\'s account; a signed-out page names none', () => {
+	assert.deepEqual(accountHeaders('7'), { 'X-Orca-Account': '7' });
+	assert.deepEqual(accountHeaders(undefined), {});
+	assert.deepEqual(accountHeaders(''), {});
 });
 
 test('only the server\'s account refusal counts as an account change', () => {
@@ -51,11 +48,14 @@ test('an account change reloads the page at most once in ten seconds', () => {
 	assert.equal(reloads, 1);
 	assert.equal(reloadForAccount(reload, storage, 111_000), true);
 	assert.equal(reloads, 2);
-	// Without storage it still reloads, once per call.
+	// Without storage to remember the last reload, it never reloads by itself.
 	const broken = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } };
-	assert.equal(reloadForAccount(reload, broken, 0), true);
-	assert.equal(reloadForAccount(reload, undefined, 0), true);
-	assert.equal(reloads, 4);
+	const full = { getItem: () => null, setItem() { throw new Error('quota'); } };
+	for (const unusable of [broken, full, undefined]) {
+		assert.equal(reloadForAccount(reload, unusable, 200_000), false);
+		assert.equal(reloadForAccount(reload, unusable, 200_000), false);
+	}
+	assert.equal(reloads, 2);
 });
 
 test('a page restored from the back-forward cache opens afresh, and leaving mid-save asks first', () => {

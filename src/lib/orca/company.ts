@@ -135,6 +135,17 @@ export function companyHref(id: string): string {
 	return `/app?org=${id}`;
 }
 
+/**
+ * Whether an address naming `org` must open afresh. A company page reloads
+ * for any other company; the chooser and the no-company page have none, so
+ * any company counts. A page whose company list failed never reloads by
+ * itself, or it would retry forever; its button does.
+ */
+export function reloadForAddress(place: CompanyPlace, org: string | null): boolean {
+	if (!validCompanyID(org) || place.kind === 'error') return false;
+	return place.kind === 'company' ? org !== place.id : true;
+}
+
 /** Keeps a workspace link in this page's company, when links carry it. */
 export function keepCompany(url: URL) {
 	if (url.pathname === '/app' && pinned && !url.searchParams.has('org')) url.searchParams.set('org', pageCompany);

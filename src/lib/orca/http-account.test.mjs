@@ -12,7 +12,7 @@ const code = stripTypeScriptTypes(await readFile(new URL('../services/http.ts', 
 	.replace(/^export \{[^}]*\};?$/gm, '')
 	.replace(/^export /gm, '')
 	.replaceAll('import.meta.env.VITE_API_TARGET', 'undefined');
-const { http, setPageAccount } = await import('data:text/javascript;base64,' + Buffer.from(`import { counted, orcaAccountChanged, orcaAccountHeaders, pageAccountOr, reloadForAccount, writesInFlight, setPageAccount } from ${JSON.stringify(writesURL)};
+const { http, setPageAccount } = await import('data:text/javascript;base64,' + Buffer.from(`import { accountHeaders, counted, orcaAccountChanged, pageAccountOr, reloadForAccount, writesInFlight, setPageAccount } from ${JSON.stringify(writesURL)};
 export { setPageAccount };
 export function http(deps) {
 	const { UNAUTHORIZED_PATHS, UNAUTHORIZED_PATH_PREFIXES, createHttpError, loginHref, errors, profile } = deps;
@@ -31,14 +31,17 @@ function response(status, body, contentType = 'application/json') {
 	return { ok: status < 400, status, headers: { get: (name) => (name === 'Content-Type' ? contentType : null) }, text: async () => body, json: async () => JSON.parse(body) };
 }
 
-test('ORCA requests carry the page\'s account; other requests don\'t', async () => {
+test('every request carries the page\'s account, the engine\'s routes included', async () => {
 	const seen = [];
 	const fetch = async (url, init) => { seen.push({ url, headers: init?.headers ?? {} }); return response(200, '{}'); };
 	await client.doPost('/orca/keys', { name: 'laptop' }, { fetch });
 	await client.doGet('/orca/orgs/org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/bootstrap', { fetch });
 	await client.doDelete('/orca/keys/1', { fetch });
+	await client.doPost('/local-auth/users', { email: 'x@example.invalid' }, { fetch });
+	await client.doPost('/local-auth/users/9/password', { password: 'x' }, { fetch });
+	await client.doPost('/mcp-catalogs/default/entries', { name: 'x' }, { fetch });
 	await client.doGet('/me', { fetch });
-	assert.deepEqual(seen.map((request) => request.headers['X-Orca-Account']), ['7', '7', '7', undefined]);
+	assert.deepEqual(seen.map((request) => request.headers['X-Orca-Account']), ['7', '7', '7', '7', '7', '7', '7']);
 });
 
 test('a save counts until its response body is read, not just its headers', async () => {

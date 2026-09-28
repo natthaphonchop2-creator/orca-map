@@ -2,7 +2,7 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import CompanyGate from "$lib/components/orca/CompanyGate.svelte";
-  import { companyDenied, validCompanyID } from "$lib/orca/company";
+  import { companyDenied, reloadForAddress } from "$lib/orca/company";
   import { guardPage, reloadForAccount } from "$lib/services/writes";
   import Approvals from "$lib/components/orca/Approvals.svelte";
   import Audit from "$lib/components/orca/Audit.svelte";
@@ -145,12 +145,9 @@
     return stopGuard;
   });
   // An address naming another company than this page's (going back or
-  // forward, or any navigation that skips a reload) opens it afresh. The
-  // chooser and the no-company page have no company, so any company counts.
-  const pageCompany = $derived(route.place.kind === "company" ? route.place.id : "");
+  // forward, or any navigation that skips a reload) opens it afresh.
   $effect(() => {
-    const org = page.url.searchParams.get("org");
-    if (validCompanyID(org) && org !== pageCompany) window.location.reload();
+    if (reloadForAddress(route.place, page.url.searchParams.get("org"))) window.location.reload();
   });
   async function reloadWizard() {
     await refresh();
