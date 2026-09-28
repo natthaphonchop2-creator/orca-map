@@ -5,6 +5,7 @@
   import PublicFooter from "$lib/components/orca/PublicFooter.svelte";
   import "$lib/components/orca/forms.css";
   import "$lib/components/orca/orca.css";
+  import "$lib/components/orca/login.css";
   import {
     initializeLocale,
     localeHref,
@@ -13,7 +14,7 @@
   } from "$lib/orca/locale.svelte";
   import type { PageProps } from "./$types";
   import { googleSignInReason, googleStartHref, type GoogleSignInReason } from "$lib/orca/google-signin";
-  import { ArrowRight } from "@lucide/svelte";
+  import { ArrowLeft, ArrowRight, BookOpen, Plug, ShieldCheck } from "@lucide/svelte";
   import { onMount } from "svelte";
 
   let { data }: PageProps = $props();
@@ -47,6 +48,10 @@
     }[reason];
   }
   onMount(initializeLocale);
+  // The public website lives on the backend's origin; /home (server/app.mjs) sends people there.
+  function site(page = "") {
+    return localeHref(page ? `/home?to=${page}` : "/home");
+  }
   function signIn(namespace: string | undefined, id: string) {
     const destination = new URL("/oauth2/start", window.location.origin);
     destination.searchParams.set("rd", localeHref(data.rd));
@@ -61,15 +66,18 @@
 <svelte:head
   ><title>{t("เข้าสู่ระบบ · ORCA", "Sign in · ORCA")}</title></svelte:head
 >
-<div class="orca o-auth-page" lang={orcaLocale.value}>
+<div class="orca o-auth-page o-login" lang={orcaLocale.value}>
   <header class="o-simple-header o-wrap">
-    <a href={localeHref("/")} aria-label={t("หน้าหลัก ORCA", "ORCA home")}
-      ><Brand /></a
+    <a class="o-login-brand" href={site()} aria-label={t("หน้าเว็บ ORCA", "ORCA website")}
+      ><Brand dark /></a
+    >
+    <a class="o-login-back" href={site()}
+      ><ArrowLeft size={15} aria-hidden="true" />{t("กลับหน้าเว็บ ORCA", "Back to the ORCA website")}</a
     >
   </header>
   <main class="o-auth o-wrap">
     <section class="o-auth-story">
-      <Brand dark />
+      <p class="o-login-eyebrow"><span aria-hidden="true"></span>ORCA Workspace</p>
       <h1>
         {t("พื้นที่ทำงาน AI", "The AI workspace")}<br />{t(
           "สำหรับองค์กรของคุณ",
@@ -82,6 +90,11 @@
           "Connect your organization’s systems, manage its knowledge and control each member’s AI access in one place.",
         )}
       </p>
+      <ul class="o-login-points">
+        <li><span class="o-login-icon"><Plug size={16} aria-hidden="true" /></span>{t("เชื่อมโปรแกรมที่บริษัทใช้อยู่ ผ่าน MCP หรือ API", "Connect the software you already use, through MCP or its API")}</li>
+        <li><span class="o-login-icon"><BookOpen size={16} aria-hidden="true" /></span>{t("คลังความรู้ของบริษัท แยกตามแผนก", "Company knowledge, kept by department")}</li>
+        <li><span class="o-login-icon"><ShieldCheck size={16} aria-hidden="true" /></span>{t("สิทธิ์รายคน อนุมัติก่อนแก้ข้อมูล และบันทึกทุกการใช้งาน", "Access per person, approval before changes and a record of every call")}</li>
+      </ul>
     </section>
     <section class="o-auth-form">
       <h2>{t("เข้าสู่ระบบ ORCA", "Sign in to ORCA")}</h2>
@@ -193,6 +206,10 @@
           )}
         </p>
       {/if}
+      <p class="o-login-new">
+        {t("ยังไม่มีบัญชีองค์กร?", "No company account yet?")}
+        <a href={site("start")}>{t("คุยกับทีม ORCA", "Talk to the ORCA team")}<ArrowRight size={14} aria-hidden="true" /></a>
+      </p>
     </section>
   </main>
   <PublicFooter />

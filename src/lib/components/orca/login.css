@@ -1,0 +1,305 @@
+/*
+ * Sign-in page, dark like the public website (orca/site/site.css on the backend).
+ * Only src/routes/login/+page.svelte imports this file, and every rule is scoped to
+ * .orca.o-auth-page.o-login, so the invitation page and the company chooser, which share
+ * forms.css, keep their light look.
+ */
+.orca.o-auth-page.o-login {
+	--login-bg: #08090a;
+	--login-surface: #0e0f11;
+	--login-surface-2: #141517;
+	--login-text: #f7f8f8;
+	--login-text-2: rgba(255, 255, 255, 0.8);
+	--login-muted: #8a8f98;
+	--login-line: rgba(255, 255, 255, 0.08);
+	--login-line-2: rgba(255, 255, 255, 0.14);
+	--login-citron: #d7f471;
+	--login-citron-hover: #e3f794;
+	--login-on-citron: #151823;
+	--login-deny: #ff9aa2;
+	min-height: 100vh;
+	min-height: 100dvh;
+	background:
+		radial-gradient(900px 520px at 12% -8%, rgba(215, 244, 113, 0.07), transparent 62%),
+		radial-gradient(760px 520px at 100% 110%, rgba(255, 255, 255, 0.035), transparent 60%),
+		var(--login-bg);
+	color: var(--login-text);
+	color-scheme: dark;
+}
+.orca.o-auth-page.o-login :focus-visible {
+	outline: 2px solid var(--login-citron);
+	outline-offset: 2px;
+}
+
+/* ---------- Header ---------- */
+.orca.o-auth-page.o-login .o-simple-header {
+	height: 64px;
+	border-bottom: 1px solid var(--login-line);
+}
+.orca.o-auth-page.o-login .o-login-brand {
+	display: inline-flex;
+	transform: scale(0.72);
+	transform-origin: left center;
+	transition: opacity 0.15s ease;
+}
+.orca.o-auth-page.o-login .o-login-brand:hover {
+	opacity: 0.85;
+}
+.orca.o-auth-page.o-login .o-login-back {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--login-muted);
+	font-size: 13.5px;
+	font-weight: 500;
+	text-decoration: none;
+	transition: color 0.15s ease;
+}
+.orca.o-auth-page.o-login .o-login-back:hover {
+	color: var(--login-text);
+}
+
+/* ---------- Layout ---------- */
+.orca.o-auth-page.o-login .o-auth {
+	grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
+	gap: 80px;
+	padding-block: 56px 88px;
+}
+
+/* ---------- Story ---------- */
+.orca.o-auth-page.o-login .o-auth-story {
+	min-height: 0;
+	padding: 0;
+	border-radius: 0;
+	background: none;
+	color: var(--login-text);
+}
+.orca.o-auth-page.o-login .o-login-eyebrow {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	align-self: flex-start;
+	height: 28px;
+	padding: 0 12px;
+	border: 1px solid var(--login-line-2);
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.03);
+	color: var(--login-text-2);
+	font-size: 13px;
+	font-weight: 500;
+}
+.orca.o-auth-page.o-login .o-login-eyebrow span {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--login-citron);
+	box-shadow: 0 0 0 3px rgba(215, 244, 113, 0.16);
+}
+.orca.o-auth-page.o-login .o-auth-story h1 {
+	margin-top: 22px;
+	font-size: clamp(30px, 3.4vw, 44px);
+	font-weight: 600;
+	line-height: 1.25;
+	letter-spacing: 0;
+	text-wrap: balance;
+}
+.orca.o-auth-page.o-login .o-auth-story > p:not(.o-login-eyebrow) {
+	max-width: 44ch;
+	margin-top: 16px;
+	color: var(--login-muted);
+	font-size: 16px;
+	line-height: 1.7;
+}
+.orca.o-auth-page.o-login .o-login-points {
+	display: grid;
+	gap: 14px;
+	margin: 32px 0 0;
+	padding: 0;
+	list-style: none;
+}
+.orca.o-auth-page.o-login .o-login-points li {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	color: var(--login-text-2);
+	font-size: 14.5px;
+	line-height: 1.5;
+}
+.orca.o-auth-page.o-login .o-login-icon {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	border: 1px solid var(--login-line);
+	border-radius: 9px;
+	background: var(--login-surface-2);
+	color: var(--login-citron);
+}
+
+/* ---------- Form card ---------- */
+.orca.o-auth-page.o-login .o-auth-form {
+	max-width: 440px;
+	padding: 36px 32px 28px;
+	border: 1px solid var(--login-line);
+	border-radius: 16px;
+	background: var(--login-surface);
+	box-shadow: 0 40px 120px -40px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.orca.o-auth-page.o-login .o-auth-form h2 {
+	color: var(--login-text);
+	font-size: 22px;
+	font-weight: 600;
+}
+.orca.o-auth-page.o-login .o-auth-form > p {
+	margin-top: 6px;
+	color: var(--login-muted);
+}
+.orca.o-auth-page.o-login .o-link {
+	color: var(--login-text);
+	text-decoration: underline;
+	text-decoration-color: var(--login-line-2);
+	text-underline-offset: 3px;
+}
+.orca.o-auth-page.o-login .o-field {
+	color: var(--login-text-2);
+}
+.orca.o-auth-page.o-login .o-field input {
+	height: 44px;
+	border-color: var(--login-line-2);
+	border-radius: 10px;
+	background: var(--login-surface-2);
+	color: var(--login-text);
+}
+.orca.o-auth-page.o-login .o-field input:hover {
+	border-color: rgba(255, 255, 255, 0.22);
+}
+.orca.o-auth-page.o-login .o-field input:focus-visible {
+	border-color: var(--login-citron);
+	box-shadow: 0 0 0 3px rgba(215, 244, 113, 0.18);
+}
+.orca.o-auth-page.o-login .o-field input:-webkit-autofill {
+	-webkit-text-fill-color: var(--login-text);
+	caret-color: var(--login-text);
+	box-shadow: 0 0 0 1000px var(--login-surface-2) inset;
+}
+.orca.o-auth-page.o-login .o-password-label button {
+	color: var(--login-muted);
+}
+.orca.o-auth-page.o-login .o-password-label button:hover {
+	color: var(--login-text);
+}
+/* Primary: the website's citron button. */
+.orca.o-auth-page.o-login .o-button {
+	min-height: 44px;
+	border: 0;
+	border-radius: 10px;
+	background: var(--login-citron);
+	color: var(--login-on-citron) !important;
+	font-weight: 600;
+}
+.orca.o-auth-page.o-login .o-button:hover {
+	background: var(--login-citron-hover);
+}
+/* Secondary (another provider): outline on the dark card. */
+.orca.o-auth-page.o-login .o-button.outline {
+	border: 1px solid var(--login-line-2);
+	background: transparent;
+	color: var(--login-text) !important;
+}
+.orca.o-auth-page.o-login .o-button.outline:hover {
+	border-color: rgba(255, 255, 255, 0.28);
+	background: rgba(255, 255, 255, 0.04);
+}
+/* Google keeps its own white button, as Google asks. */
+.orca.o-auth-page.o-login .o-button.outline.o-google {
+	margin-top: 24px;
+	border: 0;
+	background: #f7f8f8;
+	color: #08090a !important;
+}
+.orca.o-auth-page.o-login .o-button.outline.o-google:hover {
+	background: #ffffff;
+}
+.orca.o-auth-page.o-login .o-auth-divider {
+	margin: 22px 0 6px;
+	color: var(--login-muted);
+}
+.orca.o-auth-page.o-login .o-auth-divider::before,
+.orca.o-auth-page.o-login .o-auth-divider::after {
+	background: var(--login-line);
+}
+.orca.o-auth-page.o-login .o-auth-bottom {
+	border-top-color: var(--login-line);
+	color: var(--login-muted);
+}
+.orca.o-auth-page.o-login .o-alert {
+	border-color: rgba(240, 97, 109, 0.35);
+	background: rgba(240, 97, 109, 0.1);
+	color: var(--login-deny);
+}
+.orca.o-auth-page.o-login .o-login-new {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	margin-top: 24px;
+	padding-top: 20px;
+	border-top: 1px solid var(--login-line);
+	color: var(--login-muted);
+	font-size: 13.5px;
+}
+.orca.o-auth-page.o-login .o-login-new a {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	color: var(--login-text);
+	font-weight: 500;
+	text-decoration: none;
+}
+.orca.o-auth-page.o-login .o-login-new a:hover {
+	color: var(--login-citron);
+}
+
+/* ---------- Footer ---------- */
+.orca.o-auth-page.o-login .o-footer {
+	border-top-color: var(--login-line);
+	background: transparent;
+	color: var(--login-muted);
+}
+.orca.o-auth-page.o-login .o-footer-links a {
+	color: var(--login-muted);
+}
+.orca.o-auth-page.o-login .o-footer-links a:hover {
+	color: var(--login-text);
+}
+
+/* ---------- Small screens: the form comes first ---------- */
+@media (max-width: 900px) {
+	.orca.o-auth-page.o-login .o-auth {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 40px;
+		padding-block: 32px 56px;
+	}
+	.orca.o-auth-page.o-login .o-auth-form {
+		order: -1;
+		justify-self: stretch;
+		max-width: none;
+	}
+	.orca.o-auth-page.o-login .o-auth-story h1 {
+		font-size: 26px;
+	}
+}
+@media (max-width: 640px) {
+	.orca.o-auth-page.o-login .o-login-back span,
+	.orca.o-auth-page.o-login .o-login-back {
+		font-size: 13px;
+	}
+	.orca.o-auth-page.o-login .o-auth-form {
+		padding: 28px 20px 22px;
+	}
+	.orca.o-auth-page.o-login .o-auth-story > p:not(.o-login-eyebrow) {
+		font-size: 15px;
+	}
+}

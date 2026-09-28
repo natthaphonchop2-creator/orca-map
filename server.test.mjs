@@ -169,6 +169,21 @@ test('finishes a source sign-in the backend hands off, with the member session',
 // Production serves a static build: nothing answers a route's __data.json, so
 // a server-only loader breaks its page. The debugger's return page, which a
 // handed-off sign-in can reach, relies on the static server's no-store instead.
+test('sends /home to the public website, keeping only a known page and the language', async (t) => {
+  const { appURL } = await fixture(t, (_req, res) => res.end('upstream'), { backendPublicOrigin: 'https://orca.example' });
+  let res = await request(appURL, '/home?lang=en');
+  assert.equal(res.status, 302);
+  assert.equal(res.headers.location, 'https://orca.example/?lang=en');
+  assert.equal(res.headers['cache-control'], 'no-store');
+  res = await request(appURL, '/home?to=start&lang=th');
+  assert.equal(res.headers.location, 'https://orca.example/start?lang=th');
+  res = await request(appURL, '/home?to=//evil.example/x&lang=fr');
+  assert.equal(res.headers.location, 'https://orca.example/');
+  res = await request(appURL, '/home', { method: 'HEAD' });
+  assert.equal(res.status, 302);
+  assert.equal(res.headers.location, 'https://orca.example/');
+});
+
 test('serves pages without server data, including the uncached debugger return', async (t) => {
   const { appURL } = await fixture(t);
   const page = await request(appURL, '/oauth-debugger/callback?code=a%2Bb&state=c');

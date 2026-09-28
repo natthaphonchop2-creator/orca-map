@@ -109,6 +109,20 @@ function canonicalOAuthNavigation(req, res, config, appOrigin, pathname) {
   return true;
 }
 
+// The public website (landing, pricing, start, privacy) lives on the backend's public origin; the
+// workspace's own "/" goes to /app. Signed-out pages link "home" through /home, which keeps only a
+// known page and the language, so it can never become an open redirect.
+const SITE_PAGES = new Set(['start', 'pricing', 'services', 'privacy']);
+function publicSite(req, res, config, url) {
+  if (!SAFE.has(req.method)) return json(res, 405, { error: 'method_not_allowed' });
+  const page = url.searchParams.get('to');
+  const target = new URL(SITE_PAGES.has(page) ? `/${page}` : '/', (config.backendPublicOrigin ?? config.backend).origin);
+  const lang = url.searchParams.get('lang');
+  if (lang === 'en' || lang === 'th') target.searchParams.set('lang', lang);
+  res.writeHead(302, { location: target.href, 'cache-control': 'no-store' });
+  res.end();
+}
+
 function proxy(req, res, config, appOrigin, requestPath = req.url) {
   const headers = cleanHeaders(req.headers);
   for (const name of Object.keys(headers)) {
@@ -261,6 +275,7 @@ export function createAppServer(options = {}) {
       const backendRoute = rootCallback || BACKEND_PREFIXES.some((prefix) => pathname.startsWith(prefix));
       if (!validBrowserRequest(req, appOrigin, rootCallback ? '/oauth2/callback' : pathname, backendRoute)) return json(res, 403, { error: 'cross_origin_request' });
       if (pathname === '/healthz') return await health(req, res, config);
+      if (pathname === '/home') return publicSite(req, res, config, url);
       if (canonicalOAuthNavigation(req, res, config, appOrigin, pathname)) return;
       if (backendRoute) return proxy(req, res, config, appOrigin, rootCallback ? '/oauth2/callback' + url.search : req.url);
       await serveStatic(req, res, pathname, config);
