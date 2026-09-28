@@ -1373,7 +1373,7 @@
 		margin-top: 1px;
 		border-radius: 50%;
 		background: var(--orca-ink);
-		color: #fff;
+		color: var(--orca-on-ink, #fff);
 		font-size: 13px;
 		font-weight: 600;
 		line-height: 1;
@@ -1653,6 +1653,12 @@
 		font-size: 13px;
 		line-height: 1.55;
 		overflow-wrap: anywhere;
+	}
+	/* Dark only: muted text on the chosen citron tint is 4.49:1, so it takes the nav tone. */
+	@media screen {
+		:global(:root[data-orca-theme='dark']) .setup-choice.selected .setup-choice-copy p {
+			color: var(--orca-nav);
+		}
 	}
 	.setup-choice-copy .k-badge {
 		margin-top: 6px;
@@ -2018,7 +2024,7 @@
 		padding: 10px 18px;
 	}
 	.setup-summary-row + .setup-summary-row {
-		border-top: 1px solid #eff0f2;
+		border-top: 1px solid var(--orca-line-soft, #eff0f2);
 	}
 	.setup-summary-tile {
 		grid-row: span 2;
@@ -2073,7 +2079,7 @@
 			border-top: 0;
 		}
 		.setup-summary dl > .setup-summary-row:nth-child(n + 3) {
-			border-top: 1px solid #eff0f2;
+			border-top: 1px solid var(--orca-line-soft, #eff0f2);
 		}
 	}
 	@media (max-width: 760px) {
@@ -2136,7 +2142,7 @@
 			grid-template-columns: minmax(0, 1fr);
 		}
 		.setup-summary dl > .setup-summary-row:nth-child(n + 2) {
-			border-top: 1px solid #eff0f2;
+			border-top: 1px solid var(--orca-line-soft, #eff0f2);
 		}
 	}
 </style>

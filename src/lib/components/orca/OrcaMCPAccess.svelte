@@ -328,7 +328,7 @@
 		text-decoration: none;
 	}
 	.access-gateway-list a + a {
-		border-top: 1px solid #eff0f2;
+		border-top: 1px solid var(--orca-line-soft, #eff0f2);
 	}
 	.access-gateway-list a:hover {
 		background: var(--orca-surface-2);
@@ -367,7 +367,7 @@
 	.key-step {
 		margin-top: 20px;
 		padding-top: 16px;
-		border-top: 1px solid #eff0f2;
+		border-top: 1px solid var(--orca-line-soft, #eff0f2);
 	}
 	.key-step > .step-title {
 		margin-bottom: 12px;
@@ -431,7 +431,7 @@
 	.owned-keys {
 		margin-top: 24px;
 		padding-top: 16px;
-		border-top: 1px solid #eff0f2;
+		border-top: 1px solid var(--orca-line-soft, #eff0f2);
 	}
 	.key-list-heading {
 		display: flex;
@@ -453,7 +453,7 @@
 		padding: 12px 14px;
 	}
 	.key-row + .key-row {
-		border-top: 1px solid #eff0f2;
+		border-top: 1px solid var(--orca-line-soft, #eff0f2);
 	}
 	.key-meta {
 		display: flex;

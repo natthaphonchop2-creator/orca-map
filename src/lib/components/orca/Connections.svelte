@@ -992,7 +992,7 @@
 	.current .step-number {
 		border-color: var(--orca-ink);
 		background: var(--orca-ink);
-		color: #fff;
+		color: var(--orca-on-ink, #fff);
 	}
 	.complete .step-number {
 		border-color: transparent;
@@ -1074,7 +1074,7 @@
 		font-size: 14px;
 	}
 	.k-check-list .k-check-row + .k-check-row {
-		border-top: 1px solid #eff0f2;
+		border-top: 1px solid var(--orca-line-soft, #eff0f2);
 	}
 	.k-check-list .k-check-row:hover,
 	.k-check-list .k-check-row.selected {

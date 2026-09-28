@@ -109,7 +109,7 @@
     min-width: 0;
     height: 36px;
     padding: 0 11px;
-    border: 1px solid var(--orca-line-strong);
+    border: 1px solid var(--orca-field-line, var(--orca-line-strong));
     border-radius: var(--orca-radius);
     background: var(--orca-surface-2);
     color: var(--orca-ink);
@@ -119,8 +119,8 @@
   }
   .share-input input:focus-visible {
     outline: none;
-    border-color: var(--orca-ink);
-    box-shadow: 0 0 0 3px rgba(21, 24, 35, 0.1);
+    border-color: var(--orca-focus, var(--orca-ink));
+    box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1));
   }
   .share-input .k-button {
     flex: none;

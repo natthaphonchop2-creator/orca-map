@@ -75,7 +75,7 @@
   .compact .lifecycle-button.delete-action:hover:not(:disabled) { background: var(--orca-deny-bg); color: var(--orca-deny); }
   .compact .lifecycle-button:disabled { opacity: 0.5; cursor: not-allowed; }
   .lifecycle-notice { color: var(--orca-muted); }
-  .team-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; margin: auto; padding: 24px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); color: var(--orca-ink); box-shadow: 0 16px 48px -12px rgba(21, 24, 35, 0.28); white-space: normal; text-align: start; }
+  .team-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; margin: auto; padding: 24px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); color: var(--orca-ink); box-shadow: var(--orca-dialog-shadow, 0 16px 48px -12px rgba(21, 24, 35, 0.28)); white-space: normal; text-align: start; }
   .team-dialog::backdrop { background: rgba(21, 24, 35, 0.45); }
   .dialog-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--orca-radius); background: var(--orca-secondary); color: var(--orca-nav); }
   .dialog-icon.danger { background: var(--orca-deny-bg); color: var(--orca-deny); }

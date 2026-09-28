@@ -427,8 +427,8 @@
   .setup-field label, .field-label-row span { font-size: 13.5px; font-weight: 600; }
   .field-label-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .field-label-row :global(.k-button) { flex: none; white-space: nowrap; }
-  .setup-field input { width: 100%; min-width: 0; min-height: 36px; padding: 7px 11px; border: 1px solid var(--orca-line-strong); border-radius: var(--orca-radius); background: var(--orca-surface); color: var(--orca-ink); font: inherit; font-size: 14px; }
-  .setup-field input:focus-visible { outline: none; border-color: var(--orca-ink); box-shadow: 0 0 0 3px rgba(21, 24, 35, 0.1); }
+  .setup-field input { width: 100%; min-width: 0; min-height: 36px; padding: 7px 11px; border: 1px solid var(--orca-field-line, var(--orca-line-strong)); border-radius: var(--orca-radius); background: var(--orca-surface); color: var(--orca-ink); font: inherit; font-size: 14px; }
+  .setup-field input:focus-visible { outline: none; border-color: var(--orca-focus, var(--orca-ink)); box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1)); }
   .setup-field input[readonly] { background: var(--orca-surface-2); color: var(--orca-muted); font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 13px; }
   .field-action { display: flex; gap: 8px; min-width: 0; }
   .scope-list { display: grid; gap: 2px; margin: 0; padding: 10px 12px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius); background: var(--orca-surface-2); list-style: none; }
@@ -439,9 +439,9 @@
   .panel-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 14px; border-top: 1px solid var(--orca-line); }
   .app-list { overflow: hidden; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
   .app-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 11px 18px; color: var(--orca-ink); text-decoration: none; }
-  .app-row + .app-row { border-top: 1px solid #eff0f2; }
+  .app-row + .app-row { border-top: 1px solid var(--orca-line-soft, #eff0f2); }
   .app-row:hover { background: var(--orca-surface-2); }
-  .app-row:focus-visible { outline: 2px solid var(--orca-ink); outline-offset: -2px; }
+  .app-row:focus-visible { outline: 2px solid var(--orca-focus, var(--orca-ink)); outline-offset: -2px; }
   .app-name { min-width: 0; }
   .app-name strong { display: block; font-size: 14px; font-weight: 600; line-height: 1.45; }
   .app-name span { display: block; overflow: hidden; color: var(--orca-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }

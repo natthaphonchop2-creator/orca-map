@@ -727,14 +727,14 @@
     width: min(360px, 100%);
     height: 36px;
     padding: 0 11px;
-    border: 1px solid var(--orca-line-strong);
+    border: 1px solid var(--orca-field-line, var(--orca-line-strong));
     border-radius: var(--orca-radius);
     background: var(--orca-surface);
     color: var(--orca-subtle);
   }
   .catalog-search:focus-within {
-    border-color: var(--orca-ink);
-    box-shadow: 0 0 0 3px rgba(21, 24, 35, 0.1);
+    border-color: var(--orca-focus, var(--orca-ink));
+    box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1));
   }
   .catalog-search :global(svg) {
     flex: none;
@@ -1033,7 +1033,7 @@
   }
   .source-row + .source-row,
   .tool-row + .tool-row {
-    border-top: 1px solid #eff0f2;
+    border-top: 1px solid var(--orca-line-soft, #eff0f2);
   }
   summary {
     list-style: none;
@@ -1058,7 +1058,7 @@
   .source-actions a:focus-visible,
   .category-nav button:focus-visible,
   .catalog-tabs button:focus-visible {
-    outline: 2px solid var(--orca-ink);
+    outline: 2px solid var(--orca-focus, var(--orca-ink));
     outline-offset: -2px;
   }
   .app-icon,
@@ -1161,7 +1161,7 @@
   .source-detail,
   .tool-detail {
     padding: 4px 16px 16px 64px;
-    border-top: 1px solid #eff0f2;
+    border-top: 1px solid var(--orca-line-soft, #eff0f2);
     background: var(--orca-surface-2);
   }
   .tool-detail {

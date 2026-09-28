@@ -1059,7 +1059,7 @@
 		min-height: 120px;
 		margin-top: 6px;
 		padding: 10px 12px;
-		border: 1px solid var(--orca-line-strong);
+		border: 1px solid var(--orca-field-line, var(--orca-line-strong));
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface);
 		color: var(--orca-ink);
@@ -1070,8 +1070,8 @@
 	}
 	.gateway-guidance textarea:focus-visible {
 		outline: none;
-		border-color: var(--orca-ink);
-		box-shadow: 0 0 0 3px rgba(21, 24, 35, 0.1);
+		border-color: var(--orca-focus, var(--orca-ink));
+		box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1));
 	}
 	.guidance-foot {
 		display: flex;
@@ -1132,7 +1132,7 @@
 		width: 16px;
 		height: 16px;
 		margin: 3px 0 0;
-		accent-color: var(--orca-ink);
+		accent-color: var(--orca-control, var(--orca-ink));
 	}
 	.write-mode-option span {
 		display: grid;
@@ -1207,7 +1207,7 @@
 	.detail-card-foot {
 		margin: 0;
 		padding: 12px 18px;
-		border-top: 1px solid #eff0f2;
+		border-top: 1px solid var(--orca-line-soft, #eff0f2);
 		color: var(--orca-muted);
 		font-size: 13px;
 		line-height: 1.6;
@@ -1226,7 +1226,7 @@
 		padding: 12px 18px;
 	}
 	.detail-rows > li + li {
-		border-top: 1px solid #eff0f2;
+		border-top: 1px solid var(--orca-line-soft, #eff0f2);
 	}
 	.detail-rows > .gateway-source-row {
 		grid-template-columns: 32px minmax(0, 1fr) auto;
@@ -1473,7 +1473,7 @@
 	.detail-key-form {
 		margin-top: 20px;
 		padding-top: 16px;
-		border-top: 1px solid #eff0f2;
+		border-top: 1px solid var(--orca-line-soft, #eff0f2);
 	}
 	.detail-key-form fieldset {
 		min-width: 0;
@@ -1575,14 +1575,14 @@
 		width: min(360px, 100%);
 		height: 36px;
 		padding: 0 11px;
-		border: 1px solid var(--orca-line-strong);
+		border: 1px solid var(--orca-field-line, var(--orca-line-strong));
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface);
 		color: var(--orca-subtle);
 	}
 	.detail-search:focus-within {
-		border-color: var(--orca-ink);
-		box-shadow: 0 0 0 3px rgba(21, 24, 35, 0.1);
+		border-color: var(--orca-focus, var(--orca-ink));
+		box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1));
 	}
 	.detail-search input {
 		flex: 1;
@@ -1610,7 +1610,7 @@
 		border-top: 1px solid var(--orca-line);
 	}
 	.gateway-tool + .gateway-tool {
-		border-top: 1px solid #eff0f2;
+		border-top: 1px solid var(--orca-line-soft, #eff0f2);
 	}
 	.gateway-tool summary {
 		display: grid;

@@ -143,12 +143,12 @@
   .google-signin form { display: grid; gap: 12px; }
   .google-signin fieldset { display: grid; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
   .google-signin label { margin-top: 8px; font-size: 13.5px; font-weight: 600; }
-  .google-signin input:not([type="checkbox"]) { width: 100%; min-height: 38px; padding: 8px 11px; border: 1px solid var(--orca-line-strong); border-radius: var(--orca-radius); background: var(--orca-surface); color: var(--orca-ink); font: inherit; font-size: 14px; }
+  .google-signin input:not([type="checkbox"]) { width: 100%; min-height: 38px; padding: 8px 11px; border: 1px solid var(--orca-field-line, var(--orca-line-strong)); border-radius: var(--orca-radius); background: var(--orca-surface); color: var(--orca-ink); font: inherit; font-size: 14px; }
   .google-signin input[readonly] { background: var(--orca-surface-2); font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 12.5px; }
   .google-copy { display: flex; gap: 8px; }
   .google-copy .k-button { flex: none; }
   .google-switch { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-weight: 600; }
-  .google-switch input { width: 16px; height: 16px; accent-color: var(--orca-ink); }
+  .google-switch input { width: 16px; height: 16px; accent-color: var(--orca-control, var(--orca-ink)); }
   .google-help, .google-loading { display: flex; align-items: center; gap: 8px; margin: 2px 0 0; color: var(--orca-muted); font-size: 13px; line-height: 1.6; }
   .google-warning { margin: 4px 0 0; padding: 8px 12px; border-radius: var(--orca-radius); background: var(--orca-warn-bg); color: var(--orca-warn); font-size: 13px; }
   .google-actions { display: flex; justify-content: flex-end; }
