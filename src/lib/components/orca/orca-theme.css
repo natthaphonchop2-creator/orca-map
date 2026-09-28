@@ -1,0 +1,164 @@
+/*
+ * ORCA workspace colour themes: light, dark, or follow the device.
+ *
+ * <html data-orca-theme="light|dark"> is set by the boot script in src/app.html before
+ * the first paint and kept up to date by src/lib/orca/theme(.svelte).ts from the root
+ * layout, which imports this file globally.
+ *
+ * - Light: today's values. The existing --orca-* names keep their light values in
+ *   orca-system.css; this file only adds the NEW names, each equal to the literal it
+ *   replaces, so the light theme is pixel-identical.
+ * - Dark: every name, with the public website's v3 values (#08090a canvas, citron
+ *   accent, white-alpha hairlines). The dark rules are (0,4,0) or more, so they win
+ *   over the light ones (0,2,0) whatever the load order. They live inside
+ *   @media screen, so printing always uses light.
+ *
+ * Components use var(--token, <today's literal>). Legacy --k-* / --o-* names point at
+ * --orca-* on the same element (orca-system.css), so they follow the dark values too.
+ * Nothing else belongs here: no component skin.
+ */
+
+/* ---------- 1. Light values of the new names ---------- */
+.orca-workspace.orca-app {
+	--orca-line-soft: #eff0f2; /* row dividers */
+	--orca-on-citron: #151823; /* labels and icons on a citron fill */
+	--orca-on-ink: #ffffff; /* labels on an ink fill (avatars, counts, step dots) */
+	--orca-focus: #151823; /* 2px focus outline, focused field border */
+	--orca-focus-halo: rgba(21, 24, 35, 0.1); /* 3px focused field halo */
+	--orca-control: #151823; /* accent-color of checkboxes, radios, switches */
+	--orca-field: #ffffff;
+	--orca-field-line: #d4d4d8;
+	--orca-popover: #ffffff; /* account and company menus */
+	--orca-topbar: rgba(255, 255, 255, 0.94);
+	--orca-scrim: rgba(21, 24, 35, 0.45); /* new code only; existing backdrops: section 5 */
+	--orca-dialog-shadow: 0 16px 48px -12px rgba(21, 24, 35, 0.28);
+	--orca-ok-line: #c7e5d3;
+	--orca-warn-line: #f0dca3;
+	--orca-deny-line: #f1c9cd;
+	--orca-citron-line: #e3f0b0;
+	--orca-deny-solid: #b3262f;
+	--orca-deny-solid-hover: #962029;
+	--orca-on-deny: #ffffff;
+	--orca-logo-tile: #ffffff; /* third-party and customer logos keep their colours on it */
+	--orca-text-2: #3f4452; /* v3 skin only */
+	--orca-line-hover: #b9bdc8; /* v3 skin only */
+}
+
+@media screen {
+	/* ---------- 2. Dark values of every name ---------- */
+	:root[data-orca-theme='dark'] .orca-workspace.orca-app {
+		color-scheme: dark;
+		--orca-bg: #08090a;
+		--orca-sidebar: #0b0c0e;
+		--orca-surface: #0e0f11;
+		--orca-surface-2: #141517;
+		--orca-secondary: rgba(255, 255, 255, 0.06);
+		--orca-hover: rgba(255, 255, 255, 0.05);
+		--orca-line: rgba(255, 255, 255, 0.08);
+		--orca-line-strong: rgba(255, 255, 255, 0.12);
+		--orca-ink: #f7f8f8;
+		--orca-nav: rgba(255, 255, 255, 0.8);
+		--orca-muted: #8a8f98;
+		--orca-subtle: rgba(255, 255, 255, 0.46);
+		--orca-citron: #d7f471;
+		--orca-citron-hover: #e3f794;
+		--orca-citron-soft: rgba(215, 244, 113, 0.12);
+		--orca-ok: #34c77b;
+		--orca-ok-bg: rgba(52, 199, 123, 0.12);
+		--orca-warn: #f0b44c;
+		--orca-warn-bg: rgba(240, 180, 76, 0.12);
+		--orca-deny: #f0616d;
+		--orca-deny-bg: rgba(240, 97, 109, 0.1);
+		--orca-popover-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+		--orca-line-soft: rgba(255, 255, 255, 0.06);
+		--orca-on-citron: #151823;
+		--orca-on-ink: #08090a;
+		--orca-focus: #d7f471;
+		--orca-focus-halo: rgba(215, 244, 113, 0.18);
+		--orca-control: #d7f471;
+		--orca-field: #141517;
+		--orca-field-line: rgba(255, 255, 255, 0.34); /* 3:1 on the surface (WCAG 1.4.11) */
+		--orca-popover: #141517;
+		--orca-topbar: rgba(8, 9, 10, 0.8);
+		--orca-scrim: rgba(0, 0, 0, 0.6);
+		--orca-dialog-shadow: 0 40px 120px -40px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+		--orca-ok-line: rgba(52, 199, 123, 0.35);
+		--orca-warn-line: rgba(240, 180, 76, 0.35);
+		--orca-deny-line: rgba(240, 97, 109, 0.4);
+		--orca-citron-line: rgba(215, 244, 113, 0.45);
+		--orca-deny-solid: #c93540;
+		--orca-deny-solid-hover: #b52d38;
+		--orca-on-deny: #ffffff;
+		--orca-logo-tile: #f7f8f8;
+		--orca-text-2: rgba(255, 255, 255, 0.8);
+		--orca-line-hover: rgba(255, 255, 255, 0.18);
+	}
+
+	/* ---------- 3. The canvas ---------- */
+	/* Behind the shell: overscroll, the loader's fade, and /login. It beats Tailwind's
+	   base-layer body colour (daisy dark base-100 is black). */
+	:root[data-orca-theme='dark'],
+	:root[data-orca-theme='dark'] body {
+		background-color: #08090a;
+	}
+
+	/* ---------- 4. Field defaults ---------- */
+	/* Zero specificity, unlayered: beats Tailwind's base layer (white fill, color-scheme
+	   light) but loses to every ORCA or component rule that styles a field. */
+	:where(
+			:root[data-orca-theme='dark']
+				.orca-workspace.orca-app
+				:is(input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']), textarea, select)
+		) {
+		background-color: var(--orca-field);
+		color: var(--orca-ink);
+		color-scheme: dark;
+	}
+	/* Chrome paints autofilled fields light; keep them on the dark field. */
+	:where(:root[data-orca-theme='dark'] .orca-workspace.orca-app :is(input, textarea, select):-webkit-autofill) {
+		-webkit-text-fill-color: var(--orca-ink);
+		caret-color: var(--orca-ink);
+		box-shadow: 0 0 0 1000px var(--orca-field) inset;
+	}
+
+	/* ---------- 5. Dialog backdrops ---------- */
+	/* One literal for every modal in the workspace (components keep their light
+	   literals). A literal, because ::backdrop does not inherit custom properties in
+	   older browsers, and a scrim mixed from --orca-ink would turn light in dark. */
+	:root[data-orca-theme='dark'] .orca-workspace.orca-app dialog::backdrop {
+		background: rgba(0, 0, 0, 0.6);
+	}
+
+	/* ---------- 6. Logo tiles ---------- */
+	/* Dark or transparent marks (GitHub, Notion, TikTok, ChatGPT, customer logos …) stay
+	   legible: in dark every third-party logo sits on a light tile, as on the website.
+	   Padding in px from each icon's own size (a % would follow the parent's width). */
+	:root[data-orca-theme='dark'] .orca-workspace.orca-app .orca-catalog-icon:not(.orca-catalog-icon-fallback) {
+		box-sizing: border-box;
+		padding: calc(var(--orca-catalog-icon-size, 32px) * 0.14);
+		border-radius: calc(var(--orca-catalog-icon-size, 32px) * 0.24);
+		background: var(--orca-logo-tile);
+	}
+	:root[data-orca-theme='dark'] .orca-workspace.orca-app .orca-tool-icon {
+		box-sizing: border-box;
+		padding: calc(var(--orca-tool-size, 32px) * 0.14);
+		border-radius: calc(var(--orca-tool-size, 32px) * 0.24);
+		background: var(--orca-logo-tile);
+	}
+	:root[data-orca-theme='dark'] .orca-workspace.orca-app :is(.provider-logo, .organization-logo-preview img) {
+		box-sizing: border-box;
+		padding: 3px;
+		border-radius: 6px;
+		background: var(--orca-logo-tile);
+	}
+}
+
+/* ---------- 7. Switching guard ---------- */
+/* For two frames while the theme really changes (applyTheme), so every surface flips
+   at once instead of each 0.12s colour transition animating on its own. */
+:root[data-orca-theme-switching] *,
+:root[data-orca-theme-switching] *::before,
+:root[data-orca-theme-switching] *::after {
+	transition: none !important;
+}
