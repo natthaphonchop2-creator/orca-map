@@ -14,10 +14,10 @@ export type Theme = 'light' | 'dark';
 export const THEME_KEY = 'orca.theme';
 export const THEME_PREFERENCES: readonly ThemePreference[] = ['light', 'dark', 'system'];
 /**
- * What a browser that never chose gets. 'light' while the dark theme is being built;
- * the last commit of the restyle flips it (and the boot script's copy) to the owner's pick.
+ * What a browser that never chose gets: follow the device (the owner's choice, 2026-09-29).
+ * The boot script in app.html has its own copy; theme.test.mjs keeps the two equal.
  */
-export const DEFAULT_THEME_PREFERENCE: ThemePreference = 'light';
+export const DEFAULT_THEME_PREFERENCE: ThemePreference = 'system';
 export const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)';
 
 export function parseThemePreference(value: unknown): ThemePreference {
