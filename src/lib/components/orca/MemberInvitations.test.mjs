@@ -19,10 +19,10 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(testProps, dependencies) {
-  const { OrcaService, onMount, tick, untrack, invitationLink, invitationTone, lineShareURL, splitInvitations, t, displayDate, memberName, orcaError, window, navigator } = dependencies;
+  const { OrcaService, onMount, tick, untrack, canRenewInvitation, invitationLink, invitationTone, invitedByPlatform, lineShareURL, splitInvitations, t, displayDate, memberName, orcaError, window, navigator } = dependencies;
   ${script}
   return {
-    load, submit, reissue, revoke, copy, toggleUnit, closed,
+    load, submit, reissue, revoke, copy, toggleUnit, closed, inviter, roleLabel,
     setEmail(value) { email = value; }, setRole(value) { role = value; },
     get items() { return items; }, get groups() { return groups; }, get issued() { return issued; }, get message() { return message; },
     get formError() { return formError; }, get listError() { return listError; }, get notice() { return notice; }, get copied() { return copied; },
@@ -158,6 +158,26 @@ test("a failed request explains itself and keeps the list", async () => {
     assert.equal(view.listError, "this invitation was already used, revoked or has expired");
     assert.equal(view.actionID, "");
   } finally { stop(); }
+});
+
+test("an owner invitation from the platform names ORCA and offers no new link here", async () => {
+  const { view, stop } = mount({ data: data() }, { list: async () => [] });
+  try {
+    assert.equal(view.inviter(invitation("owner", { role: "owner", invitedBy: "99" })), "ORCA");
+    assert.equal(view.inviter(invitation("gone", { role: "employee", invitedBy: "99" })), "—", "a former member is not ORCA");
+    assert.equal(view.inviter(invitation("mine", { role: "owner", invitedBy: "1" })), "Owner");
+    assert.equal(view.roleLabel("owner"), "เจ้าของ");
+  } finally { stop(); }
+  // Only the platform renews an owner's link; everyone may revoke it.
+  assert.match(component, /\{#if item\.role !== "owner"\}<button class="k-button small" disabled=\{!!actionID \|\| !canRenewInvitation\(item, canInviteAdmins\)\} onclick=\{\(\) => reissue\(item\)\}/);
+  assert.match(component, /\{#if item\.status === "pending"\}<button class="k-button small" disabled=\{!!actionID\} onclick=\{\(\) => \(revoking = item\.id\)\}/);
+});
+
+test("the invite page names an owner's role and explains a company that has one", () => {
+  assert.match(invitePage, /preview\.role === "owner" \? t\("เจ้าของ", "Owner"\)/);
+  assert.match(invitePage, /You are now the owner of \$\{organizationName\}\./);
+  assert.match(invitePage, /status === 409 && parseErrorContent\(cause\)\.message\.includes\("already has an owner"\)/);
+  assert.match(invitePage, /This company already has an owner\. Ask them to invite you\./);
 });
 
 test("the invitation pieces compile without warnings", () => {

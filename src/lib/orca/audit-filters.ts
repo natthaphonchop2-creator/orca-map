@@ -36,6 +36,9 @@ export function auditEventMode(event: OrcaAuditEvent): AuditMode {
 /** One filter value for every system that no longer exists, instead of one raw ID each. */
 export const DELETED_CONNECTIONS = "__deleted__";
 
+/** The actor a customer company's log names when the ORCA platform acted in it. */
+export const PLATFORM_ACTOR = "platform";
+
 /** A system that no longer resolves to a name was deleted; sign-in sources are not systems. */
 export function isUnresolvedConnection(
   event: OrcaAuditEvent,

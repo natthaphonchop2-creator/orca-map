@@ -23,3 +23,16 @@ export function splitInvitations(items: OrcaInvitation[]) {
 		closed: items.filter((item) => item.status === 'accepted' || item.status === 'revoked')
 	};
 }
+
+/**
+ * Only the platform makes owner invitations, handing a company to its first
+ * owner; one whose inviter isn't a member of this company is the platform's.
+ */
+export function invitedByPlatform(item: Pick<OrcaInvitation, 'role' | 'invitedBy'>, memberIDs: string[]): boolean {
+	return item.role === 'owner' && !memberIDs.includes(item.invitedBy ?? '');
+}
+
+/** Any manager renews an employee's link and only an owner an admin's; nobody in a company renews an owner's. */
+export function canRenewInvitation(item: Pick<OrcaInvitation, 'role'>, canInviteAdmins: boolean): boolean {
+	return item.role === 'employee' || (item.role === 'admin' && canInviteAdmins);
+}

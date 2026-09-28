@@ -12,7 +12,7 @@ const result = compile(source, { filename: 'SettingsCenter.svelte', generate: 's
 const code = result.js.code.replace(/^import[\s\S]*?;\n/gm, '').replace('export default function SettingsCenter', 'function SettingsCenter');
 const module = `import * as $ from ${JSON.stringify(pathToFileURL(require.resolve('svelte/internal/server')).href)};
 export function component(deps) {
-	const { page, localeHref, t, ArrowRight, BookOpen, Globe, LocaleSwitch, PilotInbox, OrcaMCPAccess } = deps;
+	const { page, localeHref, t, ArrowRight, BookOpen, Globe, LocaleSwitch, PilotInbox, OrcaMCPAccess, PlatformCompanies } = deps;
 	${code}
 	return SettingsCenter;
 }`;
@@ -24,7 +24,8 @@ function screen(section, data = {}) {
 		page: { url: new URL(`https://orca.example/app?view=settings&section=${section}`) },
 		localeHref: (url) => url, t: (_th, en) => en,
 		ArrowRight: noop, BookOpen: noop, Globe: noop, LocaleSwitch: noop, PilotInbox: noop,
-		OrcaMCPAccess: (_renderer, props) => calls.push(props)
+		OrcaMCPAccess: (_renderer, props) => calls.push(props),
+		PlatformCompanies: () => calls.push('companies'),
 	});
 	return { html: render(Screen, { props: { data, onchanged: async () => {} } }).body, calls };
 }
@@ -39,4 +40,20 @@ test('Connect AI is a settings tab available to an ordinary signed-in member', (
 });
 test('key UI is not mounted on other settings tabs or an unknown section', () => {
 	for (const section of ['preferences', 'additional', 'owner', 'unknown']) assert.equal(screen(section).calls.length, 0);
+});
+test('only the platform operator gets the customer companies section', () => {
+	const operator = { currentUserID: '1', canManage: true, platformOperator: true };
+	let { html, calls } = screen('companies', operator);
+	assert.match(html, /section=companies[^>]*>Customer companies/);
+	assert.match(html, /aria-current="page"[^>]*>Customer companies/);
+	assert.deepEqual(calls, ['companies']);
+	for (const data of [{ currentUserID: '2', canManage: true }, { currentUserID: '3', canManage: true, platformOperator: false }]) {
+		({ html, calls } = screen('companies', data));
+		assert.doesNotMatch(html, /Customer companies/);
+		assert.deepEqual(calls, [], 'no companies for anyone else, even by address');
+	}
+	// Other sections never mount it, even for the operator.
+	for (const section of ['preferences', 'ai', 'additional', 'owner']) {
+		assert.ok(!screen(section, operator).calls.includes('companies'), section);
+	}
 });

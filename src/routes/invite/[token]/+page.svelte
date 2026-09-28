@@ -26,6 +26,12 @@
   const signOutHref = $derived(`/oauth2/sign_out?rd=${encodeURIComponent(returnPath)}`);
   const googleHref = $derived(googleStartHref(window.location.origin, localeHref(returnPath), { id: "local-auth-provider" }));
   const roleLabel = $derived(preview?.role === "admin" ? t("ผู้ดูแลระบบ", "an admin") : t("สมาชิก", "a member"));
+  const organizationName = $derived(preview?.organization ?? "ORCA");
+  const joinedText = $derived(
+    preview?.role === "owner"
+      ? t(`ตอนนี้คุณเป็นเจ้าของ ${organizationName} แล้ว`, `You are now the owner of ${organizationName}.`)
+      : t(`ตอนนี้คุณเป็น${roleLabel}ของ ${organizationName} แล้ว`, `You are now ${roleLabel} of ${organizationName}.`),
+  );
   // Where the server says the accepted invitation leads: its company's page.
   let target = $state<OrcaInvitationTarget>();
   function openHref(to?: OrcaInvitationTarget) {
@@ -66,6 +72,9 @@
           `คำเชิญนี้ส่งถึง ${preview?.email ?? ""} แต่ตอนนี้คุณเข้าสู่ระบบด้วย ${data.email || "บัญชีอื่น"} กรุณาออกจากระบบ แล้วเข้าสู่ระบบด้วยอีเมลที่ได้รับเชิญ`,
           `This invitation is for ${preview?.email ?? ""}, but you are signed in as ${data.email || "another account"}. Sign out, then sign in with the invited email.`,
         );
+      } else if (status === 409 && parseErrorContent(cause).message.includes("already has an owner")) {
+        // An owner invitation hands over a company only while nobody owns it.
+        error = t("บริษัทนี้มีเจ้าของแล้ว ขอให้เจ้าของบริษัทเชิญคุณเข้าร่วมแทน", "This company already has an owner. Ask them to invite you.");
       } else if (status === 409) {
         error = t("คำเชิญนี้ถูกใช้ ยกเลิก หรือหมดอายุไปแล้ว ขอลิงก์ใหม่จากผู้ดูแลที่เชิญคุณ", "This invitation was already used, revoked or has expired. Ask the person who invited you for a new link.");
       } else {
@@ -108,7 +117,7 @@
       {:else if phase === "joined"}
         <span class="invite-done" aria-hidden="true"><Check size={22} /></span>
         <h2>{t("เข้าร่วมเรียบร้อยแล้ว", "You're in")}</h2>
-        <p>{t(`ตอนนี้คุณเป็น${roleLabel}ของ ${preview?.organization ?? "ORCA"} แล้ว`, `You are now ${roleLabel} of ${preview?.organization ?? "ORCA"}.`)}</p>
+        <p>{joinedText}</p>
         <a class="o-button" href={openHref(target)} data-sveltekit-reload>{t("เปิด ORCA", "Open ORCA")} <ArrowRight size={16} /></a>
       {:else if preview && preview.status !== "pending"}
         <h2>
@@ -128,7 +137,7 @@
       {:else if preview}
         <h2>{t(`เข้าร่วม ${preview.organization}`, `Join ${preview.organization}`)}</h2>
         <dl class="invite-facts">
-          <div><dt>{t("บทบาท", "Role")}</dt><dd>{preview.role === "admin" ? t("ผู้ดูแลระบบ", "Admin") : t("สมาชิกทั่วไป", "Member")}</dd></div>
+          <div><dt>{t("บทบาท", "Role")}</dt><dd>{preview.role === "owner" ? t("เจ้าของ", "Owner") : preview.role === "admin" ? t("ผู้ดูแลระบบ", "Admin") : t("สมาชิกทั่วไป", "Member")}</dd></div>
           <div><dt>{t("อีเมลที่ได้รับเชิญ", "Invited email")}</dt><dd>{preview.email}</dd></div>
           <div><dt>{t("ใช้ได้ถึง", "Valid until")}</dt><dd>{displayDate(preview.expiresAt)}</dd></div>
         </dl>

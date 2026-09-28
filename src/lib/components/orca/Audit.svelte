@@ -18,6 +18,7 @@
   import { auditDetailValues, auditDuration } from "$lib/orca/audit-details";
   import {
     DELETED_CONNECTIONS,
+    PLATFORM_ACTOR,
     auditEventMode,
     auditFilterOptions,
     auditPage,
@@ -119,11 +120,20 @@
       "Department members updated",
     ),
     "template.preview": t("ดูตัวอย่างแม่แบบ", "Template previewed"),
+    "invitation.create": t("สร้างคำเชิญ", "Invitation created"),
+    "invitation.reissue": t("สร้างลิงก์เชิญใหม่", "Invitation link renewed"),
+    "invitation.revoke": t("ยกเลิกคำเชิญ", "Invitation revoked"),
+    "invitation.accept": t("ตอบรับคำเชิญ", "Invitation accepted"),
+    "platform.company.create": t("เปิดบริษัทลูกค้า", "Customer company opened"),
+    "platform.company.owner_invite": t("เชิญเจ้าของบริษัทลูกค้า", "Customer company's owner invited"),
+    "platform.company.owner_revoke": t("ยกเลิกคำเชิญเจ้าของบริษัทลูกค้า", "Customer company's owner invitation revoked"),
   });
   const names = $derived({
-    users: Object.fromEntries(
-      data.members.map((member) => [member.id, memberName(member)]),
-    ),
+    // A customer company's log names the platform, never the operator's account.
+    users: Object.fromEntries([
+      [PLATFORM_ACTOR, "ORCA"],
+      ...data.members.map((member) => [member.id, memberName(member)]),
+    ]),
     hubs: Object.fromEntries(data.hubs.map((hub) => [hub.id, hub.name])),
     connections: Object.fromEntries(
       data.connections.map((connection) => [connection.id, connection.name]),

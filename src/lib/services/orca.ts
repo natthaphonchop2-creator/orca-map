@@ -200,13 +200,18 @@ export interface OrcaApproval {
   errorCategory?: string;
 }
 
-/** A manager's invitation for one email; the link's token exists only in the response that made it. */
+/** A company's managers invite employees and admins. */
+export type OrcaManagerInvitationRole = "employee" | "admin";
+/**
+ * An invitation for one email; the link's token exists only in the response that made it.
+ * Owner invitations come only from the platform, handing a company to its first owner.
+ */
 export interface OrcaInvitation {
   id: string;
   createdAt: string;
   expiresAt: string;
   email: string;
-  role: "employee" | "admin";
+  role: OrcaManagerInvitationRole | "owner";
   unitIDs: string[];
   status: "pending" | "accepted" | "revoked" | "expired";
   invitedBy?: string;
@@ -221,12 +226,43 @@ export interface OrcaInvitationLink {
 /** What the public invite page may show before sign-in; the email is masked. */
 export interface OrcaInvitationPreview {
   organization: string;
-  role: "employee" | "admin";
+  role: OrcaInvitation["role"];
   email: string;
   expiresAt: string;
   status: OrcaInvitation["status"];
   /** Only for the signed-in person who accepted it. */
   target?: OrcaInvitationTarget;
+}
+
+/** One company as the platform operator's list shows it: names and counts, never its members. */
+export interface OrcaPlatformCompany {
+  id: string;
+  displayName: string;
+  createdAt: string;
+  /** Members who can use the company now. */
+  seats: number;
+  /** Owners who can act now. */
+  owners: number;
+  /** The platform's owner invitations still pending, expired ones included. */
+  ownerInvitations: OrcaPlatformOwnerInvitation[];
+}
+export interface OrcaPlatformOwnerInvitation {
+  id: string;
+  email: string;
+  expiresAt: string;
+  status: "pending" | "expired";
+}
+/**
+ * The link handing a company to its owner. `reissued` says it replaced a waiting
+ * link for the same email; the two sign-in facts inform and never refuse.
+ */
+export interface OrcaOwnerInvitationLink {
+  invitation: OrcaInvitation;
+  token: string;
+  companyID: string;
+  reissued: boolean;
+  googleSignIn: boolean;
+  emailDomainAllowed: boolean;
 }
 
 /** Where an accepted invitation leads: its company, and the page that opens it. */
@@ -517,7 +553,7 @@ export const OrcaService = {
   signInMethods: (fetcher?: typeof fetch) =>
     doGet("/orca/sign-in/methods", { ...options, fetch: fetcher }) as Promise<{ google: boolean }>,
   invitations: () => list<OrcaInvitation>(orcaPath("/invitations")),
-  invite: (email: string, role: OrcaInvitation["role"], unitIDs: string[]) =>
+  invite: (email: string, role: OrcaManagerInvitationRole, unitIDs: string[]) =>
     doPost(orcaPath("/invitations"), { email, role, unitIDs }, options) as Promise<OrcaInvitationLink>,
   reissueInvitation: (id: string) =>
     doPost(orcaPath(`/invitations/${part(id)}/reissue`), {}, options) as Promise<OrcaInvitationLink>,
@@ -529,6 +565,14 @@ export const OrcaService = {
     doPost("/orca/invitations/accept", { token }, options) as Promise<OrcaInvitation & { target?: OrcaInvitationTarget }>,
   /** The companies the signed-in person may use now; never per company. */
   companies: () => list<OrcaCompanyChoice>("/orca/companies"),
+  /** The platform operator's customer companies; platform calls, never per company. */
+  platformCompanies: () => list<OrcaPlatformCompany>("/orca/platform/companies"),
+  openCompany: (displayName: string) =>
+    doPost("/orca/platform/companies", { displayName }, options) as Promise<OrcaPlatformCompany>,
+  inviteCompanyOwner: (companyID: string, email: string) =>
+    doPost(`/orca/platform/companies/${part(companyID)}/owner-invitations`, { email }, options) as Promise<OrcaOwnerInvitationLink>,
+  revokeCompanyOwnerInvitation: (companyID: string, id: string) =>
+    doPost(`/orca/platform/companies/${part(companyID)}/owner-invitations/${part(id)}/revoke`, {}, options) as Promise<OrcaInvitation>,
   approveRequest: (id: string) => doPost(orcaPath(`/approvals/${part(id)}/approve`), {}, options) as Promise<OrcaApproval>,
   rejectRequest: (id: string, note: string) =>
     doPost(orcaPath(`/approvals/${part(id)}/reject`), { note }, options) as Promise<OrcaApproval>,

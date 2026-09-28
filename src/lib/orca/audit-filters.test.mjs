@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import {
   DELETED_CONNECTIONS,
+  PLATFORM_ACTOR,
   auditEventMode,
   auditFilterOptions,
   auditPage,
@@ -257,4 +259,18 @@ test("every deleted system shares one filter value; sign-in sources are not syst
   assert.deepEqual(filterAuditEvents(runs, "executions", { connectionID: "khc-live" }, names, now).map((event) => event.id), ["a"]);
   assert.equal(isUnresolvedConnection(runs[3], names), false);
   assert.equal(isUnresolvedConnection({ id: "e", action: "tools.call" }, names), false, "no system at all is not a deleted one");
+});
+
+// A customer company's log names the platform, never the operator's account,
+// as the backend writes it; the activity page shows it as ORCA.
+test("the platform's actions show as ORCA's, under administration", async () => {
+  assert.equal(PLATFORM_ACTOR, "platform");
+  for (const action of ["invitation.create", "invitation.reissue", "invitation.revoke", "platform.company.create", "platform.company.owner_invite", "platform.company.owner_revoke"]) {
+    assert.equal(auditEventMode({ action, userID: PLATFORM_ACTOR }), "administration", action);
+  }
+  const page = await readFile(new URL("../components/orca/Audit.svelte", import.meta.url), "utf8");
+  assert.match(page, /\[PLATFORM_ACTOR, "ORCA"\]/);
+  for (const action of ["invitation.create", "invitation.reissue", "invitation.revoke", "invitation.accept", "platform.company.create", "platform.company.owner_invite", "platform.company.owner_revoke"]) {
+    assert.match(page, new RegExp(`"${action.replaceAll(".", "\\.")}": t\\(`), action);
+  }
 });

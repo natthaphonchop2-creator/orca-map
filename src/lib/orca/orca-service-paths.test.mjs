@@ -25,6 +25,7 @@ const accountLevel = new Set([
 	'previewInvitation', 'acceptInvitation', 'companies', 'googleSignIn', 'saveGoogleSignIn', 'signInMethods',
 	'requestPilot', 'listPilotRequests', 'updatePilotRequest', 'localUsers', 'authProviders', 'createLocalUser',
 	'resetLocalPassword', 'createRemoteEntry', 'configureSourceOAuthClient', 'removeSourceOAuthClient',
+	'platformCompanies', 'openCompany', 'inviteCompanyOwner', 'revokeCompanyOwnerInvitation',
 ]);
 
 async function paths(company) {
@@ -73,6 +74,10 @@ test('"default" keeps every legacy path', async () => {
 	assert.deepEqual(byName.audit, ['/orca/audit?hubID=id-1']);
 	assert.deepEqual(byName.approvals, ['/orca/approvals?status=id-1&mine=1']);
 	assert.deepEqual(byName.companies, ['/orca/companies']);
+	assert.deepEqual(byName.platformCompanies, ['/orca/platform/companies']);
+	assert.deepEqual(byName.openCompany, ['/orca/platform/companies']);
+	assert.deepEqual(byName.inviteCompanyOwner, ['/orca/platform/companies/id-1/owner-invitations']);
+	assert.deepEqual(byName.revokeCompanyOwnerInvitation, ['/orca/platform/companies/id-1/owner-invitations/name/revoke']);
 });
 
 // The library service: every call for "default" and for another company.

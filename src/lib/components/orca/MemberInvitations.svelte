@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
   import { Check, Copy, Link2, MailPlus, RefreshCw, Send, X } from "@lucide/svelte";
-  import { invitationLink, invitationTone, lineShareURL, splitInvitations } from "$lib/orca/invitations";
+  import { canRenewInvitation, invitationLink, invitationTone, invitedByPlatform, lineShareURL, splitInvitations } from "$lib/orca/invitations";
   import { t } from "$lib/orca/locale.svelte";
-  import { OrcaService, displayDate, memberName, orcaError, type OrcaBootstrap, type OrcaInvitation } from "$lib/services/orca";
+  import { OrcaService, displayDate, memberName, orcaError, type OrcaBootstrap, type OrcaInvitation, type OrcaManagerInvitationRole } from "$lib/services/orca";
 
   // Invitation links until ORCA sends mail itself: the manager shares each link
   // by LINE or email, and the person accepts it after signing in.
@@ -23,7 +23,7 @@
   let dialog: HTMLDialogElement | undefined = $state();
   let emailInput: HTMLInputElement | undefined = $state();
   let email = $state("");
-  let role = $state<OrcaInvitation["role"]>("employee");
+  let role = $state<OrcaManagerInvitationRole>("employee");
   let unitIDs = $state<string[]>([]);
   let busy = $state(false);
   let formError = $state("");
@@ -40,14 +40,16 @@
   $effect(() => {
     openCount = groups.open.length;
   });
-  const roleLabel = (value: OrcaInvitation["role"]) => (value === "admin" ? t("ผู้ดูแลระบบ", "Admin") : t("สมาชิกทั่วไป", "Member"));
+  const roleLabel = (value: OrcaInvitation["role"]) =>
+    value === "owner" ? t("เจ้าของ", "Owner") : value === "admin" ? t("ผู้ดูแลระบบ", "Admin") : t("สมาชิกทั่วไป", "Member");
   const statusLabel = (value: OrcaInvitation["status"]) =>
     ({ pending: t("รอตอบรับ", "Waiting"), accepted: t("ตอบรับแล้ว", "Accepted"), revoked: t("ยกเลิกแล้ว", "Revoked"), expired: t("หมดอายุ", "Expired") })[value];
   const departmentNames = (ids: string[]) =>
     ids.map((id) => data.units.find((unit) => unit.id === id)?.name ?? t("แผนกที่ถูกลบ", "Deleted department")).join(", ");
-  const person = (id?: string) => {
-    const member = data.members.find((item) => item.id === id);
-    return member ? memberName(member) : "—";
+  const inviter = (item: OrcaInvitation) => {
+    const member = data.members.find((person) => person.id === item.invitedBy);
+    if (member) return memberName(member);
+    return invitedByPlatform(item, data.members.map((person) => person.id)) ? "ORCA" : "—";
   };
   const organization = $derived(data.organization.displayName || "ORCA");
   const message = $derived(
@@ -209,7 +211,7 @@
           <tbody>
             {#each groups.open as item (item.id)}
               <tr>
-                <td class="inv-person"><strong>{item.email}</strong><p class="k-small k-muted">{t(`เชิญโดย ${person(item.invitedBy)}`, `Invited by ${person(item.invitedBy)}`)}</p></td>
+                <td class="inv-person"><strong>{item.email}</strong><p class="k-small k-muted">{t(`เชิญโดย ${inviter(item)}`, `Invited by ${inviter(item)}`)}</p></td>
                 <td><span class="inv-role">{roleLabel(item.role)}</span></td>
                 <td>{#if item.unitIDs.length}{departmentNames(item.unitIDs)}{:else}<span class="inv-none">{t("ไม่ระบุ", "None")}</span>{/if}</td>
                 <td
@@ -224,9 +226,10 @@
                     </div>
                   {:else}
                     <div class="invitation-actions">
-                      <button class="k-button small" disabled={!!actionID || (item.role === "admin" && !canInviteAdmins)} onclick={() => reissue(item)}
-                        ><RefreshCw size={14} aria-hidden="true" />{t("สร้างลิงก์ใหม่", "New link")}</button
-                      >
+                      <!-- Only the platform makes a new link for an owner invitation. -->
+                      {#if item.role !== "owner"}<button class="k-button small" disabled={!!actionID || !canRenewInvitation(item, canInviteAdmins)} onclick={() => reissue(item)}
+                          ><RefreshCw size={14} aria-hidden="true" />{t("สร้างลิงก์ใหม่", "New link")}</button
+                        >{/if}
                       {#if item.status === "pending"}<button class="k-button small" disabled={!!actionID} onclick={() => (revoking = item.id)}
                           ><X size={14} aria-hidden="true" />{t("ยกเลิกคำเชิญ", "Revoke")}</button
                         >{/if}

@@ -5,13 +5,14 @@
   import { ArrowRight, BookOpen, Globe } from "@lucide/svelte";
   import LocaleSwitch from "./LocaleSwitch.svelte";
   import PilotInbox from "./PilotInbox.svelte";
+  import PlatformCompanies from "./PlatformCompanies.svelte";
   import OrcaMCPAccess from "./OrcaMCPAccess.svelte";
   let {
     data,
     onchanged,
   }: { data: OrcaBootstrap; onchanged: () => Promise<void> } = $props();
   const section = $derived(
-    ["ai", "additional", "owner"].includes(page.url.searchParams.get("section") || "")
+    ["ai", "additional", "companies", "owner"].includes(page.url.searchParams.get("section") || "")
       ? page.url.searchParams.get("section")
       : "preferences",
   );
@@ -19,6 +20,10 @@
     { id: "preferences", label: t("ทั่วไป", "General") },
     { id: "ai", label: t("เชื่อมต่อ AI", "Connect AI") },
     { id: "additional", label: t("ความสามารถเพิ่มเติม", "Additional features") },
+    // The platform operator opens customer companies and hands them over.
+    ...(data.platformOperator
+      ? [{ id: "companies", label: t("บริษัทลูกค้า", "Customer companies") }]
+      : []),
     ...(data.canReviewPilotRequests
       ? [{ id: "owner", label: t("คำขอทดลองใช้", "Pilot requests") }]
       : []),
@@ -82,6 +87,7 @@
       >
     </div>
   </section>
+{:else if section === "companies" && data.platformOperator}<PlatformCompanies />
 {:else if section === "owner" && data.canReviewPilotRequests}<div
     class="settings-embedded"
   >
