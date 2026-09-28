@@ -781,7 +781,7 @@
 	border-color: var(--orca-line-strong);
 }
 .business-library .library-choice:has(input:checked) {
-	border-color: var(--orca-ink);
+	border-color: var(--orca-chosen, var(--orca-ink));
 	background: var(--orca-citron-soft);
 }
 .business-library .library-choice input {

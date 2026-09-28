@@ -186,8 +186,8 @@
 		line-height: 1;
 	}
 	.next .step-marker {
-		border-color: var(--orca-ink);
-		background: var(--orca-ink);
+		border-color: var(--orca-chosen, var(--orca-ink));
+		background: var(--orca-chosen, var(--orca-ink));
 		color: var(--orca-on-ink, #fff);
 	}
 	.step-marker.done {

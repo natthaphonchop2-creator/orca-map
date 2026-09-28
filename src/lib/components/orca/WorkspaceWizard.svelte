@@ -1625,7 +1625,7 @@
 		border-color: var(--orca-line-strong);
 	}
 	.setup-choice.selected {
-		border-color: var(--orca-ink);
+		border-color: var(--orca-chosen, var(--orca-ink));
 		background: var(--orca-citron-soft);
 	}
 	.setup-choice:has(input:disabled) {
@@ -1724,7 +1724,7 @@
 		overflow: hidden;
 	}
 	.setup-app-card.selected {
-		border-color: var(--orca-ink);
+		border-color: var(--orca-chosen, var(--orca-ink));
 	}
 	.setup-app-card > .setup-choice {
 		align-items: center;

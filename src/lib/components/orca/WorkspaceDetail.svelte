@@ -1120,8 +1120,8 @@
 		cursor: pointer;
 	}
 	.write-mode-option.chosen {
-		border-color: var(--orca-ink);
-		box-shadow: inset 0 0 0 1px var(--orca-ink);
+		border-color: var(--orca-chosen, var(--orca-ink));
+		box-shadow: inset 0 0 0 1px var(--orca-chosen, var(--orca-ink));
 	}
 	.write-mode-options:disabled .write-mode-option {
 		cursor: default;

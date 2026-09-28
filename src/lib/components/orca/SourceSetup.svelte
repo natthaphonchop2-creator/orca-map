@@ -1332,8 +1332,8 @@
     font-weight: 600;
   }
   .api-onboarding li.current::before {
-    border-color: var(--orca-ink);
-    background: var(--orca-ink);
+    border-color: var(--orca-chosen, var(--orca-ink));
+    background: var(--orca-chosen, var(--orca-ink));
     color: var(--orca-on-ink, #fff);
   }
   .client-actions {

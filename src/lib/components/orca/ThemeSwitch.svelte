@@ -73,16 +73,21 @@
 		font-weight: 600;
 		white-space: nowrap;
 		cursor: pointer;
+		transition:
+			background-color 0.15s var(--orca-ease, ease),
+			color 0.15s var(--orca-ease, ease);
 	}
 	.o-theme.compact button {
 		padding: 0 8px;
 	}
-	.o-theme button:hover {
+	.o-theme button:not(.chosen):hover {
+		background: var(--orca-hover);
 		color: var(--orca-ink);
 	}
+	/* Chosen: an inverse pill (ink in light, white in dark), like .o-locale and the website's tabs. */
 	.o-theme button.chosen {
-		background: var(--orca-secondary);
-		color: var(--orca-ink);
+		background: var(--orca-ink);
+		color: var(--orca-on-ink, #fff);
 	}
 	/* A row like the account menu's links: a hairline above, icon and words, the control at the end. */
 	.o-theme-row {

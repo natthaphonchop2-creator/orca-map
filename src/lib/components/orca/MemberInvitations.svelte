@@ -365,7 +365,7 @@
   .invitation-link { background: var(--orca-surface-2); font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 12.5px; }
   .invitation-roles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .invitation-roles label { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border: 1px solid var(--orca-line-strong); border-radius: var(--orca-radius); cursor: pointer; }
-  .invitation-roles label.chosen, .invitation-departments label.chosen { border-color: var(--orca-ink); box-shadow: inset 0 0 0 1px var(--orca-ink); }
+  .invitation-roles label.chosen, .invitation-departments label.chosen { border-color: var(--orca-chosen, var(--orca-ink)); box-shadow: inset 0 0 0 1px var(--orca-chosen, var(--orca-ink)); }
   .invitation-roles input { margin-top: 3px; accent-color: var(--orca-control, var(--orca-ink)); }
   .invitation-roles span { display: grid; gap: 2px; min-width: 0; }
   .invitation-roles strong { font-size: 14px; }

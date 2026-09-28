@@ -42,6 +42,8 @@
 	--orca-logo-tile: #ffffff; /* third-party and customer logos keep their colours on it */
 	--orca-text-2: #3f4452; /* v3 skin only */
 	--orca-line-hover: #b9bdc8; /* v3 skin only */
+	--orca-chosen: #151823; /* the ring or fill that marks a chosen option card or the current step */
+	--orca-tab-indicator: #151823; /* the active underline-tab bar */
 }
 
 @media screen {
@@ -93,6 +95,10 @@
 		--orca-logo-tile: #f7f8f8;
 		--orca-text-2: rgba(255, 255, 255, 0.8);
 		--orca-line-hover: rgba(255, 255, 255, 0.18);
+		--orca-chosen: #d7f471;
+		--orca-tab-indicator: #d7f471;
+		--orca-field-line-hover: rgba(255, 255, 255, 0.52); /* dark only: hovered field */
+		--orca-raised: #1a1b1e; /* dark only: the website's raised plane (blocks inside a dialog) */
 	}
 
 	/* ---------- 3. The canvas ---------- */
