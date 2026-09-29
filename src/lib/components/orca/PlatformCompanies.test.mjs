@@ -15,19 +15,21 @@ const component = await readFile(file, "utf8");
 const helpers = {
   ...(await importTypeScript(new URL("../../orca/platform-companies.ts", import.meta.url))),
   ...(await importTypeScript(new URL("../../orca/invitations.ts", import.meta.url))),
+  ...(await importTypeScript(new URL("../../services/orca-u2.ts", import.meta.url))),
 };
 const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1]).replace(/^\s*import[^;]+;/gm, "");
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(dependencies) {
-  const { OrcaService, onMount, tick, parseErrorContent, invitationLink, lineShareURL, t, canInviteOwner, emailDomain, ownerStatus, platformRefusal, signInWarnings, displayDate, orcaError, window, navigator } = dependencies;
+  const { OrcaService, onMount, tick, parseErrorContent, invitationLink, lineShareURL, t, canInviteOwner, emailDomain, ownerStatus, platformRefusal, signInWarnings, displayDate, orcaError, externalBrowserLink, window, navigator } = dependencies;
   ${script}
   return {
-    load, show, openCompany, inviteOwner, revoke, copy, explain,
+    load, loadGoogle, show, openCompany, inviteOwner, revoke, copy, explain,
     setName(value) { name = value; }, setEmail(value) { email = value; }, setRevoking(value) { revoking = value; },
     get items() { return items; }, get loaded() { return loaded; }, get listError() { return listError; }, get step() { return step; },
     get target() { return target; }, get justOpened() { return justOpened; }, get formError() { return formError; }, get issued() { return issued; },
     get message() { return message; }, get copied() { return copied; }, get revoking() { return revoking; }, get actionID() { return actionID; },
+    get revokingTarget() { return revokingTarget; }, get googleOn() { return googleOn; }, get customers() { return customers; },
   };
 }`,
   { filename: "platform-companies-test.svelte.js", generate: "client" },
@@ -50,6 +52,7 @@ function mount(service) {
         openCompany: async (...args) => { calls.open.push(args); return service.open(...args); },
         inviteCompanyOwner: async (...args) => { calls.invite.push(args); return service.invite(...args); },
         revokeCompanyOwnerInvitation: async (...args) => { calls.revoke.push(args); return service.revoke(...args); },
+        googleSignIn: async () => { if (service.google === undefined) throw new Error("unavailable"); return { enabled: service.google }; },
       },
       onMount: () => {},
       tick: async () => {},
@@ -104,7 +107,8 @@ test("the operator opens a company, then invites its owner and gets the link onc
     assert.equal(view.issued.link, "https://orca.example.test/invite/tok_OWNER-1");
     assert.match(view.message, /เจ้าของ Hotel A/);
     assert.match(view.message, /Google/);
-    assert.match(view.message, /https:\/\/orca\.example\.test\/invite\/tok_OWNER-1$/);
+    // Sent by LINE, the link opens in the phone's browser, where Google sign-in works (critique 13).
+    assert.match(view.message, /https:\/\/orca\.example\.test\/invite\/tok_OWNER-1\?openExternalBrowser=1$/);
     assert.equal(view.items[1].ownerInvitations.length, 1);
     await view.copy(view.issued.link, "link");
     assert.deepEqual(calls.copied, ["https://orca.example.test/invite/tok_OWNER-1"]);
@@ -146,6 +150,29 @@ test("the server's refusals come back as advice the operator can act on", async 
   } finally { stop(); }
 });
 
+test("the Google chip above the list says whether owners can make an account", async () => {
+  for (const [google, expected] of [[true, true], [false, false], [undefined, undefined]]) {
+    const { view, stop } = mount({ list: async () => [], google });
+    try {
+      await view.loadGoogle();
+      assert.equal(view.googleOn, expected, String(google));
+    } finally { stop(); }
+  }
+});
+
+test("revoking asks in a dialog about exactly one invitation of one company", async () => {
+  const list = [company(B, { ownerInvitations: [{ id: "oin-1", email: "owner@hotel-a.example", expiresAt: "2026-10-01T00:00:00Z", status: "pending" }] }), company("default", { owners: 1 })];
+  const { view, stop } = mount({ list: async () => list });
+  try {
+    await view.load();
+    assert.equal(view.revokingTarget, undefined);
+    view.setRevoking("oin-1");
+    assert.equal(view.revokingTarget.company.id, B);
+    assert.equal(view.revokingTarget.invitation.email, "owner@hotel-a.example");
+    assert.deepEqual(view.customers.map((item) => item.id), [B], "the ORCA team's own company is not a customer");
+  } finally { stop(); }
+});
+
 test("revoking an owner invitation needs its own step and reloads the list", async () => {
   let list = [company(B, { ownerInvitations: [{ id: "oin-1", email: "owner@hotel-a.example", expiresAt: "2026-09-01T00:00:00Z", status: "expired" }] })];
   const { view, calls, stop } = mount({
@@ -164,11 +191,17 @@ test("revoking an owner invitation needs its own step and reloads the list", asy
 
 test("the section and its first dialog step render, and the component compiles without warnings", async () => {
   assert.deepEqual(compile(component, { filename: "PlatformCompanies.svelte", generate: "client" }).warnings.map((warning) => `${warning.code}: ${warning.message}`), []);
-  const { Component } = await serverComponent(file, { ...helpers, t: (_th, en) => en, displayDate: (value) => value, OrcaService: {} });
+  const PageHeader = (renderer, props) => { renderer.push(`<h1>${props.title}</h1><p>${props.subtitle}</p>`); props.action?.(renderer); };
+  const { Component } = await serverComponent(file, { ...helpers, t: (_th, en) => en, displayDate: (value) => value, OrcaService: {}, PageHeader });
   const html = render(Component).body;
   assert.match(html, /Customer companies/);
   assert.match(html, /You are not a member of these companies/);
   assert.match(html, /Open a company/);
+  // The Google-off warning in the owner link dialog links to the platform's Google section.
+  assert.match(component, /warning === "google"[\s\S]*?href=\{localeHref\(platformHref\("signin"\)\)\}/);
+  // Revoking is a modal confirmation, never a pair of buttons in the row.
+  assert.match(component, /<ConfirmDialog[\s\S]*?tone="danger"/);
+  assert.doesNotMatch(component, /ยืนยันยกเลิก/);
   assert.match(html, /Loading companies/);
   assert.match(html, /<input id="company-name"[^>]*maxlength="120"/);
   assert.match(html, /A new company has no members yet, you included/);

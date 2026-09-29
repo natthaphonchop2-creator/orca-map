@@ -1,11 +1,18 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
-  import { ArrowRight, Check, CircleAlert, Copy, ExternalLink, LoaderCircle, RefreshCw, ShieldCheck, X } from "@lucide/svelte";
+  import { ArrowRight, Check, CircleAlert, Copy, ExternalLink, LoaderCircle, RefreshCw, ShieldCheck, Trash2 } from "@lucide/svelte";
   import CatalogIcon from "$lib/orca/CatalogIcon.svelte";
   import { catalogSetupHref } from "$lib/orca/catalog";
+  import { term } from "$lib/orca/glossary";
   import { localeHref, t } from "$lib/orca/locale.svelte";
+  import { platformHref } from "$lib/orca/navigation";
   import { oauthApps, type CustomOAuthApp, type ManagedOAuthApp, type OAuthAppProvider } from "$lib/orca/oauth-apps";
   import { OrcaService, type OrcaBootstrap, type OrcaCandidate, type OrcaSourceSetup } from "$lib/services/orca";
+  import PlatformBadge from "./platform/PlatformBadge.svelte";
+  import ConfirmDialog from "./ui/ConfirmDialog.svelte";
+  import PageHeader from "./ui/PageHeader.svelte";
+  import Sheet from "./ui/Sheet.svelte";
+  import StatusPill from "./ui/StatusPill.svelte";
 
   /** One app the owner is setting up, replacing or removing. */
   type AppTarget = {
@@ -33,6 +40,9 @@
   let busy = $state(false);
   let formError = $state("");
   let copied = $state("");
+  // The setup form opens in a side panel; removing asks in a dialog.
+  let sheetOpen = $state(false);
+  let removeOpen = $state(false);
   let alive = true;
   let request = 0;
   const apps = $derived(oauthApps(candidates));
@@ -125,6 +135,7 @@
     removing = undefined;
     notice = "";
     editing = target;
+    sheetOpen = true;
     if (redirectURL) return;
     try {
       const setup = await OrcaService.sourceSetup(target.sourceID);
@@ -139,6 +150,7 @@
     notice = "";
     formError = "";
     removing = target;
+    removeOpen = true;
   }
 
   async function save(event: SubmitEvent) {
@@ -159,13 +171,14 @@
       const response = await OrcaService.configureSourceOAuthClient(target.sourceID, id, secret, target.scopeProfile, target.replace);
       if (!response.oauthClientConfigured) throw new Error("not configured");
       if (!alive) return;
+      sheetOpen = false;
       closeForm();
       notice = target.replace
         ? t(`เปลี่ยนแอป ${target.name} แล้ว ถ้าใช้ Client ID ใหม่ สมาชิกต้องเชื่อมบัญชีอีกครั้ง`, `The ${target.name} app was replaced. With a new Client ID, members connect their accounts again.`)
         : t(`ตั้งค่าแอป ${target.name} แล้ว สมาชิกเชื่อมบัญชีของตัวเองได้ทันที`, `The ${target.name} app is set up. Members can connect their own accounts now.`);
       await refresh();
     } catch {
-      if (alive) formError = t("บันทึกแอปไม่สำเร็จ ตรวจสอบว่าคุณเป็นเจ้าของระบบ ORCA และค่าที่วางถูกต้อง แล้วลองอีกครั้ง", "The app could not be saved. Check that you are the ORCA installation owner and that the values are correct, then try again.");
+      if (alive) formError = t("บันทึกแอปไม่สำเร็จ ตรวจว่าคุณอยู่ในทีม ORCA และค่าที่วางถูกต้อง แล้วลองอีกครั้ง", "The app could not be saved. Check that you are in the ORCA team and that the values are correct, then try again.");
     } finally {
       if (alive) busy = false;
     }
@@ -180,11 +193,12 @@
       const response = await OrcaService.removeSourceOAuthClient(target.sourceID);
       if (response.oauthClientConfigured) throw new Error("still configured");
       if (!alive) return;
+      removeOpen = false;
       removing = undefined;
       notice = t(`นำแอป ${target.name} ออกแล้ว`, `The ${target.name} app was removed.`);
       await refresh();
     } catch {
-      if (alive) formError = t("นำแอปออกไม่สำเร็จ ตรวจสอบว่าคุณเป็นเจ้าของระบบ ORCA แล้วลองอีกครั้ง", "The app could not be removed. Check that you are the ORCA installation owner, then try again.");
+      if (alive) formError = t("นำแอปออกไม่สำเร็จ ตรวจว่าคุณอยู่ในทีม ORCA แล้วลองอีกครั้ง", "The app could not be removed. Check that you are in the ORCA team, then try again.");
     } finally {
       if (alive) busy = false;
     }
@@ -201,93 +215,24 @@
   }
 </script>
 
-{#snippet appForm(target: AppTarget)}
-  <form id={`oauth-setup-${target.key}`} class="setup-panel" onsubmit={save} autocomplete="off">
-    <div class="panel-head">
-      <h3>{target.replace ? t(`เปลี่ยนแอป ${target.name}`, `Replace the ${target.name} app`) : t(`ตั้งค่าแอป ${target.name}`, `Set up the ${target.name} app`)}</h3>
-      <button type="button" class="apps-icon-button" disabled={busy} onclick={closeForm} aria-label={t("ปิด", "Close")} title={t("ปิด", "Close")}><X size={16} /></button>
-    </div>
-    {#if target.replace}
-      <p class="replace-note"><CircleAlert size={16} aria-hidden="true" />{t("ถ้าแค่เปลี่ยน Client secret ของแอปเดิม สมาชิกยังเชื่อมอยู่เหมือนเดิม ถ้าใช้ Client ID ใหม่ สมาชิกทุกคนต้องเชื่อมบัญชีอีกครั้ง", "Rotating the secret of the same app keeps members connected. A new Client ID asks every member to connect again.")}</p>
-    {/if}
-    <ol class="setup-steps">{#each target.provider ? providerSteps(target.provider) : vendorSteps(target.name) as step (step)}<li>{step}</li>{/each}</ol>
-    {#if target.provider}
-      <a class="k-button console-link" href={providerConsole(target.provider)} target="_blank" rel="noopener noreferrer">{target.provider === "google" ? t("เปิด Google Auth Platform", "Open Google Auth Platform") : t("เปิด Microsoft Entra", "Open Microsoft Entra")}<ExternalLink size={14} aria-hidden="true" /></a>
-    {:else}
-      <a class="k-button console-link" href={localeHref(catalogSetupHref(target.sourceID))}>{t("ดูวิธีตั้งค่าแอปของระบบนี้", "View this system's app guide")}<ArrowRight size={14} aria-hidden="true" /></a>
-    {/if}
-    <div class="setup-field">
-      <label for={`oauth-callback-${target.key}`}>Callback URL</label>
-      <div class="field-action">
-        <input id={`oauth-callback-${target.key}`} readonly value={redirectURL} placeholder={t("กำลังโหลด…", "Loading…")} />
-        <button type="button" class="k-button apps-square" disabled={!redirectURL} onclick={() => copy(redirectURL, "callback")} aria-label={t("คัดลอก Callback URL", "Copy callback URL")} title={t("คัดลอก Callback URL", "Copy callback URL")}>{#if copied === "callback"}<Check size={16} />{:else}<Copy size={16} />{/if}</button>
-      </div>
-    </div>
-    {#if target.scopes.length}
-      <div class="setup-field">
-        <div class="field-label-row">
-          <span id={`oauth-scopes-${target.key}`}>{target.provider === "google" ? t("สิทธิ์ที่ต้องเพิ่ม (Scopes)", "Scopes to add") : t("สิทธิ์ Microsoft Graph แบบ Delegated", "Microsoft Graph delegated permissions")}</span>
-          <button type="button" class="k-button small" onclick={() => copy(target.scopes.join("\n"), "scopes")}>{#if copied === "scopes"}<Check size={14} />{:else}<Copy size={14} />{/if}{t("คัดลอก", "Copy")}</button>
-        </div>
-        <ul class="scope-list" aria-labelledby={`oauth-scopes-${target.key}`}>{#each target.scopes as scope (scope)}<li><code>{scope}</code></li>{/each}</ul>
-      </div>
-    {/if}
-    <div class="credential-fields">
-      <div class="setup-field">
-        <label for={`oauth-client-id-${target.key}`}>{target.provider === "microsoft" ? "Application (client) ID" : "Client ID"}</label>
-        <input id={`oauth-client-id-${target.key}`} bind:value={clientID} required autocomplete="off" spellcheck="false" />
-      </div>
-      <div class="setup-field">
-        <label for={`oauth-client-secret-${target.key}`}>Client secret</label>
-        <input id={`oauth-client-secret-${target.key}`} type="password" bind:value={clientSecret} required autocomplete="new-password" spellcheck="false" />
-      </div>
-    </div>
-    <p class="apps-hint">{t("ORCA เก็บ Client secret แบบเข้ารหัสและจะไม่แสดงค่านี้อีก", "ORCA stores the client secret encrypted and never shows it again.")}</p>
-    {#if formError}<p class="form-error" role="alert">{formError}</p>{/if}
-    <footer class="panel-actions">
-      <button type="button" class="k-button" disabled={busy} onclick={closeForm}>{t("ยกเลิก", "Cancel")}</button>
-      <button type="submit" class="k-button primary" disabled={busy || !redirectURL}>{#if busy}<LoaderCircle size={16} class="k-spin" />{/if}{target.replace ? t("เปลี่ยนแอป", "Replace app") : t("บันทึก", "Save")}</button>
-    </footer>
-  </form>
-{/snippet}
+<PageHeader title={term("programOAuthApps", t)} subtitle={t("แอปที่ให้พนักงานกด อนุญาต แล้วเชื่อมบัญชีโปรแกรมของตัวเอง ตั้งค่าครั้งเดียวต่อผู้ให้บริการ", "Apps that let people connect their own program accounts with one Allow. Set up once per provider.")}>
+  {#snippet eyebrow()}<PlatformBadge />{/snippet}
+  {#snippet action()}{#if data.canManage}<button type="button" class="k-button" disabled={loading} onclick={refresh}><RefreshCw size={16} class={loading ? "k-spin" : ""} aria-hidden="true" />{t("โหลดใหม่", "Refresh")}</button>{/if}{/snippet}
+</PageHeader>
 
-{#snippet removeConfirm(target: AppTarget)}
-  <section class="remove-confirm" aria-labelledby={`oauth-remove-${target.key}`}>
-    <h3 id={`oauth-remove-${target.key}`}>{t(`นำแอป ${target.name} ออกไหม`, `Remove the ${target.name} app?`)}</h3>
-    <p>{target.provider
-      ? t(`ทุกระบบของ ${target.name} จะใช้งานไม่ได้ และสมาชิกทุกคนที่เชื่อมบัญชีไว้จะถูกตัดการเชื่อมต่อ จนกว่าจะตั้งค่าแอปใหม่`, `Every ${target.name} system stops working and every member's connection is removed until an app is set up again.`)
-      : t("สมาชิกทุกคนที่เชื่อมบัญชีผ่านแอปนี้จะถูกตัดการเชื่อมต่อ จนกว่าจะตั้งค่าแอปใหม่", "Every member connected through this app is disconnected until an app is set up again.")}</p>
-    {#if formError}<p class="form-error" role="alert">{formError}</p>{/if}
-    <div class="panel-actions">
-      <button class="k-button" disabled={busy} onclick={() => { removing = undefined; formError = ""; }}>{t("ยกเลิก", "Cancel")}</button>
-      <button class="k-button danger" disabled={busy} onclick={remove}>{#if busy}<LoaderCircle size={16} class="k-spin" />{/if}{t("นำแอปออก", "Remove app")}</button>
-    </div>
-  </section>
-{/snippet}
-
-<section class="oauth-apps" aria-labelledby="oauth-apps-title">
-  <header class="apps-heading">
-    <div>
-      <h1 id="oauth-apps-title">{t("แอปเชื่อมบัญชี (OAuth)", "OAuth apps")}</h1>
-      <p class="k-subtitle">{t("แอปที่ให้สมาชิกกด “อนุญาต” เพื่อเชื่อมบัญชีของตัวเองกับระบบต่าง ๆ ตั้งค่าครั้งเดียวต่อผู้ให้บริการ", "Apps that let members connect their own accounts with one “Allow”. Each provider is set up once.")}</p>
-    </div>
-    {#if data.canManage}
-      <button class="k-button apps-square" disabled={loading} onclick={refresh} aria-label={t("โหลดข้อมูลใหม่", "Refresh")} title={t("โหลดข้อมูลใหม่", "Refresh")}><RefreshCw size={16} class={loading ? "k-spin" : ""} /></button>
-    {/if}
-  </header>
-
+<div class="oauth-apps">
   {#if !data.canManage}
-    <div class="apps-empty"><ShieldCheck size={28} aria-hidden="true" /><h2>{t("หน้านี้สำหรับผู้ดูแลระบบเท่านั้น", "This page is available to Admins only")}</h2></div>
+    <div class="apps-empty"><ShieldCheck size={28} aria-hidden="true" /><h2>{t("หน้านี้สำหรับทีม ORCA เท่านั้น", "This page is for the ORCA team only")}</h2></div>
   {:else}
-    {#if error}<div class="k-banner error" role="alert">{error}</div>{/if}
-    {#if notice}<p class="apps-notice" role="status"><Check size={16} aria-hidden="true" />{notice}</p>{/if}
+    {#if error}<div class="apps-callout deny" role="alert"><CircleAlert size={17} aria-hidden="true" /><span>{error}</span></div>{/if}
+    {#if notice}<p class="apps-callout ok" role="status"><Check size={17} aria-hidden="true" /><span>{notice}</span></p>{/if}
     {#if loading && !loaded}
       <div class="apps-empty" role="status"><LoaderCircle size={24} class="k-spin" aria-hidden="true" />{t("กำลังโหลด…", "Loading…")}</div>
     {:else if loaded}
       <section class="apps-section" aria-labelledby="managed-apps-title">
         <div class="section-head">
           <h2 id="managed-apps-title">{t("ผู้ให้บริการที่ ORCA ดูแล", "Providers ORCA manages")}</h2>
-          <p>{t("แอปเดียวใช้ได้กับทุกระบบของผู้ให้บริการนั้น สมาชิกแต่ละคนเชื่อมบัญชีของตัวเอง และ ORCA ขอสิทธิ์เพื่ออ่านข้อมูลเท่านั้น", "One app covers every system of that provider. Each member connects their own account, and ORCA asks only for read access.")}</p>
+          <p>{t("แอปเดียวใช้กับทุกโปรแกรมของผู้ให้บริการนั้น แต่ละคนเชื่อมบัญชีของตัวเอง และ ORCA ขอสิทธิ์อ่านข้อมูลเท่านั้น", "One app covers every program of that provider. Each person connects their own account, and ORCA asks only for read access.")}</p>
         </div>
         {#if apps.managed.length}
           <div class="provider-grid">
@@ -295,47 +240,42 @@
               {@const readyCount = app.connectors.filter((connector) => connector.ready).length}
               <article class="provider-card" class:attention={!app.ready}>
                 <header>
-                  <img class="provider-logo" src={providerLogo(app.provider)} alt="" width="28" height="28" />
-                  <div class="provider-name"><h3>{providerName(app.provider)}</h3><span>{t(`ใช้ร่วมกันกับ ${app.connectors.length} ระบบ`, `Shared by ${app.connectors.length} systems`)}</span></div>
-                  <span class="apps-status" class:ok={app.ready} class:warn={!app.ready}>
-                    {#if app.ready}<Check size={13} aria-hidden="true" />{t("พร้อมใช้", "Ready")}
-                    {:else}<CircleAlert size={13} aria-hidden="true" />{readyCount ? t("ตั้งค่ายังไม่ครบ", "Partly set up") : t("ต้องตั้งค่า", "Needs setup")}{/if}
-                  </span>
+                  <span class="provider-logo" aria-hidden="true"><img src={providerLogo(app.provider)} alt="" width="26" height="26" /></span>
+                  <div class="provider-name"><h3>{providerName(app.provider)}</h3><span>{t(`ใช้ร่วมกันกับ ${app.connectors.length} โปรแกรม`, `Shared by ${app.connectors.length} programs`)}</span></div>
+                  <StatusPill label={app.ready ? t("พร้อมใช้", "Ready") : readyCount ? t("ตั้งค่ายังไม่ครบ", "Partly set up") : t("ต้องตั้งค่า", "Needs setup")} tone={app.ready ? "ok" : "warn"} dot />
                 </header>
-                <ul class="connector-list" aria-label={t(`ระบบที่ใช้แอป ${providerName(app.provider)}`, `Systems using the ${providerName(app.provider)} app`)}>
+                <ul class="connector-list" aria-label={t(`โปรแกรมที่ใช้แอป ${providerName(app.provider)}`, `Programs using the ${providerName(app.provider)} app`)}>
                   {#each app.connectors as connector (connector.id)}
                     <li class:ready={connector.ready}><CatalogIcon name={connector.name} size={16} />{connector.name}<span class="visually-hidden">{connector.ready ? t("พร้อมใช้", "ready") : t("ยังไม่พร้อม", "not ready")}</span></li>
                   {/each}
                 </ul>
                 <footer>
                   {#if !app.ready && app.canConfigure}
-                    <button class="k-button primary" aria-expanded={editing?.key === app.provider} aria-controls={`oauth-setup-${app.provider}`} onclick={() => (editing?.key === app.provider ? closeForm() : openForm(providerTarget(app, false)))}>{t(`ตั้งค่าแอป ${providerName(app.provider)}`, `Set up the ${providerName(app.provider)} app`)}</button>
+                    <button class="k-button primary" aria-haspopup="dialog" onclick={() => openForm(providerTarget(app, false))}>{t(`ตั้งค่าแอป ${providerName(app.provider)}`, `Set up the ${providerName(app.provider)} app`)}</button>
                   {:else if app.ready}
-                    <p>{t("สมาชิกกด “อนุญาต” เพื่อเชื่อมบัญชีของตัวเองได้เลย", "Members can connect their own accounts with one “Allow”.")}</p>
+                    <p>{t("พนักงานกด อนุญาต เพื่อเชื่อมบัญชีของตัวเองได้เลย", "People can connect their own accounts with one Allow.")}</p>
                     {#if ownerCanManage}
                       <div class="card-actions">
-                        <button class="k-button small" aria-expanded={editing?.key === app.provider} aria-controls={`oauth-setup-${app.provider}`} onclick={() => (editing?.key === app.provider ? closeForm() : openForm(providerTarget(app, true)))}>{t("เปลี่ยนแอป", "Replace")}</button>
-                        <button class="k-button small danger" onclick={() => askRemove(providerTarget(app, true))}>{t("นำแอปออก", "Remove")}</button>
+                        <button class="k-button small" aria-haspopup="dialog" onclick={() => openForm(providerTarget(app, true))}>{t("เปลี่ยนแอป", "Replace")}</button>
+                        <button class="k-button small danger" aria-haspopup="dialog" onclick={() => askRemove(providerTarget(app, true))}>{t("นำแอปออก", "Remove")}</button>
                       </div>
                     {/if}
                   {:else}
-                    <p>{t("เจ้าของระบบ ORCA เป็นผู้ตั้งค่าแอปนี้", "The ORCA installation owner sets up this app.")}</p>
+                    <p>{t("ทีม ORCA เป็นผู้ตั้งค่าแอปนี้", "The ORCA team sets up this app.")}</p>
                   {/if}
                 </footer>
               </article>
             {/each}
           </div>
-          {#if editing?.provider}{@render appForm(editing)}{/if}
-          {#if removing?.provider}{@render removeConfirm(removing)}{/if}
         {:else}
-          <p class="apps-muted">{t("ยังไม่มีผู้ให้บริการที่ ORCA ดูแลในระบบนี้", "No ORCA-managed provider is installed.")}</p>
+          <p class="apps-muted">{t("ยังไม่มีผู้ให้บริการที่ ORCA ดูแล", "No ORCA-managed provider is installed.")}</p>
         {/if}
       </section>
 
       <section class="apps-section" aria-labelledby="custom-apps-title">
         <div class="section-head">
-          <h2 id="custom-apps-title">{t("ระบบที่ต้องใช้แอปของคุณเอง", "Systems that need your own app")}<span class="apps-count">{apps.custom.length}</span></h2>
-          <p>{t("ผู้ให้บริการเหล่านี้ไม่รับการลงทะเบียนอัตโนมัติ ต้องสร้างแอป OAuth ที่ผู้ให้บริการก่อน แล้วนำ Client ID และ Client secret มาใส่ใน ORCA", "These providers do not accept automatic registration. Create an OAuth app with the provider first, then enter its Client ID and Client secret in ORCA.")}</p>
+          <h2 id="custom-apps-title">{t("โปรแกรมที่ต้องใช้แอปของตัวเอง", "Programs that need their own app")}<span class="apps-count">{apps.custom.length}</span></h2>
+          <p>{t("ผู้ให้บริการเหล่านี้ไม่รับการลงทะเบียนอัตโนมัติ สร้างแอป OAuth ที่ผู้ให้บริการก่อน แล้วนำ Client ID และ Client secret มาใส่ใน ORCA", "These providers don't accept automatic registration. Create an OAuth app with the provider first, then enter its Client ID and Client secret in ORCA.")}</p>
         </div>
         {#if apps.custom.length}
           <div class="app-list">
@@ -343,132 +283,190 @@
               <a class="app-row" href={localeHref(catalogSetupHref(app.id))}>
                 <CatalogIcon name={app.name} size={28} />
                 <span class="app-name"><strong>{app.name}</strong>{#if app.endpointHost}<span>{app.endpointHost}</span>{/if}</span>
-                <span class="apps-status warn"><CircleAlert size={13} aria-hidden="true" />{t("ต้องตั้งค่าแอป", "Needs an app")}</span>
+                <StatusPill label={t("ต้องตั้งค่าแอป", "Needs an app")} tone="warn" />
                 <span class="row-action">{app.canConfigure ? t("ตั้งค่า", "Set up") : t("ดูวิธีตั้งค่า", "View setup")}<ArrowRight size={14} aria-hidden="true" /></span>
               </a>
             {/each}
           </div>
         {:else}
-          <p class="apps-muted">{t("ไม่มีระบบที่ต้องตั้งค่าแอปเพิ่ม", "No system needs its own app.")}</p>
+          <p class="apps-muted">{t("ไม่มีโปรแกรมที่ต้องตั้งค่าแอปเพิ่ม", "No program needs its own app.")}</p>
         {/if}
       </section>
 
       {#if apps.configuredCustom.length}
         <section class="apps-section" aria-labelledby="configured-apps-title">
           <div class="section-head">
-            <h2 id="configured-apps-title">{t("แอปของระบบอื่นที่ตั้งค่าแล้ว", "Other systems' apps you have set up")}<span class="apps-count">{apps.configuredCustom.length}</span></h2>
+            <h2 id="configured-apps-title">{t("แอปของโปรแกรมอื่นที่ตั้งค่าแล้ว", "Other programs' apps you have set up")}<span class="apps-count">{apps.configuredCustom.length}</span></h2>
           </div>
           <div class="app-list">
             {#each apps.configuredCustom as app (app.id)}
               <div class="app-row">
                 <CatalogIcon name={app.name} size={28} />
                 <span class="app-name"><strong>{app.name}</strong>{#if app.endpointHost}<span>{app.endpointHost}</span>{/if}</span>
-                <span class="apps-status ok"><Check size={13} aria-hidden="true" />{t("ตั้งค่าแล้ว", "Set up")}</span>
+                <StatusPill label={t("ตั้งค่าแล้ว", "Set up")} tone="ok" />
                 {#if ownerCanManage}
                   <span class="row-buttons">
-                    <button class="k-button small" aria-expanded={editing?.key === app.id} aria-controls={`oauth-setup-${app.id}`} onclick={() => (editing?.key === app.id ? closeForm() : openForm(vendorTarget(app)))}>{t("เปลี่ยน", "Replace")}</button>
-                    <button class="k-button small danger" onclick={() => askRemove(vendorTarget(app))}>{t("นำออก", "Remove")}</button>
+                    <button class="k-button small" aria-haspopup="dialog" onclick={() => openForm(vendorTarget(app))}>{t("เปลี่ยน", "Replace")}</button>
+                    <button class="k-button small danger" aria-haspopup="dialog" onclick={() => askRemove(vendorTarget(app))}>{t("นำออก", "Remove")}</button>
                   </span>
                 {:else}<span></span>{/if}
               </div>
             {/each}
           </div>
-          {#if editing && !editing.provider}{@render appForm(editing)}{/if}
-          {#if removing && !removing.provider}{@render removeConfirm(removing)}{/if}
         </section>
       {/if}
 
       <aside class="ready-note">
         <Check size={16} aria-hidden="true" />
-        <p>{t(`อีก ${apps.readyToSignIn} ระบบเชื่อมด้วย OAuth ได้ทันที ไม่ต้องตั้งค่าแอป`, `${apps.readyToSignIn} more systems connect with OAuth right away, with no app to set up.`)}</p>
-        <a href={localeHref("/app?view=add-program")}>{t("ดูระบบทั้งหมด", "Browse systems")}<ArrowRight size={14} aria-hidden="true" /></a>
+        <p>{t(`อีก ${apps.readyToSignIn} โปรแกรมเชื่อมด้วย OAuth ได้ทันที ไม่ต้องตั้งค่าแอป`, `${apps.readyToSignIn} more programs connect with OAuth right away, with no app to set up.`)}</p>
+        <a href={localeHref(platformHref("catalog"))}>{term("programCatalog", t)}<ArrowRight size={14} aria-hidden="true" /></a>
       </aside>
     {/if}
   {/if}
-</section>
+</div>
+
+<Sheet
+  bind:open={sheetOpen}
+  title={editing ? (editing.replace ? t(`เปลี่ยนแอป ${editing.name}`, `Replace the ${editing.name} app`) : t(`ตั้งค่าแอป ${editing.name}`, `Set up the ${editing.name} app`)) : ""}
+  description={t("ทำตามขั้นตอนที่ผู้ให้บริการ แล้ววาง Client ID และ Client secret", "Follow the steps with the provider, then paste the Client ID and Client secret.")}
+  {busy}
+  onclose={closeForm}
+>
+  {#if editing}
+    {@const target = editing}
+    <form id="oauth-setup-form" class="setup-panel" onsubmit={save} autocomplete="off">
+      {#if target.replace}
+        <p class="replace-note"><CircleAlert size={16} aria-hidden="true" />{t("ถ้าแค่เปลี่ยน Client secret ของแอปเดิม ทุกคนยังเชื่อมอยู่เหมือนเดิม ถ้าใช้ Client ID ใหม่ ทุกคนต้องเชื่อมบัญชีอีกครั้ง", "Rotating the secret of the same app keeps everyone connected. A new Client ID asks everyone to connect again.")}</p>
+      {/if}
+      <ol class="setup-steps">{#each target.provider ? providerSteps(target.provider) : vendorSteps(target.name) as step, index (step)}<li><span class="setup-step-number" aria-hidden="true">{index + 1}</span><span>{step}</span></li>{/each}</ol>
+      {#if target.provider}
+        <a class="k-button console-link" href={providerConsole(target.provider)} target="_blank" rel="noopener noreferrer">{target.provider === "google" ? t("เปิด Google Auth Platform", "Open Google Auth Platform") : t("เปิด Microsoft Entra", "Open Microsoft Entra")}<ExternalLink size={14} aria-hidden="true" /></a>
+      {:else}
+        <a class="k-button console-link" href={localeHref(catalogSetupHref(target.sourceID))}>{t("ดูวิธีตั้งค่าแอปของโปรแกรมนี้", "View this program's app guide")}<ArrowRight size={14} aria-hidden="true" /></a>
+      {/if}
+      <div class="setup-field">
+        <label for={`oauth-callback-${target.key}`}>Callback URL</label>
+        <div class="field-action">
+          <input id={`oauth-callback-${target.key}`} readonly value={redirectURL} placeholder={t("กำลังโหลด…", "Loading…")} />
+          <button type="button" class="k-button apps-square" disabled={!redirectURL} onclick={() => copy(redirectURL, "callback")} aria-label={t("คัดลอก Callback URL", "Copy callback URL")} title={t("คัดลอก Callback URL", "Copy callback URL")}>{#if copied === "callback"}<Check size={16} />{:else}<Copy size={16} />{/if}</button>
+        </div>
+      </div>
+      {#if target.scopes.length}
+        <div class="setup-field">
+          <div class="field-label-row">
+            <span id={`oauth-scopes-${target.key}`}>{target.provider === "google" ? t("สิทธิ์ที่ต้องเพิ่ม (Scopes)", "Scopes to add") : t("สิทธิ์ Microsoft Graph แบบ Delegated", "Microsoft Graph delegated permissions")}</span>
+            <button type="button" class="k-button small" onclick={() => copy(target.scopes.join("\n"), "scopes")}>{#if copied === "scopes"}<Check size={14} />{:else}<Copy size={14} />{/if}{t("คัดลอก", "Copy")}</button>
+          </div>
+          <ul class="scope-list" aria-labelledby={`oauth-scopes-${target.key}`}>{#each target.scopes as scope (scope)}<li><code>{scope}</code></li>{/each}</ul>
+        </div>
+      {/if}
+      <div class="credential-fields">
+        <div class="setup-field">
+          <label for={`oauth-client-id-${target.key}`}>{target.provider === "microsoft" ? "Application (client) ID" : "Client ID"}</label>
+          <input id={`oauth-client-id-${target.key}`} bind:value={clientID} required autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="setup-field">
+          <label for={`oauth-client-secret-${target.key}`}>Client secret</label>
+          <input id={`oauth-client-secret-${target.key}`} type="password" bind:value={clientSecret} required autocomplete="new-password" spellcheck="false" />
+        </div>
+      </div>
+      <p class="apps-hint">{t("ORCA เก็บ Client secret เป็นความลับและไม่แสดงค่านี้อีก", "ORCA keeps the client secret secret and never shows it again.")}</p>
+      {#if formError}<p class="form-error" role="alert">{formError}</p>{/if}
+    </form>
+  {/if}
+  {#snippet footer()}
+    <button type="button" class="k-button" disabled={busy} onclick={() => (sheetOpen = false)}>{t("ยกเลิก", "Cancel")}</button>
+    <button type="submit" form="oauth-setup-form" class="k-button primary" disabled={busy || !redirectURL}>{#if busy}<LoaderCircle size={16} class="k-spin" />{/if}{editing?.replace ? t("เปลี่ยนแอป", "Replace app") : t("บันทึก", "Save")}</button>
+  {/snippet}
+</Sheet>
+
+<ConfirmDialog
+  bind:open={removeOpen}
+  title={removing ? t(`นำแอป ${removing.name} ออกไหม`, `Remove the ${removing.name} app?`) : ""}
+  message={removing?.provider
+    ? t(`ทุกโปรแกรมของ ${removing.name} จะใช้งานไม่ได้ และทุกคนที่เชื่อมบัญชีไว้จะถูกตัดการเชื่อมต่อ จนกว่าจะตั้งค่าแอปใหม่`, `Every ${removing.name} program stops working and everyone's connection is removed until an app is set up again.`)
+    : t("ทุกคนที่เชื่อมบัญชีผ่านแอปนี้จะถูกตัดการเชื่อมต่อ จนกว่าจะตั้งค่าแอปใหม่", "Everyone connected through this app is disconnected until an app is set up again.")}
+  confirmLabel={t("นำแอปออก", "Remove app")}
+  tone="danger"
+  icon={Trash2}
+  {busy}
+  oncancel={() => { removing = undefined; formError = ""; }}
+  onconfirm={remove}
+>
+  {#if formError && removing}<p class="form-error" role="alert">{formError}</p>{/if}
+</ConfirmDialog>
 
 <style>
-  .oauth-apps { display: grid; gap: 20px; min-width: 0; }
-  .apps-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px 24px; }
-  .apps-heading h1 { margin: 0; }
-  .apps-heading .k-subtitle { max-width: 680px; }
-  .apps-square { width: 36px; padding: 0; flex: none; justify-content: center; }
+  .oauth-apps { display: grid; gap: 22px; min-width: 0; }
+  .apps-square { width: 38px; padding: 0; flex: none; justify-content: center; }
   .apps-section { display: grid; gap: 12px; min-width: 0; }
-  .section-head h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 600; }
-  .section-head p { max-width: 760px; margin: 4px 0 0; color: var(--orca-muted); font-size: 13.5px; line-height: 1.6; }
-  .apps-count { padding: 0 7px; border-radius: 999px; background: var(--orca-secondary); color: var(--orca-nav); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .provider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 12px; }
-  .provider-card { display: grid; grid-template-rows: auto 1fr auto; gap: 14px; min-width: 0; padding: 16px 18px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
-  .provider-card.attention { border-color: color-mix(in srgb, var(--orca-warn) 28%, var(--orca-line)); }
+  .section-head h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 650; }
+  .section-head p { max-width: 760px; margin: 4px 0 0; color: var(--orca-muted); font-size: 14px; line-height: 1.6; }
+  .apps-count { padding: 0 8px; border-radius: 999px; background: var(--orca-secondary); color: var(--orca-text-2); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .apps-callout { display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 12px 16px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); font-size: 14px; line-height: 1.6; }
+  .apps-callout :global(svg) { flex: none; margin-top: 2px; }
+  .apps-callout.ok { border-color: var(--orca-ok-line); background: var(--orca-ok-bg); color: var(--orca-ok); }
+  .apps-callout.deny { border-color: var(--orca-deny-line); background: var(--orca-deny-bg); color: var(--orca-deny); }
+  .provider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 14px; }
+  .provider-card { display: grid; grid-template-rows: auto 1fr auto; gap: 14px; min-width: 0; padding: 18px 20px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); box-shadow: 0 1px 2px color-mix(in srgb, var(--orca-ink) 5%, transparent); }
+  .provider-card.attention { border-color: var(--orca-warn-line); }
   .provider-card > header { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .provider-logo { flex: none; width: 28px; height: 28px; object-fit: contain; }
+  .provider-logo { display: grid; flex: none; place-items: center; width: 40px; height: 40px; border: 1px solid var(--orca-line); border-radius: 10px; background: var(--orca-logo-tile); }
+  .provider-logo img { width: 24px; height: 24px; object-fit: contain; }
   .provider-name { flex: 1 1 auto; min-width: 0; }
-  .provider-name h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.35; }
+  .provider-name h3 { margin: 0; font-size: 15.5px; font-weight: 650; line-height: 1.35; }
   .provider-name span { color: var(--orca-muted); font-size: 13px; }
-  .apps-status { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 2px 8px; border-radius: var(--orca-radius-sm); background: var(--orca-secondary); color: var(--orca-nav); font-size: 12px; font-weight: 500; white-space: nowrap; }
-  .apps-status.ok { background: var(--orca-ok-bg); color: var(--orca-ok); }
-  .apps-status.warn { background: var(--orca-warn-bg); color: var(--orca-warn); }
   .connector-list { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: center; gap: 6px; margin: 0; padding: 0; list-style: none; }
-  .connector-list li { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 6px; border: 1px solid var(--orca-line); border-radius: 999px; color: var(--orca-muted); font-size: 12.5px; line-height: 1.5; }
+  .connector-list li { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 6px; border: 1px solid var(--orca-line); border-radius: 999px; color: var(--orca-muted); font-size: 12.5px; line-height: 1.5; }
   .connector-list li.ready { color: var(--orca-ink); }
   .connector-list li:not(.ready) { border-style: dashed; }
-  .provider-card > footer { display: flex; align-items: center; min-height: 36px; padding-top: 12px; border-top: 1px solid var(--orca-line); }
+  .provider-card > footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 36px; padding-top: 12px; border-top: 1px solid var(--orca-line-soft); }
   .provider-card > footer p { margin: 0; color: var(--orca-muted); font-size: 13px; line-height: 1.55; }
-  .setup-panel { display: grid; gap: 16px; padding: 18px 20px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
-  .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--orca-line); }
-  .panel-head h3 { margin: 0; font-size: 15px; font-weight: 600; }
-  .apps-icon-button { display: inline-grid; place-items: center; flex: none; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--orca-radius); background: transparent; color: var(--orca-subtle); cursor: pointer; }
-  .apps-icon-button:hover:not(:disabled) { background: var(--orca-hover); color: var(--orca-ink); }
-  .setup-steps { display: grid; gap: 8px; margin: 0; padding-left: 22px; list-style: decimal; font-size: 13.5px; line-height: 1.6; }
-  .setup-steps li { display: list-item; padding-left: 2px; }
-  .setup-steps li::marker { color: var(--orca-muted); font-weight: 600; }
-  .console-link { justify-self: start; }
+  .card-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+  .setup-panel { display: grid; gap: 16px; }
+  .setup-steps { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; font-size: 14px; line-height: 1.6; }
+  .setup-steps li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; }
+  .setup-step-number { display: grid; place-items: center; width: 24px; height: 24px; border: 1.5px solid var(--orca-ink); border-radius: 50%; color: var(--orca-ink); font-size: 12px; font-weight: 700; }
+  .console-link { justify-self: start; gap: 6px; text-decoration: none; }
   .setup-field { display: grid; gap: 6px; min-width: 0; }
-  .setup-field label, .field-label-row span { font-size: 13.5px; font-weight: 600; }
+  .setup-field label, .field-label-row span { font-size: 14px; font-weight: 600; }
   .field-label-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .field-label-row :global(.k-button) { flex: none; white-space: nowrap; }
-  .setup-field input { width: 100%; min-width: 0; min-height: 36px; padding: 7px 11px; border: 1px solid var(--orca-field-line, var(--orca-line-strong)); border-radius: var(--orca-radius); background: var(--orca-surface); color: var(--orca-ink); font: inherit; font-size: 14px; }
+  .setup-field input { width: 100%; min-width: 0; min-height: 40px; padding: 8px 12px; border: 1px solid var(--orca-field-line); border-radius: var(--orca-radius); background: var(--orca-field); color: var(--orca-ink); font: inherit; font-size: 14px; }
   .setup-field input:focus-visible { outline: none; border-color: var(--orca-focus, var(--orca-ink)); box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1)); }
-  .setup-field input[readonly] { background: var(--orca-surface-2); color: var(--orca-muted); font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 13px; }
+  .setup-field input[readonly] { background: var(--orca-surface-2); color: var(--orca-text-2); font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace; font-size: 13px; }
   .field-action { display: flex; gap: 8px; min-width: 0; }
   .scope-list { display: grid; gap: 2px; margin: 0; padding: 10px 12px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius); background: var(--orca-surface-2); list-style: none; }
-  .scope-list code { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 12.5px; line-height: 1.7; overflow-wrap: anywhere; }
-  .credential-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
+  .scope-list code { font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace; font-size: 12.5px; line-height: 1.7; overflow-wrap: anywhere; }
+  .credential-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .apps-hint { margin: -6px 0 0; color: var(--orca-muted); font-size: 13px; }
-  .form-error { margin: 0; color: var(--orca-deny); font-size: 13.5px; }
-  .panel-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 14px; border-top: 1px solid var(--orca-line); }
+  .form-error { margin: 0; padding: 10px 12px; border-radius: var(--orca-radius); background: var(--orca-deny-bg); color: var(--orca-deny); font-size: 13.5px; }
+  :global(.orca-confirm) .form-error { margin-top: 12px; }
   .app-list { overflow: hidden; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
-  .app-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 11px 18px; color: var(--orca-ink); text-decoration: none; }
-  .app-row + .app-row { border-top: 1px solid var(--orca-line-soft, #eff0f2); }
-  .app-row:hover { background: var(--orca-surface-2); }
+  .app-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 12px 18px; color: var(--orca-ink); text-decoration: none; }
+  .app-row + .app-row { border-top: 1px solid var(--orca-line-soft); }
+  a.app-row:hover { background: var(--orca-hover); }
   .app-row:focus-visible { outline: 2px solid var(--orca-focus, var(--orca-ink)); outline-offset: -2px; }
   .app-name { min-width: 0; }
-  .app-name strong { display: block; font-size: 14px; font-weight: 600; line-height: 1.45; }
+  .app-name strong { display: block; font-size: 14.5px; font-weight: 600; line-height: 1.45; }
   .app-name span { display: block; overflow: hidden; color: var(--orca-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-  .row-action { display: inline-flex; align-items: center; gap: 4px; color: var(--orca-nav); font-size: 13px; font-weight: 500; white-space: nowrap; }
-  .ready-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 12px 16px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface-2); color: var(--orca-ok); font-size: 13.5px; }
+  .row-action { display: inline-flex; align-items: center; gap: 4px; color: var(--orca-text-2); font-size: 13.5px; font-weight: 600; white-space: nowrap; }
+  .row-buttons { display: inline-flex; gap: 6px; }
+  .ready-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 12px 16px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface-2); color: var(--orca-ok); font-size: 14px; }
   .ready-note p { flex: 1 1 260px; margin: 0; color: var(--orca-ink); }
-  .ready-note a { display: inline-flex; align-items: center; gap: 4px; color: var(--orca-ink); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
-  .apps-notice { display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--orca-ok) 22%, transparent); border-radius: var(--orca-radius); background: var(--orca-ok-bg); color: var(--orca-ok); font-size: 13.5px; }
-  .apps-muted { margin: 0; color: var(--orca-muted); font-size: 13.5px; }
-  .apps-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 48px 24px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); color: var(--orca-subtle); text-align: center; font-size: 13.5px; }
+  .ready-note a { display: inline-flex; align-items: center; gap: 4px; color: var(--orca-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+  .apps-muted { margin: 0; color: var(--orca-muted); font-size: 14px; }
+  .apps-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 48px 24px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); color: var(--orca-subtle); text-align: center; font-size: 14px; }
   .apps-empty h2 { margin: 4px 0 0; color: var(--orca-ink); font-size: 15px; font-weight: 600; }
   .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-  .card-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
-  .provider-card > footer { gap: 8px 12px; flex-wrap: wrap; }
-  .row-buttons { display: inline-flex; gap: 6px; }
-  .replace-note { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: var(--orca-radius); background: var(--orca-warn-bg); color: var(--orca-warn); font-size: 13.5px; line-height: 1.55; }
+  .replace-note { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border: 1px solid var(--orca-warn-line); border-radius: var(--orca-radius); background: var(--orca-warn-bg); color: var(--orca-warn); font-size: 13.5px; line-height: 1.55; }
   .replace-note :global(svg) { flex: none; margin-top: 2px; }
-  .remove-confirm { display: grid; gap: 10px; padding: 18px 20px; border: 1px solid color-mix(in srgb, var(--orca-deny) 30%, transparent); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
-  .remove-confirm h3 { margin: 0; font-size: 15px; font-weight: 600; }
-  .remove-confirm p { margin: 0; color: var(--orca-muted); font-size: 14px; line-height: 1.6; }
-  .remove-confirm .panel-actions { padding-top: 4px; border-top: 0; }
-  @media (max-width: 600px) {
-    .credential-fields { grid-template-columns: minmax(0, 1fr); }
-    .setup-panel { padding: 16px; }
-    .app-row { grid-template-columns: 28px minmax(0, 1fr) auto; row-gap: 6px; padding: 11px 14px; }
-    .app-row .apps-status { grid-column: 2; grid-row: 2; justify-self: start; }
-    .app-row .row-action, .app-row .row-buttons { grid-column: 3; grid-row: 1 / span 2; }
-    .row-buttons { flex-direction: column; }
+  /* Under 720px a row stacks: name first, then its state and action. */
+  @media (max-width: 720px) {
+    .app-row { grid-template-columns: 28px minmax(0, 1fr); row-gap: 8px; padding: 12px 14px; }
+    .app-row :global(.orca-pill), .app-row .row-action, .app-row .row-buttons { grid-column: 2; justify-self: start; }
+    .app-name span { white-space: normal; overflow-wrap: anywhere; }
+    .provider-card { padding: 16px; }
+    .card-actions { margin-left: 0; }
   }
 </style>
