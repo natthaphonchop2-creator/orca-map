@@ -16,7 +16,7 @@ export const PROGRAM_CHIPS = [
 	{ id: 'all', th: 'ทั้งหมด', en: 'All', categories: [] as string[] },
 	{ id: 'accounting', th: 'บัญชี', en: 'Accounting', categories: ['accounting'] },
 	{ id: 'documents', th: 'เอกสาร', en: 'Documents', categories: ['productivity', 'design-content', 'data-analytics', 'research-knowledge'] },
-	{ id: 'chat', th: 'แชทและลูกค้า', en: 'Chat and customers', categories: ['communication', 'social-media'] },
+	{ id: 'chat', th: 'แชท อีเมล และลูกค้า', en: 'Chat, email & customers', categories: ['communication', 'social-media'] },
 	{ id: 'sales', th: 'งานขาย', en: 'Sales', categories: ['crm-sales', 'ecommerce', 'marketing'] },
 	{ id: 'finance', th: 'การเงิน', en: 'Finance', categories: ['finance'] }
 ] as const;

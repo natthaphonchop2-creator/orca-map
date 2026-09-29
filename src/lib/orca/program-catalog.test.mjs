@@ -64,7 +64,8 @@ test('search and chips narrow the programs; เร็วๆ นี้ goes last 
 	const chips = availableChips(sources);
 	assert.equal(chips[0], 'all');
 	assert.ok(chips.includes('accounting') && chips.includes('finance'));
-	assert.deepEqual(PROGRAM_CHIPS.map((chip) => chip.th), ['ทั้งหมด', 'บัญชี', 'เอกสาร', 'แชทและลูกค้า', 'งานขาย', 'การเงิน']);
+	assert.deepEqual(PROGRAM_CHIPS.map((chip) => chip.th), ['ทั้งหมด', 'บัญชี', 'เอกสาร', 'แชท อีเมล และลูกค้า', 'งานขาย', 'การเงิน']);
+	assert.equal(PROGRAM_CHIPS.find((chip) => chip.id === 'chat').en, 'Chat, email & customers', 'Outlook and Gmail sit here');
 	assert.deepEqual(programCategory(catalogSource(sources[0])), { th: 'บัญชี', en: 'Accounting' });
 });
 
