@@ -1,26 +1,28 @@
 import { browser } from '$app/environment';
 import type { AppPreferences } from '$lib/services';
 
+// The brand kit's logo files (2026-09-08). The version query makes browsers fetch them
+// again instead of reusing the older drawings cached under the same file names.
 export const DEFAULT_LOGOS = {
 	// Logo.svelte variants
 	icon: {
-		default: '/orca-assets/icon.svg',
-		error: '/orca-assets/icon.svg',
-		warning: '/orca-assets/icon.svg'
+		default: '/orca-assets/icon.svg?v=kit-20260908',
+		error: '/orca-assets/icon.svg?v=kit-20260908',
+		warning: '/orca-assets/icon.svg?v=kit-20260908'
 	},
 	// BetaLogo.svelte variants
 	beta: {
 		dark: {
-			chat: '/orca-assets/wordmark-dark.svg',
-			enterprise: '/orca-assets/wordmark-dark.svg',
-			community: '/orca-assets/wordmark-dark.svg',
-			default: '/orca-assets/wordmark-dark.svg'
+			chat: '/orca-assets/wordmark-dark.svg?v=kit-20260908',
+			enterprise: '/orca-assets/wordmark-dark.svg?v=kit-20260908',
+			community: '/orca-assets/wordmark-dark.svg?v=kit-20260908',
+			default: '/orca-assets/wordmark-dark.svg?v=kit-20260908'
 		},
 		light: {
-			chat: '/orca-assets/wordmark-light.svg',
-			enterprise: '/orca-assets/wordmark-light.svg',
-			community: '/orca-assets/wordmark-light.svg',
-			default: '/orca-assets/wordmark-light.svg'
+			chat: '/orca-assets/wordmark-light.svg?v=kit-20260908',
+			enterprise: '/orca-assets/wordmark-light.svg?v=kit-20260908',
+			community: '/orca-assets/wordmark-light.svg?v=kit-20260908',
+			default: '/orca-assets/wordmark-light.svg?v=kit-20260908'
 		}
 	}
 } as const;

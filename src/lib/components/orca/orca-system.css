@@ -127,11 +127,10 @@
 .orca-workspace.orca-app .workspace-sidebar-header {
   margin: 0 6px 18px;
 }
-.orca-workspace.orca-app .workspace-brand .orca-wordmark {
-  font-size: 24px;
-}
-.orca-workspace.orca-app .workspace-brand .orca-symbol {
-  width: 24px;
+/* The official logo (Brand.svelte) at a 24px mark, in the sidebar's 34px brand row. */
+.orca-workspace.orca-app .workspace-brand {
+  --orca-brand-size: 24px;
+  min-height: 34px;
 }
 .orca-workspace.orca-app .workspace-collapse.workspace-icon-button {
   width: 28px;

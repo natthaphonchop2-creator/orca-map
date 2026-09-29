@@ -5,7 +5,7 @@
 <footer class="flex w-full flex-col justify-between text-sm shadow-md">
 	<div class="flex w-full flex-col items-center gap-3 px-5 py-4 md:flex-row">
 		<a href="/" aria-label="ORCA home" class="flex items-center gap-2 font-semibold">
-			<img src="/orca-assets/icon.svg" class="size-9" alt="" /> ORCA
+			<img src="/orca-assets/icon.svg?v=kit-20260908" class="size-9" alt="" /> ORCA
 		</a>
 		<div class="flex grow"></div>
 		<div class="mt-8 flex flex-col gap-2 md:mt-0">
