@@ -1,49 +1,34 @@
 <script lang="ts">
-  import { gatewayHasMember } from '$lib/orca/gateway-sources';
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { getHttpStatusCode } from '$lib/errors';
 	import { connectionReady } from '$lib/orca/activation';
+	import { aiConnection } from '$lib/orca/ai-connection.svelte';
+	import { currentCompany } from '$lib/orca/company';
+	import { term } from '$lib/orca/glossary';
+	import { accessRequestMessage, libraryScope, type LibraryFilter } from '$lib/orca/knowledge';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
-	import {
-		displayDate,
-		orcaError,
-		memberName,
-		type OrcaBootstrap,
-		type OrcaMember
-	} from '$lib/services/orca';
+	import { memberName, orcaError, statusLabels, type OrcaBootstrap, type OrcaMember } from '$lib/services/orca';
 	import {
 		OrcaLibraryService,
 		type LibraryDepartment,
 		type LibraryItem,
-		type LibraryKind,
-		type LibraryStatus,
-		type RenderedTemplate
+		type LibraryKind
 	} from '$lib/services/orca-library';
-	import LibraryDepartments from './LibraryDepartments.svelte';
-	import LibraryEditor from './LibraryEditor.svelte';
-	import './library.css';
-	import {
-		Archive,
-		ArrowLeft,
-		ArrowRight,
-		BookOpen,
-		Check,
-		ChevronRight,
-		FileText,
-		Folder,
-		Info,
-		LockKeyhole,
-		Pencil,
-		Plug,
-		Plus,
-		RefreshCw,
-		Search,
-		ShieldCheck,
-		Sparkles,
-		Users
-	} from '@lucide/svelte';
+	import { KnowledgeWorkspaceService } from '$lib/services/orca-u8';
+	import { Copy, FolderPlus, Info, SearchX, UserPlus, Users } from '@lucide/svelte';
 	import { untrack } from 'svelte';
+	import LibraryEditor from './LibraryEditor.svelte';
+	import KnowledgeDetail from './knowledge/KnowledgeDetail.svelte';
+	import KnowledgeList from './knowledge/KnowledgeList.svelte';
+	import ChoiceTile from './ui/ChoiceTile.svelte';
+	import ConfirmDialog from './ui/ConfirmDialog.svelte';
+	import PageHeader from './ui/PageHeader.svelte';
+	import { copyText } from './ui/copy';
+	import { showToast } from './ui/toast-store.svelte';
 
+	// view=knowledge: คลังความรู้ (workspace UX U8, the interim UI of proposal
+	// §3.6). Items live in an AI workspace, so the page opens the viewer's
+	// workspace by itself, or says in one line what is missing.
 	let {
 		data,
 		hubID,
@@ -57,757 +42,451 @@
 		initialCreate?: boolean;
 		onchanged: () => Promise<void>;
 	} = $props();
-	let section = $state<LibraryKind | 'departments'>('knowledge');
+
+	type Screen = { name: 'list' } | { name: 'detail'; id: string } | { name: 'editor'; kind: LibraryKind; id?: string; title?: string };
+
+	// The last workspace chosen here, per company (a convenience only).
+	const rememberKey = () => `orca.knowledge.workspace.${currentCompany()}`;
+	function readRemembered() {
+		try {
+			return typeof localStorage === 'undefined' ? '' : (localStorage.getItem(rememberKey()) ?? '');
+		} catch {
+			return '';
+		}
+	}
+	function remember(id: string) {
+		remembered = id;
+		try {
+			localStorage.setItem(rememberKey(), id);
+		} catch {
+			// A private window or blocked storage: the page still works.
+		}
+	}
+	let remembered = $state(readRemembered());
+	const scope = $derived(
+		libraryScope({ hubs: data.hubs, currentUserID: data.currentUserID, canManage: data.canManage, requestedID: hubID || undefined, rememberedID: remembered })
+	);
+	const hub = $derived(scope.kind === 'hub' ? scope.hub : undefined);
+
+	let kind = $state<LibraryKind>('knowledge');
+	let filter = $state<LibraryFilter>('all');
+	let query = $state('');
 	let items = $state<LibraryItem[]>([]);
 	let members = $state<OrcaMember[]>([]);
 	let departments = $state<LibraryDepartment[]>([]);
-	let loading = $state(false);
 	let loadedHub = $state('');
-	let requestNumber = 0;
 	let error = $state('');
-	let notice = $state('');
-	let query = $state('');
-	let status = $state<'current' | LibraryStatus>('current');
-	let selected = $state<LibraryItem>();
-	let editing = $state(false);
-	let createKind = $state<LibraryKind>('knowledge');
-	let saving = $state(false);
-	let confirmArchive = $state(false);
-	let inputs = $state<Record<string, string>>({});
-	let rendered = $state<RenderedTemplate>();
-	let renderError = $state('');
-	let rendering = $state(false);
-	let hasUnsavedEdits = $state(false);
-	let navigationBlocked = $state(false);
-	const hubs = $derived(data.hubs.filter((hub) => gatewayHasMember(hub, data.currentUserID)));
-	const hub = $derived(hubs.find((item) => item.id === hubID));
-	const managedHub = $derived(
-		data.canManage ? data.hubs.find((item) => item.id === hubID) : undefined
-	);
-	const managedHubs = $derived(
-		data.canManage ? data.hubs.filter((item) => !gatewayHasMember(item, data.currentUserID)) : []
-	);
-	const readyConnections = $derived(data.connections.filter(connectionReady));
-	const createWorkspaceHref = $derived(
-		localeHref(
-			`/app?view=new${readyConnections.length === 1 ? `&connection=${encodeURIComponent(readyConnections[0].id)}` : ''}`
-		)
-	);
-	const availableItems = $derived(
-		items.filter(
-			(item) =>
-				item.kind === section &&
-				(status === 'current' ? item.status !== 'archived' : item.status === status)
-		)
-	);
-	const filtered = $derived(
-		availableItems.filter((item) =>
-			`${item.title} ${item.summary}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
-		)
-	);
-	const knowledgeCount = $derived(
-		items.filter((item) => item.kind === 'knowledge' && item.status !== 'archived').length
-	);
-	const templateCount = $derived(
-		items.filter((item) => item.kind === 'template' && item.status !== 'archived').length
-	);
-	const effectiveHubID = $derived(hub?.id ?? '');
-	let contextHubID = '';
-	const consumedEntries = new Set<string>();
+	let now = $state(Date.now());
+	let screen = $state<Screen>({ name: 'list' });
+	let dirty = $state(false);
+	let requestNumber = 0;
+	const screenID = (value: Screen) => (value.name === 'list' ? undefined : value.id);
+	const selected = $derived.by(() => {
+		const id = screenID(screen);
+		return id ? items.find((item) => item.id === id) : undefined;
+	});
+	const connected = $derived(aiConnection.state === 'connected');
+
+	let contextID = '';
 	$effect(() => {
-		const id = effectiveHubID;
-		const snapshot = data;
+		const id = hub?.id ?? '';
+		void data;
 		untrack(() => {
-			if (id !== contextHubID) {
-				contextHubID = id;
+			if (id !== contextID) {
+				contextID = id;
 				requestNumber += 1;
-				loadedHub = '';
 				items = [];
 				members = [];
 				departments = [];
-				selected = undefined;
-				editing = false;
-				rendered = undefined;
+				loadedHub = '';
 				error = '';
-				notice = '';
-				loading = false;
+				screen = { name: 'list' };
+				filter = 'all';
+				query = '';
 			}
-			if (id && snapshot && !editing && !hasUnsavedEdits) void load(id);
+			if (id && !dirty) void load(id);
 		});
 	});
+	// An entry link (…&kind=template&create=1) is an intent, used once.
+	const consumed = new Set<string>();
 	$effect(() => {
-		const id = effectiveHubID;
-		const kind = initialKind;
-		const createRequested = initialCreate;
-		if (!id || !kind || loadedHub !== id || loading || error) return;
+		const id = hub?.id;
+		const entryKind = initialKind;
+		const create = initialCreate;
+		if (!id || !entryKind || loadedHub !== id) return;
 		untrack(() => {
-			const entry = `${id}:${kind}:${createRequested}`;
-			if (consumedEntries.has(entry)) return;
-			consumedEntries.add(entry);
-			// An entry link is an initial intent, never a reason to replace work in progress.
-			if (editing || hasUnsavedEdits || saving || rendering) return;
-			changeSection(kind, false);
-			if (createRequested) create(kind);
+			const key = `${id}:${entryKind}:${create}`;
+			if (consumed.has(key) || dirty) return;
+			consumed.add(key);
+			kind = entryKind;
+			if (create) openEditor(entryKind);
 		});
 	});
-	beforeNavigate((navigation) => {
-		if (hasUnsavedEdits || saving || rendering) {
-			navigation.cancel();
-			navigationBlocked = true;
-		}
-	});
-	async function load(id = effectiveHubID) {
-		if (!id || !hubs.some((item) => item.id === id)) return;
+
+	async function load(id = hub?.id ?? '') {
+		if (!id) return;
 		const request = ++requestNumber;
-		loading = true;
 		error = '';
 		try {
 			const result = await OrcaLibraryService.load(id);
-			if (request !== requestNumber || id !== effectiveHubID) return;
+			if (request !== requestNumber) return;
 			items = result.items;
 			members = result.members;
 			departments = result.departments;
 			loadedHub = id;
-			if (selected) {
-				const updated = result.items.find((item) => item.id === selected?.id);
-				if (!updated) {
-					selected = undefined;
-					editing = false;
-					rendered = undefined;
-				} else if (!editing) {
-					if (updated.version !== selected.version) {
-						inputs = {};
-						renderError = '';
-					}
-					selected = updated;
-					rendered = undefined;
-				}
-			}
+			now = Date.now();
+			const open = screenID(screen);
+			if (open && !result.items.some((item) => item.id === open)) screen = { name: 'list' };
 		} catch (cause) {
 			if (request !== requestNumber) return;
-			if ([403, 404].includes(getHttpStatusCode(cause) ?? 0)) {
+			// Access changed: nothing of this library stays on screen.
+			const denied = [403, 404].includes(getHttpStatusCode(cause) ?? 0);
+			if (denied) {
 				items = [];
-				members = [];
-				departments = [];
-				selected = undefined;
-				editing = false;
-				rendered = undefined;
-				loadedHub = '';
+				screen = { name: 'list' };
 			}
-			error = orcaError(cause);
-		} finally {
-			if (request === requestNumber) loading = false;
+			// Either way the page stops saying "loading" and shows the error.
+			loadedHub = id;
+			error = denied ? orcaError(cause) : t('โหลดคลังความรู้ไม่สำเร็จ ลองโหลดใหม่อีกครั้ง', 'Knowledge could not be loaded. Try again.');
 		}
 	}
-	function changeSection(next: LibraryKind | 'departments', refresh = true) {
-		const refreshDepartments = refresh && section === 'departments' && next !== 'departments';
-		section = next;
-		selected = undefined;
-		rendered = undefined;
-		inputs = {};
-		error = '';
-		notice = '';
-		query = '';
-		status = 'current';
-		if (refreshDepartments) void load();
+	function show(next: Screen) {
+		screen = next;
+		if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'instant' });
 	}
-	function open(item: LibraryItem) {
-		selected = item;
-		editing = false;
-		inputs = {};
-		rendered = undefined;
-		renderError = '';
-		confirmArchive = false;
-		notice = '';
+	function openEditor(next: LibraryKind, title = '') {
+		if (!hub || loadedHub !== hub.id) return;
+		show({ name: 'editor', kind: next, title });
 	}
-	function create(kind: LibraryKind) {
-		if (!hub || loadedHub !== hub.id || loading || saving || rendering) return;
-		createKind = kind;
-		selected = undefined;
-		editing = true;
-		notice = '';
-	}
-	function workspaceLibraryHref(id: string) {
-		return localeHref(
-			`/app?view=knowledge&hub=${encodeURIComponent(id)}${initialKind ? `&kind=${initialKind}${initialCreate ? '&create=1' : ''}` : ''}`
-		);
-	}
-	function saved(item: LibraryItem) {
-		if (item.hubID !== effectiveHubID) return;
+	function saved(item: LibraryItem, people: number) {
 		items = [...items.filter((known) => known.id !== item.id), item];
-		selected = item;
-		editing = false;
-		section = item.kind;
-		status = item.status === 'archived' ? 'archived' : 'current';
-		notice =
-			item.status === 'archived'
-				? t('บันทึกแล้ว รายการนี้ยังคงอยู่ในสถานะจัดเก็บแล้ว', 'Saved. This item remains archived.')
-				: item.status === 'published'
-					? hub?.status === 'active'
-						? t(
-								'เผยแพร่แล้ว ผู้ที่มีสิทธิ์สามารถใช้รายการนี้ผ่านแอป AI ได้',
-								'Published. People with access can now use it through their AI app.'
-							)
-						: t(
-								'เผยแพร่แล้ว กรุณาเปิดใช้งานพื้นที่ทำงาน AI นี้เพื่อให้ AI ใช้รายการนี้ได้',
-								'Published. Activate this AI workspace to make the item available to AI.'
-							)
-					: t(
-							'บันทึกฉบับร่างแล้ว เนื้อหานี้แสดงเฉพาะคุณ',
-							'Draft saved. Only you can see this content.'
-						);
+		kind = item.kind;
+		dirty = false;
+		show({ name: 'detail', id: item.id });
+		if (item.status === 'published')
+			showToast(
+				hub?.status === 'active'
+					? t(`เผยแพร่แล้ว — AI ของ ${people} คนใช้ได้ทันที`, `Published — ${people} people’s AI can use it now`)
+					: t('เผยแพร่แล้ว — AI จะใช้ได้เมื่อเปิดใช้งานพื้นที่ทำงานนี้', 'Published — AI can use it once this workspace is active')
+			);
+		else showToast(t('บันทึกร่างแล้ว — เห็นแค่คุณ', 'Draft saved — only you see it'));
+	}
+	function archived(item: LibraryItem) {
+		items = items.map((known) => (known.id === item.id ? item : known));
+		show({ name: 'list' });
+		showToast(t('จัดเก็บแล้ว — AI เลิกใช้เรื่องนี้', 'Archived — AI no longer uses it'));
 	}
 	function denied() {
-		editing = false;
-		selected = undefined;
-		rendered = undefined;
-		items = [];
-		loadedHub = '';
+		dirty = false;
+		show({ name: 'list' });
 		void load();
 	}
-	function ownerName(id: string) {
-		return id === data.currentUserID
-			? t('คุณ', 'You')
-			: members.find((member) => member.id === id)
-				? memberName(members.find((member) => member.id === id)!)
-				: t('สมาชิกพื้นที่ทำงาน', 'Workspace member');
+	function chooseWorkspace(id: string) {
+		remember(id);
+		void goto(localeHref(`/app?view=knowledge&hub=${encodeURIComponent(id)}`));
 	}
-	function departmentName(id: string) {
-		return (
-			departments.find((department) => department.unitID === id)?.name ||
-			data.units.find((unit) => unit.id === id)?.name ||
-			t('แผนกที่ได้รับสิทธิ์', 'Shared department')
+
+	// Leaving with unsaved text asks first.
+	let leaveOpen = $state(false);
+	let leaveTo: URL | undefined;
+	let leaving = false;
+	beforeNavigate((navigation) => {
+		if (leaving || !dirty) return;
+		navigation.cancel();
+		if (navigation.type === 'leave') return;
+		leaveTo = navigation.to?.url;
+		leaveOpen = true;
+	});
+	async function leave() {
+		leaveOpen = false;
+		dirty = false;
+		const target = leaveTo;
+		leaveTo = undefined;
+		if (!target) return;
+		leaving = true;
+		try {
+			await goto(target.pathname + target.search + target.hash);
+		} finally {
+			leaving = false;
+		}
+	}
+
+	// ── Prerequisite states: one line and one button ──
+	const readyConnections = $derived(data.connections.filter(connectionReady));
+	const createHref = $derived(
+		localeHref(`/app?view=new${readyConnections.length === 1 ? `&connection=${encodeURIComponent(readyConnections[0].id)}` : ''}`)
+	);
+	let joinChoice = $state('');
+	let joining = $state(false);
+	let joinError = $state('');
+	let joinProblem = $state<'' | 'conflict' | 'invalid'>('');
+	const joinHubs = $derived(scope.kind === 'join' ? scope.hubs : []);
+	// Several workspaces: the first (active ones first) is chosen until another is.
+	const joinTarget = $derived(joinHubs.some((item) => item.id === joinChoice) ? joinChoice : (joinHubs[0]?.id ?? ''));
+	async function join() {
+		const id = joinTarget;
+		if (!id || joining || !data.canManage) return;
+		joining = true;
+		joinError = '';
+		joinProblem = '';
+		try {
+			const saved = await KnowledgeWorkspaceService.addMember(id, data.currentUserID);
+			remember(id);
+			await onchanged();
+			showToast(t(`เพิ่มคุณในพื้นที่ทำงาน ${saved.name} แล้ว`, `You were added to ${saved.name}`));
+		} catch (cause) {
+			const code = getHttpStatusCode(cause);
+			joinProblem = code === 409 ? 'conflict' : code === 400 ? 'invalid' : '';
+			joinError =
+				code === 409
+					? t('มีคนแก้พื้นที่นี้พร้อมกัน โหลดใหม่แล้วลองอีกครั้ง', 'Someone changed this workspace at the same time. Reload and try again.')
+					: code === 400
+						? t('เพิ่มไม่ได้ เพราะพื้นที่ทำงานนี้ต้องแก้การตั้งค่าก่อน', 'Can’t add you: this workspace’s settings need fixing first.')
+						: orcaError(cause);
+		} finally {
+			joining = false;
+		}
+	}
+	async function reloadAfterConflict() {
+		joinError = '';
+		joinProblem = '';
+		await onchanged();
+	}
+	const me = $derived(data.members.find((member) => member.id === data.currentUserID));
+	const requestText = $derived(
+		accessRequestMessage(
+			me ? (me.email && memberName(me) !== me.email ? `${memberName(me)} (${me.email})` : memberName(me)) : t('ฉัน', 'me'),
+			data.organization.displayName,
+			t
+		)
+	);
+	async function copyRequest() {
+		const ok = await copyText(requestText, typeof navigator === 'undefined' ? undefined : navigator.clipboard, typeof document === 'undefined' ? undefined : document);
+		showToast(
+			ok ? t('คัดลอกแล้ว ส่งให้ผู้ดูแลบริษัทได้เลย', 'Copied. Send it to a company admin.') : t('คัดลอกไม่ได้ เลือกข้อความแล้วคัดลอกเอง', 'Copy failed. Select the text and copy it yourself.'),
+			ok ? {} : { tone: 'error' }
 		);
-	}
-	function statusName(value: LibraryStatus) {
-		return value === 'published'
-			? t('เผยแพร่แล้ว', 'Published')
-			: value === 'draft'
-				? t('ฉบับร่าง', 'Draft')
-				: t('จัดเก็บแล้ว', 'Archived');
-	}
-	async function archive() {
-		if (!selected?.canEdit || saving || !hub) return;
-		saving = true;
-		error = '';
-		const requestHubID = hub.id;
-		try {
-			const item = selected;
-			const saved = await OrcaLibraryService.save(
-				hub.id,
-				{
-					kind: item.kind,
-					title: item.title,
-					summary: item.summary,
-					content: item.content,
-					parameters: item.parameters,
-					knowledgeIDs: item.knowledgeIDs,
-					memberIDs: item.memberIDs,
-					unitIDs: item.unitIDs,
-					status: 'archived',
-					version: item.version
-				},
-				item.id
-			);
-			if (requestHubID !== effectiveHubID) return;
-			items = items.map((known) => (known.id === saved.id ? saved : known));
-			selected = undefined;
-			confirmArchive = false;
-			notice = t(
-				'จัดเก็บแล้ว AI จะไม่สามารถใช้รายการนี้ได้อีก',
-				'Archived. AI can no longer use this item.'
-			);
-		} catch (cause) {
-			error = orcaError(cause);
-		} finally {
-			saving = false;
-		}
-	}
-	async function render(event: SubmitEvent) {
-		event.preventDefault();
-		if (!selected || !hub || rendering) return;
-		const id = selected.id;
-		rendering = true;
-		renderError = '';
-		rendered = undefined;
-		try {
-			const result = await OrcaLibraryService.render(hub.id, id, inputs);
-			if (selected?.id === id) rendered = result;
-		} catch (cause) {
-			if (selected?.id === id) renderError = orcaError(cause);
-			if ([403, 404].includes(getHttpStatusCode(cause) ?? 0)) await load();
-		} finally {
-			rendering = false;
-		}
 	}
 </script>
 
-<div class="business-library">
-	<header class="library-intro">
-		<h1>{t('คลังความรู้', 'Knowledge')}{t(' (Orca Cloud)', ' (Orca Cloud)')}</h1>
-		<p class="k-subtitle">
-			{t(
-				'จัดเก็บคู่มือ เอกสาร และแม่แบบขององค์กรตามแผนก กำหนดผู้ที่เข้าถึงได้ และให้ AI ตอบจากข้อมูลที่องค์กรกำหนด',
-				'Store your organization’s manuals, documents and templates by department, choose who can access them, and let AI answer from approved information.'
-			)}
-		</p>
-	</header>
-	<div class="library-navigation">
-		<div class="library-tabs" aria-label={t('หมวดของคลังความรู้', 'Knowledge sections')}>
-			<button
-				class:active={section === 'knowledge'}
-				aria-pressed={section === 'knowledge'}
-				disabled={editing || hasUnsavedEdits || saving || rendering}
-				onclick={() => changeSection('knowledge')}
-				><BookOpen size={16} />{t('บทความความรู้', 'Knowledge articles')}{#if loadedHub}<span
-						>{knowledgeCount}</span
-					>{/if}</button
-			><button
-				class:active={section === 'template'}
-				aria-pressed={section === 'template'}
-				disabled={editing || hasUnsavedEdits || saving || rendering}
-				onclick={() => changeSection('template')}
-				><FileText size={16} />{t('แม่แบบ', 'Templates')}{#if loadedHub}<span>{templateCount}</span
-					>{/if}</button
-			>{#if data.canManage}<button
-					class:active={section === 'departments'}
-					aria-pressed={section === 'departments'}
-					disabled={editing || hasUnsavedEdits || saving || rendering}
-					onclick={() => changeSection('departments')}
-					><Users size={16} />{t('แผนก', 'Departments')}</button
-				>{/if}
-		</div>
-		{#if section !== 'departments'}<div class="library-hub-select">
-				<label for="knowledge-workspace">{t('พื้นที่ทำงาน AI', 'AI workspace')}</label><select
-					id="knowledge-workspace"
-					value={hub?.id ?? ''}
-					disabled={editing || saving || rendering}
-					onchange={(event) =>
-						goto(
-							localeHref(
-								`/app?view=knowledge${event.currentTarget.value ? `&hub=${encodeURIComponent(event.currentTarget.value)}` : ''}`
-							)
-						)}
-					><option value="">{t('เลือกพื้นที่ทำงาน AI', 'Select an AI workspace')}</option
-					>{#each hubs as item}<option value={item.id}>{item.name}</option>{/each}</select
-				>
-			</div>{/if}
-	</div>
-	{#if navigationBlocked}<div class="library-alert" role="alert">
-			<Info size={16} />
-			<p>
-				{t(
-					'มีการแก้ไขที่ยังไม่ได้บันทึก กรุณาบันทึกหรือยกเลิกการแก้ไขก่อนออกจากหน้านี้',
-					'You have unsaved changes. Save or discard them before leaving this page.'
-				)}
-			</p>
-		</div>{/if}
-	{#if section === 'departments' && data.canManage}<LibraryDepartments
-			{data}
-			{onchanged}
-			ondirty={(dirty) => {
-				hasUnsavedEdits = dirty;
-				if (!dirty) navigationBlocked = false;
-			}}
-		/>
-	{:else if !hub}<section class="library-workspace-picker">
-			<header class="library-panel-head">
-			<span class="library-symbol" aria-hidden="true"><Folder size={18} /></span>
-			<div class="library-panel-copy">
-			<h2>
-				{managedHub
-					? t('ตรวจสอบสมาชิกของพื้นที่ทำงานนี้', 'Review this workspace’s members')
-					: hubID
-						? t('ไม่พบพื้นที่ทำงานที่คุณเข้าถึงได้', 'This workspace is not available to you')
-						: hubs.length
-							? t('เลือกพื้นที่ทำงาน AI', 'Select an AI workspace')
-							: !data.canManage
-								? t(
-										'คุณยังไม่ได้เป็นสมาชิกของพื้นที่ทำงาน AI',
-										'You are not a member of an AI workspace yet'
-									)
-								: managedHubs.length
-									? t(
-											'ตรวจสอบสมาชิกของพื้นที่ทำงานที่มีอยู่',
-											'Review the members of an existing workspace'
-										)
-									: !readyConnections.length
-										? t('เชื่อมต่อระบบก่อนใช้คลังความรู้', 'Connect a system before using Knowledge')
-										: t(
-												'สร้างพื้นที่ทำงาน AI สำหรับคลังความรู้',
-												'Create an AI workspace for your knowledge'
-											)}
-			</h2>
-			<p>
-				{managedHub
-					? t(
-							'คุณมีสิทธิ์จัดการพื้นที่ทำงานนี้ แต่ยังไม่ได้เป็นสมาชิก กรุณาเปิดการตั้งค่าพื้นที่ทำงานและเพิ่มบัญชีของคุณในรายชื่อสมาชิกก่อนเพิ่มบทความความรู้',
-							'You can manage this workspace but are not a member. Open its settings and add your account to the member list before adding knowledge.'
-						)
-					: hubs.length
-						? t(
-								'บทความความรู้และแม่แบบจัดเก็บแยกตามพื้นที่ทำงาน AI เลือกพื้นที่ทำงานที่คุณเป็นสมาชิกเพื่อดำเนินการต่อ',
-								'Knowledge articles and templates are stored per AI workspace. Select a workspace you belong to.'
-							)
-						: !data.canManage
-							? t(
-									'กรุณาติดต่อผู้ดูแลระบบเพื่อเพิ่มคุณเป็นสมาชิกของพื้นที่ทำงาน จากนั้นจึงจะเพิ่มและใช้บทความความรู้ร่วมกับทีมได้',
-									'Contact your administrator to be added to a workspace. You can then add and use knowledge with your team.'
-								)
-							: managedHubs.length
-								? t(
-										'องค์กรมีพื้นที่ทำงาน AI อยู่แล้ว เลือกพื้นที่ทำงานและเพิ่มบัญชีของคุณในรายชื่อสมาชิก เพื่อจัดเก็บความรู้ร่วมกับทีม',
-										'Your organization already has AI workspaces. Select one and add your account to its member list to manage knowledge with that team.'
-									)
-								: !readyConnections.length
-									? t(
-											'เพิ่มระบบที่องค์กรใช้และตั้งค่าการเชื่อมต่อ จากนั้นสร้างพื้นที่ทำงาน AI เพื่อกำหนดสมาชิกและจัดเก็บความรู้',
-											'Add a system your organization uses and set up the connection. Then create an AI workspace to assign members and store knowledge.'
-										)
-									: readyConnections.length === 1
-										? t(
-												`สร้างพื้นที่ทำงาน AI ที่ใช้ ${readyConnections[0].name} แล้วเลือกเครื่องมือที่อนุญาตและสมาชิก หากต้องการเพิ่มบทความความรู้ ให้เพิ่มบัญชีของคุณเป็นสมาชิกด้วย`,
-												`Create an AI workspace that uses ${readyConnections[0].name}, then choose its allowed tools and members. Add your own account if you want to add knowledge.`
-											)
-										: t(
-												'มีระบบที่เชื่อมต่อแล้ว สร้างพื้นที่ทำงาน AI แล้วเลือกระบบ เครื่องมือที่อนุญาต และสมาชิก ก่อนเพิ่มบทความความรู้',
-												'You have connected systems. Create an AI workspace and choose its systems, allowed tools and members before adding knowledge.'
-											)}
-			</p>
+<div class="kn-page">
+	{#if scope.kind !== 'hub'}
+		<PageHeader title={term('knowledge', t)} subtitle={t('ข้อมูลที่ AI ของทีมใช้ตอบคำถาม', 'What your team’s AI answers from')} />
+		<section class="gate" class:several={scope.kind === 'join' && joinHubs.length > 1}>
+			<span class="gate-ic" aria-hidden="true">
+				{#if scope.kind === 'create'}<FolderPlus size={20} />{:else if scope.kind === 'join'}<UserPlus size={20} />{:else if scope.kind === 'request'}<Users size={20} />{:else}<SearchX size={20} />{/if}
+			</span>
+			<div class="gate-copy">
+				{#if scope.kind === 'create'}
+					<p class="gate-line">{t('ต้องมีพื้นที่ทำงาน AI ก่อน', 'You need an AI workspace first')}</p>
+				{:else if scope.kind === 'join'}
+					<p class="gate-line">
+						{joinHubs.length === 1
+							? t(`คุณยังไม่ได้อยู่ในพื้นที่ทำงาน ${joinHubs[0].name}`, `You’re not in ${joinHubs[0].name} yet`)
+							: t('คุณยังไม่ได้อยู่ในพื้นที่ทำงาน AI ไหนเลย เลือกพื้นที่ที่จะใช้คลังความรู้', 'You’re not in any AI workspace. Choose one for your knowledge.')}
+					</p>
+				{:else if scope.kind === 'request'}
+					<p class="gate-line">{t('คุณยังไม่มีสิทธิ์ใช้คลังความรู้ ขอให้ผู้ดูแลบริษัทเพิ่มคุณในพื้นที่ทำงาน AI', 'You can’t use Knowledge yet. Ask a company admin to add you to an AI workspace.')}</p>
+				{:else}
+					<p class="gate-line">{t('ไม่พบพื้นที่ทำงานนี้ หรือคุณไม่ได้อยู่ในพื้นที่นี้', 'This workspace isn’t there, or you’re not in it')}</p>
+				{/if}
 			</div>
-			{#if managedHub || (!hubs.length && !managedHubs.length && data.canManage)}<div
-					class="library-panel-actions"
-				>
-					{#if managedHub}<a
-							class="k-button primary small"
-							href={localeHref(`/app?view=hub&hub=${encodeURIComponent(managedHub.id)}&tab=people`)}
-							><Users size={16} />{t('ตรวจสอบสมาชิก', 'Review members')}</a
-						>{:else if readyConnections.length}<a class="k-button primary small" href={createWorkspaceHref}
-							><Plus size={16} />{t('สร้างพื้นที่ทำงาน AI', 'Create an AI workspace')}</a
-						>{:else}{#if data.connections.length}<a
-								class="k-button small"
-								href={localeHref('/app?view=servers')}
-								>{t('ดูระบบที่เชื่อมต่อ', 'View connected systems')}</a
-							>{/if}<a class="k-button primary small" href={localeHref('/app?view=add-program')}
-							><Plug size={16} />{t('เพิ่มระบบ', 'Add a system')}</a
-						>{/if}
-				</div>{/if}
-			</header>
-			{#if hubs.length}<div class="library-workspace-grid">
-					{#each hubs as item}<a href={workspaceLibraryHref(item.id)}
-							><span class="library-row-icon" aria-hidden="true"><Folder size={16} /></span><span
-								><strong>{item.name}</strong><small
-									>{item.description ||
-										t(
-											'บทความความรู้และแม่แบบของพื้นที่ทำงานนี้',
-											'Knowledge articles and templates in this workspace'
-										)}</small
-								></span
-							><ChevronRight size={16} /></a
-						>{/each}
-				</div>{:else if !managedHub && managedHubs.length}<div class="library-workspace-grid">
-					{#each managedHubs as item}<a
-							href={localeHref(`/app?view=hub&hub=${encodeURIComponent(item.id)}&tab=people`)}
-							><span class="library-row-icon" aria-hidden="true"><Users size={16} /></span><span
-								><strong>{item.name}</strong><small
-									>{t('ตรวจสอบสมาชิก', 'Review members')}</small
-								></span
-							><ChevronRight size={16} /></a
-						>{/each}
-				</div>{/if}
-		</section>
-	{:else if editing}<LibraryEditor
-			hubID={hub.id}
-			kind={selected?.kind ?? createKind}
-			existing={selected}
-			{items}
-			{members}
-			{departments}
-			currentUserID={data.currentUserID}
-			{departmentName}
-			onsaved={saved}
-			onclose={() => (editing = false)}
-			ondenied={denied}
-			ondirty={(dirty) => {
-				hasUnsavedEdits = dirty;
-				if (!dirty) navigationBlocked = false;
-			}}
-		/>
-	{:else}
-		{#if notice}<p class="library-notice" role="status"><Check size={16} />{notice}</p>{/if}
-		{#if error}<div class="library-alert" role="alert">
-				<Info size={16} />
-				<div>
-					<p>{error}</p>
-					<button class="k-button small" disabled={loading} onclick={() => load()}
-						><RefreshCw size={16} />{t('โหลดข้อมูลล่าสุด', 'Reload latest data')}</button
-					>
-				</div>
-			</div>{/if}
-		{#if loading && loadedHub !== hub.id}<p class="library-loading" role="status">
-				{t(
-					'กำลังโหลดคลังความรู้ของพื้นที่ทำงานนี้…',
-					'Loading this workspace’s knowledge…'
-				)}
-			</p>
-		{:else if loadedHub === hub.id}
-			{#if selected}<section class="library-detail">
-					<button
-						class="library-back"
-						disabled={saving || rendering}
-						onclick={() => {
-							selected = undefined;
-							rendered = undefined;
-						}}><ArrowLeft size={16} />{t('กลับไปที่คลังความรู้', 'Back to Knowledge')}</button
-					>
-					<div class="library-detail-heading">
-						<div>
-							<h2>{selected.title}</h2>
-							<div class="library-item-meta">
-								<span class="library-status" class:published={selected.status === 'published'}
-									>{statusName(selected.status)}</span
-								><span>{t('ผู้เขียน', 'Author')} {ownerName(selected.ownerID)}</span>
-							</div>
-							{#if selected.summary}<p>{selected.summary}</p>{/if}
-						</div>
-						{#if selected.canEdit}<div class="library-actions">
-								<button
-									class="k-button"
-									disabled={saving || rendering}
-									onclick={() => (editing = true)}><Pencil size={16} />{t('แก้ไข', 'Edit')}</button
-								>{#if selected.status !== 'archived'}<button
-										class="library-icon-button"
-										disabled={saving || rendering}
-										aria-label={t('จัดเก็บ', 'Archive')}
-										title={t('จัดเก็บ', 'Archive')}
-										onclick={() => (confirmArchive = true)}><Archive size={16} /></button
-									>{/if}
-							</div>{/if}
-					</div>
-					{#if confirmArchive}<div class="library-alert" role="alert">
-							<Info size={16} />
-							<div>
-								<p>
-									{t(
-										'ต้องการจัดเก็บรายการนี้หรือไม่ AI จะไม่สามารถใช้รายการนี้ได้ รวมถึงแม่แบบที่อ้างอิงบทความนี้',
-										'Archive this item? AI will no longer be able to use it, including templates that reference it.'
-									)}
-								</p>
-								<div class="library-actions">
-									<button
-										class="k-button small"
-										disabled={saving}
-										onclick={() => (confirmArchive = false)}>{t('ยกเลิก', 'Cancel')}</button
-									><button class="k-button small primary" disabled={saving} onclick={archive}
-										>{saving ? t('กำลังบันทึก…', 'Saving…') : t('จัดเก็บ', 'Archive')}</button
-									>
-								</div>
-							</div>
-						</div>{/if}
-					<div class="library-reader">
-						<p class="library-reader-label">
-							{selected.kind === 'knowledge'
-								? t('เนื้อหาบทความ', 'Article content')
-								: t('คำแนะนำในแม่แบบ', 'Template instructions')}
-						</p>
-						<div class="library-prose">{selected.content}</div>
-					</div>
-					{#if selected.kind === 'template' && selected.knowledgeIDs.length}<div
-							class="library-reference-list"
-						>
-							<h3>{t('บทความความรู้ที่แม่แบบอ้างอิง', 'Referenced knowledge articles')}</h3>
-							{#each selected.knowledgeIDs as id}<span
-									><BookOpen size={16} />{items.find((item) => item.id === id)?.title ??
-										t('บทความความรู้ที่ไม่พร้อมใช้งาน', 'Unavailable knowledge article')}</span
-								>{/each}
-						</div>{/if}
-					{#if selected.kind === 'template' && selected.status === 'published'}<section
-							class="library-template-use"
-						>
-							<div class="library-section-heading">
-								<div>
-									<h3>
-										<Sparkles size={18} />{t('ดูตัวอย่างแม่แบบ', 'Preview this template')}
-									</h3>
-									<p>
-										{t(
-											'กรอกข้อมูลเพื่อดูคำแนะนำและบทความความรู้ที่ ORCA จะส่งให้ AI',
-											'Enter the inputs to see the instructions and knowledge ORCA will provide to AI.'
-										)}
-									</p>
-								</div>
-							</div>
-							<form onsubmit={render}>
-								<div class="library-template-inputs">
-									{#each selected.parameters as parameter}<div class="library-field">
-											<label for={`template-input-${parameter.name}`}
-												>{parameter.label || parameter.name}
-												{#if !parameter.required}<span>{t('(ไม่บังคับ)', '(optional)')}</span
-													>{/if}</label
-											><input
-												id={`template-input-${parameter.name}`}
-												value={inputs[parameter.name] ?? ''}
-												required={parameter.required}
-												maxlength="4000"
-												disabled={rendering}
-												oninput={(event) => {
-													inputs = { ...inputs, [parameter.name]: event.currentTarget.value };
-													rendered = undefined;
-												}}
-											/>
-										</div>{/each}
-								</div>
-								{#if !selected.parameters.length}<p class="library-hint">
-										{t(
-											'แม่แบบนี้ไม่ต้องกรอกข้อมูลเพิ่มเติม',
-											'This template does not require any inputs.'
-										)}
-									</p>{/if}<button type="submit" class="k-button primary" disabled={rendering}
-									><FileText size={16} />{rendering
-										? t('กำลังจัดเตรียม…', 'Preparing…')
-										: t('ดูตัวอย่าง', 'Preview')}</button
-								>
-							</form>
-							{#if renderError}<div class="library-alert" role="alert">
-									<Info size={16} />
-									<p>{renderError}</p>
-								</div>{/if}{#if rendered}<div class="library-rendered" aria-live="polite">
-									<p class="library-notice">
-										<Check size={16} />{t('ตัวอย่างพร้อมแล้ว', 'Preview ready')}
-									</p>
-									<div class="library-prose">{rendered.content}</div>
-									{#each rendered.knowledge as knowledge}<details>
-											<summary><BookOpen size={16} />{knowledge.title}</summary>
-											<div class="library-prose">{knowledge.content}</div>
-										</details>{/each}
-								</div>{/if}
-							<p class="library-note">
-								<Info size={16} />{t(
-									'ORCA ตรวจสอบสิทธิ์และเตรียมข้อมูลประกอบให้ AI ส่วนรูปแบบผลลัพธ์สุดท้ายขึ้นอยู่กับแอป AI ที่ใช้งาน',
-									'ORCA checks access and prepares the context for AI. The final output format depends on the AI app in use.'
-								)}
-							</p>
-						</section>{/if}
-					<footer class="library-detail-footer">
-						<span
-							><ShieldCheck size={14} />{selected.status === 'draft'
-								? t('ฉบับร่างนี้แสดงเฉพาะผู้เขียน', 'This draft is visible only to its author')
-								: t(
-										'การเข้าถึงเป็นไปตามสิทธิ์ของรายการนี้และพื้นที่ทำงาน',
-										'Access follows the permissions of this item and its workspace'
-									)}</span
-						><span>{t('แก้ไขล่าสุด', 'Last updated')} {displayDate(selected.updatedAt)}</span>
-					</footer>
-				</section>
-			{:else}<div class="library-toolbar">
-					<div class="library-search">
-						<Search size={16} aria-hidden="true" /><input
-							aria-label={t('ค้นหาในคลังความรู้', 'Search knowledge')}
-							bind:value={query}
-							placeholder={t('ค้นหาชื่อเรื่องหรือคำอธิบาย…', 'Search titles or descriptions…')}
-							maxlength="200"
+			{#if scope.kind === 'join' && joinHubs.length > 1}
+				<div class="gate-choices" role="radiogroup" aria-label={t('พื้นที่ทำงาน AI', 'AI workspaces')}>
+					{#each joinHubs as choice (choice.id)}
+						<ChoiceTile
+							name="kn-join"
+							value={choice.id}
+							selected={joinTarget}
+							onselect={(value) => (joinChoice = value)}
+							title={choice.name}
+							description={choice.description}
+							badge={choice.status === 'active' ? '' : statusLabels[choice.status]}
+							disabled={joining}
 						/>
-					</div>
-					<select aria-label={t('สถานะเนื้อหา', 'Content status')} bind:value={status}
-						><option value="current">{t('รายการที่ใช้งานอยู่', 'Current items')}</option><option
-							value="published">{t('เผยแพร่แล้ว', 'Published')}</option
-						><option value="draft">{t('ฉบับร่าง', 'Drafts')}</option><option value="archived"
-							>{t('จัดเก็บแล้ว', 'Archived')}</option
-						></select
-					><button
-						class="k-button primary"
-						onclick={() => create(section === 'template' ? 'template' : 'knowledge')}
-						><Plus size={16} />{section === 'template'
-							? t('สร้างแม่แบบ', 'Create template')
-							: t('เพิ่มบทความความรู้', 'Add article')}</button
-					>
-				</div>
-				{#if filtered.length}<div class="library-card-grid">
-						{#each filtered as item}<button class="library-card" onclick={() => open(item)}
-								><span class="library-card-icon" aria-hidden="true"
-									>{#if item.kind === 'knowledge'}<BookOpen size={16} />{:else}<FileText
-											size={16}
-										/>{/if}</span
-								><span class="library-card-copy"
-									><strong>{item.title}</strong><small
-										>{item.summary ||
-											(item.kind === 'knowledge'
-												? t('บทความอ้างอิงสำหรับทีม', 'Reference article for your team')
-												: t(
-														'คำแนะนำและรูปแบบผลลัพธ์สำหรับงานขององค์กร',
-														'Instructions and output format for your organization’s work'
-													))}</small
-									></span
-								><span class="library-card-owner"
-									>{item.canEdit
-										? t('เขียนโดยคุณ', 'Created by you')
-										: ownerName(item.ownerID)}</span
-								><span class="library-status" class:published={item.status === 'published'}
-									>{statusName(item.status)}</span
-								><ChevronRight class="library-card-arrow" size={16} aria-hidden="true" /></button
-							>{/each}
-					</div>
-				{:else}<section class="library-empty">
-						<span class="library-symbol" aria-hidden="true"
-							>{#if section === 'template'}<FileText size={28} />{:else}<BookOpen
-									size={28}
-								/>{/if}</span
-						>
-						<h2>
-							{query || status !== 'current'
-								? t('ไม่พบรายการที่ตรงกับตัวกรอง', 'No matching items')
-								: section === 'template'
-									? t('ยังไม่มีแม่แบบ', 'No templates yet')
-									: t('ยังไม่มีบทความความรู้', 'No knowledge articles yet')}
-						</h2>
-						<p>
-							{query || status !== 'current'
-								? t(
-										'เปลี่ยนคำค้นหาหรือสถานะเพื่อดูรายการอื่น',
-										'Change the search or status to see other items.'
-									)
-								: section === 'template'
-									? t(
-											'สร้างแม่แบบเพื่อกำหนดขั้นตอนและรูปแบบผลลัพธ์ แล้วอ้างอิงบทความความรู้ให้ AI ใช้ประกอบ',
-											'Create a template to define the steps and output format, and reference knowledge articles for AI to use.'
-										)
-									: t(
-											'เพิ่มคู่มือ ระเบียบ หรือข้อมูลบริการเป็นบทความ และกำหนดสมาชิกหรือแผนกที่เข้าถึงได้',
-											'Add manuals, procedures or service information as articles, and choose the members or departments who can access each one.'
-										)}
-						</p>
-						{#if !query && status === 'current'}<button
-								class="k-button primary small"
-								onclick={() => create(section === 'template' ? 'template' : 'knowledge')}
-								><Plus size={16} />{section === 'template'
-									? t('สร้างแม่แบบ', 'Create template')
-									: t('เพิ่มบทความความรู้', 'Add article')}</button
-							>{:else}<button
-								class="k-button small"
-								onclick={() => {
-									query = '';
-									status = 'current';
-								}}>{t('ล้างตัวกรอง', 'Clear filters')}</button
-							>{/if}
-					</section>{/if}
-				<div class="library-mcp-note">
-					<span class="library-symbol" aria-hidden="true"><LockKeyhole size={18} /></span>
-					<div>
-						<h3>
-							{t('ใช้คลังความรู้ผ่านแอป AI', 'Use knowledge from your AI app')}
-						</h3>
-						<p>
-							{t(
-								'เผยแพร่เนื้อหา แล้วเพิ่มลิงก์เชื่อม AI (MCP URL) ของพื้นที่ทำงานนี้ในแอป AI ของคุณ AI จะเห็นเฉพาะบทความความรู้และแม่แบบที่คุณมีสิทธิ์ใช้',
-								'Publish content, then add this workspace’s AI connection link (MCP URL) to your AI app. AI can see only the knowledge articles and templates you are allowed to use.'
-							)}
-						</p>
-					</div>
-					<a class="k-button small" href={localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}`)}
-						>{t('ดูวิธีเชื่อมต่อ', 'View connection setup')}<ArrowRight size={16} /></a
-					>
+					{/each}
 				</div>
 			{/if}
-		{/if}
+			{#if joinError}
+				<p class="gate-error" role="alert">
+					<Info size={16} aria-hidden="true" /><span>{joinError}</span>
+					{#if joinProblem === 'conflict'}<button type="button" class="k-button small" onclick={reloadAfterConflict}>{t('โหลดใหม่', 'Reload')}</button>
+					{:else if joinProblem === 'invalid'}<a class="k-button small" href={localeHref(`/app?view=hub&hub=${encodeURIComponent(joinTarget)}`)}>{t('เปิดพื้นที่ทำงาน', 'Open workspace')}</a>{/if}
+				</p>
+			{/if}
+			<div class="gate-action">
+				{#if scope.kind === 'create'}
+					{#if data.canManage}<a class="k-button primary" href={createHref}>{t('สร้างพื้นที่ทำงาน', 'Create a workspace')}</a>{/if}
+				{:else if scope.kind === 'join'}
+					<button type="button" class="k-button primary" disabled={joining || !joinTarget} aria-busy={joining} onclick={join}>
+						<UserPlus size={16} aria-hidden="true" />{joining ? t('กำลังเพิ่ม…', 'Adding…') : t('เพิ่มฉันเลย', 'Add me')}
+					</button>
+				{:else if scope.kind === 'request'}
+					<button type="button" class="k-button primary" onclick={copyRequest}><Copy size={16} aria-hidden="true" />{t('คัดลอกข้อความขอสิทธิ์', 'Copy an access request')}</button>
+				{:else}
+					<a class="k-button primary" href={localeHref('/app?view=knowledge')}>{t('เปิดคลังความรู้', 'Open Knowledge')}</a>
+				{/if}
+			</div>
+		</section>
+	{:else if screen.name === 'editor' && loadedHub === hub!.id}
+		{#key `${screen.kind}:${screen.id ?? 'new'}`}
+			<LibraryEditor
+				hub={hub!}
+				kind={screen.kind}
+				existing={selected}
+				initialTitle={screen.title}
+				{items}
+				{members}
+				{departments}
+				currentUserID={data.currentUserID}
+				{now}
+				onsaved={saved}
+				onclose={() => {
+					dirty = false;
+					show(selected ? { name: 'detail', id: selected.id } : { name: 'list' });
+				}}
+				ondenied={denied}
+				ondirty={(value) => (dirty = value)}
+			/>
+		{/key}
+	{:else if screen.name === 'detail' && selected}
+		{#key selected.id}
+			<KnowledgeDetail
+				hub={hub!}
+				item={selected}
+				{items}
+				{members}
+				{departments}
+				currentUserID={data.currentUserID}
+				{now}
+				{connected}
+				app={aiConnection.app ?? ''}
+				onback={() => show({ name: 'list' })}
+				onedit={() => show({ name: 'editor', kind: selected!.kind, id: selected!.id })}
+				onarchived={archived}
+				ondenied={denied}
+			/>
+		{/key}
+	{:else}
+		<KnowledgeList
+			hub={hub!}
+			choices={scope.kind === 'hub' ? scope.choices : []}
+			{items}
+			{departments}
+			{members}
+			currentUserID={data.currentUserID}
+			canManage={data.canManage}
+			bind:kind
+			bind:filter
+			bind:query
+			loaded={loadedHub === hub!.id}
+			{error}
+			{connected}
+			app={aiConnection.app ?? ''}
+			{now}
+			onchoose={chooseWorkspace}
+			oncreate={(next, title) => openEditor(next, title)}
+			onopen={(item) => show({ name: 'detail', id: item.id })}
+			onreload={() => load()}
+		/>
 	{/if}
 </div>
+
+<ConfirmDialog
+	bind:open={leaveOpen}
+	title={t('ออกโดยไม่บันทึก?', 'Leave without saving?')}
+	message={t('สิ่งที่แก้ไว้ในหน้านี้จะหายไป', 'What you changed here will be lost.')}
+	confirmLabel={t('ออกโดยไม่บันทึก', 'Leave without saving')}
+	cancelLabel={t('แก้ต่อ', 'Keep editing')}
+	tone="danger"
+	onconfirm={leave}
+	oncancel={() => (leaveTo = undefined)}
+/>
+
+<style>
+	.gate {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 14px 16px;
+		padding: 20px 22px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-surface);
+	}
+	.gate-ic {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 42px;
+		height: 42px;
+		border-radius: 11px;
+		background: var(--orca-secondary);
+		color: var(--orca-text-2);
+	}
+	.gate-copy {
+		flex: 1 1 280px;
+		min-width: 0;
+	}
+	.gate-line {
+		margin: 0;
+		color: var(--orca-ink);
+		font-size: 15.5px;
+		font-weight: 600;
+		line-height: 1.55;
+	}
+	.gate-action {
+		flex: none;
+	}
+	.gate-action :global(.k-button) {
+		min-height: 42px;
+		padding: 0 18px;
+		font-weight: 600;
+	}
+	.gate.several .gate-action {
+		flex-basis: 100%;
+		display: flex;
+		justify-content: flex-end;
+	}
+	.gate-choices {
+		display: grid;
+		flex-basis: 100%;
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+		gap: 10px;
+	}
+	.gate-error {
+		order: 3;
+		display: flex;
+		flex-basis: 100%;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px 10px;
+		margin: 0;
+		padding: 10px 14px;
+		border: 1px solid var(--orca-deny-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-deny-bg);
+		color: var(--orca-ink);
+		font-size: 14px;
+	}
+	.gate-error :global(svg) {
+		flex: none;
+		color: var(--orca-deny);
+	}
+	.gate-error span {
+		flex: 1 1 220px;
+	}
+	@media (max-width: 720px) {
+		.gate {
+			align-items: flex-start;
+			padding: 18px 16px;
+		}
+		.gate-action {
+			flex-basis: 100%;
+		}
+		.gate-action :global(.k-button) {
+			width: 100%;
+			justify-content: center;
+		}
+	}
+</style>

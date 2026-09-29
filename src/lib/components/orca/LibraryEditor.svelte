@@ -1,570 +1,660 @@
 <script lang="ts">
+	import { onDestroy, untrack } from 'svelte';
+	import { ArrowLeft, ChevronRight, Info, TriangleAlert } from '@lucide/svelte';
 	import { getHttpStatusCode } from '$lib/errors';
+	import {
+		LIBRARY_CONTENT_MAX,
+		LIBRARY_SUMMARY_MAX,
+		LIBRARY_TITLE_MAX,
+		audienceFor,
+		audienceMode,
+		audiencePeople,
+		contentForEditing,
+		contentForSaving,
+		mismatchMessage,
+		relativeTime,
+		templateMismatches,
+		workspaceEveryone,
+		type AudienceMode
+	} from '$lib/orca/knowledge';
 	import { t } from '$lib/orca/locale.svelte';
-	import { orcaError, memberName, type OrcaMember } from '$lib/services/orca';
+	import { orcaError, type OrcaHub, type OrcaMember } from '$lib/services/orca';
 	import {
 		OrcaLibraryService,
 		type LibraryDepartment,
 		type LibraryInput,
 		type LibraryItem,
-		type LibraryKind
+		type LibraryKind,
+		type LibraryParameter,
+		type LibraryStatus
 	} from '$lib/services/orca-library';
-	import {
-		ArrowLeft,
-		BookOpen,
-		Check,
-		FileText,
-		Info,
-		Plus,
-		Save,
-		ShieldCheck,
-		Trash2,
-		X
-	} from '@lucide/svelte';
-	import { onDestroy } from 'svelte';
+	import AudienceCard from './knowledge/AudienceCard.svelte';
+	import ArticlePicker from './knowledge/ArticlePicker.svelte';
+	import TemplateBody from './knowledge/TemplateBody.svelte';
+	import ConfirmDialog from './ui/ConfirmDialog.svelte';
+	import FormErrorSummary from './ui/FormErrorSummary.svelte';
 
+	// Adding or editing an article or a ready-made prompt (proposal §3.6
+	// screens 3 and 5): the text on the left, "ใครใช้ได้บ้าง" on the right,
+	// and two buttons instead of a status list: บันทึกร่าง, เผยแพร่ให้ AI ใช้.
 	let {
-		hubID,
+		hub,
 		kind,
 		existing,
+		initialTitle = '',
 		items,
 		members,
 		departments,
 		currentUserID,
-		departmentName,
+		now = Date.now(),
 		onsaved,
 		onclose,
 		ondenied,
 		ondirty
 	}: {
-		hubID: string;
+		hub: OrcaHub;
 		kind: LibraryKind;
 		existing?: LibraryItem;
+		initialTitle?: string;
 		items: LibraryItem[];
+		/** The workspace's members, as the library lists them. */
 		members: OrcaMember[];
 		departments: LibraryDepartment[];
 		currentUserID: string;
-		departmentName: (id: string) => string;
-		onsaved: (item: LibraryItem) => void;
+		now?: number;
+		/** `people` is how many people's AI can use a published item. */
+		onsaved: (item: LibraryItem, people: number) => void;
 		onclose: () => void;
 		ondenied: () => void;
 		ondirty: (dirty: boolean) => void;
 	} = $props();
-	const initial = (): LibraryInput => ({
-		kind,
-		title: existing?.title ?? '',
-		summary: existing?.summary ?? '',
-		content: existing?.content ?? '',
-		parameters: existing?.parameters.map((item) => ({ ...item })) ?? [],
-		knowledgeIDs: [...(existing?.knowledgeIDs ?? [])],
-		memberIDs: [...(existing?.memberIDs ?? [])],
-		unitIDs: [...(existing?.unitIDs ?? [])],
-		status: existing?.status ?? 'draft',
-		version: existing?.version ?? 0
+
+	const me = untrack(() => currentUserID);
+	const memberIDs = $derived(members.map((member) => member.id));
+	const everyone = $derived(workspaceEveryone(hub, departments, memberIDs, me));
+	const available = $derived(items.filter((item) => item.kind === 'knowledge' && item.status === 'published'));
+
+	// The form starts from the saved item. People and departments that left
+	// the workspace are dropped: the server would refuse them.
+	const start = untrack(() => {
+		const known = new Set(members.map((member) => member.id));
+		const knownUnits = new Set(departments.map((department) => department.unitID));
+		const savedMembers = (existing?.memberIDs ?? []).filter((id) => id !== me && known.has(id));
+		const savedUnits = (existing?.unitIDs ?? []).filter((id) => knownUnits.has(id));
+		const dropped = (existing?.memberIDs ?? []).filter((id) => id !== me).length + (existing?.unitIDs ?? []).length - savedMembers.length - savedUnits.length;
+		const mode: AudienceMode = existing ? audienceMode({ memberIDs: savedMembers, unitIDs: savedUnits }, everyone) : 'everyone';
+		const parameters = (existing?.parameters ?? []).map((item) => ({ ...item }));
+		return {
+			title: existing?.title ?? initialTitle,
+			summary: existing?.summary ?? '',
+			content: existing ? (kind === 'template' ? contentForEditing(existing.content, parameters) : existing.content) : '',
+			parameters,
+			knowledgeIDs: [...(existing?.knowledgeIDs ?? [])],
+			mode,
+			unitIDs: mode === 'everyone' || mode === 'me' ? [...everyone.unitIDs] : savedUnits,
+			memberIDs: mode === 'everyone' || mode === 'me' ? [] : savedMembers,
+			version: existing?.version ?? 0,
+			dropped
+		};
 	});
-	let form = $state<LibraryInput>(initial());
-	let baseline = $state(JSON.stringify(initial()));
+	let title = $state(start.title);
+	let summary = $state(start.summary);
+	let content = $state(start.content);
+	let parameters = $state<LibraryParameter[]>(start.parameters);
+	let knowledgeIDs = $state(start.knowledgeIDs);
+	let mode = $state<AudienceMode>(start.mode);
+	let unitIDs = $state(start.unitIDs);
+	let chosenMembers = $state(start.memberIDs);
+	let summaryOpen = $state(!!start.summary);
+	let version = $state(start.version);
 	let saving = $state(false);
 	let error = $state('');
+	let fieldErrors = $state<Record<string, string>>({});
+	let errorKey = $state(0);
 	let conflict = $state(false);
 	let latest = $state<LibraryItem>();
+	let latestOpen = $state(false);
 	let loadingLatest = $state(false);
-	let discard = $state(false);
-	let confirmLatest = $state(false);
-	const dirty = $derived(JSON.stringify(form) !== baseline);
+	let discardOpen = $state(false);
+
+	const selection = $derived(audienceFor(mode, { unitIDs, memberIDs: chosenMembers }, everyone));
+	const snapshot = $derived(JSON.stringify({ title, summary, content, parameters, knowledgeIDs, selection }));
+	let baseline = $state(untrack(() => snapshot));
+	const dirty = $derived(snapshot !== baseline);
 	$effect(() => ondirty(dirty || saving));
 	onDestroy(() => ondirty(false));
-	const availableKnowledge = $derived(
-		items.filter((item) => item.kind === 'knowledge' && item.status === 'published')
+
+	const people = $derived(audiencePeople({ ownerID: me, ...selection }, departments).size);
+	const missingReferences = $derived(knowledgeIDs.filter((id) => !available.some((item) => item.id === id)));
+	const chosenArticles = $derived(available.filter((item) => knowledgeIDs.includes(item.id)));
+	const mismatches = $derived(
+		kind === 'template' && mode !== 'me'
+			? templateMismatches({ ownerID: me, ...selection }, chosenArticles, { departments, personName, departmentName }, t)
+			: []
 	);
-	const missingReferences = $derived(
-		form.knowledgeIDs.filter((id) => !availableKnowledge.some((item) => item.id === id))
+	const heading = $derived(
+		existing
+			? kind === 'template' ? t('แก้ไขคำสั่งสำเร็จรูป', 'Edit prompt') : t('แก้ไขความรู้', 'Edit knowledge')
+			: kind === 'template' ? t('เพิ่มคำสั่งสำเร็จรูป', 'Add a prompt') : t('เพิ่มความรู้', 'Add knowledge')
 	);
-	const formerMemberIDs = $derived(
-		form.memberIDs.filter(
-			(id) => id !== currentUserID && !members.some((member) => member.id === id)
-		)
+	const saveState = $derived(
+		!existing
+			? t('ยังไม่ได้บันทึก', 'Not saved yet')
+			: dirty
+				? t('มีการแก้ไขที่ยังไม่ได้บันทึก', 'Unsaved changes')
+				: existing.status === 'archived'
+					? t('จัดเก็บแล้ว · บันทึกเพื่อนำกลับมาใช้', 'Archived · save to use it again')
+					: t(`บันทึกล่าสุด ${relativeTime(existing.updatedAt, now, t)}`, `Saved ${relativeTime(existing.updatedAt, now, t)}`)
 	);
-	function toggle(field: 'knowledgeIDs' | 'memberIDs' | 'unitIDs', id: string, checked: boolean) {
-		form[field] = checked
-			? [...new Set([...form[field], id])]
-			: form[field].filter((value) => value !== id);
+
+	function personName(id: string) {
+		if (id === me) return t('คุณ', 'You');
+		const member = members.find((item) => item.id === id);
+		return member ? member.displayName || member.email : t('สมาชิก', 'Member');
 	}
-	function cancel() {
-		if (dirty) discard = true;
+	function departmentName(id: string) {
+		return departments.find((item) => item.unitID === id)?.name || t('แผนก', 'Department');
+	}
+	function back() {
+		if (saving) return;
+		if (dirty) discardOpen = true;
 		else onclose();
 	}
-	async function save(event: SubmitEvent) {
-		event.preventDefault();
+	async function save(status: LibraryStatus) {
 		if (saving) return;
 		error = '';
-		const names = form.parameters.map((parameter) => parameter.name.trim());
-		if (form.kind === 'template' && /\{\{\s+[A-Za-z_]|[A-Za-z0-9_]\s+\}\}/.test(form.content)) {
-			error = t(
-				'กรุณาเขียนตัวแปรโดยไม่มีช่องว่าง เช่น {{date}}',
-				'Write placeholders without spaces, for example {{date}}.'
+		const stored = kind === 'template' ? contentForSaving(content, parameters) : { content, unknown: [] };
+		const problems: Record<string, string> = {};
+		if (!title.trim()) problems['kn-title'] = t('ใส่ชื่อเรื่อง', 'Add a title');
+		if (!content.trim()) problems['kn-content'] = kind === 'template' ? t('บอกว่าอยากให้ AI ทำอะไร', 'Say what AI should do') : t('ใส่เนื้อหา', 'Add the content');
+		if (stored.unknown.length)
+			problems['kn-content'] = t(
+				`ยังไม่มีช่องชื่อ ${stored.unknown.map((name) => `{{${name}}}`).join(', ')} กด แทรกช่องให้กรอก เพื่อเพิ่ม หรือลบออกจากข้อความ`,
+				`There is no field named ${stored.unknown.map((name) => `{{${name}}}`).join(', ')}. Insert it as a field, or delete it from the text.`
 			);
+		if (status === 'published' && mode === 'departments' && !unitIDs.length) problems['kn-audience'] = t('เลือกอย่างน้อย 1 แผนก หรือเลือก เฉพาะฉัน', 'Choose at least one department, or Only me');
+		if (status === 'published' && mode === 'people' && !chosenMembers.length) problems['kn-audience'] = t('เลือกอย่างน้อย 1 คน หรือเลือก เฉพาะฉัน', 'Choose at least one person, or Only me');
+		if (missingReferences.length) problems['kn-articles'] = t('เอาเรื่องที่เลิกเผยแพร่แล้วออกก่อนบันทึก', 'Remove the articles that are no longer published');
+		fieldErrors = problems;
+		if (Object.keys(problems).length) {
+			errorKey += 1;
 			return;
 		}
-		if (new Set(names).size !== names.length) {
-			error = t('ชื่อตัวแปรของช่องกรอกต้องไม่ซ้ำกัน', 'Each field name must be unique.');
-			return;
-		}
-		const placeholders = [...form.content.matchAll(/\{\{([A-Za-z_][A-Za-z0-9_]{0,63})\}\}/g)].map(
-			(match) => match[1]
-		);
-		if (form.kind === 'template' && placeholders.some((name) => !names.includes(name))) {
-			error = t(
-				'กรุณาเพิ่มช่องกรอกให้ครบทุกตัวแปรในแม่แบบก่อนบันทึก',
-				'Add a field for every placeholder in the template before saving.'
-			);
-			return;
-		}
+		const input: LibraryInput = {
+			kind,
+			title: title.trim(),
+			summary: summary.trim(),
+			content: stored.content,
+			parameters: kind === 'template' ? parameters.map((item) => ({ ...item, label: item.label.trim() })) : [],
+			knowledgeIDs: kind === 'template' ? [...knowledgeIDs] : [],
+			memberIDs: selection.memberIDs,
+			unitIDs: selection.unitIDs,
+			status,
+			version
+		};
 		saving = true;
 		try {
-			const input = {
-				...form,
-				title: form.title.trim(),
-				summary: form.summary.trim(),
-				parameters: form.parameters.map((parameter) => ({
-					...parameter,
-					name: parameter.name.trim(),
-					label: parameter.label.trim()
-				}))
-			};
-			const saved = await OrcaLibraryService.save(hubID, input, existing?.id);
-			baseline = JSON.stringify(form);
-			onsaved(saved);
+			const saved = await OrcaLibraryService.save(hub.id, input, existing?.id);
+			baseline = snapshot;
+			onsaved(saved, people);
 		} catch (cause) {
-			if (getHttpStatusCode(cause) === 403 || getHttpStatusCode(cause) === 404) {
+			const code = getHttpStatusCode(cause);
+			if (code === 403 || code === 404) {
 				ondenied();
 				return;
 			}
-			conflict = getHttpStatusCode(cause) === 409;
+			conflict = code === 409;
 			error = conflict
-				? t(
-						'รายการนี้มีการเปลี่ยนแปลงแล้ว ข้อความที่คุณแก้ไขยังคงอยู่ กรุณาตรวจสอบฉบับล่าสุดก่อนบันทึกอีกครั้ง',
-						'This item has changed. Your edits are preserved. Review the latest version before saving again.'
-					)
+				? t('มีคนแก้เรื่องนี้พร้อมกัน (อาจเป็นคุณในอีกแท็บ) ข้อความที่คุณพิมพ์ยังอยู่', 'Someone saved this at the same time (maybe you, in another tab). Your text is kept.')
 				: orcaError(cause);
 		} finally {
 			saving = false;
 		}
 	}
-	async function loadLatest() {
+	async function reviewLatest() {
 		if (!existing || loadingLatest) return;
 		loadingLatest = true;
 		try {
-			const result = await OrcaLibraryService.load(hubID);
+			const result = await OrcaLibraryService.load(hub.id);
 			latest = result.items.find((item) => item.id === existing.id && item.canEdit);
 			if (!latest) {
 				ondenied();
 				return;
 			}
-			confirmLatest = true;
+			latestOpen = true;
 		} catch (cause) {
-			if ([403, 404].includes(getHttpStatusCode(cause) ?? 0)) ondenied();
+			const code = getHttpStatusCode(cause);
+			if (code === 403 || code === 404) ondenied();
 			else error = orcaError(cause);
 		} finally {
 			loadingLatest = false;
 		}
 	}
-	function replaceWithLatest() {
+	function useLatest() {
 		if (!latest) return;
-		form = {
-			kind: latest.kind,
-			title: latest.title,
-			summary: latest.summary,
-			content: latest.content,
-			parameters: latest.parameters.map((item) => ({ ...item })),
-			knowledgeIDs: [...latest.knowledgeIDs],
-			memberIDs: [...latest.memberIDs],
-			unitIDs: [...latest.unitIDs],
-			status: latest.status,
-			version: latest.version
-		};
-		baseline = JSON.stringify(form);
+		const next = latest;
+		title = next.title;
+		summary = next.summary;
+		parameters = next.parameters.map((item) => ({ ...item }));
+		content = kind === 'template' ? contentForEditing(next.content, parameters) : next.content;
+		knowledgeIDs = [...next.knowledgeIDs];
+		const known = new Set(memberIDs);
+		const savedMembers = next.memberIDs.filter((id) => id !== me && known.has(id));
+		const savedUnits = next.unitIDs.filter((id) => departments.some((item) => item.unitID === id));
+		mode = audienceMode({ memberIDs: savedMembers, unitIDs: savedUnits }, everyone);
+		unitIDs = mode === 'everyone' || mode === 'me' ? [...everyone.unitIDs] : savedUnits;
+		chosenMembers = mode === 'everyone' || mode === 'me' ? [] : savedMembers;
+		version = next.version;
+		baseline = snapshot;
 		conflict = false;
 		error = '';
-		confirmLatest = false;
+		latestOpen = false;
+	}
+	function keepMine() {
+		// Keep this text and save over the newer copy next time.
+		if (latest) version = latest.version;
+		conflict = false;
+		error = '';
+		latestOpen = false;
 	}
 </script>
 
-<section
-	class="library-editor"
-	aria-label={kind === 'knowledge'
-		? t('แก้ไขบทความความรู้', 'Knowledge article editor')
-		: t('แก้ไขแม่แบบ', 'Template editor')}
->
-	<button type="button" class="library-back" disabled={saving} onclick={cancel}
-		><ArrowLeft size={16} />{t('กลับไปที่คลังความรู้', 'Back to Knowledge')}</button
-	>
-	<div class="library-editor-heading">
-		<span class="library-symbol" aria-hidden="true"
-			>{#if kind === 'knowledge'}<BookOpen size={18} />{:else}<FileText size={18} />{/if}</span
+<form class="ed" onsubmit={(event) => event.preventDefault()} aria-labelledby="kn-editor-title">
+	<button type="button" class="kn-back" onclick={back} disabled={saving}>
+		<ArrowLeft size={15} aria-hidden="true" />{t('คลังความรู้', 'Knowledge')} · {hub.name}
+	</button>
+	<div class="ed-h">
+		<h1 id="kn-editor-title">{heading}</h1>
+		<span>{saveState}</span>
+	</div>
+
+	<FormErrorSummary errors={fieldErrors} focusKey={errorKey} />
+	{#if error}
+		<div class="ed-alert" role="alert">
+			<TriangleAlert size={16} aria-hidden="true" />
+			<p>{error}</p>
+			{#if conflict}<button type="button" class="k-button small" disabled={loadingLatest} onclick={reviewLatest}>{loadingLatest ? t('กำลังโหลด…', 'Loading…') : t('ดูฉบับล่าสุด', 'See the latest copy')}</button>{/if}
+		</div>
+	{/if}
+	{#if start.dropped > 0}
+		<p class="ed-note"><Info size={15} aria-hidden="true" />{t(`เอา ${start.dropped} คนหรือแผนกที่ไม่อยู่ในพื้นที่ทำงานนี้แล้วออกจากรายชื่อให้`, `Removed ${start.dropped} people or departments no longer in this workspace`)}</p>
+	{/if}
+
+	<div class="ed-grid">
+		<div class="ed-main">
+			<div class="field">
+				<label for="kn-title">{t('ชื่อเรื่อง', 'Title')}</label>
+				<input
+					id="kn-title"
+					class="kn-input"
+					bind:value={title}
+					required
+					maxlength={LIBRARY_TITLE_MAX}
+					disabled={saving}
+					aria-invalid={fieldErrors['kn-title'] ? 'true' : undefined}
+					placeholder={kind === 'template' ? t('เช่น สรุปยอดขายประจำวัน', 'e.g. Daily sales summary') : t('เช่น การรับประกันสินค้า', 'e.g. Product warranty')}
+				/>
+			</div>
+
+			{#if kind === 'knowledge'}
+				<div class="field kn-grow">
+					<label for="kn-content">{t('เนื้อหา', 'Content')}</label>
+					<textarea
+						id="kn-content"
+						class="ta"
+						bind:value={content}
+						required
+						maxlength={LIBRARY_CONTENT_MAX}
+						disabled={saving}
+						aria-invalid={fieldErrors['kn-content'] ? 'true' : undefined}
+						placeholder={t('เช่น สินค้าทุกชิ้นรับประกัน 1 ปี นับจากวันที่ในใบกำกับภาษี…', 'e.g. Every product has a one-year warranty from the invoice date…')}
+					></textarea>
+					<div class="ta-f">
+						<span>{t('เขียนเหมือนอธิบายให้พนักงานใหม่ฟัง AI จะตอบได้ตรงขึ้น', 'Write it as you would explain it to a new hire')}</span>
+						<span>{t(`${content.length.toLocaleString('en-US')} / 40,000 ตัวอักษร`, `${content.length.toLocaleString('en-US')} / 40,000 characters`)}</span>
+					</div>
+				</div>
+			{:else}
+				<div class="field kn-grow">
+					<TemplateBody id="kn-content" bind:text={content} bind:parameters disabled={saving} />
+				</div>
+				<div class="field" id="kn-articles" tabindex="-1">
+					<ArticlePicker id="kn-articles-search" articles={available} bind:selected={knowledgeIDs} disabled={saving} />
+					{#if missingReferences.length}
+						<p class="ed-warn">
+							<TriangleAlert size={15} aria-hidden="true" />
+							<span>{t(`${missingReferences.length} เรื่องที่เลือกไว้เลิกเผยแพร่แล้ว`, `${missingReferences.length} chosen articles are no longer published`)}</span>
+							<button type="button" class="k-button small" onclick={() => (knowledgeIDs = knowledgeIDs.filter((id) => !missingReferences.includes(id)))}>{t('เอาออก', 'Remove')}</button>
+						</p>
+					{/if}
+					{#each mismatches as mismatch (mismatch.articleID)}
+						<p class={'unknown' in mismatch ? 'ed-note' : 'ed-warn'}>
+							{#if 'unknown' in mismatch}<Info size={15} aria-hidden="true" />{:else}<TriangleAlert size={15} aria-hidden="true" />{/if}
+							<span>{mismatchMessage(mismatch, t)}</span>
+						</p>
+					{/each}
+				</div>
+			{/if}
+
+			<div class="disc-wrap">
+				<button type="button" class="disc" aria-expanded={summaryOpen} aria-controls="kn-summary-panel" onclick={() => (summaryOpen = !summaryOpen)}>
+					<ChevronRight size={15} strokeWidth={2.2} aria-hidden="true" />{t('คำอธิบายสั้น (ช่วยให้ AI หาเจอ)', 'Short description (helps AI find it)')}<span class="muted">{t('ไม่บังคับ', 'Optional')}</span>
+				</button>
+				{#if summaryOpen}
+					<div id="kn-summary-panel" class="disc-panel">
+						<label class="kn-sr" for="kn-summary">{t('คำอธิบายสั้น', 'Short description')}</label>
+						<textarea
+							id="kn-summary"
+							class="kn-input short"
+							rows="2"
+							bind:value={summary}
+							maxlength={LIBRARY_SUMMARY_MAX}
+							disabled={saving}
+							placeholder={t('เช่น เงื่อนไขการคืนสินค้าและระยะเวลาที่ลูกค้าขอคืนได้', 'e.g. When customers can return a product, and for how long')}
+						></textarea>
+					</div>
+				{/if}
+			</div>
+		</div>
+
+		<div class="ed-side" id="kn-audience" tabindex="-1">
+		<AudienceCard
+			{kind}
+			bind:mode
+			bind:unitIDs
+			bind:memberIDs={chosenMembers}
+			{everyone}
+			{departments}
+			{members}
+			{me}
+			disabled={saving}
 		>
-		<div>
-			<h2>
-				{existing
-					? t('แก้ไขเนื้อหา', 'Edit content')
-					: kind === 'knowledge'
-						? t('เพิ่มบทความความรู้', 'Add a knowledge article')
-						: t('สร้างแม่แบบ', 'Create a template')}
-			</h2>
-			<p>
-				{kind === 'knowledge'
-					? t(
-							'แต่ละบทความกำหนดสิทธิ์การเข้าถึงแยกกัน',
-							'Each article has its own access settings'
-						)
-					: t(
-							'ขั้นตอนการทำงานและรูปแบบผลลัพธ์ที่ทีมใช้ร่วมกัน',
-							'Shared instructions and output formats for your team'
-						)}
-			</p>
+			{#snippet actions()}
+				<button type="button" class="k-button ed-draft" disabled={saving || conflict} onclick={() => save('draft')}>{t('บันทึกร่าง', 'Save draft')}</button>
+				<button type="button" class="k-button primary ed-publish" disabled={saving || conflict} aria-busy={saving} onclick={() => save('published')}>{saving ? t('กำลังบันทึก…', 'Saving…') : t('เผยแพร่ให้ AI ใช้', 'Publish for AI')}</button>
+			{/snippet}
+		</AudienceCard>
 		</div>
 	</div>
-	{#if discard}<div class="library-alert" role="alert">
-			<Info size={16} />
-			<div>
-				<p>
-					{t(
-						'มีการแก้ไขที่ยังไม่ได้บันทึก ต้องการออกจากหน้านี้หรือไม่',
-						'You have unsaved changes. Leave this editor?'
-					)}
-				</p>
-				<div class="library-actions">
-					<button class="k-button small" onclick={() => (discard = false)}
-						>{t('แก้ไขต่อ', 'Keep editing')}</button
-					><button class="k-button small" onclick={onclose}>{t('ออกโดยไม่บันทึก', 'Discard changes')}</button>
-				</div>
-			</div>
-		</div>{/if}
-	<form onsubmit={save}>
-		<fieldset disabled={saving} class="library-form-fields">
-			<div class="library-field">
-				<label for="library-title">{t('ชื่อเรื่อง', 'Title')}</label><input
-					id="library-title"
-					bind:value={form.title}
-					required
-					maxlength="160"
-					placeholder={kind === 'knowledge'
-						? t('เช่น แนวทางดูแลลูกค้า VIP', 'e.g. VIP guest service guidelines')
-						: t('เช่น สรุปงานประจำวันของแผนก', 'e.g. Department daily briefing')}
-				/>
-			</div>
-			<div class="library-field">
-				<label for="library-summary"
-					>{t('คำอธิบายสั้น ๆ', 'Short description')}
-					<span>{t('(ไม่บังคับ)', '(optional)')}</span></label
-				><input
-					id="library-summary"
-					bind:value={form.summary}
-					maxlength="500"
-					placeholder={t(
-						'ระบุว่าเนื้อหานี้ใช้กับงานใด',
-						'Describe when this content should be used'
-					)}
-				/>
-			</div>
-			<div class="library-field">
-				<label for="library-content"
-					>{kind === 'knowledge'
-						? t('เนื้อหาบทความ', 'Article content')
-						: t('เนื้อหาแม่แบบ', 'Template content')}</label
-				><textarea
-					id="library-content"
-					bind:value={form.content}
-					required
-					maxlength="40000"
-					rows="12"
-					placeholder={kind === 'knowledge'
-						? t(
-								'เพิ่มนโยบาย วิธีปฏิบัติงาน หรือข้อมูลที่ทีมใช้เป็นหลักอ้างอิง',
-								'Add policies, procedures or reference information for your team'
-							)
-						: t(
-								'ระบุขั้นตอนการทำงานและรูปแบบผลลัพธ์ที่ต้องการ\nใช้ {{date}} ในตำแหน่งที่ต้องการให้กรอกวันที่',
-								'Describe the workflow and the expected output.\nUse {{date}} where the date should be filled in.'
-							)}
-				></textarea>
-				<p class="library-hint">
-					{kind === 'knowledge'
-						? t(
-								'แยกเนื้อหาที่มีผู้เข้าถึงต่างกันเป็นคนละบทความ เช่น แนวทางการให้บริการ และราคาตามสัญญาของลูกค้าแต่ละราย',
-								'Put content for different audiences in separate articles, such as service guidelines and customer contract rates.'
-							)
-						: t(
-								'ใช้ {{field_name}} แทนข้อมูลที่เปลี่ยนไปในแต่ละครั้ง แล้วเพิ่มช่องกรอกด้านล่าง รองรับข้อความธรรมดาและ Markdown',
-								'Use {{field_name}} for values that change each time, then define the fields below. Plain text and Markdown are supported.'
-							)}
-				</p>
-			</div>
-			{#if kind === 'template'}
-				<section class="library-editor-section">
-					<div class="library-section-heading">
-						<div>
-							<h3>{t('ช่องกรอกข้อมูล', 'Input fields')}</h3>
-							<p>
-								{t(
-									'เช่น วันที่ แผนก หรือชื่อลูกค้า',
-									'For example: a date, department or customer name'
-								)}
-							</p>
-						</div>
-						<button
-							type="button"
-							class="k-button small"
-							disabled={form.parameters.length >= 20}
-							onclick={() =>
-								(form.parameters = [...form.parameters, { name: '', label: '', required: true }])}
-							><Plus size={16} />{t('เพิ่มช่องกรอก', 'Add field')}</button
-						>
-					</div>
-					{#each form.parameters as parameter, index}<div class="library-parameter">
-							<div class="library-field">
-								<label for={`parameter-name-${index}`}>{t('ชื่อตัวแปร', 'Field name')}</label><input
-									id={`parameter-name-${index}`}
-									bind:value={parameter.name}
-									required
-									pattern="[A-Za-z_][A-Za-z0-9_]*"
-									maxlength="64"
-									placeholder="date"
-								/>
-							</div>
-							<div class="library-field">
-								<label for={`parameter-label-${index}`}
-									>{t('ชื่อที่แสดง', 'Display label')}</label
-								><input
-									id={`parameter-label-${index}`}
-									bind:value={parameter.label}
-									required
-									maxlength="120"
-									placeholder={t('วันที่สรุปงาน', 'Report date')}
-								/>
-							</div>
-							<label class="library-check-inline"
-								><input type="checkbox" bind:checked={parameter.required} />{t(
-									'ต้องกรอก',
-									'Required'
-								)}</label
-							><button
-								type="button"
-								class="library-icon-button danger"
-								aria-label={t(`ลบช่องกรอกที่ ${index + 1}`, `Remove field ${index + 1}`)}
-								title={t(`ลบช่องกรอกที่ ${index + 1}`, `Remove field ${index + 1}`)}
-								onclick={() =>
-									(form.parameters = form.parameters.filter((_, position) => position !== index))}
-								><Trash2 size={16} /></button
-							>
-						</div>{/each}
-					<p class="library-hint">
-						{t(
-							'ชื่อตัวแปรใช้ได้เฉพาะตัวอักษรภาษาอังกฤษ ตัวเลข และ _ และต้องไม่ขึ้นต้นด้วยตัวเลข เช่น report_date',
-							'Field names may contain English letters, numbers and underscores, and cannot start with a number, e.g. report_date.'
-						)}
-					</p>
-				</section>
-				<section class="library-editor-section">
-					<h3>{t('บทความความรู้ที่ใช้ประกอบ', 'Knowledge articles to include')}</h3>
-					<p class="library-hint">
-						{t(
-							'ผู้ใช้แม่แบบนี้ต้องมีสิทธิ์อ่านบทความทุกรายการที่เลือก',
-							'To use this template, a person must have access to every selected article.'
-						)}
-					</p>
-					{#if availableKnowledge.length}<div class="library-choice-grid">
-							{#each availableKnowledge as item}<label class="library-choice"
-									><input
-										type="checkbox"
-										checked={form.knowledgeIDs.includes(item.id)}
-										disabled={form.knowledgeIDs.length >= 20 &&
-											!form.knowledgeIDs.includes(item.id)}
-										onchange={(event) =>
-											toggle('knowledgeIDs', item.id, event.currentTarget.checked)}
-									/><span
-										><strong>{item.title}</strong><small
-											>{item.summary ||
-												t('บทความที่เผยแพร่แล้ว', 'Published article')}</small
-										></span
-									></label
-								>{/each}
-						</div>{:else}<p class="library-hint">
-							{t(
-								'ยังไม่มีบทความความรู้ที่เผยแพร่ สามารถบันทึกแม่แบบนี้ก่อน แล้วเพิ่มบทความอ้างอิงภายหลัง',
-								'No published knowledge articles yet. You can save this template now and add references later.'
-							)}
-						</p>{/if}
-					{#if missingReferences.length}<div class="library-alert" role="alert">
-							<Info size={16} />
-							<div>
-								<p>
-									{t(
-										'บทความที่อ้างอิงบางรายการไม่พร้อมใช้งานแล้ว กรุณานำรายการดังกล่าวออกก่อนบันทึก',
-										'Some referenced articles are no longer available. Remove them before saving.'
-									)}
-								</p>
-								<button
-									type="button"
-									class="k-button small"
-									onclick={() =>
-										(form.knowledgeIDs = form.knowledgeIDs.filter(
-											(id) => !missingReferences.includes(id)
-										))}>{t('นำบทความที่ไม่พร้อมใช้งานออก', 'Remove unavailable references')}</button
-								>
-							</div>
-						</div>{/if}
-				</section>
-			{/if}
-			<section class="library-editor-section">
-				<div class="library-section-heading">
-					<div>
-						<h3><ShieldCheck size={18} />{t('สิทธิ์การเข้าถึง', 'Access')}</h3>
-						<p>
-							{t(
-								'คุณเป็นเจ้าของเนื้อหานี้และกำหนดผู้ที่เข้าถึงได้',
-								'You own this content and decide who can access it.'
-							)}
-						</p>
-					</div>
-				</div>
-				<div class="library-audience-grid">
-					<div>
-						<h4>{t('เลือกสมาชิก', 'Select members')}</h4>
-						<div class="library-choices">
-							{#each members.filter((member) => member.id !== currentUserID) as member}<label
-									class="library-choice"
-									><input
-										type="checkbox"
-										checked={form.memberIDs.includes(member.id)}
-										onchange={(event) =>
-											toggle('memberIDs', member.id, event.currentTarget.checked)}
-									/><span><strong>{memberName(member)}</strong>{#if memberName(member) !== member.email}<small>{member.email}</small>{/if}</span
-									></label
-								>{:else}<p class="library-hint">
-									{t(
-										'พื้นที่ทำงานนี้ยังไม่มีสมาชิกคนอื่น',
-										'This workspace has no other members.'
-									)}
-								</p>{/each}
-						</div>
-					</div>
-					<div>
-						<h4>{t('เลือกแผนก', 'Select departments')}</h4>
-						<div class="library-choices">
-							{#each departments as department}<label class="library-choice"
-									><input
-										type="checkbox"
-										checked={form.unitIDs.includes(department.unitID)}
-										onchange={(event) =>
-											toggle('unitIDs', department.unitID, event.currentTarget.checked)}
-									/><span
-										><strong>{departmentName(department.unitID)}</strong><small
-											>{t(
-												'เฉพาะผู้ที่เป็นสมาชิกของพื้นที่ทำงานนี้',
-												'Only members of this workspace'
-											)}</small
-										></span
-									></label
-								>{:else}<p class="library-hint">
-									{t(
-										'ผู้ดูแลระบบยังไม่ได้กำหนดสมาชิกของแผนก',
-										'An administrator has not set up department membership yet.'
-									)}
-								</p>{/each}
-						</div>
-					</div>
-				</div>
-				<p class="library-note">
-					<Info size={16} />
-					{t(
-						'การเลือกแผนกไม่ได้ให้สิทธิ์เข้าถึงพื้นที่ทำงาน หากไม่เลือกผู้ใด เนื้อหานี้จะใช้ได้เฉพาะคุณ',
-						'Selecting a department does not grant workspace access. If you select no one, only you can use this content.'
-					)}
-				</p>
-				{#if formerMemberIDs.length}<div class="library-alert">
-					<Info size={16} />
-					<div>
-						<p>
-							{t(
-								'สมาชิกบางคนที่เคยเลือกไม่ได้อยู่ในพื้นที่ทำงานนี้แล้ว กรุณานำรายชื่อดังกล่าวออกก่อนบันทึก',
-								'Some previously selected people are no longer members of this workspace. Remove them before saving.'
-							)}
-						</p>
-						<button
-							type="button"
-							class="k-button small"
-							onclick={() =>
-								(form.memberIDs = form.memberIDs.filter((id) => !formerMemberIDs.includes(id)))}
-							>{t('นำอดีตสมาชิกออก', 'Remove former members')}</button
-						>
-					</div>
-				</div>{/if}
-			</section>
-			<div class="library-field library-publish">
-				<label for="library-status">{t('สถานะการเผยแพร่', 'Publishing status')}</label><select
-					id="library-status"
-					bind:value={form.status}
-					><option value="draft">{t('ฉบับร่าง · เฉพาะคุณ', 'Draft · only you')}</option><option
-						value="published"
-						>{t('เผยแพร่ · ตามสิทธิ์ที่กำหนด', 'Published · selected audience')}</option
-					>{#if existing?.status === 'archived'}<option value="archived"
-							>{t('จัดเก็บแล้ว', 'Archived')}</option
-						>{/if}</select
-				>
-				<p class="library-hint">
-					{t(
-						'AI จะใช้เนื้อหานี้ได้เมื่อเผยแพร่แล้วและพื้นที่ทำงาน AI เปิดใช้งานอยู่',
-						'AI can use this content once it is published and the AI workspace is active.'
-					)}
-				</p>
-			</div>
-		</fieldset>
-		{#if error}<div class="library-alert" role="alert">
-				<Info size={16} />
-				<div>
-					<p>{error}</p>
-					{#if conflict}<button
-							type="button"
-							class="k-button small"
-							disabled={loadingLatest}
-							onclick={loadLatest}
-							>{loadingLatest
-								? t('กำลังโหลด…', 'Loading…')
-								: t('ดูฉบับล่าสุด', 'Review latest version')}</button
-						>{/if}
-				</div>
-			</div>{/if}
-		{#if confirmLatest && latest}<div class="library-conflict">
-				<h3>{t('ฉบับล่าสุดที่บันทึกไว้', 'Latest saved version')}</h3>
-				<strong>{latest.title}</strong>
-				<pre>{latest.content}</pre>
-				<p>
-					{t(
-						'หากใช้ฉบับนี้ ข้อความที่คุณแก้ไขอยู่จะถูกแทนที่',
-						'Using this version will replace your current edits.'
-					)}
-				</p>
-				<div class="library-actions">
-					<button type="button" class="k-button small" onclick={() => (confirmLatest = false)}
-						>{t('เก็บข้อความที่แก้ไขไว้', 'Keep my edits')}</button
-					><button type="button" class="k-button small" onclick={replaceWithLatest}
-						><Check size={16} />{t('ใช้ฉบับล่าสุด', 'Use latest version')}</button
-					>
-				</div>
-			</div>{/if}
-		<div class="library-editor-footer">
-			<span>{t('เฉพาะคุณที่แก้ไขเนื้อหานี้ได้', 'Only you can edit this content')}</span>
-			<div class="library-actions">
-				<button type="button" class="k-button" onclick={cancel} disabled={saving}
-					><X size={16} />{t('ยกเลิก', 'Cancel')}</button
-				><button
-					type="submit"
-					class="k-button primary"
-					disabled={saving || conflict || missingReferences.length > 0}
-					><Save size={16} />{saving ? t('กำลังบันทึก…', 'Saving…') : t('บันทึก', 'Save')}</button
-				>
-			</div>
+</form>
+
+<ConfirmDialog
+	bind:open={discardOpen}
+	title={t('ออกโดยไม่บันทึก?', 'Leave without saving?')}
+	message={t('สิ่งที่แก้ไว้ในหน้านี้จะหายไป', 'What you changed here will be lost.')}
+	confirmLabel={t('ออกโดยไม่บันทึก', 'Leave without saving')}
+	cancelLabel={t('แก้ต่อ', 'Keep editing')}
+	tone="danger"
+	onconfirm={() => {
+		discardOpen = false;
+		baseline = snapshot;
+		onclose();
+	}}
+/>
+
+<ConfirmDialog
+	bind:open={latestOpen}
+	title={t('ฉบับล่าสุดที่บันทึกไว้', 'The latest saved copy')}
+	message={t('ใช้ฉบับนี้แทนข้อความของคุณ หรือเก็บข้อความของคุณแล้วบันทึกทับ', 'Use this copy instead of your text, or keep your text and save over it.')}
+	confirmLabel={t('ใช้ฉบับล่าสุด', 'Use the latest copy')}
+	cancelLabel={t('เก็บข้อความของฉัน', 'Keep my text')}
+	onconfirm={useLatest}
+	oncancel={keepMine}
+>
+	{#if latest}
+		<div class="latest">
+			<b>{latest.title}</b>
+			<pre>{latest.content}</pre>
 		</div>
-	</form>
-</section>
+	{/if}
+</ConfirmDialog>
+
+<style>
+	.kn-back {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 8px;
+		padding: 2px 0;
+		border: 0;
+		background: transparent;
+		color: var(--orca-muted);
+		font-size: 13.5px;
+		cursor: pointer;
+	}
+	.kn-back:hover:not(:disabled) {
+		color: var(--orca-ink);
+	}
+	.ed-h {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 4px 12px;
+		margin: 0 0 20px;
+	}
+	.ed-h h1 {
+		margin: 0;
+		font-size: 24px;
+		font-weight: 700;
+		line-height: 1.35;
+	}
+	.ed-h span {
+		color: var(--orca-muted);
+		font-size: 13.5px;
+	}
+	.ed-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 392px;
+		gap: 20px;
+		align-items: stretch;
+	}
+	/* The audience card stays in view beside a long prompt. */
+	.ed-side:focus {
+		outline: 0;
+	}
+	.ed-side {
+		position: sticky;
+		top: 80px;
+		align-self: start;
+		min-width: 0;
+	}
+	.ed-main {
+		display: flex;
+		flex-direction: column;
+		gap: 18px;
+		min-width: 0;
+		padding: 22px 24px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-surface);
+	}
+	.field label {
+		display: block;
+		margin-bottom: 6px;
+		font-size: 14px;
+		font-weight: 600;
+	}
+	.field.kn-grow {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+	}
+	.field:focus {
+		outline: 0;
+	}
+	.kn-input,
+	.ta {
+		width: 100%;
+		border: 1px solid var(--orca-field-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-field);
+		color: var(--orca-ink);
+	}
+	.kn-input {
+		min-height: 46px;
+		padding: 11px 12px;
+		font-size: 15px;
+	}
+	.kn-input.short {
+		min-height: 0;
+		font-size: 14.5px;
+		line-height: 1.6;
+		resize: vertical;
+	}
+	.ta {
+		flex: 1;
+		min-height: 260px;
+		max-height: 70vh;
+		field-sizing: content;
+		padding: 12px 14px;
+		font-size: 14.5px;
+		line-height: 1.8;
+		resize: vertical;
+	}
+	.kn-input:focus-visible,
+	.ta:focus-visible {
+		border-color: var(--orca-focus);
+		outline: 0 !important;
+		box-shadow: 0 0 0 3px var(--orca-focus-halo);
+	}
+	.kn-input[aria-invalid='true'],
+	.ta[aria-invalid='true'] {
+		border-color: var(--orca-deny);
+	}
+	.ta-f {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: 4px 16px;
+		margin-top: 6px;
+		color: var(--orca-subtle);
+		font-size: 12.5px;
+	}
+	.disc-wrap {
+		display: grid;
+		gap: 10px;
+	}
+	.disc {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		justify-self: start;
+		padding: 2px 0;
+		border: 0;
+		background: transparent;
+		color: var(--orca-text-2);
+		font-size: 14px;
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.disc :global(svg) {
+		transition: transform 0.15s var(--orca-ease);
+	}
+	.disc[aria-expanded='true'] :global(svg) {
+		transform: rotate(90deg);
+	}
+	.disc .muted {
+		color: var(--orca-muted);
+		font-size: 13px;
+		font-weight: 400;
+	}
+	.ed-alert,
+	.ed-warn,
+	.ed-note {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px 10px;
+		margin: 0 0 16px;
+		padding: 10px 14px;
+		border-radius: var(--orca-radius-lg);
+		font-size: 13.5px;
+		line-height: 1.5;
+	}
+	.ed-alert {
+		border: 1px solid var(--orca-deny-line);
+		background: var(--orca-deny-bg);
+		color: var(--orca-ink);
+	}
+	.ed-alert :global(svg) {
+		color: var(--orca-deny);
+	}
+	.ed-alert p {
+		flex: 1 1 240px;
+		margin: 0;
+	}
+	.ed-warn {
+		margin: 10px 0 0;
+		border: 1px solid var(--orca-warn-line);
+		background: var(--orca-warn-bg);
+		color: var(--orca-ink);
+	}
+	.ed-warn :global(svg) {
+		flex: none;
+		color: var(--orca-warn);
+	}
+	.ed-note {
+		border: 1px solid var(--orca-line);
+		background: var(--orca-surface-2);
+		color: var(--orca-muted);
+	}
+	.field .ed-note {
+		margin: 10px 0 0;
+	}
+	.ed-warn span,
+	.ed-note span {
+		flex: 1 1 200px;
+	}
+	.ed-draft {
+		flex: 1;
+		min-height: 44px !important;
+		justify-content: center;
+		font-weight: 600 !important;
+	}
+	.ed-publish {
+		flex: 1.5;
+		min-height: 44px !important;
+		justify-content: center;
+		font-weight: 600 !important;
+	}
+	.latest {
+		margin-top: 14px;
+		padding: 12px 14px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface-2);
+	}
+	.latest pre {
+		max-height: 220px;
+		margin: 6px 0 0;
+		overflow: auto;
+		color: var(--orca-text-2);
+		font-family: inherit;
+		font-size: 13.5px;
+		white-space: pre-wrap;
+	}
+	.kn-sr {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
+	@media (max-width: 1080px) {
+		.ed-grid {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.ed-side {
+			position: static;
+		}
+	}
+	@media (max-width: 720px) {
+		.ed-main {
+			padding: 18px 16px;
+		}
+		.ta {
+			min-height: 220px;
+		}
+	}
+</style>

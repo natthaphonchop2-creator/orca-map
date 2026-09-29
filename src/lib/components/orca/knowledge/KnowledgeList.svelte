@@ -1,0 +1,813 @@
+<script lang="ts">
+	import {
+		Archive,
+		BookOpen,
+		Briefcase,
+		ChevronDown,
+		FileText,
+		Info,
+		LockKeyhole,
+		Plus,
+		RefreshCw,
+		Search,
+		User,
+		Users,
+		Zap
+	} from '@lucide/svelte';
+	import { term } from '$lib/orca/glossary';
+	import {
+		LIBRARY_PAGE,
+		askItem,
+		audienceChip,
+		filterLibrary,
+		itemExcerpt,
+		libraryCounts,
+		relativeTime,
+		type LibraryFilter
+	} from '$lib/orca/knowledge';
+	import { localeHref, t } from '$lib/orca/locale.svelte';
+	import type { OrcaHub, OrcaMember } from '$lib/services/orca';
+	import type { LibraryDepartment, LibraryItem, LibraryKind } from '$lib/services/orca-library';
+	import PageHeader from '../ui/PageHeader.svelte';
+	import StatusPill from '../ui/StatusPill.svelte';
+	import KnowledgeRail from './KnowledgeRail.svelte';
+	import ScopeChip from './ScopeChip.svelte';
+
+	// คลังความรู้, the library's home (proposal §3.6 screen 1): the workspace,
+	// its counts, articles or ready-made prompts, and a side to try it in AI.
+	let {
+		hub,
+		choices,
+		items,
+		departments,
+		members,
+		currentUserID,
+		canManage = false,
+		kind = $bindable('knowledge'),
+		filter = $bindable('all'),
+		query = $bindable(''),
+		loaded = true,
+		error = '',
+		connected = false,
+		app = '',
+		now = Date.now(),
+		onchoose,
+		oncreate,
+		onopen,
+		onreload
+	}: {
+		hub: OrcaHub;
+		choices: OrcaHub[];
+		items: LibraryItem[];
+		departments: LibraryDepartment[];
+		/** The workspace's members, as the library lists them. */
+		members: OrcaMember[];
+		currentUserID: string;
+		canManage?: boolean;
+		kind?: LibraryKind;
+		filter?: LibraryFilter;
+		query?: string;
+		loaded?: boolean;
+		error?: string;
+		connected?: boolean;
+		app?: string;
+		now?: number;
+		onchoose: (hubID: string) => void;
+		oncreate: (kind: LibraryKind, title?: string) => void;
+		onopen: (item: LibraryItem) => void;
+		onreload: () => void;
+	} = $props();
+	let expanded = $state(false);
+	const counts = $derived(libraryCounts(items, kind));
+	const knowledgeCount = $derived(libraryCounts(items, 'knowledge').current);
+	const templateCount = $derived(libraryCounts(items, 'template').current);
+	const rows = $derived(filterLibrary(items, kind, filter, query));
+	const shown = $derived(expanded ? rows : rows.slice(0, LIBRARY_PAGE));
+	const hidden = $derived(rows.length - shown.length);
+	const someoneElse = $derived(shown.some((item) => !item.canEdit));
+	const ask = $derived(askItem(items, undefined, kind));
+	const workspaceMemberIDs = $derived(members.map((member) => member.id));
+	const filters = $derived<{ id: LibraryFilter; label: string }[]>([
+		{ id: 'all', label: t('ทั้งหมด', 'All') },
+		{ id: 'published', label: t('AI ใช้ได้', 'AI can use') },
+		{ id: 'draft', label: t('ฉบับร่าง', 'Drafts') },
+		{ id: 'archived', label: t('จัดเก็บแล้ว', 'Archived') }
+	]);
+	const starters = $derived(
+		kind === 'knowledge'
+			? [t('นโยบายคืนสินค้า', 'Return policy'), t('ขั้นตอนออกใบกำกับภาษี', 'Issuing a tax invoice'), t('สวัสดิการพนักงาน', 'Employee benefits')]
+			: [t('สรุปยอดขายประจำวัน', 'Daily sales summary'), t('ร่างอีเมลติดตามลูกค้า', 'Customer follow-up email'), t('ตอบคำถามลูกค้าจากนโยบาย', 'Answer customers from our policies')]
+	);
+	$effect(() => {
+		// A new tab, chip or search starts from the first rows again.
+		void kind;
+		void filter;
+		void query;
+		expanded = false;
+	});
+	function personName(id: string) {
+		if (id === currentUserID) return t('คุณ', 'You');
+		const member = members.find((item) => item.id === id);
+		return member ? member.displayName || member.email : t('สมาชิกพื้นที่ทำงาน', 'Workspace member');
+	}
+	function departmentName(id: string) {
+		return departments.find((item) => item.unitID === id)?.name || t('แผนก', 'Department');
+	}
+	function initial(id: string) {
+		const name = id === currentUserID ? (members.find((item) => item.id === id)?.displayName ?? '') : personName(id);
+		return [...name.trim()].find((c) => /[\p{L}\p{N}]/u.test(c))?.toLocaleUpperCase() ?? '•';
+	}
+	function chip(item: LibraryItem) {
+		return audienceChip(item, { departments, workspaceMemberIDs, personName, departmentName }, t);
+	}
+</script>
+
+<div class="kn">
+	<div class="kn-head">
+		<PageHeader title={term('knowledge', t)} subtitle={t('ข้อมูลที่ AI ของทีมใช้ตอบคำถาม', 'What your team’s AI answers from')}>
+			{#snippet action()}
+				<button type="button" class="k-button primary kn-add" onclick={() => oncreate(kind)} disabled={!loaded || (!!error && !items.length)}>
+					<Plus size={16} strokeWidth={2.3} aria-hidden="true" />{kind === 'knowledge' ? t('เพิ่มความรู้', 'Add knowledge') : t('เพิ่มคำสั่งสำเร็จรูป', 'Add a prompt')}
+				</button>
+			{/snippet}
+		</PageHeader>
+		<div class="kn-ctx">
+			{#if choices.length > 1}<ScopeChip {hub} {choices} onchoose={onchoose} />{/if}
+			{#if loaded}
+				<p class="kn-strip">
+					<span><i class="dt ok" aria-hidden="true"></i>{t('AI ใช้ได้', 'AI can use')} <b>{counts.published}</b></span>
+					<i class="sep" aria-hidden="true"></i>
+					<span><i class="dt draft" aria-hidden="true"></i>{t('ฉบับร่าง', 'Drafts')} <b>{counts.draft}</b></span>
+				</p>
+			{/if}
+		</div>
+	</div>
+
+	{#if hub.status !== 'active'}
+		<p class="kn-note">
+			<Info size={16} aria-hidden="true" />
+			<span>{t('พื้นที่ทำงานนี้ยังไม่เปิดใช้งาน AI จะใช้ความรู้ได้เมื่อเปิดใช้งาน', 'This workspace is not active. AI can use its knowledge once it is.')}</span>
+			{#if canManage}<a href={localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}`)}>{t('เปิดพื้นที่ทำงาน', 'Open workspace')}</a>{/if}
+		</p>
+	{/if}
+
+	<div class="kn-grid">
+		<div class="kn-main">
+			<div class="kn-bar">
+				<div class="seg" role="group" aria-label={t('ประเภท', 'Type')}>
+					<button type="button" aria-pressed={kind === 'knowledge'} class:on={kind === 'knowledge'} onclick={() => (kind = 'knowledge')}>
+						<BookOpen size={16} aria-hidden="true" />{t('ความรู้', 'Knowledge')}{#if loaded}<span class="c">{knowledgeCount}</span>{/if}
+					</button>
+					<button type="button" aria-pressed={kind === 'template'} class:on={kind === 'template'} onclick={() => (kind = 'template')}>
+						<Zap size={16} aria-hidden="true" />{term('readyPrompt', t)}{#if loaded}<span class="c">{templateCount}</span>{/if}
+					</button>
+				</div>
+				<label class="search">
+					<Search size={16} aria-hidden="true" />
+					<input type="search" bind:value={query} maxlength="200" placeholder={t('ค้นหาชื่อเรื่อง', 'Search titles')} aria-label={t('ค้นหาชื่อเรื่อง', 'Search titles')} />
+				</label>
+			</div>
+
+			<div class="chips" role="group" aria-label={t('สถานะ', 'Status')}>
+				{#each filters as item (item.id)}
+					<button type="button" class="chip" class:on={filter === item.id} aria-pressed={filter === item.id} onclick={() => (filter = item.id)}>{item.label}</button>
+				{/each}
+			</div>
+
+			{#if error}
+				<div class="kn-alert" role="alert">
+					<Info size={16} aria-hidden="true" />
+					<p>{error}</p>
+					<button type="button" class="k-button small" onclick={onreload}><RefreshCw size={15} aria-hidden="true" />{t('โหลดใหม่', 'Reload')}</button>
+				</div>
+			{/if}
+
+			{#if !loaded}
+				<p class="kn-loading" role="status">{t('กำลังโหลดคลังความรู้…', 'Loading knowledge…')}</p>
+			{:else if error && !items.length}
+				<!-- The alert above says what failed; no starter list over an error. -->
+			{:else if rows.length}
+				<div class="kl">
+					<div class="kl-h" aria-hidden="true">
+						<span></span><span>{t('เรื่อง', 'Title')}</span><span>{t('ใครใช้ได้', 'Who can use')}</span><span>{t('สถานะ', 'Status')}</span><span>{t('อัปเดตล่าสุด', 'Updated')}</span>
+					</div>
+					<ul>
+						{#each shown as item (item.id)}
+							{@const audience = item.canEdit ? chip(item) : undefined}
+							<li>
+								<button type="button" class="kl-r" onclick={() => onopen(item)}>
+									<span class="kl-ic" class:draft={item.status === 'draft'} class:archived={item.status === 'archived'} aria-hidden="true">
+										{#if item.kind === 'template'}<Zap size={17} />{:else}<FileText size={17} />{/if}
+									</span>
+									<span class="kl-t"><b>{item.title}</b>{#if itemExcerpt(item)}<small>{itemExcerpt(item)}</small>{/if}</span>
+									<span class="kl-a">
+										<span class="kn-sr">{t('ใครใช้ได้:', 'Who can use:')}</span>
+										{#if audience}
+											<span class="aud">
+												{#if audience.kind === 'everyone'}<Users size={13} aria-hidden="true" />{:else if audience.kind === 'me'}<LockKeyhole size={13} aria-hidden="true" />{:else if audience.kind === 'departments'}<Briefcase size={13} aria-hidden="true" />{:else}<User size={13} aria-hidden="true" />{/if}
+												{audience.label}
+											</span>
+										{:else}<span class="aud-none">{t('ตั้งโดยผู้เขียน', 'Set by its author')}</span>{/if}
+									</span>
+									<span class="kl-s" class:draft={item.status === 'draft'}>
+										{#if item.status === 'published'}<StatusPill label={t('AI ใช้ได้', 'AI can use')} tone="ok" dot />
+										{:else if item.status === 'draft'}<StatusPill label={t('ฉบับร่าง', 'Draft')} dot />
+										{:else}<span class="archived-pill"><Archive size={12} aria-hidden="true" />{t('จัดเก็บแล้ว', 'Archived')}</span>{/if}
+									</span>
+									<span class="kl-u">
+										{relativeTime(item.updatedAt, now, t)}
+										<span class="by"><i class="mav" class:me={item.ownerID === currentUserID} aria-hidden="true">{initial(item.ownerID)}</i>{personName(item.ownerID)}</span>
+									</span>
+								</button>
+							</li>
+						{/each}
+					</ul>
+					{#if someoneElse || hidden > 0}
+						<div class="kl-f">
+							{#if someoneElse}<span><Info size={15} aria-hidden="true" />{t('ป้าย “ใครใช้ได้” แสดงเฉพาะเรื่องที่คุณแก้ไขได้', 'The “Who can use” label shows only on items you can edit')}</span>{:else}<span></span>{/if}
+							{#if hidden > 0}<button type="button" onclick={() => (expanded = true)}>{t(`ดูอีก ${hidden} เรื่อง`, `Show ${hidden} more`)}<ChevronDown size={14} aria-hidden="true" /></button>{/if}
+						</div>
+					{/if}
+				</div>
+			{:else if query.trim() || filter !== 'all'}
+				<div class="kn-empty">
+					<p>{t('ไม่พบเรื่องที่ตรงกับตัวกรอง', 'Nothing matches these filters')}</p>
+					<button type="button" class="k-button" onclick={() => { query = ''; filter = 'all'; }}>{t('ล้างตัวกรอง', 'Clear filters')}</button>
+				</div>
+			{:else}
+				<div class="kn-empty starter">
+					<span class="kn-empty-ic" aria-hidden="true">{#if kind === 'template'}<Zap size={22} />{:else}<BookOpen size={22} />{/if}</span>
+					<p>{kind === 'knowledge' ? t('เริ่มจากคู่มือที่ทีมถามบ่อย', 'Start with what your team asks most') : t('เริ่มจากงานที่ทีมสั่ง AI บ่อย', 'Start with what your team asks AI to do most')}</p>
+					<ul>
+						{#each starters as title (title)}
+							<li><button type="button" class="k-button" onclick={() => oncreate(kind, title)}><Plus size={15} aria-hidden="true" />{title}</button></li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+		</div>
+
+		<KnowledgeRail item={ask} {connected} {app} />
+	</div>
+</div>
+
+<style>
+	.kn-head {
+		margin-bottom: 28px;
+	}
+	.kn-head :global(.orca-page-header) {
+		margin-bottom: 0;
+	}
+	.kn-add {
+		min-height: 44px !important;
+		padding: 0 18px !important;
+		font-size: 15px !important;
+		font-weight: 600 !important;
+	}
+	.kn-ctx {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 12px 16px;
+		margin-top: 16px;
+	}
+	.kn-strip {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin: 0;
+		color: var(--orca-muted);
+		font-size: 14px;
+	}
+	.kn-strip span {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+	}
+	.kn-strip b {
+		color: var(--orca-ink);
+		font-weight: 600;
+	}
+	.sep {
+		width: 1px;
+		height: 14px;
+		background: var(--orca-line-strong);
+	}
+	.dt {
+		flex: none;
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: currentColor;
+	}
+	.dt.ok {
+		background: var(--orca-ok);
+	}
+	.dt.draft {
+		width: 8px;
+		height: 8px;
+		border: 1.5px solid var(--orca-subtle);
+		background: transparent;
+	}
+	.kn-note {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px 10px;
+		margin: -8px 0 20px;
+		padding: 10px 14px;
+		border: 1px solid var(--orca-warn-line);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-warn-bg);
+		color: var(--orca-ink);
+		font-size: 14px;
+	}
+	.kn-note :global(svg) {
+		flex: none;
+		color: var(--orca-warn);
+	}
+	.kn-note span {
+		flex: 1 1 260px;
+	}
+	.kn-note a {
+		color: var(--orca-ink);
+		font-weight: 600;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+	.kn-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 272px;
+		gap: 24px;
+		align-items: start;
+	}
+	.kn-main {
+		min-width: 0;
+	}
+	.kn-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px 16px;
+		margin-bottom: 16px;
+	}
+	.seg {
+		display: inline-flex;
+		gap: 2px;
+		padding: 3px;
+		border-radius: 10px;
+		background: var(--orca-secondary);
+	}
+	.seg button {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		min-height: 36px;
+		padding: 7px 14px;
+		border: 0;
+		border-radius: 8px;
+		background: transparent;
+		color: var(--orca-muted);
+		font-size: 14px;
+		font-weight: 500;
+		white-space: nowrap;
+		cursor: pointer;
+	}
+	.seg button:hover:not(.on) {
+		color: var(--orca-ink);
+	}
+	.seg button.on {
+		background: var(--orca-surface);
+		color: var(--orca-ink);
+		font-weight: 600;
+		box-shadow:
+			0 1px 2px color-mix(in srgb, var(--orca-ink) 8%, transparent),
+			0 0 0 1px var(--orca-line);
+	}
+	.c {
+		padding: 0 7px;
+		border-radius: 999px;
+		background: var(--orca-surface);
+		color: var(--orca-muted);
+		font-size: 12px;
+		font-weight: 600;
+		line-height: 18px;
+	}
+	.seg button.on .c {
+		background: var(--orca-secondary);
+		color: var(--orca-text-2);
+	}
+	.search {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		width: 236px;
+		min-height: 40px;
+		padding: 0 12px;
+		border: 1px solid var(--orca-field-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-field);
+		color: var(--orca-subtle);
+	}
+	.search:focus-within {
+		border-color: var(--orca-focus);
+		box-shadow: 0 0 0 3px var(--orca-focus-halo);
+	}
+	.search :global(svg) {
+		flex: none;
+	}
+	.search input {
+		flex: 1;
+		min-width: 0;
+		border: 0;
+		outline: 0;
+		background: transparent;
+		color: var(--orca-ink);
+		font-size: 14px;
+	}
+	.search input:focus-visible {
+		outline: 0;
+	}
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-bottom: 14px;
+	}
+	.chip {
+		display: inline-flex;
+		align-items: center;
+		min-height: 32px;
+		padding: 0 13px;
+		border: 1px solid var(--orca-line);
+		border-radius: 999px;
+		background: var(--orca-surface);
+		color: var(--orca-text-2);
+		font-size: 13.5px;
+		font-weight: 500;
+		cursor: pointer;
+	}
+	.chip:hover:not(.on) {
+		border-color: var(--orca-line-strong);
+	}
+	.chip.on {
+		border-color: var(--orca-ink);
+		background: var(--orca-ink);
+		color: var(--orca-on-ink);
+		font-weight: 600;
+	}
+	.kl {
+		overflow: hidden;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-surface);
+	}
+	.kl ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.kl-h,
+	.kl-r {
+		display: grid;
+		grid-template-columns: 34px minmax(0, 1fr) 118px 100px 132px;
+		align-items: center;
+		column-gap: 16px;
+		padding: 0 18px;
+	}
+	.kl-h {
+		height: 38px;
+		border-bottom: 1px solid var(--orca-line);
+		background: var(--orca-surface-2);
+		color: var(--orca-subtle);
+		font-size: 12.5px;
+		font-weight: 600;
+	}
+	.kl-r {
+		width: 100%;
+		padding-top: 14px;
+		padding-bottom: 14px;
+		border: 0;
+		border-top: 1px solid var(--orca-line-soft);
+		background: transparent;
+		color: var(--orca-ink);
+		font-size: 14px;
+		text-align: left;
+		cursor: pointer;
+		transition: background-color 0.15s var(--orca-ease);
+	}
+	.kl li:first-child .kl-r {
+		border-top: 0;
+	}
+	.kl-r:hover {
+		background: var(--orca-hover);
+	}
+	.kl-r:focus-visible {
+		outline-offset: -2px !important;
+	}
+	.kl-ic {
+		display: grid;
+		place-items: center;
+		width: 34px;
+		height: 34px;
+		border-radius: 9px;
+		background: var(--orca-secondary);
+		color: var(--orca-text-2);
+	}
+	.kl-ic.draft {
+		border: 1.5px dashed var(--orca-line-strong);
+		background: var(--orca-surface);
+		color: var(--orca-subtle);
+	}
+	.kl-ic.archived {
+		color: var(--orca-subtle);
+	}
+	.kl-t {
+		display: block;
+		min-width: 0;
+	}
+	.kl-t b {
+		display: block;
+		overflow: hidden;
+		font-size: 15px;
+		font-weight: 600;
+		line-height: 1.4;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+	.kl-t small {
+		display: block;
+		overflow: hidden;
+		margin-top: 1px;
+		color: var(--orca-muted);
+		font-size: 13px;
+		line-height: 1.5;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+	.kl-a {
+		min-width: 0;
+	}
+	.aud {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		max-width: 100%;
+		padding: 2px 10px 2px 8px;
+		overflow: hidden;
+		border: 1px solid var(--orca-line-strong);
+		border-radius: 999px;
+		background: var(--orca-surface);
+		color: var(--orca-text-2);
+		font-size: 12.5px;
+		font-weight: 600;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+	.aud :global(svg) {
+		flex: none;
+		color: var(--orca-subtle);
+	}
+	.aud-none {
+		color: var(--orca-subtle);
+		font-size: 12.5px;
+		white-space: nowrap;
+	}
+	.kl-s.draft :global(.orca-pill-dot) {
+		width: 8px;
+		height: 8px;
+		border: 1.5px solid var(--orca-subtle);
+		background: transparent;
+	}
+	.archived-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 2px 9px;
+		border: 1px solid var(--orca-line);
+		border-radius: 999px;
+		background: var(--orca-secondary);
+		color: var(--orca-text-2);
+		font-size: 12px;
+		font-weight: 600;
+		line-height: 1.5;
+		white-space: nowrap;
+	}
+	.kl-u {
+		display: block;
+		min-width: 0;
+		color: var(--orca-text-2);
+		font-size: 13px;
+		line-height: 1.45;
+		white-space: nowrap;
+	}
+	.by {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		overflow: hidden;
+		margin-top: 3px;
+		color: var(--orca-subtle);
+		font-size: 12.5px;
+		text-overflow: ellipsis;
+	}
+	.mav {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 18px;
+		height: 18px;
+		border: 1px solid var(--orca-line);
+		border-radius: 50%;
+		background: var(--orca-secondary);
+		color: var(--orca-text-2);
+		font-size: 10px;
+		font-style: normal;
+		font-weight: 700;
+	}
+	.mav.me {
+		border-color: transparent;
+		background: var(--orca-ink);
+		color: var(--orca-on-ink);
+	}
+	.kl-f {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+		padding: 12px 18px;
+		border-top: 1px solid var(--orca-line-soft);
+		background: var(--orca-surface-2);
+		color: var(--orca-muted);
+		font-size: 13px;
+	}
+	.kl-f span {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+	}
+	.kl-f :global(svg) {
+		flex: none;
+	}
+	.kl-f button {
+		display: inline-flex;
+		flex: none;
+		align-items: center;
+		gap: 5px;
+		padding: 4px 6px;
+		border: 0;
+		border-radius: var(--orca-radius-sm);
+		background: transparent;
+		color: var(--orca-ink);
+		font-size: 13px;
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.kl-f button:hover {
+		background: var(--orca-hover);
+	}
+	.kn-alert {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 10px;
+		margin-bottom: 14px;
+		padding: 12px 14px;
+		border: 1px solid var(--orca-deny-line);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-deny-bg);
+		color: var(--orca-ink);
+		font-size: 14px;
+	}
+	.kn-alert :global(svg) {
+		color: var(--orca-deny);
+	}
+	.kn-alert p {
+		flex: 1 1 240px;
+		margin: 0;
+	}
+	.kn-loading {
+		margin: 0;
+		padding: 40px 20px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-surface);
+		color: var(--orca-muted);
+		text-align: center;
+	}
+	.kn-empty {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 14px;
+		padding: 40px 20px;
+		border: 1px dashed var(--orca-line-strong);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-surface);
+		text-align: center;
+	}
+	.kn-empty p {
+		margin: 0;
+		color: var(--orca-ink);
+		font-size: 15px;
+		font-weight: 600;
+	}
+	.kn-empty-ic {
+		display: grid;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		border-radius: 12px;
+		background: var(--orca-secondary);
+		color: var(--orca-text-2);
+	}
+	.kn-empty ul {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 8px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.kn-sr {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
+	@media (max-width: 1080px) {
+		.kn-grid {
+			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+	@media (max-width: 720px) {
+		.kn-add {
+			width: 100%;
+			justify-content: center;
+		}
+		.kn-bar {
+			flex-direction: column;
+			align-items: stretch;
+		}
+		.seg {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+		}
+		.seg button {
+			justify-content: center;
+			padding: 7px 8px;
+		}
+		.search {
+			width: 100%;
+		}
+		.kl-h {
+			display: none;
+		}
+		.kl-r {
+			grid-template-columns: 34px minmax(0, 1fr) auto;
+			row-gap: 8px;
+			padding: 14px 16px;
+		}
+		.kl-ic {
+			grid-column: 1;
+			grid-row: 1 / span 3;
+			align-self: start;
+		}
+		.kl-t {
+			grid-column: 2 / 4;
+			grid-row: 1;
+		}
+		.kl-t b,
+		.kl-t small {
+			white-space: normal;
+		}
+		.kl-a {
+			grid-column: 2;
+			grid-row: 2;
+		}
+		.kl-s {
+			grid-column: 3;
+			grid-row: 2;
+			justify-self: end;
+		}
+		.kl-u {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 4px 10px;
+			grid-column: 2 / 4;
+			grid-row: 3;
+		}
+		.by {
+			margin-top: 0;
+		}
+		.kl-f {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 8px;
+		}
+	}
+</style>
