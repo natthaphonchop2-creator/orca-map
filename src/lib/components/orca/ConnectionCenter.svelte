@@ -1,743 +1,514 @@
 <script lang="ts">
-  import { gatewayUsesConnection } from "$lib/orca/gateway-sources";
-  import LifecycleActions from "./LifecycleActions.svelte";
-  import { page } from "$app/state";
-  import CatalogIcon from "$lib/orca/CatalogIcon.svelte";
-  import { connectionReady } from "$lib/orca/activation";
-  import {
-    filterConnections,
-    connectionPage,
-    type ConnectionFilter,
-  } from "$lib/orca/connection-list";
-  import { sourcePresentationNames } from "$lib/orca/connection-presentation";
-  import { connectionHealthView, healthByConnection } from "$lib/orca/connection-health";
-  import { localeHref, t } from "$lib/orca/locale.svelte";
-  import {
-    OrcaService,
-    displayDate,
-    orcaError,
-    type OrcaBootstrap,
-    type OrcaCandidate,
-    type OrcaConnectionHealth,
-  } from "$lib/services/orca";
-  import {
-    Activity,
-    Check,
-    ChevronLeft,
-    ChevronRight,
-    FileCheck2,
-    Info,
-    Plug,
-    Plus,
-    Search,
-    Settings2,
-  } from "@lucide/svelte";
-  import { onDestroy, onMount } from "svelte";
+	import { ArrowRight, ChevronRight, Plus, Search } from '@lucide/svelte';
+	import { page } from '$app/state';
+	import { catalogSource, filterCatalog } from '$lib/orca/catalog';
+	import { healthByConnection } from '$lib/orca/connection-health';
+	import { sourcePresentationNames } from '$lib/orca/connection-presentation';
+	import { gatewayUsesConnection } from '$lib/orca/gateway-sources';
+	import { term } from '$lib/orca/glossary';
+	import { localeHref, t } from '$lib/orca/locale.svelte';
+	import {
+		programCard,
+		programDisplayName,
+		programLine,
+		programStatus,
+		recommendedPrograms,
+		type ProgramStatus
+	} from '$lib/orca/program-catalog';
+	import { accessSummary } from '$lib/orca/program-tools';
+	import { OrcaService, type OrcaBootstrap, type OrcaCandidate, type OrcaConnectionHealth } from '$lib/services/orca';
+	import { ProgramService } from '$lib/services/orca-u4';
+	import { onDestroy, onMount } from 'svelte';
+	import PageHeader from './ui/PageHeader.svelte';
+	import StatusPill, { type StatusTone } from './ui/StatusPill.svelte';
+	import ProgramLogo from './programs/ProgramLogo.svelte';
 
-  let { data, onchanged }: { data: OrcaBootstrap; onchanged: () => Promise<void> } = $props();
-  let notice = $state("");
-  async function lifecycleChanged(action: 'archive' | 'restore' | 'delete') {
-    notice = action === 'archive' ? t('จัดเก็บระบบแล้ว ดูได้ที่ตัวกรอง “จัดเก็บแล้ว”', 'System archived. It is listed under Archived.')
-      : action === 'restore' ? t('กู้คืนระบบแล้ว ระบบยังอยู่ในสถานะระงับ', 'System restored. It remains paused.')
-      : t('ลบระบบแล้ว', 'System deleted.');
-    await onchanged();
-  }
-  let candidates = $state<OrcaCandidate[]>([]);
-  // Health is advisory: if it cannot load, the column says so and the page still works.
-  let health = $state<Map<string, OrcaConnectionHealth>>();
-  let healthUnavailable = $state(false);
-  let error = $state("");
-  let query = $state("");
-  let statusFilter = $state<ConnectionFilter>(
-    ["reviewed", "needs-review", "paused", "archived"].includes(
-      page.url.searchParams.get("status") || "",
-    )
-      ? (page.url.searchParams.get("status") as ConnectionFilter)
-      : "all",
-  );
-  let pageNumber = $state(1);
-  let alive = true;
-  const filtered = $derived(
-    filterConnections(data.connections, query, statusFilter),
-  );
-  const currentPage = $derived(connectionPage(filtered, pageNumber));
-  const filters = $derived([
-    { id: "all" as const, label: t("ทั้งหมด", "All") },
-    {
-      id: "reviewed" as const,
-      label: t("เปิดใช้งานและตรวจสอบแล้ว", "Active and reviewed"),
-    },
-    { id: "needs-review" as const, label: t("รอตรวจสอบ", "Needs review") },
-    { id: "paused" as const, label: t("ระงับ", "Paused") },
-    ...(data.canManage ? [{ id: "archived" as const, label: t("จัดเก็บแล้ว", "Archived") }] : []),
-  ]);
-  async function loadCandidates() {
-    if (!data.canManage) return;
-    error = "";
-    try {
-      const result = await OrcaService.candidates();
-      if (alive) candidates = result;
-    } catch (cause) {
-      if (alive) error = orcaError(cause);
-    }
-  }
-  $effect(() => {
-    if (pageNumber !== currentPage.page) pageNumber = currentPage.page;
-  });
-  async function loadHealth() {
-    if (!data.canManage) return;
-    try {
-      const result = await OrcaService.connectionHealth();
-      if (alive) health = healthByConnection(result.items);
-    } catch {
-      if (alive) healthUnavailable = true;
-    }
-  }
-  const failureName = (category?: string) =>
-    category === "timeout" ? t("หมดเวลา", "timed out")
-      : category === "upstream_error" ? t("ระบบปลายทางขัดข้อง", "the system returned an error")
-      : category === "invalid_response" ? t("ข้อมูลตอบกลับอ่านไม่ได้", "unreadable response")
-      : category === "tool_changed" ? t("เครื่องมือเปลี่ยนที่ผู้ให้บริการ", "a tool changed at the vendor")
-      : t("ข้อผิดพลาด", "error");
-  onMount(() => {
-    void loadCandidates();
-    void loadHealth();
-  });
-  onDestroy(() => {
-    alive = false;
-  });
-  const presentationNames = $derived(sourcePresentationNames(candidates));
+	// โปรแกรมที่เชื่อม (view=servers): one row per program with what AI can do,
+	// the workspaces that use it and one status chip. The page only mounts it
+	// for managers. A company with no program yet starts from the four
+	// recommended cards, which jump straight to step 2.
+	let { data }: { data: OrcaBootstrap; onchanged?: () => Promise<void> } = $props();
+
+	type Filter = 'all' | 'review' | 'paused' | 'archived';
+	const fromAddress: Record<string, Filter> = { 'needs-review': 'review', review: 'review', paused: 'paused', archived: 'archived' };
+	let filter = $state<Filter>(fromAddress[page.url.searchParams.get('status') ?? ''] ?? 'all');
+	let query = $state('');
+	let candidates = $state.raw<OrcaCandidate[]>([]);
+	let health = $state.raw<Map<string, OrcaConnectionHealth>>(new Map());
+	let alive = true;
+
+	const live = $derived(data.connections.filter((item) => !item.deletedAt));
+	const statuses = $derived(new Map(live.map((item) => [item.id, programStatus(item, health.get(item.id))])));
+	const counts = $derived({
+		all: live.filter((item) => !item.archivedAt).length,
+		review: live.filter((item) => statuses.get(item.id) === 'review').length,
+		paused: live.filter((item) => statuses.get(item.id) === 'paused').length,
+		archived: live.filter((item) => item.archivedAt).length
+	});
+	const words = $derived(query.normalize('NFKC').trim().toLocaleLowerCase().split(/\s+/).filter(Boolean));
+	const rows = $derived(
+		live.filter((item) => {
+			const status = statuses.get(item.id);
+			if (filter === 'archived' ? status !== 'archived' : status === 'archived') return false;
+			if ((filter === 'review' || filter === 'paused') && status !== filter) return false;
+			const text = `${item.name} ${item.description}`.normalize('NFKC').toLocaleLowerCase();
+			return words.every((word) => text.includes(word));
+		})
+	);
+	const logos = $derived(sourcePresentationNames(candidates));
+	const recommended = $derived(recommendedPrograms(filterCatalog(candidates, '', 'all')));
+	const filters = $derived(
+		(
+			[
+				{ id: 'all', label: t('ทั้งหมด', 'All') },
+				{ id: 'review', label: t('ต้องตรวจใหม่', 'Needs review') },
+				{ id: 'paused', label: t('ระงับ', 'Paused') },
+				{ id: 'archived', label: t('จัดเก็บแล้ว', 'Archived') }
+			] as { id: Filter; label: string }[]
+		).filter((item) => item.id === 'all' || counts[item.id] > 0 || filter === item.id)
+	);
+
+	const statusCopy: Record<ProgramStatus, { th: string; en: string; tone: StatusTone }> = {
+		ready: { th: 'พร้อมใช้', en: 'Ready', tone: 'ok' },
+		review: { th: 'ต้องตรวจใหม่', en: 'Needs review', tone: 'warn' },
+		paused: { th: 'ระงับ', en: 'Paused', tone: 'neutral' },
+		archived: { th: 'จัดเก็บแล้ว', en: 'Archived', tone: 'neutral' }
+	};
+
+	onMount(() => {
+		if (!data.canManage) return;
+		void ProgramService.candidates()
+			.then((result) => {
+				if (alive) candidates = result;
+			})
+			.catch(() => {
+				// Logos and the recommended cards are extras; the list works without them.
+			});
+		void OrcaService.connectionHealth()
+			.then((result) => {
+				if (alive) health = healthByConnection(result.items);
+			})
+			.catch(() => {
+				// A program that changed at the provider is still caught by its own review state.
+			});
+	});
+	onDestroy(() => {
+		alive = false;
+	});
+	const detail = (id: string, tab = '') =>
+		localeHref(`/app?view=servers&connection=${encodeURIComponent(id)}${tab ? `&tab=${tab}` : ''}`);
 </script>
 
-<div class="systems">
-  <header class="systems-head">
-    <div>
-      <h1>{t("ระบบที่เชื่อมต่อ", "Connected systems")}</h1>
-      <p class="k-subtitle">
-        {t(
-          "ตั้งค่าระบบที่เชื่อมต่อและกำหนดเครื่องมือที่องค์กรอนุญาต",
-          "Set up connected systems and the tools your organization allows.",
-        )}
-      </p>
-    </div>
-    {#if data.canManage}<div class="systems-actions">
-        <a class="k-button primary" href={localeHref("/app?view=add-program")}
-          ><Plus size={16} aria-hidden="true" />{t("เพิ่มระบบ", "Add a system")}</a
-        >
-      </div>{/if}
-  </header>
-  {#if notice}<div class="k-banner success systems-notice" role="status">{notice}</div>{/if}
-  <div class="systems-toolbar">
-    <label class="systems-search"
-      ><Search size={16} aria-hidden="true" /><input
-        bind:value={query}
-        oninput={() => (pageNumber = 1)}
-        placeholder={t("ค้นหาจากชื่อหรือคำอธิบาย", "Search by name or description")}
-        aria-label={t("ค้นหาระบบ", "Search systems")}
-      /></label
-    >
-    <div
-      class="systems-filter"
-      role="group"
-      aria-label={t("กรองตามสถานะ", "Filter by status")}
-    >
-      {#each filters as filter}<button
-          type="button"
-          class:selected={statusFilter === filter.id}
-          aria-pressed={statusFilter === filter.id}
-          onclick={() => {
-            statusFilter = filter.id;
-            pageNumber = 1;
-          }}>{filter.label}</button
-        >{/each}
-    </div>
-  </div>
-  {#if error}<div class="k-banner error systems-notice" role="alert">
-      <Info size={16} aria-hidden="true" />
-      <div>
-        {error}<button class="k-link-button systems-retry" onclick={loadCandidates}
-          >{t("ลองอีกครั้ง", "Try again")}</button
-        >
-      </div>
-    </div>{/if}
-  <div class="systems-panel">
-    <div class="systems-table-wrap">
-      <table class="systems-table">
-        <thead
-          ><tr
-            ><th scope="col">{t("ชื่อ", "Name")}</th><th scope="col">{t("พื้นที่ทำงาน AI", "AI workspaces")}</th
-            ><th scope="col">{t("เครื่องมือ", "Tools")}</th><th scope="col"
-              >{t("สถานะ", "Status")}</th
-            >{#if data.canManage}<th scope="col">{t("การใช้งาน 7 วัน", "Last 7 days")}</th>{/if}<th scope="col" class="actions-col">{t("จัดการ", "Manage")}</th></tr
-          ></thead
-        ><tbody>
-          {#each currentPage.items as connection (connection.id)}
-            {@const affectedGateways = data.hubs.filter((hub) => gatewayUsesConnection(hub, connection.id) && hub.status !== 'deleted')}
-            {@const gatewayCount = affectedGateways.length}
-            <tr
-              ><td class="systems-name"
-                ><a
-                  class="systems-name-link"
-                  href={localeHref(
-                    `/app?view=servers&connection=${encodeURIComponent(connection.id)}`,
-                  )}
-                  ><span class="systems-logo"
-                    ><CatalogIcon
-                      name={presentationNames[connection.mcpID] || connection.name}
-                      size={20}
-                    /></span
-                  ><span class="systems-name-copy"
-                    ><strong>{connection.name}</strong><small
-                      >{connection.description ||
-                        t("ระบบขององค์กร", "Organization system")}</small
-                    ></span
-                  ></a
-                ></td
-              ><td
-                class="systems-gateways"
-                data-label={t("พื้นที่ทำงาน AI", "AI workspaces")}
-                ><a href={localeHref(`/app?view=servers&connection=${encodeURIComponent(connection.id)}&tab=workspaces`)}
-                  >{t(`${gatewayCount} พื้นที่ทำงาน`, gatewayCount === 1 ? "1 workspace" : `${gatewayCount} workspaces`)}</a
-                ></td
-              ><td
-                class="systems-tools"
-                data-label={t("เครื่องมือ", "Tools")}
-                ><span
-                  >{connection.toolNames.length
-                    ? t("เครื่องมือที่อนุญาต", "Allowed tools")
-                    : "—"}</span
-                >{#if connection.toolNames.length}<small
-                    >{connection.toolNames.length}
-                    {t("เครื่องมือ", "tools")}</small
-                  >{/if}</td
-              ><td
-                class="systems-status"
-                data-label={t("สถานะ", "Status")}
-                ><span
-                  class="k-badge"
-                  class:active={connectionReady(connection)}
-                  class:paused={!connection.archivedAt && !connectionReady(connection)}
-                  >{#if connectionReady(connection)}<Check
-                      size={14}
-                      aria-hidden="true"
-                    />{/if}{connection.archivedAt ? t("จัดเก็บแล้ว", "Archived") : !connection.enabled
-                    ? t("ระงับ", "Paused")
-                    : connectionReady(connection)
-                      ? t("ตรวจสอบเครื่องมือแล้ว", "Tools reviewed")
-                      : t("รอตรวจสอบ", "Needs review")}</span
-                >{#if connection.reviewedReadOnly}<small
-                    >{t("อ่านข้อมูลเท่านั้น", "Read-only")}</small
-                  >{:else if connection.reviewedTools}<small>{t("ตามเครื่องมือที่อนุญาต", "Allowed tools")}</small>{/if}</td
-              >{#if data.canManage}{@const view = connectionHealthView(health?.get(connection.id))}<td
-                class="systems-health"
-                data-label={t("การใช้งาน 7 วัน", "Last 7 days")}
-                title={view.lastFailureAt ? t(`ล้มเหลวล่าสุด ${displayDate(view.lastFailureAt)}: ${failureName(view.lastFailureCategory)}`, `Last failure ${displayDate(view.lastFailureAt)}: ${failureName(view.lastFailureCategory)}`) : undefined}
-                >{#if healthUnavailable}<span class="health-muted">{t("ดูข้อมูลการใช้งานไม่ได้", "Usage unavailable")}</span>{:else if !health}<span class="health-muted">…</span>{:else}<span class="health-badge tone-{view.tone}"
-                    ><Activity size={13} aria-hidden="true" />{view.tone === "ok"
-                      ? t("ปกติ", "Healthy")
-                      : view.tone === "warn"
-                        ? view.changed ? t("ต้องตรวจเครื่องมือ", "Review tools") : t("มีปัญหาบางครั้ง", "Some failures")
-                        : view.tone === "bad"
-                          ? t("ใช้งานไม่ได้", "Failing")
-                          : t("ยังไม่มีการใช้งาน", "No recent use")}</span
-                  ><small
-                    >{view.tone === "idle"
-                      ? t("ใน 7 วันที่ผ่านมา", "in the last 7 days")
-                      : view.tone === "bad" && view.lastFailureCategory
-                        ? t(`ล่าสุด: ${failureName(view.lastFailureCategory)}`, `Latest: ${failureName(view.lastFailureCategory)}`)
-                        : t(`สำเร็จ ${view.succeeded} จาก ${view.attempts} ครั้ง`, `${view.succeeded} of ${view.attempts} succeeded`)}</small
-                  >{#if view.needsSignIn}<small class="health-signin"
-                      >{t(`${view.needsSignIn} ครั้งต้องเข้าสู่ระบบใหม่`, `${view.needsSignIn} needed sign-in`)}</small
-                    >{/if}{/if}</td
-              >{/if}<td class="actions-col"
-                ><div class="systems-row-actions">
-                  <a
-                    class="k-button small"
-                    href={localeHref(
-                      `/app?view=servers&connection=${encodeURIComponent(connection.id)}`,
-                    )}><Settings2 size={16} aria-hidden="true" />{t("การตั้งค่า", "Settings")}</a
-                  >
-                  {#if data.canManage}<LifecycleActions entity={connection} kind="server" archived={Boolean(connection.archivedAt)} canManage={data.canManage} {affectedGateways} compact onchanged={lifecycleChanged} onreload={onchanged} />{/if}
-                </div></td
-              ></tr
-            >
-          {:else}<tr class="systems-empty-row"
-              ><td colspan={data.canManage ? 6 : 5}
-                ><div class="systems-empty">
-                  {#if query || statusFilter !== "all"}<Search size={24} aria-hidden="true" />{:else}<Plug
-                      size={24}
-                      aria-hidden="true"
-                    />{/if}
-                  <p>
-                    {query || statusFilter !== "all"
-                      ? t("ไม่พบระบบที่ตรงกับคำค้นหรือตัวกรอง", "No systems match your search or filter.")
-                      : t(
-                          "ยังไม่มีระบบที่เชื่อมต่อ เลือก “เพิ่มระบบ” เพื่อเริ่มต้น",
-                          "No connected systems yet. Add a system to get started.",
-                        )}
-                  </p>
-                </div></td
-              ></tr
-            >{/each}
-        </tbody>
-      </table>
-    </div>
-    <footer class="systems-foot">
-      <div class="systems-summary" role="status" aria-live="polite">
-        {t(
-          `แสดง ${currentPage.start}–${currentPage.end} จาก ${currentPage.total} ระบบ`,
-          `Showing ${currentPage.start}–${currentPage.end} of ${currentPage.total} systems`,
-        )}{#if filtered.length !== data.connections.length}<span
-            >{t(
-              `จากทั้งหมด ${data.connections.length} ระบบ`,
-              `${data.connections.length} in total`,
-            )}</span
-          >{/if}
-      </div>
-      <nav
-        class="systems-pages"
-        aria-label={t("เลขหน้ารายการระบบ", "System list pages")}
-      >
-        <span
-          >{t(
-            `หน้า ${currentPage.page} จาก ${currentPage.pages}`,
-            `Page ${currentPage.page} of ${currentPage.pages}`,
-          )}</span
-        >
-        <div>
-          <button
-            class="k-button small"
-            disabled={currentPage.page <= 1}
-            onclick={() => (pageNumber = currentPage.page - 1)}
-            ><ChevronLeft size={16} aria-hidden="true" />{t("ก่อนหน้า", "Previous")}</button
-          ><button
-            class="k-button small"
-            disabled={currentPage.page >= currentPage.pages}
-            onclick={() => (pageNumber = currentPage.page + 1)}
-            >{t("ถัดไป", "Next")}<ChevronRight size={16} aria-hidden="true" /></button
-          >
-        </div>
-      </nav>
-    </footer>
-  </div>
-  <div class="k-banner systems-note">
-    <FileCheck2 size={16} aria-hidden="true" />
-    <div>
-      <strong
-        >{t(
-          "การเข้าถึงข้อมูลเป็นไปตามสิทธิ์ที่องค์กรกำหนด",
-          "Data access follows the permissions you set",
-        )}</strong
-      >
-      <p>
-        {t(
-          "กำหนดเครื่องมือที่อนุญาตในแต่ละระบบ แล้วเลือกเครื่องมือและสมาชิกสำหรับแต่ละพื้นที่ทำงาน AI",
-          "Set the allowed tools for each system, then choose tools and members for each AI workspace.",
-        )}
-      </p>
-    </div>
-  </div>
-</div>
+<PageHeader title={term('programs', t)} subtitle={t('โปรแกรมที่ AI ของทีมใช้ได้ และสิ่งที่ AI ทำได้ในแต่ละโปรแกรม', 'The programs your team’s AI can use, and what AI can do in each.')}>
+	{#snippet action()}
+		{#if data.canManage}<a class="k-button primary" href={localeHref('/app?view=add-program')}><Plus size={16} aria-hidden="true" />{term('addProgram', t)}</a>{/if}
+	{/snippet}
+</PageHeader>
+
+{#if !live.length}
+	<section class="programs-start" aria-labelledby="programs-start-title">
+		<h2 id="programs-start-title">{t('ยังไม่มีโปรแกรมที่เชื่อม', 'No programs connected yet')}</h2>
+		<p>{t('เริ่มจากโปรแกรมที่ธุรกิจไทยใช้กันมาก เชื่อมได้ในไม่กี่นาที', 'Start with a program Thai businesses use most. It takes a few minutes.')}</p>
+		{#if recommended.length}
+			<div class="programs-start-grid">
+				{#each recommended as source (source.id)}
+					{@const card = programCard(source, { connections: data.connections, operator: data.platformOperator === true })}
+					{@const line = programLine(source)}
+					{#if card.state === 'soon'}
+						<div class="programs-start-card soon" aria-disabled="true">
+							<ProgramLogo name={source.name} size={44} muted />
+							<strong>{programDisplayName(source)}</strong>
+							<span>{t(line[0], line[1])}</span>
+							<em>{t('เร็วๆ นี้', 'Coming soon')}</em>
+						</div>
+					{:else}
+						<a class="programs-start-card" href={localeHref(`/app?view=add-program&source=${encodeURIComponent(source.id)}&step=connect`)}>
+							<ProgramLogo name={source.name} size={44} />
+							<strong>{programDisplayName(source)}</strong>
+							<span>{t(line[0], line[1])}</span>
+							<em class="go" aria-hidden="true"><ArrowRight size={15} /></em>
+						</a>
+					{/if}
+				{/each}
+			</div>
+		{/if}
+		<a class="programs-start-all" href={localeHref('/app?view=add-program')}>{t('ดูโปรแกรมทั้งหมด', 'See every program')}<ChevronRight size={15} aria-hidden="true" /></a>
+	</section>
+{:else}
+	<div class="programs-toolbar">
+		<div class="programs-filters" role="group" aria-label={t('กรองตามสถานะ', 'Filter by status')}>
+			{#each filters as item (item.id)}
+				<button type="button" class:on={filter === item.id} aria-pressed={filter === item.id} onclick={() => (filter = item.id)}
+					>{item.label}<span>{counts[item.id]}</span></button
+				>
+			{/each}
+		</div>
+		{#if live.length > 6}
+			<label class="programs-search">
+				<Search size={16} aria-hidden="true" />
+				<input type="search" bind:value={query} placeholder={t('ค้นหาโปรแกรม', 'Search programs')} aria-label={t('ค้นหาโปรแกรม', 'Search programs')} />
+			</label>
+		{/if}
+	</div>
+
+	{#if rows.length}
+		<div class="programs-table" role="table" aria-label={term('programs', t)}>
+			<div class="programs-head" role="row">
+				<span role="columnheader">{t('โปรแกรม', 'Program')}</span>
+				<span role="columnheader">{term('whatAICanDo', t)}</span>
+				<span role="columnheader">{t('พื้นที่ทำงาน', 'Workspaces')}</span>
+				<span role="columnheader">{t('สถานะ', 'Status')}</span>
+				<span aria-hidden="true"></span>
+			</div>
+			{#each rows as connection (connection.id)}
+				{@const summary = accessSummary(connection)}
+				{@const status = statusCopy[statuses.get(connection.id) ?? 'ready']}
+				{@const workspaces = data.hubs.filter((hub) => gatewayUsesConnection(hub, connection.id) && hub.status !== 'archived' && hub.status !== 'deleted').length}
+				{@const source = candidates.find((item) => item.id === connection.mcpID)}
+				<div class="programs-row" role="row">
+					<span class="programs-name" role="cell">
+						<ProgramLogo name={logos[connection.mcpID] || connection.name} size={40} />
+						<span>
+							<a href={detail(connection.id)}>{connection.name}</a>
+							<small>{connection.description || (source ? t(...programLine(catalogSource(source))) : connection.scopeNote || '')}</small>
+						</span>
+					</span>
+					<span class="programs-cell" role="cell" data-label={term('whatAICanDo', t)}>
+						{#if summary.count && summary.reviewed}
+							<b>{t(`${summary.count} อย่าง`, `${summary.count} ${summary.count === 1 ? 'thing' : 'things'}`)}</b>
+							<small>{summary.readOnly ? t('อ่านอย่างเดียว', 'Read only') : t('อ่านและแก้ไข', 'Read and change')}</small>
+						{:else}<small>{t('ยังไม่ได้เลือก', 'Not chosen yet')}</small>{/if}
+					</span>
+					<span class="programs-cell" role="cell" data-label={t('พื้นที่ทำงาน', 'Workspaces')}>
+						<a class="programs-count" href={detail(connection.id, 'workspaces')}>{workspaces
+							? t(`${workspaces} พื้นที่`, `${workspaces} ${workspaces === 1 ? 'workspace' : 'workspaces'}`)
+							: t('ยังไม่ได้ใช้', 'Not used yet')}</a>
+					</span>
+					<span class="programs-cell" role="cell" data-label={t('สถานะ', 'Status')}><StatusPill label={t(status.th, status.en)} tone={status.tone} dot /></span>
+					<span class="programs-go" aria-hidden="true"><ChevronRight size={16} /></span>
+				</div>
+			{/each}
+		</div>
+	{:else}
+		<div class="programs-empty">
+			<p>{t('ไม่พบโปรแกรมที่ตรงกับตัวกรอง', 'No programs match.')}</p>
+			<button type="button" class="k-button small" onclick={() => { filter = 'all'; query = ''; }}>{t('ล้างตัวกรอง', 'Clear filters')}</button>
+		</div>
+	{/if}
+{/if}
 
 <style>
-  .systems {
-    min-width: 0;
-    color: var(--orca-ink);
-  }
-  .systems-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px 24px;
-    margin-bottom: 20px;
-  }
-  .systems-head h1 {
-    margin: 0;
-  }
-  .systems-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    flex: none;
-  }
-  .systems .systems-notice {
-    margin: 0 0 16px;
-  }
-  .systems-retry {
-    margin-left: 8px;
-  }
-  .systems-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px 12px;
-    margin: 0 0 14px;
-  }
-  .systems-search {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: min(320px, 100%);
-    height: 36px;
-    padding: 0 11px;
-    border: 1px solid var(--orca-field-line, var(--orca-line-strong));
-    border-radius: var(--orca-radius);
-    background: var(--orca-surface);
-    color: var(--orca-subtle);
-  }
-  .systems-search:focus-within {
-    border-color: var(--orca-focus, var(--orca-ink));
-    box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1));
-  }
-  .systems-search :global(svg) {
-    flex: none;
-  }
-  .systems-search input {
-    flex: 1;
-    min-width: 0;
-    padding: 0;
-    border: 0;
-    outline: none;
-    background: transparent;
-    color: var(--orca-ink);
-    font: inherit;
-    font-size: 14px;
-  }
-  .systems-search input::placeholder {
-    color: var(--orca-subtle);
-  }
-  .systems-search input:focus-visible {
-    outline: none;
-  }
-  .systems-filter {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: 2px;
-    padding: 2px;
-    border: 1px solid var(--orca-line);
-    border-radius: var(--orca-radius);
-    background: var(--orca-surface);
-  }
-  .systems-filter button {
-    min-height: 30px;
-    padding: 0 11px;
-    border: 0;
-    border-radius: var(--orca-radius-sm);
-    background: transparent;
-    color: var(--orca-muted);
-    font: inherit;
-    font-size: 13px;
-    font-weight: 500;
-    white-space: nowrap;
-    cursor: pointer;
-  }
-  .systems-filter button:hover {
-    background: var(--orca-hover);
-    color: var(--orca-ink);
-  }
-  /* Chosen: an inverse pill, like the top bar's TH/EN. */
-  .systems-filter button.selected {
-    background: var(--orca-ink);
-    color: var(--orca-on-ink, #fff);
-    font-weight: 600;
-  }
-  .systems-panel {
-    min-width: 0;
-    border: 1px solid var(--orca-line);
-    border-radius: var(--orca-radius-lg);
-    background: var(--orca-surface);
-    overflow: hidden;
-  }
-  .systems-table-wrap {
-    overflow-x: auto;
-  }
-  .systems-table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: start;
-  }
-  .systems-table th:first-child {
-    width: 40%;
-  }
-  .systems-table th {
-    height: 40px;
-    padding: 8px 14px;
-    border-bottom: 1px solid var(--orca-line);
-    background: var(--orca-surface-2);
-    color: var(--orca-nav);
-    font-size: 13px;
-    font-weight: 500;
-    text-align: start;
-    white-space: nowrap;
-  }
-  .systems-table td {
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
-    font-size: 14px;
-    line-height: 1.4;
-    vertical-align: middle;
-  }
-  .systems-table tbody tr:last-child td {
-    border-bottom: 0;
-  }
-  .systems-table tbody tr:hover td {
-    background: var(--orca-surface-2);
-  }
-  .systems-table tbody tr.systems-empty-row:hover td {
-    background: none;
-  }
-  .systems-table td > small {
-    display: block;
-    margin-top: 1px;
-    color: var(--orca-muted);
-    font-size: 13px;
-  }
-  .systems-name {
-    min-width: 240px;
-    max-width: 420px;
-  }
-  .systems-name-link {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-    color: var(--orca-ink);
-    text-decoration: none;
-  }
-  .systems-name-link:hover strong {
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-  .systems-logo {
-    display: grid;
-    place-items: center;
-    width: 32px;
-    height: 32px;
-    flex: none;
-    border: 1px solid var(--orca-line);
-    border-radius: var(--orca-radius);
-    background: var(--orca-surface);
-    overflow: hidden;
-  }
-  .systems-name-copy {
-    display: grid;
-    min-width: 0;
-  }
-  .systems-name-copy strong {
-    font-weight: 600;
-    overflow-wrap: anywhere;
-  }
-  .systems-name-copy small {
-    overflow: hidden;
-    color: var(--orca-muted);
-    font-size: 13px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .systems-gateways a {
-    color: var(--orca-ink);
-    text-decoration: none;
-    white-space: nowrap;
-  }
-  .systems-gateways a:hover {
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-  .systems-tools,
-  .systems-status {
-    white-space: nowrap;
-  }
-  .systems-health {
-    white-space: nowrap;
-  }
-  .systems-health small {
-    display: block;
-    margin-top: 3px;
-    color: var(--orca-muted);
-    font-size: 12.5px;
-  }
-  .systems-health small.health-signin {
-    color: var(--orca-warn);
-  }
-  .health-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 1px 8px;
-    border-radius: var(--orca-radius-sm);
-    font-size: 12.5px;
-    font-weight: 500;
-  }
-  .health-badge.tone-ok {
-    background: var(--orca-ok-bg);
-    color: var(--orca-ok);
-  }
-  .health-badge.tone-warn {
-    background: var(--orca-warn-bg);
-    color: var(--orca-warn);
-  }
-  .health-badge.tone-bad {
-    background: var(--orca-deny-bg);
-    color: var(--orca-deny);
-  }
-  .health-badge.tone-idle {
-    background: var(--orca-secondary);
-    color: var(--orca-nav);
-  }
-  .health-muted {
-    color: var(--orca-subtle);
-    font-size: 12.5px;
-  }
-  .actions-col {
-    width: 1%;
-    white-space: nowrap;
-  }
-  .systems-row-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 4px;
-  }
-  .systems-row-actions > :global(.k-button) {
-    margin-right: 4px;
-    white-space: nowrap;
-  }
-  .systems-empty {
-    display: grid;
-    justify-items: center;
-    gap: 8px;
-    padding: 40px 24px;
-    color: var(--orca-subtle);
-    text-align: center;
-  }
-  .systems-empty p {
-    max-width: 460px;
-    margin: 0;
-    color: var(--orca-muted);
-    font-size: 14px;
-  }
-  .systems-foot {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px 16px;
-    padding: 10px 18px;
-    border-top: 1px solid var(--orca-line);
-    color: var(--orca-muted);
-    font-size: 13px;
-  }
-  .systems-summary > span {
-    margin-left: 8px;
-    color: var(--orca-subtle);
-  }
-  .systems-pages {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .systems-pages > div {
-    display: flex;
-    gap: 8px;
-  }
-  .systems .systems-note {
-    margin: 16px 0 0;
-  }
-  .systems-note strong {
-    display: block;
-    font-size: 14px;
-    font-weight: 600;
-  }
-  .systems-note p {
-    margin: 2px 0 0;
-    color: var(--orca-muted);
-    font-size: 13px;
-  }
-  @media (max-width: 760px) {
-    .systems-head {
-      flex-direction: column;
-    }
-    .systems-actions,
-    .systems-search {
-      width: 100%;
-    }
-    .systems-actions > :global(.k-button) {
-      flex: 1 1 auto;
-    }
-    /* Rows stack on phones: name and status, then workspaces and tools, then actions. */
-    .systems-table,
-    .systems-table tbody {
-      display: block;
-    }
-    .systems-table thead {
-      display: none;
-    }
-    .systems-table tr {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px 16px;
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
-    }
-    .systems-table tbody tr:last-child {
-      border-bottom: 0;
-    }
-    .systems-table td,
-    .systems-table tbody tr:hover td {
-      padding: 0;
-      border: 0;
-      background: none;
-    }
-    .systems-table td[data-label]::before {
-      content: attr(data-label);
-      display: block;
-      margin-bottom: 2px;
-      color: var(--orca-subtle);
-      font-size: 12px;
-    }
-    .systems-name {
-      grid-column: 1;
-      grid-row: 1;
-      min-width: 0;
-      max-width: none;
-    }
-    .systems-status {
-      grid-column: 2;
-      grid-row: 1;
-      text-align: end;
-    }
-    .systems-table td.systems-status[data-label]::before {
-      display: none;
-    }
-    .systems-gateways {
-      grid-column: 1;
-      grid-row: 2;
-    }
-    .systems-tools {
-      grid-column: 2;
-      grid-row: 2;
-      text-align: end;
-    }
-    .systems-health {
-      grid-column: 1 / -1;
-      grid-row: 3;
-    }
-    .systems-table .actions-col {
-      grid-column: 1 / -1;
-      width: auto;
-    }
-    .systems-row-actions {
-      justify-content: flex-start;
-    }
-    .systems-row-actions > :global(.k-button) {
-      margin-right: auto;
-    }
-    .systems-table tr.systems-empty-row {
-      display: block;
-      padding: 0;
-    }
-    .systems-foot {
-      padding-inline: 16px;
-    }
-  }
+	.programs-toolbar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-bottom: 16px;
+	}
+	.programs-filters {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.programs-filters button {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 6px 14px;
+		border: 1px solid var(--orca-line);
+		border-radius: 999px;
+		background: var(--orca-surface);
+		color: var(--orca-text-2);
+		font: inherit;
+		font-size: 14px;
+		font-weight: 500;
+		cursor: pointer;
+	}
+	.programs-filters button span {
+		color: var(--orca-muted);
+		font-size: 12.5px;
+	}
+	.programs-filters button.on {
+		border-color: var(--orca-chosen);
+		background: var(--orca-chosen);
+		color: var(--orca-on-ink);
+		font-weight: 600;
+	}
+	.programs-filters button.on span {
+		color: inherit;
+	}
+	.programs-search {
+		position: relative;
+		display: block;
+		width: min(320px, 100%);
+		color: var(--orca-muted);
+	}
+	.programs-search :global(svg) {
+		position: absolute;
+		top: 50%;
+		left: 12px;
+		transform: translateY(-50%);
+	}
+	.programs-search input {
+		width: 100%;
+		padding: 9px 12px 9px 36px;
+		border: 1px solid var(--orca-field-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-field);
+		color: var(--orca-ink);
+		font: inherit;
+		font-size: 14px;
+	}
+	.programs-table {
+		overflow: hidden;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-surface);
+	}
+	.programs-head,
+	.programs-row {
+		display: grid;
+		grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) 20px;
+		align-items: center;
+		gap: 16px;
+		padding: 14px 20px;
+	}
+	.programs-head {
+		padding-block: 11px;
+		border-bottom: 1px solid var(--orca-line);
+		background: var(--orca-surface-2);
+		color: var(--orca-muted);
+		font-size: 13px;
+		font-weight: 600;
+	}
+	.programs-row {
+		position: relative;
+		border-top: 1px solid var(--orca-line-soft);
+		transition: background-color 0.15s var(--orca-ease);
+	}
+	.programs-head + .programs-row {
+		border-top: 0;
+	}
+	.programs-row:hover {
+		background: var(--orca-hover);
+	}
+	.programs-name {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		min-width: 0;
+	}
+	.programs-name > span:last-child {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+	.programs-name a {
+		overflow: hidden;
+		color: var(--orca-ink);
+		font-size: 15px;
+		font-weight: 600;
+		text-decoration: none;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	/* The whole row opens the program. */
+	.programs-name a::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+	}
+	.programs-name a:focus-visible {
+		outline: none;
+	}
+	.programs-row:has(.programs-name a:focus-visible) {
+		outline: 2px solid var(--orca-focus);
+		outline-offset: -2px;
+	}
+	.programs-name small,
+	.programs-cell small {
+		display: block;
+		overflow: hidden;
+		color: var(--orca-muted);
+		font-size: 13px;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.programs-cell {
+		min-width: 0;
+		font-size: 14px;
+	}
+	.programs-cell b {
+		display: block;
+		font-weight: 600;
+	}
+	.programs-count {
+		position: relative;
+		z-index: 1;
+		color: var(--orca-text-2);
+		text-decoration: underline;
+		text-decoration-color: var(--orca-line-strong);
+		text-underline-offset: 3px;
+	}
+	.programs-go {
+		color: var(--orca-subtle);
+	}
+	.programs-empty {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 12px;
+		padding: 36px 20px;
+		border: 1px dashed var(--orca-line-strong);
+		border-radius: var(--orca-radius-lg);
+		color: var(--orca-muted);
+	}
+	.programs-empty p {
+		margin: 0;
+	}
+	.programs-start {
+		padding: 28px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius-xl);
+		background: var(--orca-surface);
+	}
+	.programs-start h2 {
+		margin: 0;
+		font-size: 20px;
+		font-weight: 700;
+	}
+	.programs-start > p {
+		margin: 6px 0 20px;
+		color: var(--orca-muted);
+		font-size: 15px;
+	}
+	.programs-start-grid {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 14px;
+	}
+	.programs-start-card {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		min-height: 180px;
+		padding: 20px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-surface);
+		color: var(--orca-ink);
+		text-decoration: none;
+		transition: border-color 0.15s var(--orca-ease), box-shadow 0.15s var(--orca-ease);
+	}
+	.programs-start-card strong {
+		margin-top: 14px;
+		font-size: 16px;
+		font-weight: 700;
+	}
+	.programs-start-card span {
+		color: var(--orca-muted);
+		font-size: 13.5px;
+		line-height: 1.5;
+	}
+	.programs-start-card em {
+		margin-top: auto;
+		padding-top: 12px;
+		color: var(--orca-muted);
+		font-size: 13px;
+		font-style: normal;
+	}
+	.programs-start-card .go {
+		display: grid;
+		place-items: center;
+		align-self: flex-end;
+		width: 32px;
+		height: 32px;
+		padding: 0;
+		border: 1px solid var(--orca-line);
+		border-radius: 50%;
+		color: var(--orca-ink);
+	}
+	.programs-start-card:not(.soon):hover {
+		border-color: var(--orca-line-strong);
+		box-shadow: var(--orca-popover-shadow);
+	}
+	.programs-start-card:not(.soon):hover .go {
+		border-color: var(--orca-citron);
+		background: var(--orca-citron);
+		color: var(--orca-on-citron);
+	}
+	.programs-start-card.soon {
+		border-color: var(--orca-line-soft);
+		background: var(--orca-surface-2);
+	}
+	.programs-start-card.soon strong,
+	.programs-start-card.soon span {
+		color: var(--orca-subtle);
+	}
+	.programs-start-all {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		margin-top: 20px;
+		color: var(--orca-ink);
+		font-size: 14px;
+		font-weight: 600;
+		text-decoration: underline;
+		text-decoration-color: var(--orca-line-strong);
+		text-underline-offset: 4px;
+	}
+	@media (max-width: 1100px) {
+		.programs-start-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+	/* Under 720px each row is a card. */
+	@media (max-width: 720px) {
+		.programs-table {
+			border: 0;
+			background: transparent;
+		}
+		.programs-head {
+			display: none;
+		}
+		.programs-row {
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+			gap: 12px;
+			margin-bottom: 12px;
+			padding: 16px;
+			border: 1px solid var(--orca-line);
+			border-radius: var(--orca-radius-lg);
+			background: var(--orca-surface);
+		}
+		.programs-head + .programs-row {
+			border-top: 1px solid var(--orca-line);
+		}
+		.programs-name {
+			grid-column: 1 / -1;
+		}
+		.programs-cell::before {
+			content: attr(data-label);
+			display: block;
+			margin-bottom: 2px;
+			color: var(--orca-muted);
+			font-size: 12px;
+		}
+		.programs-go {
+			position: absolute;
+			top: 26px;
+			right: 16px;
+		}
+		.programs-start {
+			padding: 20px;
+		}
+		.programs-start-grid {
+			gap: 10px;
+		}
+		.programs-start-card {
+			min-height: 0;
+			padding: 16px;
+		}
+	}
 </style>

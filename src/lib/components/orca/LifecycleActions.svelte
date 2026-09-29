@@ -27,11 +27,11 @@
   let completed = $state(false);
   let error = $state('');
   let requiresReload = $state(false);
-  const subject = $derived(kind === 'gateway' ? t('พื้นที่ทำงาน AI', 'AI workspace') : t('ระบบที่เชื่อมต่อ', 'connected system'));
+  const subject = $derived(kind === 'gateway' ? t('พื้นที่ทำงาน AI', 'AI workspace') : t('โปรแกรม', 'program'));
   const blockedDelete = $derived(action === 'delete' && kind === 'server' && affectedGateways.length > 0);
   const label = $derived(action === 'delete' ? t('ลบ', 'Delete') : action === 'restore' ? t('กู้คืน', 'Restore') : t('จัดเก็บ', 'Archive'));
   // A blocked delete explains what to do next instead of showing a disabled red button.
-  const heading = $derived(blockedDelete ? t('ยังลบระบบนี้ไม่ได้', 'This system cannot be deleted yet') : t(`${label}${subject}`, `${label} ${subject}`));
+  const heading = $derived(blockedDelete ? t('ยังลบโปรแกรมนี้ไม่ได้', 'This program cannot be deleted yet') : t(`${label}${subject}`, `${label} ${subject}`));
 
   async function open(next: Action) {
     if (pending || !canManage) return;
@@ -116,23 +116,23 @@
     {#if action === 'archive'}
       <p>{kind === 'gateway'
         ? t('พื้นที่ทำงานนี้จะย้ายไปอยู่ในรายการที่จัดเก็บแล้ว แอป AI จะเรียกใช้เครื่องมือและเข้าถึงความรู้ผ่านพื้นที่ทำงานนี้ไม่ได้ และคีย์เดิมทั้งหมดจะถูกยกเลิก', 'This workspace moves to Archived. AI apps can no longer call tools or access knowledge through it, and all existing keys will be revoked.')
-        : t('ระบบนี้จะย้ายไปอยู่ในรายการที่จัดเก็บแล้วและถูกปิดใช้งาน พื้นที่ทำงาน AI ทุกแห่งที่ใช้ระบบนี้จะเรียกใช้เครื่องมือของระบบนี้ไม่ได้ และคีย์เดิมของพื้นที่ทำงานเหล่านั้นจะถูกยกเลิก', 'This system moves to Archived and is disabled. Every AI workspace that uses it will stop calling its tools, and the existing keys for those workspaces will be revoked.')}</p>
+        : t('โปรแกรมนี้จะย้ายไปอยู่ในรายการที่จัดเก็บแล้วและถูกปิดใช้งาน AI ในทุกพื้นที่ทำงานที่ใช้โปรแกรมนี้จะใช้โปรแกรมนี้ไม่ได้ และคีย์เดิมของพื้นที่ทำงานเหล่านั้นจะถูกยกเลิก', 'This program moves to Archived and is disabled. AI in every workspace that uses it can no longer use it, and the existing keys for those workspaces will be revoked.')}</p>
       <p>{t('กู้คืนได้ภายหลัง แต่ต้องเปิดใช้งานและสร้างคีย์ใหม่ก่อนให้ทีมกลับมาใช้งาน', 'You can restore it later. Activate it and issue new keys before your team uses it again.')}</p>
     {:else if action === 'restore'}
       <p>{kind === 'gateway'
         ? t('พื้นที่ทำงานนี้จะกลับมาในรายการด้วยสถานะระงับ กรุณาตรวจสอบสิทธิ์และเปิดใช้งานก่อนสร้างคีย์ใหม่', 'This workspace returns to the list with Paused status. Review access and activate it before issuing new keys.')
-        : t('ระบบนี้จะกลับมาในรายการโดยยังปิดใช้งานอยู่ กรุณาตรวจสอบการตั้งค่าและเปิดใช้งานก่อนสร้างคีย์ใหม่ของพื้นที่ทำงาน AI', 'This system returns to the list and remains disabled. Review and enable it before issuing new AI workspace keys.')}</p>
+        : t('โปรแกรมนี้จะกลับมาในรายการโดยยังระงับอยู่ ตรวจสิ่งที่ AI ทำได้แล้วเปิดใช้อีกครั้งก่อนให้ทีมใช้', 'This program returns to the list and stays paused. Check what AI can do and resume it before your team uses it.')}</p>
     {:else if blockedDelete}
-      <p>{t('ระบบนี้ยังถูกใช้อยู่ในพื้นที่ทำงาน AI ด้านล่าง นำระบบออกจากพื้นที่ทำงานเหล่านั้น หรือลบพื้นที่ทำงานก่อน (รวมถึงรายการที่จัดเก็บแล้ว) แล้วจึงกลับมาลบระบบนี้', 'This system is still used by the AI workspaces below. Remove it from those workspaces, or delete them (including archived ones), then come back to delete it.')}</p>
+      <p>{t('โปรแกรมนี้ยังอยู่ในพื้นที่ทำงาน AI ด้านล่าง เอาโปรแกรมออกจากพื้นที่ทำงานเหล่านั้น หรือลบพื้นที่ทำงานก่อน (รวมที่จัดเก็บแล้ว) แล้วจึงกลับมาลบโปรแกรมนี้', 'This program is still used by the AI workspaces below. Remove it from those workspaces, or delete them (including archived ones), then come back to delete it.')}</p>
     {:else}
       <p>{kind === 'gateway'
         ? t('พื้นที่ทำงานนี้จะถูกลบออกจากรายการ และคีย์ทั้งหมดจะถูกยกเลิก การเรียกใช้เครื่องมือและการเข้าถึงความรู้ผ่านพื้นที่ทำงานนี้จะหยุดลง และไม่สามารถกู้คืนได้', 'This workspace will be removed and all its keys revoked. Tool calls and knowledge access through it will stop. It cannot be restored.')
-        : t('ระบบนี้จะถูกลบออกจากรายการและไม่สามารถกู้คืนได้ หากอาจต้องใช้งานอีก กรุณาเลือกจัดเก็บแทน', 'This system will be removed from the list and cannot be restored. Choose Archive if you may need it again.')}</p>
+        : t('โปรแกรมนี้จะถูกลบออกจากรายการและกู้คืนไม่ได้ ถ้าอาจต้องใช้อีก ให้เลือกจัดเก็บแทน', 'This program will be removed from the list and cannot be restored. Choose Archive if you may need it again.')}</p>
     {/if}
-    {#if !blockedDelete}<p class="preserved">{t('บัญชีที่เชื่อมไว้ ข้อมูลในระบบที่เชื่อมต่อ และประวัติการใช้งานยังคงอยู่', 'Connected accounts, data in the connected systems and activity history are retained.')}</p>{/if}
+    {#if !blockedDelete}<p class="preserved">{t('บัญชีที่เชื่อมไว้ ข้อมูลในโปรแกรม และประวัติการใช้งานยังคงอยู่', 'Connected accounts, data in the programs and activity history are retained.')}</p>{/if}
     {#if affectedGateways.length > 0 && kind === 'server' && action !== 'restore'}
       <div class="affected-gateways">
-        <strong>{blockedDelete ? t(`พื้นที่ทำงาน AI ที่ยังใช้ระบบนี้ (${affectedGateways.length})`, `AI workspaces still using this system (${affectedGateways.length})`) : t('พื้นที่ทำงาน AI ที่ได้รับผลกระทบ', 'Affected AI workspaces')}</strong>
+        <strong>{blockedDelete ? t(`พื้นที่ทำงาน AI ที่ยังใช้โปรแกรมนี้ (${affectedGateways.length})`, `AI workspaces still using this program (${affectedGateways.length})`) : t('พื้นที่ทำงาน AI ที่ได้รับผลกระทบ', 'Affected AI workspaces')}</strong>
         <ul>{#each affectedGateways as gateway}<li><a href={localeHref(`/app?view=hub&hub=${encodeURIComponent(gateway.id)}`)}>{gateway.name}</a></li>{/each}</ul>
       </div>
     {/if}
