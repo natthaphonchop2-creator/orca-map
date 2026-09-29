@@ -2,16 +2,23 @@
 // refuses to sign anyone in (workspace UX critique 13). The sign-in and invite
 // pages spot them and ask the person to open the page in Chrome or Safari.
 
-export type InAppBrowser = 'line' | 'facebook';
+export type InAppBrowser = 'line' | 'facebook' | 'instagram';
 
 /** Which in-app browser this is, from its user agent; `undefined` for a real browser. */
 export function inAppBrowser(userAgent: string | undefined | null): InAppBrowser | undefined {
 	const ua = userAgent ?? '';
 	// LINE adds "Line/<version>" (iOS and Android).
 	if (/\bLine\/\d/i.test(ua)) return 'line';
-	// Facebook, Messenger and Instagram: FBAN/FBAV/FB_IAB/FBIOS, or "Instagram <version>".
-	if (/\bFB(?:AN|AV|_IAB|IOS)\b|\bFB4A\b|\bMessenger(?:ForiOS|LiteForiOS)?\b|\bInstagram\s\d/i.test(ua)) return 'facebook';
+	// Instagram says "Instagram <version>" (on Android beside Facebook's FB_IAB): named first.
+	if (/\bInstagram\s\d/i.test(ua)) return 'instagram';
+	// Facebook and Messenger: FBAN/FBAV/FB_IAB/FBIOS/FB4A.
+	if (/\bFB(?:AN|AV|_IAB|IOS)\b|\bFB4A\b|\bMessenger(?:ForiOS|LiteForiOS)?\b/i.test(ua)) return 'facebook';
 	return undefined;
+}
+
+/** The app's name for people. */
+export function inAppBrowserName(browser: InAppBrowser): string {
+	return browser === 'line' ? 'LINE' : browser === 'instagram' ? 'Instagram' : 'Facebook';
 }
 
 /** LINE opens a link that carries this parameter in the phone's default browser. */

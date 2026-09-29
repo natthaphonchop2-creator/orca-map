@@ -99,7 +99,8 @@ test('steps 3 and 4: connect my AI, then a copyable first question per program',
 	// Without B1 the two steps open together, and step 3 says how it finishes.
 	html = owner(data, 'unknown', false);
 	assert.match(text(html), /ขั้นนี้จะขึ้นว่าเสร็จเมื่อคุณถามครั้งแรก/);
-	assert.match(html, /<button type="button" class="k-button small">[\s\S]*?คัดลอกคำถามนี้/);
+	// One copy button per program, each named by its program for screen readers.
+	assert.match(html, /<button type="button" class="k-button small" aria-label="คัดลอกคำถามนี้: FlowAccount">[\s\S]*?คัดลอกคำถามนี้/);
 	// History that could not be read offers a retry, not a false "done".
 	html = owner(data, 'connected', undefined, { historyFailed: true });
 	assert.match(text(html), /ตรวจไม่ได้ว่าคุณถามแล้วหรือยัง/);
@@ -126,14 +127,70 @@ test('employee: connect my AI, a sign-in row per program, then ask; or ask an ad
 	assert.doesNotMatch(html, /aria-current="step"/, 'nothing is "next" until an admin adds them');
 });
 
-test('Home decides from the viewer\'s own data and never claims "ระบบพร้อมใช้งาน" by default', async () => {
-	const source = await readFile(new URL('./WorkspaceDashboard.svelte', import.meta.url), 'utf8');
-	assert.doesNotMatch(source, /ระบบพร้อมใช้งาน/);
-	assert.match(source, /askedAI\(events, data\.currentUserID\)/, 'only my own tool calls finish step 4');
-	assert.match(source, /OrcaU6Service\.myAIApps\(\)/, 'B1 decides step 3');
-	assert.match(source, /setAIConnection\(/, 'and feeds the pinned button');
-	assert.match(source, /homeFlagKey\(flag, currentCompany\(\), data\.currentUserID\)/, 'the dismissal is per viewer and company');
-	assert.match(source, /\{#if mode === 'status' && manager\}/, 'managers only get the create buttons');
+test('Home picks its mode from the viewer\'s own data: setup at once, else a short check, never a false "ready"', async () => {
+	const personal = await importTypeScript(new URL('../../orca/personal-connections.ts', import.meta.url));
+	const PageHeader = await component('./ui/PageHeader.svelte', children);
+	const Dashboard = await component('./WorkspaceDashboard.svelte', {
+		...children, ...personal, OwnerSetup, EmployeeSetup, PageHeader, currentCompany: () => 'default'
+	});
+	const page = (data) => render(Dashboard, { props: { data } }).body;
+
+	// A new company: the checklist shows before anything else loads.
+	let html = page(company());
+	assert.match(html, /<h1[^>]*>ยินดีต้อนรับ วิภา<\/h1>/);
+	assert.match(text(html), /ยังตั้งค่าไม่เสร็จ/);
+	assert.match(text(html), /ตั้งค่า ORCA ให้ บริษัท ตัวอย่าง · 4 ขั้นตอน ประมาณ 10 นาที/);
+	assert.match(html, /id="setup"/);
+	assert.match(html, /href="\/home\?to=start"/);
+	assert.doesNotMatch(html, /พร้อมใช้งาน/);
+
+	// Steps 1 and 2 done; whether I connected AI and asked is still loading:
+	// no checklist flash and no pill until it is known.
+	html = page(company({ connections: [flow], hubs: [workspace] }));
+	assert.match(html, /<h1[^>]*>หน้าหลัก<\/h1>/);
+	assert.match(text(html), /กำลังตรวจสถานะการตั้งค่า/);
+	assert.doesNotMatch(html, /id="setup"|ยังตั้งค่าไม่เสร็จ|พร้อมใช้งาน/);
+	// Create buttons belong to the status view only.
+	assert.doesNotMatch(html, /view=new"/);
+
+	// An employee with no usable workspace asks an admin, in generic words.
+	const employee = company({ canManage: false, members: [{ id: 'me', displayName: 'มาลี สมมุติ', email: 'mali@example.com', role: 'member' }] });
+	html = page(employee);
+	assert.match(text(html), /ยินดีต้อนรับ มาลี/);
+	assert.match(text(html), /ใช้ AI กับข้อมูลของ บริษัท ตัวอย่าง · 3 ขั้นตอน ประมาณ 7 นาที/);
+	assert.match(text(html), /ขอสิทธิ์จากผู้ดูแล/);
+	assert.match(text(html), /รบกวนเพิ่ม มาลี สมมุติ \(mali@example\.com\) เข้าพื้นที่ทำงาน AI ของ บริษัท ตัวอย่าง/);
+	assert.match(html, /href="\/app\?view=help"/, 'an employee is pointed at the FAQ, not at the ORCA team');
+	assert.doesNotMatch(html, /\/home\?to=start/);
+});
+
+test('the status view follows the role: managers see the company and its alerts, employees their own part', async () => {
+	const tools = await importTypeScript(new URL('../../orca/tool-presentation.ts', import.meta.url));
+	const HomeStatus = await component('./home/HomeStatus.svelte', {
+		...children, toolPresentation: tools.toolPresentation, displayDate: (value) => value, memberName: (member) => member.displayName
+	});
+	const unreviewed = { ...flow, id: 'conn-new', name: 'PEAK', mcpID: 'default-orca-peak', reviewedTools: false };
+	const events = [{ id: 'e1', createdAt: '2026-09-28T03:00:00Z', userID: 'me', hubID: 'hub-1', action: 'tools.call', toolName: 'list_invoices', outcome: 'success' }];
+	const members = [
+		{ id: 'me', displayName: 'วิภา ตัวอย่าง', email: 'me@example.com', role: 'owner' },
+		{ id: 'u2', displayName: 'มาลี สมมุติ', email: 'm@example.com', role: 'member' },
+		{ id: 'u3', displayName: 'ศิริ ทดลอง', email: 's@example.com', role: 'member', status: 'suspended' }
+	];
+	let html = render(HomeStatus, { props: { data: company({ members, connections: [flow, unreviewed], hubs: [workspace] }), events } }).body;
+	let plain = text(html);
+	assert.match(plain, /ทีม 2 คนที่ใช้งานอยู่/, 'a suspended member is not counted');
+	assert.match(plain, /ต้องดูแล/);
+	assert.match(plain, /โปรแกรมรอเลือกสิ่งที่ AI ทำได้ 1 โปรแกรม/);
+	assert.match(html, /<th scope="col"[^>]*>คน<\/th>/);
+	assert.match(html, /href="\/app\?view=servers&amp;connection=conn-flow"/);
+
+	html = render(HomeStatus, { props: { data: company({ canManage: false, connections: [flow], hubs: [workspace] }), events } }).body;
+	plain = text(html);
+	assert.match(plain, /พื้นที่ทำงานของคุณ/);
+	assert.doesNotMatch(plain, /ต้องดูแล|คนที่ใช้งานอยู่/, 'no company alerts or head count for an employee');
+	assert.doesNotMatch(html, /<th scope="col"[^>]*>คน<\/th>/, 'their own history needs no person column');
+	assert.doesNotMatch(html, /view=servers/, 'employees reach programs through เชื่อม AI ของฉัน');
+	assert.match(html, /href="\/app\?view=connect-ai#accounts"/);
 });
 
 test('Help is a short FAQ that points at Home\'s checklist, without a sign-out button', async () => {
@@ -163,13 +220,20 @@ test('the in-app browser notice: LINE opens outside, Facebook explains the menu,
 	const Notice = await component('./InAppBrowserNotice.svelte', base);
 	const href = 'https://orca.example.test/login?rd=%2Fapp';
 	let html = render(Notice, { props: { userAgent: 'Mozilla/5.0 (iPhone) Mobile/15E148 Safari Line/14.9.0', href } }).body;
-	assert.match(html, /เปิดใน Chrome หรือ Safari/);
-	assert.match(html, /<a class="o-button" href="https:\/\/orca\.example\.test\/login\?rd=%2Fapp&amp;openExternalBrowser=1">/);
+	assert.match(html, /<h3 id="(o-inapp-[^"]+)" class="o-inapp-title[^"]*">(?:(?!<\/h3>)[\s\S])*เปิดใน Chrome หรือ Safari/);
+	assert.match(html, /<section class="o-inapp[^"]*" aria-labelledby="(o-inapp-[^"]+)">[\s\S]*id="\1"/, 'the section is named by its heading');
+	assert.match(html, /<a class="o-button outline" href="https:\/\/orca\.example\.test\/login\?rd=%2Fapp&amp;openExternalBrowser=1">/);
 	assert.match(html, /class="o-button outline"[^>]*>[\s\S]*?คัดลอกลิงก์/);
+	// The page below keeps the one primary button: the notice's are outlined.
+	assert.doesNotMatch(html, /class="o-button"/);
+	html = render(Notice, { props: { userAgent: 'Mozilla/5.0 (iPhone) Mobile/15E148 Safari Line/14.9.0', href, level: 2 } }).body;
+	assert.match(html, /<h2 id="o-inapp-[^"]+" class="o-inapp-title[^"]*">/);
 	html = render(Notice, { props: { userAgent: 'Mozilla/5.0 [FB_IAB/FB4A;FBAV/470.0.0.0;]', href } }).body;
 	assert.match(text(html), /Facebook เปิดหน้านี้ในเบราว์เซอร์ของแอป/);
 	assert.match(text(html), /แตะ ⋯ มุมขวาบน/);
 	assert.doesNotMatch(html, /openExternalBrowser/);
+	html = render(Notice, { props: { userAgent: 'Mozilla/5.0 (iPhone) Mobile/15E148 Instagram 330.0.0.0 (iPhone15,2; iOS 17_5; th_TH)', href } }).body;
+	assert.match(text(html), /Instagram เปิดหน้านี้ในเบราว์เซอร์ของแอป/);
 	html = render(Notice, { props: { userAgent: 'Mozilla/5.0 (Macintosh) Chrome/126.0 Safari/537.36', href } }).body;
 	assert.equal(text(html).trim(), '');
 });

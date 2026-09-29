@@ -107,7 +107,7 @@
     </section>
     <section class="o-auth-form invite-panel" aria-live="polite">
       <!-- Invitations are often shared in LINE, where Google refuses to sign in. -->
-      {#if phase !== "joined"}<InAppBrowserNotice />{/if}
+      {#if phase !== "joined"}<InAppBrowserNotice level={2} />{/if}
       {#if phase === "loading"}
         <p class="invite-loading"><LoaderCircle size={20} class="k-spin" aria-hidden="true" />{t("กำลังตรวจสอบลิงก์เชิญ…", "Checking the invitation link…")}</p>
       {:else if phase === "invalid"}

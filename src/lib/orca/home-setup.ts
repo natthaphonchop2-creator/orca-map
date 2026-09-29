@@ -5,7 +5,7 @@
 import { connectionReady, workspaceToolingReady } from './activation';
 import { gatewayConnections, gatewayHasMember } from './gateway-sources';
 import { lineExternalURL } from './in-app-browser';
-import type { OrcaAuditEvent, OrcaBootstrap, OrcaConnection, OrcaHub } from '../services/orca';
+import type { OrcaAuditEvent, OrcaBootstrap, OrcaConnection, OrcaHub, OrcaMember } from '../services/orca';
 import type { OrcaAnnotatedTool, OrcaMyAIApps, OrcaMyAISession, OrcaToolAnnotations } from '../services/orca-u6';
 
 type Translate = (th: string, en: string) => string;
@@ -74,9 +74,27 @@ export function isToolCall(event: Pick<OrcaAuditEvent, 'action' | 'method'>): bo
 	return ['tools.call', 'tools/call'].includes(event.action || event.method || '');
 }
 
-/** Only the viewer's own calls count: anyone else's says nothing about their AI. */
-export function askedAI(events: OrcaAuditEvent[], userID: string): boolean {
-	return !!userID && events.some((event) => isToolCall(event) && event.userID === userID);
+/**
+ * GET /audit returns only the newest 200 events (`KhumAudit`'s limit): every
+ * member's for a manager, the viewer's own for anyone else.
+ */
+export const AUDIT_WINDOW = 200;
+
+/**
+ * Only the viewer's own calls count: anyone else's says nothing about their AI.
+ * `truncated`: the history filled the audit window, so an older call of theirs
+ * may have dropped out of it. Not finding one then proves nothing (`undefined`),
+ * and a busy company's owner never falls back into setup mode.
+ */
+export function askedAI(events: OrcaAuditEvent[], userID: string, truncated = false): Done {
+	if (!userID) return false;
+	if (events.some((event) => isToolCall(event) && event.userID === userID)) return true;
+	return truncated ? undefined : false;
+}
+
+/** People who can use ORCA now: suspended and removed members are not counted. */
+export function activeMembers<T extends Pick<OrcaMember, 'status'>>(members: T[]): T[] {
+	return members.filter((member) => !member.status || member.status === 'active');
 }
 
 // ---------------------------------------------------------------------------
@@ -198,18 +216,46 @@ export type ProgramAccount = { id: string; name: string; icon: string; state: Ac
 
 export type EmployeeStepID = 'ai' | 'accounts' | 'ask';
 
-/** The employee's three steps; `accounts` holds one state per program in their workspaces. */
+/**
+ * The employee's three steps; `accounts` holds one state per program in their
+ * workspaces. A program whose workspace an admin has not opened yet
+ * (`waiting`) is shown but never holds the step open: the employee cannot act on it.
+ */
 export function employeeChecklist(ai: AIState, accounts: AccountState[], asked: Done): Checklist<EmployeeStepID> {
+	const usable = accounts.filter((state) => state !== 'waiting');
 	const accountsDone: Done =
-		accounts.length === 0 ? undefined
-			: accounts.every((state) => state === 'signed-in') ? true
-			: accounts.some((state) => state === 'needed' || state === 'waiting') ? false
+		usable.length === 0 ? undefined
+			: usable.every((state) => state === 'signed-in') ? true
+			: usable.some((state) => state === 'needed') ? false
 			: undefined;
 	return checklist<EmployeeStepID>([
 		{ id: 'ai', done: aiDone(ai, asked), minutes: 3 },
 		{ id: 'accounts', done: accountsDone, minutes: 2 },
 		{ id: 'ask', done: asked, minutes: 2 }
 	]);
+}
+
+export type HomeMode = 'setup' | 'status' | 'loading';
+
+/**
+ * What Home shows. Setup while a required step is known not to be done (or an
+ * employee has no usable workspace); the status cards once everything known is
+ * done; a short "checking" line until then, so the checklist never flashes.
+ */
+export function homeMode(list: Pick<Checklist, 'incomplete'>, noWorkspace: boolean, loaded: boolean): HomeMode {
+	if (noWorkspace || list.incomplete) return 'setup';
+	return loaded ? 'status' : 'loading';
+}
+
+/**
+ * The pill beside Home's title. Never "ระบบพร้อมใช้งาน" on an unfinished
+ * company: setup says so, and a manager sees what needs looking at.
+ */
+export function homeBadge(mode: HomeMode, manager: boolean, attention: number, t: Translate): { label: string; tone: 'warn' | 'ok' } | undefined {
+	if (mode === 'loading') return undefined;
+	if (mode === 'setup') return { label: t('ยังตั้งค่าไม่เสร็จ', 'Setup not finished'), tone: 'warn' };
+	if (manager && attention > 0) return { label: t(`ต้องดูแล ${attention} เรื่อง`, `${attention} to look at`), tone: 'warn' };
+	return { label: t('พร้อมใช้งาน', 'Ready'), tone: 'ok' };
 }
 
 /** From the program's saved sign-in (sourceAccountState): signed in, or still needed. */
@@ -268,6 +314,14 @@ export function accessRequestText(
 		`รบกวนเพิ่ม${who ? ` ${who}` : 'ฉัน'} เข้าพื้นที่ทำงาน AI ของ ${input.company} ใน ORCA เพื่อให้ใช้ AI กับข้อมูลบริษัทได้ ${link}`,
 		`Please add ${who || 'me'} to an AI workspace of ${input.company} in ORCA, so I can use AI with company data. ${link}`
 	);
+}
+
+/** The company gate's message for someone with no company: ask a manager for an invite link. */
+export function inviteRequestText(email: string, t: Translate): string {
+	const address = email.trim();
+	return address
+		? t(`รบกวนส่งลิงก์เชิญเข้า ORCA ของบริษัทให้หน่อย ใช้อีเมล ${address}`, `Could you send me an invite link to our company's ORCA? My email is ${address}.`)
+		: t('รบกวนส่งลิงก์เชิญเข้า ORCA ของบริษัทให้หน่อย', "Could you send me an invite link to our company's ORCA?");
 }
 
 // ---------------------------------------------------------------------------

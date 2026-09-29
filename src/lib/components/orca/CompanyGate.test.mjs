@@ -41,9 +41,10 @@ test('without a company: an owner asks for a trial, an employee for an invite li
 });
 
 test('the invite request names the signed-in email when it is known', async () => {
+	// The words are tested in home-setup.test.mjs (inviteRequestText); here, only that the gate feeds it the account's email.
 	const source = await readFile(gate, 'utf8');
-	assert.match(source, /page\?\.data\?\.profile\?\.email/);
-	assert.match(source, /Could you send me an invite link to our company's ORCA\? My email is \$\{email\}\./);
+	assert.match(source, /const email = \$derived\(\(page\?\.data\?\.profile\?\.email as string \| undefined\) \?\? ""\);/);
+	assert.match(source, /const inviteRequest = \$derived\(inviteRequestText\(email, t\)\);/);
 });
 
 test('a company that isn\'t theirs offers their own companies, or the invitation text', async () => {

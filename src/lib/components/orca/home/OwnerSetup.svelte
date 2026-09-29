@@ -5,6 +5,7 @@
 	import { gatewayMemberIDs } from '$lib/orca/gateway-sources';
 	import { term } from '$lib/orca/glossary';
 	import {
+		activeMembers,
 		askablePrograms,
 		firstPrompt,
 		programAbilities,
@@ -63,6 +64,7 @@
 	const merged = $derived(ai === 'unknown' && list.current === 'ai');
 	const everyoneHref = $derived(program ? `/app?view=new&everyone=1&connection=${encodeURIComponent(program.id)}` : '/app?view=new');
 	const chooseHref = $derived(program ? `/app?view=new&connection=${encodeURIComponent(program.id)}` : '/app?view=new');
+	const people = $derived(activeMembers(data.members).length);
 	const readyList = $derived(ready.slice(0, 3).map((connection) => connection.name).join(', ') + (ready.length > 3 ? '…' : ''));
 </script>
 
@@ -122,7 +124,7 @@
 						<span class="home-fact-icon" aria-hidden="true"><Users size={17} /></span>
 						<div>
 							<small>{t('ใครใช้ได้', 'Who can use it')}</small>
-							<b>{t(`ทุกคนในบริษัท · ตอนนี้ ${data.members.length} คน`, `Everyone in the company · ${data.members.length} now`)}</b>
+							<b>{t(`ทุกคนในบริษัท · ตอนนี้ ${people} คน`, `Everyone in the company · ${people} now`)}</b>
 							<span>{t(`แต่ละคนใช้บัญชี ${program.name} ของตัวเอง`, `Each person uses their own ${program.name} account`)}</span>
 						</div>
 					</div>

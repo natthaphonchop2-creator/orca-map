@@ -1,15 +1,26 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { Check, Copy, ExternalLink, Globe } from '@lucide/svelte';
-	import { inAppBrowser, lineExternalURL, shareableURL, type InAppBrowser } from '$lib/orca/in-app-browser';
+	import { inAppBrowser, inAppBrowserName, lineExternalURL, shareableURL, type InAppBrowser } from '$lib/orca/in-app-browser';
 	import { t } from '$lib/orca/locale.svelte';
 	import { copyFeedback, copyText } from './ui/copy';
 
 	// Google refuses to sign anyone in inside LINE's and Facebook's in-app
 	// browsers (workspace UX critique 13). On /login and /invite this asks the
 	// person to open the same page in Chrome or Safari. The page's own flow
-	// stays exactly as it is below it.
-	let { userAgent, href }: { /** For tests; the browser's own by default. */ userAgent?: string; href?: string } = $props();
+	// stays exactly as it is below it, with its own primary button: the
+	// notice's buttons are outlined, so the page keeps one primary action.
+	let {
+		userAgent,
+		href,
+		level = 3
+	}: {
+		/** For tests; the browser's own by default. */
+		userAgent?: string;
+		href?: string;
+		/** The heading level that fits the page's outline (2 when the notice comes before the page's own h2). */
+		level?: 2 | 3;
+	} = $props();
 	// Tests pass the user agent and address; the page reads the browser's on mount.
 	const fromProps = () => ({
 		browser: userAgent !== undefined ? inAppBrowser(userAgent) : undefined,
@@ -21,7 +32,8 @@
 		browser = inAppBrowser(userAgent ?? navigator.userAgent);
 		here = shareableURL(href ?? window.location.href);
 	});
-	const app = $derived(browser === 'line' ? 'LINE' : 'Facebook');
+	const app = $derived(browser ? inAppBrowserName(browser) : '');
+	const uid = $props.id();
 	let copied = $state(false);
 	let failed = $state(false);
 	const feedback = copyFeedback((value) => (copied = value));
@@ -35,15 +47,15 @@
 </script>
 
 {#if browser}
-	<section class="o-inapp" aria-labelledby="o-inapp-title">
-		<h3 id="o-inapp-title"><Globe size={18} aria-hidden="true" />{t('เปิดใน Chrome หรือ Safari', 'Open in Chrome or Safari')}</h3>
+	<section class="o-inapp" aria-labelledby="o-inapp-{uid}">
+		<svelte:element this={`h${level}`} id="o-inapp-{uid}" class="o-inapp-title"><Globe size={18} aria-hidden="true" />{t('เปิดใน Chrome หรือ Safari', 'Open in Chrome or Safari')}</svelte:element>
 		<p>{t(`${app} เปิดหน้านี้ในเบราว์เซอร์ของแอป ซึ่ง Google ไม่ให้เข้าสู่ระบบ`, `${app} opened this page in its own browser, where Google won't sign you in.`)}</p>
 		{#if browser === 'line'}
-			<a class="o-button" href={lineExternalURL(here)}>{t('เปิดใน Chrome หรือ Safari', 'Open in Chrome or Safari')}<ExternalLink size={16} aria-hidden="true" /></a>
+			<a class="o-button outline" href={lineExternalURL(here)}>{t('เปิดใน Chrome หรือ Safari', 'Open in Chrome or Safari')}<ExternalLink size={16} aria-hidden="true" /></a>
 		{:else}
 			<p class="o-inapp-step">{t('แตะ ⋯ มุมขวาบน แล้วเลือก “เปิดในเบราว์เซอร์” หรือคัดลอกลิงก์ไปวางเอง', 'Tap ⋯ at the top right and choose “Open in browser”, or copy the link and paste it yourself.')}</p>
 		{/if}
-		<button type="button" class="o-button" class:outline={browser === 'line'} onclick={copy}>
+		<button type="button" class="o-button outline" onclick={copy}>
 			{#if copied}<Check size={16} aria-hidden="true" />{t('คัดลอกลิงก์แล้ว', 'Link copied')}{:else}<Copy size={16} aria-hidden="true" />{t('คัดลอกลิงก์', 'Copy the link')}{/if}
 		</button>
 		<span class="o-inapp-announce" role="status" aria-live="polite">{copied ? t('คัดลอกลิงก์แล้ว', 'Link copied') : ''}</span>
@@ -66,7 +78,8 @@
 	.o-inapp:first-child {
 		margin: 0 0 22px;
 	}
-	.o-inapp h3 {
+	/* Doubled class: beats the auth form's `.orca.o-auth-page .o-auth-form h2` when the notice is an h2. */
+	.o-inapp .o-inapp-title.o-inapp-title {
 		display: flex;
 		align-items: center;
 		gap: 8px;

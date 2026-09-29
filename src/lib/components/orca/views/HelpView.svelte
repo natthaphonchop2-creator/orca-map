@@ -46,7 +46,12 @@
 						'ทำได้เฉพาะที่บริษัทอนุญาต ถ้าต้องให้ผู้ดูแลอนุมัติก่อน คำขอของคุณจะรออยู่ที่ คำขอของฉัน',
 						'Only what your company allows. If an admin must approve first, your request waits in My requests.'
 					),
-			links: manager ? [{ href: '/app?view=approvals', label: term('waitingApproval', t) }] : []
+			links: manager
+				? [
+						{ href: '/app?view=workspaces', label: term('workspaces', t) },
+						{ href: '/app?view=approvals', label: term('waitingApproval', t) }
+					]
+				: []
 		},
 		...(manager
 			? [
@@ -54,8 +59,8 @@
 						q: t('มีคนลาออก ต้องทำอะไร', 'Someone left. What do I do?'),
 						a: data.canChangeMemberStatus
 							? t(
-									'ระงับการใช้งานคนนั้นที่ ทีม ORCA จะตัดการเชื่อมต่อแอป AI และคีย์ทั้งหมดของเขาในบริษัทนี้',
-									'Suspend them in Team. ORCA disconnects all their AI apps and keys in this company.'
+									'ระงับการใช้งานคนนั้นในหน้า ทีม แล้ว ORCA จะตัดการเชื่อมต่อแอป AI และคีย์ทั้งหมดของเขาในบริษัทนี้ทันที',
+									'Suspend them on the Team page. ORCA then disconnects all their AI apps and keys in this company at once.'
 								)
 							: t(
 									'ตัดการเชื่อมต่อแอป AI ของเขาที่ ตรวจสอบ › แอป AI ที่เชื่อมอยู่',

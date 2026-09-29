@@ -6,9 +6,10 @@
 	import { sourceAccountState, sourcePresentationNames } from '$lib/orca/connection-presentation';
 	import { term } from '$lib/orca/glossary';
 	import {
+		AUDIT_WINDOW,
 		accessRequestText,
-		workspacesLink,
 		accountStateFrom,
+		activeMembers,
 		activeAISession,
 		aiAppName,
 		aiState,
@@ -17,11 +18,14 @@
 		attentionCounts,
 		employeeChecklist,
 		firstName,
+		homeBadge,
 		homeFlagKey,
+		homeMode,
 		isToolCall,
 		ownerChecklist,
 		readHomeFlag,
 		usableWorkspaces,
+		workspacesLink,
 		writeHomeFlag,
 		type AccountState,
 		type Done,
@@ -48,6 +52,8 @@
 	// ---- What the page reads beyond the bootstrap ----
 	/** The viewer's latest tool calls; undefined while loading. */
 	let events = $state<OrcaAuditEvent[]>();
+	/** The history filled the audit window: an older call of mine may be missing from it. */
+	let eventsTruncated = $state(false);
 	let eventsError = $state(false);
 	/** B1: undefined while loading, null when it cannot be read (an older server). */
 	let aiApps = $state<OrcaMyAIApps | null>();
@@ -72,7 +78,7 @@
 	const iconName = (connection: OrcaConnection) => sourceNames[connection.mcpID] || connection.name;
 	const ai = $derived(aiState(aiApps, now));
 	const aiApp = $derived(aiAppName(activeAISession(aiApps, now)));
-	const asked = $derived<Done>(eventsError || !events ? undefined : askedAI(events, data.currentUserID));
+	const asked = $derived<Done>(eventsError || !events ? undefined : askedAI(events, data.currentUserID, eventsTruncated));
 	const owner = $derived(ownerChecklist(data, ai, asked));
 	const sources = $derived(manager ? [] : personalSources(data));
 	const accounts = $derived<ProgramAccount[]>(
@@ -87,8 +93,8 @@
 	const list = $derived(manager ? owner : employee);
 	const noWorkspace = $derived(!manager && usableWorkspaces(data).length === 0);
 	const loaded = $derived((events !== undefined || eventsError) && aiApps !== undefined && accounts.every((account) => account.state !== 'checking'));
-	const mode = $derived<'setup' | 'status' | 'loading'>(noWorkspace || list.incomplete ? 'setup' : loaded ? 'status' : 'loading');
-	const invite = $derived({ done: invitesSent || data.members.length > 1, skipped: flags['skip-invite'] });
+	const mode = $derived(homeMode(list, noWorkspace, loaded));
+	const invite = $derived({ done: invitesSent || activeMembers(data.members).length > 1, skipped: flags['skip-invite'] });
 	const knowledge = $derived({ done: knowledgePublished, skipped: flags['skip-knowledge'] });
 	const attention = $derived(attentionCounts(data).total);
 	const requestText = $derived(
@@ -98,28 +104,18 @@
 		)
 	);
 	const welcome = $derived(firstName(me?.displayName) ? t(`ยินดีต้อนรับ ${firstName(me?.displayName)}`, `Welcome, ${firstName(me?.displayName)}`) : t('ยินดีต้อนรับ', 'Welcome'));
-	const header = $derived(
-		mode === 'setup'
-			? {
-					title: welcome,
-					subtitle: manager
-						? t(`ตั้งค่า ORCA ให้ ${company} · 4 ขั้นตอน ประมาณ 10 นาที`, `Set up ORCA for ${company} · 4 steps, about 10 minutes`)
-						: t(`ใช้ AI กับข้อมูลของ ${company} · 3 ขั้นตอน ประมาณ 7 นาที`, `Use AI with ${company}'s data · 3 steps, about 7 minutes`),
-					status: { label: t('ยังตั้งค่าไม่เสร็จ', 'Setup not finished'), tone: 'warn' as const }
-				}
-			: {
-					title: term('home', t),
-					subtitle: manager
-						? t(`โปรแกรม พื้นที่ทำงาน AI และการใช้งานของ ${company}`, `Programs, AI workspaces and use at ${company}`)
-						: t(`พื้นที่ทำงาน AI และโปรแกรมที่คุณใช้ได้ใน ${company}`, `The AI workspaces and programs you can use at ${company}`),
-					status:
-						mode === 'loading'
-							? undefined
-							: manager && attention > 0
-								? { label: t(`ต้องดูแล ${attention} เรื่อง`, `${attention} to look at`), tone: 'warn' as const }
-								: { label: t('พร้อมใช้งาน', 'Ready'), tone: 'ok' as const }
-				}
-	);
+	const header = $derived({
+		title: mode === 'setup' ? welcome : term('home', t),
+		subtitle:
+			mode === 'setup'
+				? manager
+					? t(`ตั้งค่า ORCA ให้ ${company} · 4 ขั้นตอน ประมาณ 10 นาที`, `Set up ORCA for ${company} · 4 steps, about 10 minutes`)
+					: t(`ใช้ AI กับข้อมูลของ ${company} · 3 ขั้นตอน ประมาณ 7 นาที`, `Use AI with ${company}'s data · 3 steps, about 7 minutes`)
+				: manager
+					? t(`โปรแกรม พื้นที่ทำงาน AI และการใช้งานของ ${company}`, `Programs, AI workspaces and use at ${company}`)
+					: t(`พื้นที่ทำงาน AI และโปรแกรมที่คุณใช้ได้ใน ${company}`, `The AI workspaces and programs you can use at ${company}`),
+		status: homeBadge(mode, manager, attention, t)
+	});
 
 	// ---- Loading ----
 	async function loadActivity() {
@@ -127,7 +123,9 @@
 		events = undefined;
 		try {
 			const result = await OrcaService.audit();
-			if (alive) events = result.filter(isToolCall).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+			if (!alive) return;
+			eventsTruncated = result.length >= AUDIT_WINDOW;
+			events = result.filter(isToolCall).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 		} catch {
 			if (alive) eventsError = true;
 		}

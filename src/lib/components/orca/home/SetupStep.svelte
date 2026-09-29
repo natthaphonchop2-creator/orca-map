@@ -196,5 +196,9 @@
 			flex: 1;
 			min-width: 0;
 		}
+		/* On a phone a later step's unusable button is only noise: the step's own line says what comes. */
+		.home-step-action:has(> :global(.home-off)) {
+			display: none;
+		}
 	}
 </style>

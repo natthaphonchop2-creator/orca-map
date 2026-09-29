@@ -5,6 +5,7 @@
   import "./orca.css";
   import { companyHref, rememberCompany, type OrcaCompanyChoice } from "$lib/orca/company";
   import { term } from "$lib/orca/glossary";
+  import { inviteRequestText } from "$lib/orca/home-setup";
   import { localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
   import { ArrowRight, Building2, Check, Copy, UserRound } from "@lucide/svelte";
   import { onDestroy } from "svelte";
@@ -30,11 +31,7 @@
   }
   // No company at all: the owner asks for a trial, an employee for an invite link.
   const email = $derived((page?.data?.profile?.email as string | undefined) ?? "");
-  const inviteRequest = $derived(
-    email
-      ? t(`รบกวนส่งลิงก์เชิญเข้า ORCA ของบริษัทให้หน่อย ใช้อีเมล ${email}`, `Could you send me an invite link to our company's ORCA? My email is ${email}.`)
-      : t("รบกวนส่งลิงก์เชิญเข้า ORCA ของบริษัทให้หน่อย", "Could you send me an invite link to our company's ORCA?"),
-  );
+  const inviteRequest = $derived(inviteRequestText(email, t));
   let copied = $state(false);
   let copyFailed = $state(false);
   const feedback = copyFeedback((value) => (copied = value));

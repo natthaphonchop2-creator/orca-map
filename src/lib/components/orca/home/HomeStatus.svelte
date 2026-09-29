@@ -4,7 +4,7 @@
 	import { connectionReady, workspaceToolingReady } from '$lib/orca/activation';
 	import { gatewayConnections, gatewayMemberIDs, gatewayToolCount } from '$lib/orca/gateway-sources';
 	import { term } from '$lib/orca/glossary';
-	import { attentionCounts } from '$lib/orca/home-setup';
+	import { activeMembers, attentionCounts } from '$lib/orca/home-setup';
 	import { localeHref, orcaLocale, t } from '$lib/orca/locale.svelte';
 	import { toolPresentation } from '$lib/orca/tool-presentation';
 	import { displayDate, memberName, type OrcaAuditEvent, type OrcaBootstrap, type OrcaConnection, type OrcaHub } from '$lib/services/orca';
@@ -44,7 +44,7 @@
 			? [
 					{ label: term('programs', t), value: data.connections.length, detail: t(`พร้อมใช้ ${ready} โปรแกรม`, `${ready} ready`), icon: Grid2x2Plus, href: '/app?view=servers' },
 					{ label: term('workspaces', t), value: data.hubs.length, detail: t(`เปิดใช้ ${activeSpaces} แห่ง`, `${activeSpaces} active`), icon: Boxes, href: '/app?view=workspaces' },
-					{ label: term('team', t), value: data.members.length, detail: t('คนที่ใช้งานอยู่', 'Active people'), icon: Users, href: '/app?view=members' },
+					{ label: term('team', t), value: activeMembers(data.members).length, detail: t('คนที่ใช้งานอยู่', 'Active people'), icon: Users, href: '/app?view=members' },
 					{ label: t('ใช้งานวันนี้', 'Used today'), value: today, detail: t('ครั้ง จากทุกพื้นที่ทำงาน', 'times, all workspaces'), icon: Activity, href: '/app?view=executions' }
 				]
 			: [
@@ -144,8 +144,8 @@
 				<table class="home-activity">
 					<thead>
 						<tr>
-							<th scope="col">{term('whatAICanDo', t)}</th>
-							<th scope="col">{t('คน', 'Person')}</th>
+							<th scope="col">{t('สิ่งที่ AI ทำ', 'What AI did')}</th>
+							{#if manager}<th scope="col">{t('คน', 'Person')}</th>{/if}
 							<th scope="col">{t('ผล', 'Result')}</th>
 							<th scope="col">{t('เวลา', 'Time')}</th>
 						</tr>
@@ -155,9 +155,10 @@
 							{@const outcome = outcomes[event.outcome] ?? outcomes.unknown}
 							<tr>
 								<td><strong title={event.toolName}>{toolLabel(event)}</strong>{#if hubName(event.hubID)}<small>{hubName(event.hubID)}</small>{/if}</td>
-								<td data-label={t('คน', 'Person')}>{whoName(event.userID)}</td>
-								<td data-label={t('ผล', 'Result')}><StatusPill label={outcome.label} tone={outcome.tone} /></td>
-								<td data-label={t('เวลา', 'Time')}><time datetime={event.createdAt}>{displayDate(event.createdAt)}</time></td>
+								<!-- An employee's history is only their own: no person column. -->
+								{#if manager}<td class="home-activity-who" data-label={t('คน', 'Person')}>{whoName(event.userID)}</td>{/if}
+								<td class="home-activity-result"><StatusPill label={outcome.label} tone={outcome.tone} /></td>
+								<td class="home-activity-time"><time datetime={event.createdAt}>{displayDate(event.createdAt)}</time></td>
 							</tr>
 						{/each}
 					</tbody>
@@ -581,9 +582,8 @@
 			color: var(--orca-muted);
 			font-size: 12.5px;
 		}
-		.home-activity td:nth-child(3)::before,
-		.home-activity td:nth-child(4)::before {
-			content: none;
+		.home-activity .home-activity-who {
+			grid-column: 1 / -1;
 		}
 	}
 </style>

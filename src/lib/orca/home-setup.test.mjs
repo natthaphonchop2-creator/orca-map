@@ -54,6 +54,40 @@ test('the first question counts only the viewer\'s own tool calls', () => {
 	assert.equal(home.askedAI([call('me')], 'me'), true);
 	assert.equal(home.askedAI([call('me', { action: undefined, method: 'tools/call' })], 'me'), true);
 	assert.equal(home.askedAI([call('')], ''), false);
+	// A manager's history is everyone's newest 200 events. When it is full, my
+	// older call may have dropped out: not finding it proves nothing.
+	assert.equal(home.AUDIT_WINDOW, 200);
+	const busy = Array.from({ length: home.AUDIT_WINDOW }, (_, i) => call('someone-else', { id: `e${i}` }));
+	assert.equal(home.askedAI(busy, 'me', true), undefined);
+	assert.equal(home.askedAI([...busy, call('me')], 'me', true), true);
+	assert.equal(home.askedAI([call('someone-else')], 'me', false), false);
+	// So a busy company whose owner asked long ago stays out of setup mode.
+	const ready = company({ connections: [connection('conn-flow')], hubs: [hub('h')] });
+	const list = home.ownerChecklist(ready, 'unknown', home.askedAI(busy, 'me', true));
+	assert.equal(list.incomplete, false);
+	assert.equal(home.homeMode(list, false, true), 'status');
+});
+
+test('only active members count as people who can use ORCA', () => {
+	const people = [{ id: 'a' }, { id: 'b', status: 'active' }, { id: 'c', status: 'suspended' }, { id: 'd', status: 'removed' }];
+	assert.deepEqual(home.activeMembers(people).map((person) => person.id), ['a', 'b']);
+});
+
+test('Home\'s mode and title pill: setup, loading, then status; never "ready" while setup is unfinished', () => {
+	const th = (thai) => thai;
+	const unfinished = { incomplete: true };
+	const known = { incomplete: false };
+	assert.equal(home.homeMode(unfinished, false, false), 'setup', 'a step known undone shows the checklist at once');
+	assert.equal(home.homeMode(known, true, true), 'setup', 'an employee with no usable workspace asks for access');
+	assert.equal(home.homeMode(known, false, false), 'loading', 'nothing flashes while the rest loads');
+	assert.equal(home.homeMode(known, false, true), 'status');
+	assert.deepEqual(home.homeBadge('setup', true, 0, th), { label: 'ยังตั้งค่าไม่เสร็จ', tone: 'warn' });
+	assert.equal(home.homeBadge('loading', true, 3, th), undefined);
+	assert.deepEqual(home.homeBadge('status', true, 2, th), { label: 'ต้องดูแล 2 เรื่อง', tone: 'warn' });
+	assert.deepEqual(home.homeBadge('status', true, 0, th), { label: 'พร้อมใช้งาน', tone: 'ok' });
+	assert.deepEqual(home.homeBadge('status', false, 2, th), { label: 'พร้อมใช้งาน', tone: 'ok' }, 'company alerts are for managers');
+	for (const mode of ['setup', 'loading', 'status'])
+		for (const attention of [0, 1]) assert.notEqual(home.homeBadge(mode, true, attention, th)?.label, 'ระบบพร้อมใช้งาน');
 });
 
 test('owner checklist: each step is done from data that exists, in order', () => {
@@ -108,7 +142,11 @@ test('employee checklist: AI, then a sign-in per program, then the first questio
 	list = home.employeeChecklist('connected', ['signed-in', 'needed'], false);
 	assert.equal(list.current, 'accounts');
 	list = home.employeeChecklist('connected', ['signed-in', 'waiting'], false);
-	assert.equal(list.steps[1].done, false, 'a workspace an admin has not opened yet keeps step 2 open');
+	assert.equal(list.steps[1].done, true, 'a workspace an admin has not opened yet does not hold the employee back');
+	list = home.employeeChecklist('connected', ['needed', 'waiting'], false);
+	assert.equal(list.steps[1].done, false);
+	list = home.employeeChecklist('connected', ['waiting'], false);
+	assert.equal(list.steps[1].done, undefined, 'nothing usable yet: not known');
 	list = home.employeeChecklist('connected', ['signed-in', 'checking'], true);
 	assert.equal(list.steps[1].done, undefined, 'still checking is not known');
 	assert.equal(list.incomplete, false);
@@ -150,6 +188,10 @@ test('copy: first names, a first question per program, and the access request', 
 	// A message that may go through LINE opens in the phone's own browser (critique 13).
 	assert.match(text, /https:\/\/orca\.example\.test\/app\?view=workspaces&openExternalBrowser=1$/);
 	assert.match(home.accessRequestText({ name: '', email: '', company: 'X', link: 'https://a.test/app' }, en), /^Please add me to/);
+	// The company gate: someone with no company asks for an invite link, with their email when known.
+	assert.equal(home.inviteRequestText(' new.person@example.com ', en), "Could you send me an invite link to our company's ORCA? My email is new.person@example.com.");
+	assert.equal(home.inviteRequestText('new.person@example.com', th), 'รบกวนส่งลิงก์เชิญเข้า ORCA ของบริษัทให้หน่อย ใช้อีเมล new.person@example.com');
+	assert.equal(home.inviteRequestText('', th), 'รบกวนส่งลิงก์เชิญเข้า ORCA ของบริษัทให้หน่อย');
 });
 
 test('per-viewer flags survive a storage that throws', () => {

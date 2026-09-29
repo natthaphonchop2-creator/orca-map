@@ -34,7 +34,13 @@
 		<li>
 			<span class="home-prompt-logo"><CatalogIcon name={iconName(connection)} size={22} /></span>
 			<q class="home-prompt-text">{firstPrompt(connection, t)}</q>
-			<button type="button" class="k-button small" onclick={() => copy(connection)}>
+			<!-- Several copy buttons: each names its program for screen readers (the visible words come first). -->
+			<button
+				type="button"
+				class="k-button small"
+				aria-label={copiedID === connection.id ? t(`คัดลอกแล้ว: คำถามของ ${connection.name}`, `Copied: the ${connection.name} question`) : t(`คัดลอกคำถามนี้: ${connection.name}`, `Copy this question: ${connection.name}`)}
+				onclick={() => copy(connection)}
+			>
 				{#if copiedID === connection.id}<Check size={15} aria-hidden="true" />{t('คัดลอกแล้ว', 'Copied')}{:else}<Copy size={15} aria-hidden="true" />{t('คัดลอกคำถามนี้', 'Copy this question')}{/if}
 			</button>
 			{#if failedID === connection.id}<p class="home-prompt-failed" role="alert">{t('คัดลอกไม่ได้ เลือกข้อความแล้วคัดลอกเอง', 'Copy failed. Select the text and copy it yourself.')}</p>{/if}
