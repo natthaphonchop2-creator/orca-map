@@ -224,6 +224,19 @@ export function canDisconnectAll(group: Pick<AppGroup, 'all'>, viewerID: string,
 }
 
 /**
+ * The whole-person dialog also says "ถ้า{ชื่อ}ลาออก ให้ระงับบัญชีในหน้า ทีม":
+ * only to a viewer the backend lets change member status (canChangeMemberStatus;
+ * in the default company that is the ORCA team only), for a current member
+ * other than the viewer.
+ */
+export function offerSuspend(
+	viewer: { canChangeMemberStatus?: boolean },
+	person: { member: boolean; isViewer: boolean }
+): boolean {
+	return viewer.canChangeMemberStatus === true && person.member && !person.isViewer;
+}
+
+/**
  * Disconnects each item in turn through its own endpoint and reports
  * "ตัดแล้ว X จาก Y". One failure never stops the rest.
  */

@@ -17,7 +17,7 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(testProps, dependencies) {
-  const { OrcaService, onMount, onDestroy, approvalTone, argumentEntries, orcaLocale, t, term, toolPresentation, displayDate, memberName, orcaError, showToast } = dependencies;
+  const { OrcaService, onMount, onDestroy, tick, approvalTone, argumentEntries, orcaLocale, t, term, toolPresentation, displayDate, memberName, orcaError, showToast } = dependencies;
   ${script}
   return {
     load, approve, reject, switchTab, toolLabel, person, workspace, statusLabel, failureLabel, decisionLine,
@@ -54,6 +54,7 @@ function mount(props, service) {
       },
       onMount: () => {},
       onDestroy: () => {},
+      tick: async () => {},
       orcaLocale: { value: "th" },
       t: (th) => th,
       term: (key, translate) => translate(...glossary[key]),

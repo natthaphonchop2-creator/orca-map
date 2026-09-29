@@ -12,12 +12,9 @@
   // stay folded under "สำหรับนักพัฒนา".
   let {
     event,
-    expanded = false,
     codes = [],
   }: {
     event: OrcaAuditEvent;
-    /** Kept for callers; the details always show in full. */
-    expanded?: boolean;
     /** More codes for the developer section, e.g. the person's ID. */
     codes?: { label: string; value: string }[];
   } = $props();
@@ -72,7 +69,7 @@
   });
 </script>
 
-<div class="audit-details" class:expanded>
+<div class="audit-details">
   {#if detail.durationMs !== undefined || detail.finishedAt || detail.errorCategory}<dl class="audit-plain">
       {#if detail.durationMs !== undefined}<div>
           <dt>{t("ใช้เวลา", "Duration")}</dt>

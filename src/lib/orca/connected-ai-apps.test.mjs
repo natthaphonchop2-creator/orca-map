@@ -6,7 +6,7 @@ const apps = await importTypeScript(new URL("./connected-ai-apps.ts", import.met
 const { secretRows } = await importTypeScript(new URL("./secrets.ts", import.meta.url));
 const {
   APPS_FILTERS, agoLabel, appKind, appReach, appsFilter, avatarTone, canDisconnectAll, connectedApps, connectedAppsHref,
-  disconnectEach, initial, shortDate, shortName, timeAgo,
+  disconnectEach, initial, offerSuspend, shortDate, shortName, timeAgo,
 } = apps;
 
 // Synthetic people and apps shaped like the mockup: 7 apps from 4 people.
@@ -114,6 +114,15 @@ test("an admin never gets disconnect-all on an owner's group, and one app needs 
   // Another owner may disconnect all of an owner's apps; an admin may disconnect their own.
   assert.equal(canDisconnectAll(groups.owner, "other-owner", true), true);
   assert.equal(canDisconnectAll({ all: groups.owner.all.map((row) => ({ ...row, userID: "admin" })) }, "admin", false), true);
+});
+
+test("the suspend hint follows canChangeMemberStatus, for a current member who is not the viewer", () => {
+  const colleague = { member: true, isViewer: false };
+  assert.equal(offerSuspend({ canChangeMemberStatus: true }, colleague), true);
+  assert.equal(offerSuspend({ canChangeMemberStatus: false }, colleague), false, "an admin in the default company (the ORCA team only)");
+  assert.equal(offerSuspend({}, colleague), false, "no flag, no hint");
+  assert.equal(offerSuspend({ canChangeMemberStatus: true }, { member: false, isViewer: false }), false, "a former member");
+  assert.equal(offerSuspend({ canChangeMemberStatus: true }, { member: true, isViewer: true }), false, "never yourself");
 });
 
 test("where an app pulls data from: a key's workspace, or the holder's active workspaces", () => {

@@ -1,12 +1,13 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
-	import { KeyRound, Link2Off, LoaderCircle, RefreshCw, Search, Sparkles, Unplug, X } from '@lucide/svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
+	import { Link2Off, LoaderCircle, RefreshCw, Search, Sparkles, Unplug, X } from '@lucide/svelte';
 	import {
 		APPS_FILTERS,
 		appKind,
 		connectedApps,
 		connectedAppsHref,
 		disconnectEach,
+		offerSuspend,
 		shortName,
 		type AppGroup,
 		type AppsFilter
@@ -16,6 +17,7 @@
 	import { organizationRole } from '$lib/orca/member-access';
 	import { STALE_DAYS, secretRows, type SecretRow } from '$lib/orca/secrets';
 	import { OrcaService, orcaError, type OrcaBootstrap, type OrcaSecrets } from '$lib/services/orca';
+	import AIAppTile from './AIAppTile.svelte';
 	import ConnectedAppsList from './ConnectedAppsList.svelte';
 	import ConfirmDialog from './ui/ConfirmDialog.svelte';
 	import EmptyState from './ui/EmptyState.svelte';
@@ -41,6 +43,11 @@
 	let progress = $state({ attempted: 0, total: 0 });
 	let dialogError = $state('');
 	let retry = $state(false);
+	// After a partial failure, "ลองอีกครั้ง" tries only what failed, even if
+	// the reload that followed did not come back.
+	let failedKeys = new Set<string>();
+	// The filter bar: where focus goes when the app it was on is gone.
+	let bar: HTMLElement | undefined = $state();
 	let alive = true;
 	let request = 0;
 
@@ -100,8 +107,21 @@
 		if (busy) return;
 		dialogError = '';
 		retry = false;
+		failedKeys = new Set();
 		person = { userID: group.userID, name: group.name, isViewer: group.isViewer, member: Boolean(group.role) };
 		personOpen = true;
+	}
+	/**
+	 * A disconnected app leaves the list, and with it the button focus went
+	 * back to when the dialog closed: keep keyboard users near the list, on the
+	 * chosen filter chip, instead of the top of the page.
+	 */
+	async function keepFocus() {
+		await tick();
+		if (!alive || typeof document === 'undefined') return;
+		const active = document.activeElement;
+		if (active && active !== document.body && active.isConnected) return;
+		bar?.querySelector<HTMLElement>('.cx-chip.chosen')?.focus();
 	}
 	const disconnectRow = (row: SecretRow) =>
 		row.kind === 'session' ? OrcaService.revokeSecretSession(row.id) : OrcaService.revokeSecretKey(row.keyID!);
@@ -129,13 +149,17 @@
 		} finally {
 			if (alive) busy = false;
 		}
-		if (alive) await refresh();
+		if (!alive) return;
+		const done = !singleOpen;
+		await refresh();
+		if (done) await keepFocus();
 	}
 
 	async function disconnectPerson() {
 		const chosen = person;
 		if (busy || !chosen) return;
-		const items = personItems;
+		const rowKey = (row: SecretRow) => `${row.kind}:${row.id}`;
+		const items = retry ? personItems.filter((row) => failedKeys.has(rowKey(row))) : personItems;
 		if (!items.length) {
 			personOpen = false;
 			return;
@@ -149,26 +173,34 @@
 		if (!alive) return;
 		busy = false;
 		if (!result.failed.length) {
+			retry = false;
+			failedKeys = new Set();
 			personOpen = false;
 			const who = chosen.isViewer ? t('คุณ', 'Your') : shortName(nameOf(chosen));
 			showToast(t(`ตัดแล้ว ${result.done} จาก ${result.total} · แอป AI ของ${who}ใช้ข้อมูลบริษัทไม่ได้แล้ว`, `Disconnected ${result.done} of ${result.total}. ${chosen.isViewer ? who : `${who}'s`} AI apps can no longer use company data.`));
 		} else {
 			retry = true;
+			failedKeys = new Set(result.failed.map(rowKey));
 			dialogError = t(
 				`ตัดแล้ว ${result.done} จาก ${result.total} อีก ${result.failed.length} รายการตัดไม่สำเร็จ อาจถูกตัดไปแล้วหรือคุณไม่มีสิทธิ์ กด ลองอีกครั้ง`,
 				`Disconnected ${result.done} of ${result.total}. ${result.failed.length} could not be disconnected; they may already be gone, or you may not have permission. Try again.`
 			);
 		}
 		await refresh();
+		if (!alive) return;
 		// Everything that failed was already gone: nothing is left to retry.
-		if (alive && retry && !personItems.length) {
+		if (retry && !personItems.length) {
 			personOpen = false;
 			retry = false;
+			const who = chosen.isViewer ? t('คุณ', 'Your') : shortName(nameOf(chosen));
+			showToast(t(`แอป AI ของ${who}ใช้ข้อมูลบริษัทไม่ได้แล้ว`, `${chosen.isViewer ? who : `${who}'s`} AI apps can no longer use company data.`));
 		}
+		if (!personOpen) await keepFocus();
 	}
 	function closed() {
 		dialogError = '';
 		retry = false;
+		failedKeys = new Set();
 	}
 	function clearSearch() {
 		query = '';
@@ -235,7 +267,7 @@
 {:else if !allRows.length}
 	<EmptyState icon={Sparkles} message={t('ยังไม่มีใครเชื่อมแอป AI กับบริษัท', 'No one has connected an AI app to the company yet.')} actionLabel={t('ดูวิธีเชื่อม', 'See how to connect')} href={localeHref('/app?view=connect-ai')} />
 {:else}
-	<div class="cx-bar">
+	<div class="cx-bar" bind:this={bar}>
 		<nav class="cx-chips" aria-label={t('ตัวกรอง', 'Filters')}>
 			{#each chips as chip (chip.id)}
 				<a
@@ -315,15 +347,13 @@
 	<ul class="cx-dialog-list">
 		{#each personItems as row (`${row.kind}:${row.id}`)}
 			<li>
-				<span class="cx-dialog-tile kind-{appKind(row)}" aria-hidden="true"
-					>{#if appKind(row) === 'claude'}C{:else if appKind(row) === 'chatgpt'}G{:else if row.kind === 'key'}<KeyRound size={13} />{:else}<Sparkles size={13} />{/if}</span
-				>
+				<AIAppTile kind={appKind(row)} size={24} />
 				<strong>{appName(row)}</strong>
 				<span>{row.kind === 'key' ? t('คีย์', 'Key') : t('เข้าสู่ระบบ', 'Sign-in')}</span>
 			</li>
 		{/each}
 	</ul>
-	{#if data.canChangeMemberStatus && person && person.member && !person.isViewer}<p class="cx-dialog-note">
+	{#if person && offerSuspend(data, person)}<p class="cx-dialog-note">
 			{t(`ถ้า${shortName(person.name)}ลาออก ให้ระงับบัญชีในหน้า`, `If ${shortName(person.name)} is leaving, also suspend the account on`)}
 			<a href={localeHref('/app?view=members')}>{term('team', t)}</a>
 			{t('ด้วย ORCA จะตัดทุกอย่างของบริษัทนี้ให้', 'ORCA then disconnects everything in this company.')}
@@ -502,30 +532,6 @@
 	.cx-dialog-list span:last-child {
 		color: var(--orca-muted);
 		font-size: 12.5px;
-	}
-	.cx-dialog-tile {
-		display: grid;
-		flex: none;
-		place-items: center;
-		width: 24px;
-		height: 24px;
-		border-radius: 6px;
-		background: var(--orca-secondary);
-		box-shadow: inset 0 0 0 1px var(--orca-line);
-		color: var(--orca-text-2);
-		font-size: 11px;
-		font-weight: 800;
-	}
-	/* The list's letter tiles: white on each app's colour (see ConnectedAppsList). */
-	.cx-dialog-tile.kind-claude {
-		background: #b85a3b;
-		box-shadow: none;
-		color: var(--orca-on-deny);
-	}
-	.cx-dialog-tile.kind-chatgpt {
-		background: #0e8467;
-		box-shadow: none;
-		color: var(--orca-on-deny);
 	}
 	.cx-dialog-note {
 		margin: 14px 0 0 !important;

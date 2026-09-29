@@ -276,6 +276,9 @@
       : { id };
   }
   function resourceDisplay(event: OrcaAuditEvent): EntityDisplay {
+    // The company's own details: name the company, never a code or "—".
+    if ((event.action ?? "").startsWith("organization."))
+      return { label: data.organization?.displayName || t("ข้อมูลบริษัท", "Company details") };
     const id = event.resourceID;
     if (id) {
       const known =
@@ -644,7 +647,6 @@
       </dl>
       <AuditDetails
         event={selected}
-        expanded
         codes={[
           { label: t("รหัสผู้ใช้", "Person ID"), value: selected.userID },
           { label: t("ชื่อที่โปรแกรมใช้", "Program's name for it"), value: selected.toolName ?? "" },
@@ -661,9 +663,11 @@
 </dialog>
 
 <style>
+  /* The page follows its own width, not the window's: the sidebar takes a share. */
   .observability {
     min-width: 0;
     color: var(--orca-ink);
+    container: audit / inline-size;
   }
   button:disabled {
     cursor: not-allowed;
@@ -901,7 +905,7 @@
     font-weight: 600;
     text-align: start;
     cursor: pointer;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
   .event-name:hover {
     text-decoration: underline;
@@ -921,14 +925,14 @@
   .primary-cell {
     display: block;
     color: var(--orca-ink);
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
   .secondary-cell {
     display: block;
     margin-top: 2px;
     color: var(--orca-muted);
     font-size: 13px;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
   .duration,
   .timestamp {
@@ -1154,7 +1158,7 @@
     white-space: nowrap;
     border: 0;
   }
-  @media (max-width: 1100px) {
+  @container audit (max-width: 1000px) {
     .audit-toolbar {
       grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
     }
@@ -1162,8 +1166,7 @@
       grid-column: 1 / -1;
     }
   }
-  /* Cards: each record stacks, the result and time on top. */
-  @media (max-width: 720px) {
+  @container audit (max-width: 640px) {
     .audit-toolbar {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -1177,6 +1180,9 @@
     .audit-more {
       grid-template-columns: minmax(0, 1fr);
     }
+  }
+  /* Cards under 900px of page: each record stacks, the result and time on top. */
+  @container audit (max-width: 900px) {
     .audit-panel {
       overflow: visible;
       border: 0;

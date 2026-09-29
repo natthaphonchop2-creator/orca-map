@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, onMount } from "svelte";
+  import { onDestroy, onMount, tick } from "svelte";
   import { Check, CircleCheck, Inbox, LoaderCircle, RefreshCw, X } from "@lucide/svelte";
   import CatalogIcon from "$lib/orca/CatalogIcon.svelte";
   import { approvalTone, argumentEntries } from "$lib/orca/approvals";
@@ -27,6 +27,8 @@
   let confirming = $state("");
   let rejecting = $state("");
   let note = $state("");
+  // The status switch: where focus goes when the request it was on has moved.
+  let bar: HTMLElement | undefined = $state();
   let alive = true;
   let request = 0;
 
@@ -85,6 +87,19 @@
   onMount(() => void load());
   onDestroy(() => { alive = false; });
 
+  /**
+   * A decided request leaves the waiting list, and with it the button focus
+   * went back to when the dialog closed: keep keyboard users on the status
+   * switch above the list instead of the top of the page.
+   */
+  async function keepFocus() {
+    await tick();
+    if (!alive || typeof document === "undefined") return;
+    const active = document.activeElement;
+    if (active && active !== document.body && active.isConnected) return;
+    bar?.querySelector<HTMLElement>("button.chosen")?.focus();
+  }
+
   function switchTab(next: "pending" | "decided") {
     if (tab === next) return;
     tab = next;
@@ -114,6 +129,7 @@
       busyID = "";
       onchanged?.();
     }
+    await keepFocus();
   }
 
   async function reject(item: OrcaApproval) {
@@ -137,6 +153,7 @@
       busyID = "";
       onchanged?.();
     }
+    await keepFocus();
   }
 
   const approving = $derived(items.find((item) => item.id === confirming));
@@ -150,7 +167,7 @@
     : t("งานที่ AI ของคุณขอสร้างหรือแก้ข้อมูล จะรอผู้ดูแลอนุมัติก่อน", "Changes your AI app asks to make wait for an admin's approval.")}
 />
 
-<div class="approvals-bar">
+<div class="approvals-bar" bind:this={bar}>
   <div class="approvals-tabs" role="group" aria-label={t("สถานะคำขอ", "Request status")}>
     <button type="button" class:chosen={tab === "pending"} aria-pressed={tab === "pending"} onclick={() => switchTab("pending")}>{t("รออนุมัติ", "Waiting")}{#if tab === "pending" && loaded}<span>{items.length}</span>{/if}</button>
     <button type="button" class:chosen={tab === "decided"} aria-pressed={tab === "decided"} onclick={() => switchTab("decided")}>{t("ตัดสินแล้ว", "Decided")}</button>
@@ -159,7 +176,6 @@
 </div>
 
 {#if error}<div class="k-banner error approvals-error" role="alert">{error}</div>{/if}
-{#if notice}<p class="sr-only" role="status">{notice}</p>{/if}
 
 {#if loading && !loaded}
   <div class="approvals-loading" role="status"><LoaderCircle size={22} class="k-spin" aria-hidden="true" />{t("กำลังโหลด…", "Loading…")}</div>
@@ -284,10 +300,12 @@
   .approval-reason { display: block; margin-top: 16px; color: var(--orca-ink); font-size: 13.5px; font-weight: 600; }
   .approval-reason-input { width: 100%; min-height: 40px; margin-top: 6px; padding: 8px 12px; border: 1px solid var(--orca-field-line); border-radius: var(--orca-radius); background: var(--orca-field); color: var(--orca-ink); font: inherit; font-size: 14px; }
   .approval-reason-input:focus-visible { border-color: var(--orca-focus); outline: none; box-shadow: 0 0 0 3px var(--orca-focus-halo); }
-  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
   @media (max-width: 720px) {
     .approval-card { padding: 16px; }
-    .approval-card > header { flex-wrap: wrap; }
+    /* The icon and the title stay on one line; the status pill goes under the title. */
+    .approval-card > header { flex-wrap: wrap; row-gap: 8px; }
+    .approval-title { flex: 1 1 calc(100% - 52px); }
+    .approval-card > header > :global(.orca-pill) { margin-left: 52px; }
     .approval-args { grid-template-columns: minmax(0, 1fr); gap: 2px; }
     .approval-args dd { margin-bottom: 6px; }
     .approval-actions > :global(.k-button) { flex: 1 1 0; justify-content: center; min-height: 40px; }

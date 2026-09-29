@@ -117,7 +117,7 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(testProps, deps) {
-  const { OrcaService, onMount, onDestroy, APPS_FILTERS, appKind, connectedApps, connectedAppsHref, disconnectEach, shortName, term, localeHref, t, organizationRole, STALE_DAYS, secretRows, orcaError, showToast } = deps;
+  const { OrcaService, onMount, onDestroy, tick, APPS_FILTERS, appKind, connectedApps, connectedAppsHref, disconnectEach, shortName, term, localeHref, t, organizationRole, STALE_DAYS, secretRows, orcaError, showToast } = deps;
   ${script}
   return {
     refresh, askOne, askAll, disconnectOne, disconnectPerson,
@@ -143,22 +143,25 @@ function mount(viewerID, service = {}) {
       ...secrets,
       organizationRole: access.organizationRole,
       OrcaService: {
-        secrets: async () => { calls.list += 1; return service.list ? service.list(current) : current; },
+        secrets: async () => { calls.list += 1; return service.list ? service.list(current, calls.list) : current; },
         revokeSecretSession: async (id) => {
           calls.session.push(id);
           if (service.fail?.includes(id)) throw new Error("gone");
           current = { ...current, sessions: current.sessions.filter((item) => item.id !== id) };
+          if (service.vanish?.includes(id)) throw new Error("item not found");
           return { revoked: true };
         },
         revokeSecretKey: async (id) => {
           calls.key.push(id);
           if (service.fail?.includes(id)) throw new Error("gone");
           current = { ...current, keys: current.keys.filter((item) => item.id !== id) };
+          if (service.vanish?.includes(id)) throw new Error("key not found");
           return { revoked: true };
         },
       },
       onMount: () => {},
       onDestroy: () => {},
+      tick: async () => {},
       term,
       t: th,
       localeHref: (path) => path,
@@ -256,6 +259,64 @@ test("a partial disconnect-all stays open, lists what is left and offers to try 
   } finally { stop(); }
 });
 
+test("trying again after a partial disconnect-all sends only what failed, even when the reload failed", async () => {
+  const failing = [101];
+  const { view, calls, stop } = mount("owner", {
+    fail: failing,
+    // The reload after the first attempt does not come back.
+    list: (current, count) => { if (count === 2) throw new Error("offline"); return current; },
+  });
+  try {
+    await view.refresh();
+    flush();
+    view.askAll(group(view, "mali"));
+    await view.disconnectPerson();
+    flush();
+    assert.deepEqual(calls.session, ["s-mali"]);
+    assert.equal(view.error, "offline");
+    assert.equal(view.personConfirm, "ลองอีกครั้ง");
+    assert.equal(view.personItems.length, 2, "the stale list still shows both");
+    failing.length = 0;
+    await view.disconnectPerson();
+    flush();
+    assert.deepEqual(calls.session, ["s-mali"], "the sign-in that was already disconnected is not sent again");
+    assert.deepEqual(calls.key, [101, 101]);
+    assert.equal(view.personOpen, false);
+    assert.deepEqual(calls.toasts, ["ตัดแล้ว 1 จาก 1 · แอป AI ของมาลีใช้ข้อมูลบริษัทไม่ได้แล้ว"]);
+  } finally { stop(); }
+});
+
+test("when what failed turns out to be gone already, the dialog closes and says so", async () => {
+  const { view, calls, stop } = mount("owner", { vanish: [101] });
+  try {
+    await view.refresh();
+    flush();
+    view.askAll(group(view, "mali"));
+    await view.disconnectPerson();
+    flush();
+    assert.deepEqual(calls.key, [101]);
+    assert.equal(view.personOpen, false, "nothing is left to try again");
+    assert.deepEqual(calls.toasts, ["แอป AI ของมาลีใช้ข้อมูลบริษัทไม่ได้แล้ว"]);
+    assert.equal(group(view, "mali"), undefined);
+  } finally { stop(); }
+});
+
+test("the app tile: a letter in the app's colour for Claude and ChatGPT, an icon otherwise, hidden from screen readers", async () => {
+  const { warnings, Component } = await serverComponent(new URL("./AIAppTile.svelte", import.meta.url), {
+    KeyRound: (renderer) => renderer.push("<svg data-icon=\"key\"></svg>"),
+    Sparkles: (renderer) => renderer.push("<svg data-icon=\"app\"></svg>"),
+  });
+  assert.deepEqual(warnings, []);
+  const tile = (kind, size) => render(Component, { props: { kind, size } }).body;
+  const claude = tile("claude");
+  assert.match(claude, /<span class="ai-app-tile kind-claude[^"]*"[^>]*>(?:<!--[^>]*-->)*C(?:<!--[^>]*-->)*<\/span>/);
+  assert.match(claude, /aria-hidden="true"/);
+  assert.match(claude, /--ai-tile-size: 32px;/);
+  assert.match(tile("chatgpt", 24), /kind-chatgpt[^>]*--ai-tile-size: 24px;[^>]*>(?:<!--[^>]*-->)*G</);
+  assert.match(tile("key"), /data-icon="key"/);
+  assert.match(tile("other"), /data-icon="app"/);
+});
+
 test("the empty states say what is missing", async () => {
   const { view, stop } = mount("owner");
   try {
@@ -269,7 +330,7 @@ test("the empty states say what is missing", async () => {
 
 test("the page loads nothing for a non-manager and compiles without warnings", async () => {
   assert.match(component, /onMount\(\(\) => \{\s*if \(data\.canManage\) void refresh\(\);/);
-  for (const file of ["ConnectedAIApps.svelte", "ConnectedAppsList.svelte"]) {
+  for (const file of ["ConnectedAIApps.svelte", "ConnectedAppsList.svelte", "AIAppTile.svelte"]) {
     const source = await readFile(new URL(`./${file}`, import.meta.url), "utf8");
     assert.deepEqual(compile(source, { filename: file, generate: "client" }).warnings.map((warning) => warning.code), [], file);
   }
