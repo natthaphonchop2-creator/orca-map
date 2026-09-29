@@ -1,10 +1,12 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { appsFilter } from '$lib/orca/connected-ai-apps';
 	import { term } from '$lib/orca/glossary';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import type { OrcaBootstrap } from '$lib/services/orca';
 	import Approvals from '../Approvals.svelte';
 	import Audit from '../Audit.svelte';
-	import Secrets from '../Secrets.svelte';
+	import ConnectedAIApps from '../ConnectedAIApps.svelte';
 
 	// ตรวจสอบ: รออนุมัติ · ประวัติการใช้งาน · ประวัติการตั้งค่า · แอป AI ที่เชื่อมอยู่.
 	// Each tab keeps its view id; the two histories keep their workspace filter.
@@ -26,16 +28,35 @@
 		onapprovalschanged?: () => void;
 	} = $props();
 	const hub = $derived(hubID ? `&hub=${encodeURIComponent(hubID)}` : '');
+	// แอป AI ที่เชื่อมอยู่ keeps its chips in the address: &filter=stale|noexpiry&holder=<id>.
+	const appsFilterValue = $derived(appsFilter(page.url.searchParams.get('filter')));
+	const appsHolder = $derived(page.url.searchParams.get('holder') ?? '');
 	const tabs = $derived([
 		{ id: 'approvals', label: term('waitingApproval', t), href: '/app?view=approvals', count: pendingApprovals },
 		{ id: 'executions', label: term('usageHistory', t), href: `/app?view=executions${hub}` },
 		{ id: 'audit', label: term('settingsHistory', t), href: `/app?view=audit${hub}` },
 		{ id: 'secrets', label: term('connectedAIApps', t), href: '/app?view=secrets' }
 	]);
+	// On a phone the tab bar scrolls sideways: keep the open tab in view once
+	// the fonts have set its width. Only the bar scrolls, never the page.
+	let tabBar: HTMLElement | undefined = $state();
+	$effect(() => {
+		void view;
+		const bar = tabBar;
+		if (!bar || bar.scrollWidth <= bar.clientWidth) return;
+		const reveal = () => {
+			const chosen = bar.querySelector<HTMLElement>('a.chosen');
+			if (!chosen) return;
+			const left = chosen.getBoundingClientRect().left - bar.getBoundingClientRect().left + bar.scrollLeft;
+			if (left < bar.scrollLeft || left + chosen.offsetWidth > bar.scrollLeft + bar.clientWidth)
+				bar.scrollLeft = Math.min(left - 16, bar.scrollWidth - bar.clientWidth);
+		};
+		void (document.fonts?.ready ?? Promise.resolve()).then(reveal);
+	});
 </script>
 
 {#if data.canManage}
-	<nav class="oversight-tabs" aria-label={term('oversight', t)}>
+	<nav class="oversight-tabs" aria-label={term('oversight', t)} bind:this={tabBar}>
 		{#each tabs as tab (tab.id)}
 			<a
 				href={localeHref(tab.href)}
@@ -50,7 +71,7 @@
 {#if view === 'approvals'}<Approvals {data} onchanged={onapprovalschanged} />
 {:else if view === 'executions'}<Audit {data} {hubID} mode="executions" showModeTabs={!data.canManage} />
 {:else if view === 'audit'}<Audit {data} {hubID} mode="administration" showModeTabs={!data.canManage} />
-{:else if view === 'secrets'}<Secrets data={activeData} />
+{:else if view === 'secrets'}<ConnectedAIApps data={activeData} filter={appsFilterValue} holder={appsHolder} />
 {/if}
 
 <style>

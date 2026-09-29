@@ -10,19 +10,21 @@ import { effect_root, flush } from "svelte/internal/client";
 
 const component = await readFile(new URL("./Approvals.svelte", import.meta.url), "utf8");
 const approvals = await importTypeScript(new URL("../../orca/approvals.ts", import.meta.url));
+const { glossary } = await importTypeScript(new URL("../../orca/glossary.ts", import.meta.url));
 const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
   .replace(/^\s*import[^;]+;/gm, "")
   .replace("$props()", "$state(testProps)");
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(testProps, dependencies) {
-  const { OrcaService, onMount, onDestroy, approvalTone, argumentEntries, orcaLocale, t, toolPresentation, displayDate, memberName, orcaError } = dependencies;
+  const { OrcaService, onMount, onDestroy, approvalTone, argumentEntries, orcaLocale, t, term, toolPresentation, displayDate, memberName, orcaError, showToast } = dependencies;
   ${script}
   return {
     load, approve, reject, switchTab, toolLabel, person, workspace, statusLabel, failureLabel, decisionLine,
     get items() { return items; }, get error() { return error; }, get notice() { return notice; },
     get busyID() { return busyID; }, get loaded() { return loaded; }, get tab() { return tab; },
     get confirming() { return confirming; }, get rejecting() { return rejecting; },
+    get approving() { return approving; }, get declining() { return declining; }, pillTone,
     setRejecting(id, value) { rejecting = id; note = value; }, setConfirming(id) { confirming = id; },
   };
 }`,
@@ -40,7 +42,7 @@ const data = (canManage = true) => ({
 const waiting = (id, extra = {}) => ({ id, createdAt: "2026-09-25T08:00:00Z", expiresAt: "2026-10-02T08:00:00Z", userID: "2", hubID: "khh-1", connectionID: "khc-1", toolName: "create_quote", arguments: { customer: "Synthetic Co" }, status: "pending", ...extra });
 
 function mount(props, service) {
-  const calls = { list: [], approve: [], reject: [], changed: 0 };
+  const calls = { list: [], approve: [], reject: [], changed: 0, toasts: [] };
   let view;
   const stop = effect_root(() => {
     view = harness({ ...props, onchanged: () => calls.changed++ }, {
@@ -54,6 +56,8 @@ function mount(props, service) {
       onDestroy: () => {},
       orcaLocale: { value: "th" },
       t: (th) => th,
+      term: (key, translate) => translate(...glossary[key]),
+      showToast: (message, options) => calls.toasts.push([message, options?.tone ?? "ok"]),
       toolPresentation: (tool) => ({ label: tool.description ? `label:${tool.description}` : `raw:${tool.name}` }),
       displayDate: (value) => value ?? "—",
       memberName: (member) => member.displayName || member.id,
@@ -78,6 +82,9 @@ test("a manager approves a waiting request once and sees what happened", async (
     assert.equal(view.person("2"), "Member");
     assert.equal(view.workspace("khh-1"), "Sales");
     view.setConfirming("apr-1");
+    flush();
+    assert.equal(view.approving?.id, "apr-1", "approving asks in a modal first");
+    assert.equal(view.declining, undefined);
     const first = view.approve(view.items[0]);
     const second = view.approve(view.items[0]);
     await second;
@@ -91,6 +98,8 @@ test("a manager approves a waiting request once and sees what happened", async (
     assert.match(view.notice, /สำเร็จ/);
     assert.equal(view.items.length, 0);
     assert.equal(calls.changed, 1, "the menu's waiting count refreshes");
+    assert.deepEqual(calls.toasts, [[view.notice, "ok"]]);
+    assert.equal(view.approving, undefined, "the modal closes");
   } finally { stop(); }
 });
 
@@ -106,7 +115,8 @@ test("an approval that fails or was already decided explains itself and reloads"
   try {
     await view.load();
     await view.approve(view.items[0]);
-    assert.match(view.notice, /ทำไม่สำเร็จ: ผู้ขอไม่มีสิทธิ์ใช้เครื่องมือนี้แล้ว/);
+    assert.match(view.notice, /ทำไม่สำเร็จ: คนที่ขอไม่มีสิทธิ์ทำสิ่งนี้แล้ว/);
+    assert.deepEqual(calls.toasts.at(-1), [view.notice, "error"], "a failed run stays on screen until closed");
     answer = new Error("This request has already been decided");
     await view.approve(view.items[0]);
     assert.equal(view.error, "This request has already been decided");
@@ -124,6 +134,8 @@ test("a rejection sends the trimmed note and members only list their own request
   try {
     await view.load();
     view.setRejecting("apr-2", "  Wrong customer  ");
+    flush();
+    assert.equal(view.declining?.id, "apr-2", "rejecting asks in a modal with an optional reason");
     await view.reject(view.items[0]);
     assert.deepEqual(calls.reject, [["apr-2", "Wrong customer"]]);
     assert.equal(view.rejecting, "");
@@ -160,7 +172,9 @@ test("switching tabs ignores the slower earlier answer", async () => {
     assert.equal(view.decisionLine({ status: "failed", decidedBy: "1", decidedAt: "2026-09-25T09:00:00Z" }), "อนุมัติโดย Owner · 2026-09-25T09:00:00Z", "a failed run was still approved");
     assert.match(view.decisionLine({ status: "expired" }), /ไม่ได้ทำงานนี้/);
     assert.equal(view.decisionLine({ status: "succeeded" }), "");
-    assert.equal(view.failureLabel("anything"), "ระบบปลายทางแจ้งข้อผิดพลาด");
+    assert.equal(view.failureLabel("anything"), "โปรแกรมแจ้งข้อผิดพลาด");
+    assert.equal(view.failureLabel("timeout"), "โปรแกรมตอบช้าเกินไป");
+    assert.deepEqual(["pending", "running", "succeeded", "failed", "rejected", "expired"].map(view.pillTone), ["warn", "warn", "ok", "deny", "neutral", "neutral"]);
   } finally { stop(); }
 });
 

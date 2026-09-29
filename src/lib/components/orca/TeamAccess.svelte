@@ -16,6 +16,7 @@
   import "./library.css";
   import { LOCAL_AUTH_MIN_PASSWORD_LENGTH } from "$lib/constants";
   import { t, localeHref } from "$lib/orca/locale.svelte";
+  import { connectedAppsHref } from "$lib/orca/connected-ai-apps";
   import type { LocalAuthUser } from "$lib/services/admin/types";
   import {
     OrcaService,
@@ -546,6 +547,8 @@
                           }}>{t("เปลี่ยนบทบาท", "Change role")}</button
                         >{/if}{#if active(member)}<a role="menuitem" href={localeHref("/app?view=workspaces")}
                           >{t("เพิ่มเข้าพื้นที่ทำงาน", "Add to a workspace")}</a
+                        ><a role="menuitem" href={localeHref(connectedAppsHref("all", member.id))}
+                          >{t("ดูแอป AI ที่เชื่อมอยู่", "See connected AI apps")}</a
                         >{/if}{#if canReset}<button
                           role="menuitem"
                           aria-label={t(`ตั้งรหัสผ่านใหม่ให้ ${member.email}`, `Reset password for ${member.email}`)}
