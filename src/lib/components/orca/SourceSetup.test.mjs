@@ -371,7 +371,7 @@ test('sign-in stops when platform availability changes during personal configura
 	assert.equal(signIns, 0);
 	assert.equal(view.state.connectionReady, false);
 	assert.equal(view.state.oauthURL, '');
-	assert.match(view.state.error, /contact the ORCA team/);
+	assert.match(view.state.error, /tell the ORCA team/);
 });
 
 test('preparing a link does not imply readiness; checking refreshes stored sign-in state', async (context) => {
@@ -1056,7 +1056,7 @@ test('rejected user-entered bearer tokens return to configuration without OAuth 
 		await view.configure();
 		assert.deepEqual(calls, [['configure', { [key]: 'synthetic-pat' }]]);
 		assert.equal(view.primaryState, 'configure');
-		assert.match(view.state.error, /did not accept this token/);
+		assert.match(view.state.error, /did not accept this key/);
 		assert.equal(view.state.oauthURL, '');
 		assert.deepEqual(view.state.values, {});
 		assert.equal(popups.length, 0);
@@ -1243,8 +1243,13 @@ test('source setup renders provider branding, native API fields and permission-g
       '$lib/orca/locale.svelte': moduleURL('export const t = (_th, en) => en;'),
       '$lib/services/orca': moduleURL('export const OrcaService = {}; export const orcaError = (error) => error.message;'),
     }));
-    const body = render(ProviderSetup, { props: { sourceID: id, canCreate: true } }).body;
+    const body = render(ProviderSetup, { props: { sourceID: id, canCreate: true, operator: true } }).body;
     const profile = oauthProviderSetup(id, host);
+    // A customer never sees the app set-up or the provider's console.
+    const customer = render(ProviderSetup, { props: { sourceID: id } }).body;
+    assert.match(customer, /can't be connected yet/);
+    assert.doesNotMatch(customer, /Client Secret|source-client-id|App setup instructions|needs provider review/);
+    assert.ok(!customer.includes(profile.actionURL));
     assert.ok(body.includes(profile.actionURL));
     assert.ok(body.includes(profile.appType));
     const help = body.match(/<details([^>]*class="client-provider-help[^"]*"[^>]*)>([\s\S]*?)<\/details>/);
@@ -1283,14 +1288,21 @@ test('source setup renders provider branding, native API fields and permission-g
     const body = render(ManagedSetup, { props: { sourceID: id } }).body;
     assert.ok(body.includes(`Connect ${name}`));
     assert.ok(body.includes(`src="${logo}"`));
-    assert.ok(body.includes(`Sign in to your own ${name} account and authorize ORCA`));
+    assert.ok(body.includes(`Sign in to your own ${name} account and allow ORCA`));
     assert.doesNotMatch(body, /127\.0\.0\.1|Obot|Client Secret|source-client-id|Open Microsoft Entra|Open Google Auth Platform/);
   }
 
 	for (const endpointHost of ['drivemcp.googleapis.com', 'google-drive-mcp.obot.ai']) {
 		const { body } = render(SourceSetup, {
-			props: { sourceID: 'exact-source', sourceLabel: 'Google Drive · ORCA', endpointHost }
+			props: { sourceID: 'exact-source', sourceLabel: 'Google Drive · ORCA', endpointHost, operator: true }
 		});
+		// A customer sees neither the host nor who runs the connector.
+		const customer = render(SourceSetup, {
+			props: { sourceID: 'exact-source', sourceLabel: 'Google Drive · ORCA', endpointHost }
+		}).body;
+		assert.match(customer, /<h3[^>]*>Connect Google Drive<\/h3>/);
+		assert.ok(!customer.includes(endpointHost));
+		assert.doesNotMatch(customer, /Obot|consent page/);
 		assert.match(body, /<h3[^>]*>Connect Google Drive<\/h3>/);
 		assert.match(body, /<img[^>]+src="\/orca\/tools\/google-drive\.svg"/);
 		assert.doesNotMatch(body, /Google Drive · (?:ORCA|Obot)/);
@@ -1318,22 +1330,22 @@ test('source setup renders provider branding, native API fields and permission-g
 	}).body;
 	assert.match(managed, /<h3[^>]*>Connect Google Drive<\/h3>/);
 	assert.match(managed, /src="\/orca\/tools\/google-drive\.svg"/);
-	assert.match(managed, /Sign in to your own Google Drive account and authorize ORCA/);
+	assert.match(managed, /Sign in to your own Google Drive account and allow ORCA/);
 	assert.doesNotMatch(managed, /127\.0\.0\.1|Google Cloud project/);
-	assert.match(managed, /Accounts connected through another provider require a separate sign-in/);
+	assert.match(managed, /If you connected Google Drive another way before, sign in here again/);
 	assert.doesNotMatch(managed, /Obot|Google’s Google Drive service/);
 	for (const [id, fields, label] of [
     ['default-orca-api-facebook-pages', [
       { key: 'Authorization', name: 'Page access token', required: true, sensitive: true },
       { key: 'FACEBOOK_PAGE_ID', name: 'Page ID', required: true, sensitive: false }
-    ], 'โทเคนของเพจ Facebook'],
+    ], 'คีย์ของเพจ Facebook'],
     ['default-orca-api-line-messaging', [
       { key: 'Authorization', name: 'Channel access token', required: true, sensitive: true }
-    ], 'โทเคนของ LINE OA'],
+    ], 'คีย์ของ LINE OA'],
     ['default-orca-api-instagram', [
       { key: 'Authorization', name: 'Instagram access token', required: true, sensitive: true },
       { key: 'INSTAGRAM_ACCOUNT_ID', name: 'Account ID', required: true, sensitive: false }
-    ], 'โทเคนของ Instagram']
+    ], 'คีย์ของ Instagram']
   ]) {
     // Seed only the async service result; compile the real template unchanged.
     const seeded = component.replace('let setup = $state<OrcaSourceSetup>();',
@@ -1376,9 +1388,13 @@ test('source setup renders provider branding, native API fields and permission-g
 			'$lib/orca/locale.svelte': moduleURL('export const t = (_th, en) => en;'),
 			'$lib/services/orca': moduleURL('export const OrcaService = {}; export const orcaError = (error) => error.message;')
 		}));
-		const body = render(OAuthSetup, { props: { sourceID: 'slack', sourceLabel: 'Slack Workspace', canCreate: true } }).body;
+		const body = render(OAuthSetup, { props: { sourceID: 'slack', sourceLabel: 'Slack Workspace', canCreate: true, operator: true } }).body;
+		// Outside the platform pages the app set-up never shows, whoever is looking.
+		const customer = render(OAuthSetup, { props: { sourceID: 'slack', sourceLabel: 'Slack Workspace' } }).body;
+		assert.match(customer, /The ORCA team must set this program up/);
+		assert.doesNotMatch(customer, /Set up app|Client Secret|Client ID|Callback URL|Create ORCA Slack app/);
 		if (!canConfigure) {
-			assert.match(body, /An ORCA platform administrator must set up the app/);
+			assert.match(body, /The ORCA team must set this program up/);
 			assert.doesNotMatch(body, /Set up app|Client Secret|Create ORCA Slack app/);
 		} else if (!formOpen) {
 			assert.match(body, /Set up app/);
@@ -1475,7 +1491,7 @@ test('platform owner can configure the app without falsely marking the personal 
 			assert.equal(view.state.clientSecret, '');
 			return { ...initial(id), oauthClientConfigured: true };
 		}
-	});
+	}, { operator: true });
 	assert.equal(view.primaryState, 'unavailable');
 	view.setClient(' fixture-id ', ' fixture-secret ');
 	await view.configureOAuthClient();
@@ -1515,7 +1531,7 @@ test('app credential failures do not echo secrets and late responses cannot chan
 			if (fail) throw new Error('provider error fixture-secret');
 			return pending.promise;
 		}
-	});
+	}, { operator: true });
 	view.setClient('fixture-id', 'fixture-secret');
 	await view.configureOAuthClient();
 	assert.equal(view.state.clientSecret, '');
@@ -1614,8 +1630,13 @@ test('opening app setup shows fields immediately only after current backend auth
   for (const { expectOpen, ...state } of states) {
     const { view } = await setupHarness(context, {
       sourceSetup: async (id) => source(id, { configured: false, endpointHost: 'mcp.slack.com', ...state }),
-    }, { canCreate: true });
+    }, { canCreate: true, operator: true });
     assert.equal(view.state.clientFormOpen, expectOpen);
+    // Off the platform pages the app set-up never opens.
+    const { view: customer } = await setupHarness(context, {
+      sourceSetup: async (id) => source(id, { configured: false, endpointHost: 'mcp.slack.com', ...state }),
+    }, { canCreate: true });
+    assert.equal(customer.state.clientFormOpen, false);
     assert.equal(view.state.clientSecret, '');
   }
   const pending = deferred();
@@ -1647,7 +1668,7 @@ test('Slack app setup requests the public read profile and requires backend conf
         return { ...initial(id), oauthClientConfigured: true,
           ...(confirmed ? { oauthScopeProfile: scopeProfile } : {}) };
       },
-    });
+    }, { operator: true });
     view.setClient('fixture-id', 'fixture-secret');
     await view.configureOAuthClient();
     assert.deepEqual(calls, [{ id: 'source-one', scopeProfile: 'slack-public-read-v1' }]);
@@ -1672,7 +1693,7 @@ test('Slack scope profile does not carry into a different provider after changin
       calls.push({ id, scopeProfile });
       return { ...initial(id), oauthClientConfigured: true };
     },
-  });
+  }, { operator: true });
   view.setContext('source-two');
   await settle();
   view.setClient('fixture-id', 'fixture-secret');

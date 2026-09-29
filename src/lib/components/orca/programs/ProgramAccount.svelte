@@ -74,7 +74,10 @@
 	}
 	function fieldLabel(field: { key: string; name: string }) {
 		const copy = guide?.fields[field.key];
-		return copy ? t(...copy.label) : field.name || field.key;
+		if (copy) return t(...copy.label);
+		// A program's own key is "คีย์ของ {โปรแกรม}", never "Access token".
+		if (field.name === 'Access token' || field.key.toLowerCase() === 'authorization') return t(`คีย์ของ ${programName}`, `${programName} key`);
+		return field.name || field.key;
 	}
 	function fieldHint(field: { key: string; description: string }) {
 		const copy = guide?.fields[field.key];

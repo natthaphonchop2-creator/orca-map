@@ -129,7 +129,7 @@
 		<PageHeader title={term('knowledge', t)} subtitle={t('ข้อมูลที่ AI ของทีมใช้ตอบคำถาม', 'What your team’s AI answers from')}>
 			{#snippet action()}
 				<button type="button" class="k-button primary kn-add" onclick={() => oncreate(kind)} disabled={!loaded || (!!error && !items.length)}>
-					<Plus size={16} strokeWidth={2.3} aria-hidden="true" />{kind === 'knowledge' ? t('เพิ่มความรู้', 'Add knowledge') : t('เพิ่มคำสั่งสำเร็จรูป', 'Add a prompt')}
+					<Plus size={16} strokeWidth={2.3} aria-hidden="true" />{kind === 'knowledge' ? t('เพิ่มความรู้', 'Add knowledge') : t('เพิ่มคำสั่งสำเร็จรูป', 'Add a ready-made prompt')}
 				</button>
 			{/snippet}
 		</PageHeader>

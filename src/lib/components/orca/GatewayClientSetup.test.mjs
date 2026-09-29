@@ -63,7 +63,7 @@ test('clipboard failure provides a manual-copy fallback without a false success'
 	const view = setupHarness(context, { writeText: async () => { throw new Error('denied'); } });
 	await view.copy(view.instructions, 'Setup instructions');
 	assert.equal(view.copied, '');
-	assert.equal(view.error, 'The text could not be copied automatically. Select and copy it manually.');
+	assert.equal(view.error, 'Copy failed. Select the text and copy it yourself.');
 });
 
 test('the chosen AI app is remembered, and bad or unavailable storage falls back to ChatGPT', (context) => {
@@ -115,7 +115,7 @@ async function rendered(props, app) {
 
 test('ChatGPT is the default: numbered steps, sign-in note and no manual config', async () => {
 	const html = await rendered({ endpoint: 'http://localhost:8787/mcp/team', ready: false });
-	assert.match(html, /AI connection link \(MCP URL\)/);
+	assert.match(html, /This workspace's ORCA link \(MCP URL\)/);
 	assert.match(html, /Each person signs in with their own ORCA account \(OAuth\)/);
 	assert.match(html, /<option value="chatgpt"[^>]*selected/);
 	assert.equal((html.match(/<option /g) ?? []).length, lib.AI_APPS.length);
@@ -154,7 +154,7 @@ test('Codex and Claude Code get copyable commands; Windsurf opens its manual con
 
 test('another app shows the transport, the sign-in method and the setup prompt before copying', async () => {
 	const html = await rendered({ endpoint: 'https://orca.example/api/orca/mcp', scope: 'orca' }, 'other');
-	assert.match(html, /AI connection link for all your workspaces \(MCP URL\)/);
+	assert.match(html, /Your company's ORCA link \(MCP URL\)/);
 	assert.match(html, /One link for every AI workspace you can access/);
 	assert.match(html, /Streamable HTTP/);
 	assert.match(html, /Copy setup instructions/);
@@ -167,7 +167,7 @@ test('another app shows the transport, the sign-in method and the setup prompt b
 test('an invalid endpoint cannot produce any setup', async () => {
 	const html = await rendered({ endpoint: 'https://orca.example/mcp?token=secret' }, 'other');
 	assert.doesNotMatch(html, /Copy setup instructions|<select|token=secret/);
-	assert.match(html, /AI connection link cannot be used to generate a configuration/);
+	assert.match(html, /This link can't be used to make a configuration/);
 });
 
 test('the optional key setup has its own label, and chat apps point back to sign-in', async () => {
@@ -176,7 +176,7 @@ test('the optional key setup has its own label, and chat apps point back to sign
 	assert.match(oauth, /mcp-endpoint-gateway-oauth/);
 	assert.doesNotMatch(oauth, /ORCA_MCP_KEY|Bearer/);
 	assert.match(key, /mcp-endpoint-gateway-key/);
-	assert.match(key, /Uses a personal API key/);
+	assert.match(key, /Uses a personal key/);
 	assert.match(key, /ChatGPT connects only by signing in with your ORCA account \(OAuth\)/);
 	const codexKey = await rendered({ endpoint: 'https://orca.example/mcp/team', oauth: false }, 'codex');
 	assert.match(codexKey, /--bearer-token-env-var ORCA_MCP_KEY/);

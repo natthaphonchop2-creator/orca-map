@@ -90,14 +90,14 @@
     error = "";
   }
   function validate() {
-    if (!name.trim() || !issuerURL.trim() || !clientID.trim()) return t("กรุณากรอกชื่อ Issuer URL และ Client ID", "Enter a name, issuer URL and client ID.");
-    if (enabled && !editing?.secretConfigured && !clientSecret) return t("กรุณากรอก Client secret", "Enter a client secret.");
-    if (editing?.secretConfigured && clientID.trim() !== editing.clientID && !clientSecret) return t("กรุณากรอก Client secret ใหม่เมื่อเปลี่ยน Client ID", "Enter a new client secret when changing the client ID.");
-    if (enabled && !bindings.length) return t("กรุณาจับคู่บัญชีสมาชิกอย่างน้อย 1 บัญชีก่อนเปิดใช้งาน", "Map at least one member account before activating this sign-in source.");
+    if (!name.trim() || !issuerURL.trim() || !clientID.trim()) return t("กรอกชื่อ Issuer URL และ Client ID", "Enter a name, issuer URL and client ID.");
+    if (enabled && !editing?.secretConfigured && !clientSecret) return t("กรอก Client secret", "Enter a client secret.");
+    if (editing?.secretConfigured && clientID.trim() !== editing.clientID && !clientSecret) return t("เปลี่ยน Client ID แล้วต้องกรอก Client secret ใหม่ด้วย", "Enter a new client secret when changing the client ID.");
+    if (enabled && !bindings.length) return t("จับคู่บัญชีอย่างน้อย 1 คนก่อนเปิดใช้งาน", "Map at least one person's account before turning this on.");
     const subjects = new Set<string>();
     const members = new Set<string>();
     for (const binding of bindings) {
-      if (!binding.memberID || !binding.subject.trim()) return t("กรุณาเลือกสมาชิกและกรอก Subject ให้ครบทุกรายการ", "Select a member and enter a subject for each mapping.");
+      if (!binding.memberID || !binding.subject.trim()) return t("เลือกคนและกรอก Subject ให้ครบทุกแถว", "Choose a person and enter a subject on every row.");
       if (subjects.has(binding.subject.trim()) || members.has(binding.memberID)) return t("สมาชิกและ Subject ต้องไม่ซ้ำกัน", "Members and subjects must be unique.");
       subjects.add(binding.subject.trim()); members.add(binding.memberID);
     }
@@ -169,7 +169,7 @@
   async function copyCallback() {
     copied = false;
     try { await navigator.clipboard.writeText(callbackURL); if (alive) copied = true; }
-    catch { if (alive) error = t("คัดลอกไม่สำเร็จ กรุณาเลือกและคัดลอก URL จากช่องด้วยตนเอง", "Copy failed. Select and copy the URL from the field manually."); }
+    catch { if (alive) error = t("คัดลอกไม่สำเร็จ เลือก URL ในช่องแล้วคัดลอกเอง", "Copy failed. Select the URL in the field and copy it yourself."); }
   }
 </script>
 
@@ -187,7 +187,7 @@
     {/if}
   </header>
   {#if !data.canManage}
-    <div class="source-empty"><ShieldCheck size={28} /><h2>{t("หน้านี้สำหรับผู้ดูแลระบบเท่านั้น", "This page is available to Admins only")}</h2></div>
+    <div class="source-empty"><ShieldCheck size={28} /><h2>{t("หน้านี้สำหรับเจ้าของบริษัทและผู้ดูแลเท่านั้น", "This page is for company owners and admins only")}</h2></div>
   {:else}
     {#if error}<div class="k-banner error" role="alert">{error}</div>{/if}
     {#if notice}<div class="source-notice" role="status"><Check size={16} />{notice}</div>{/if}
@@ -210,10 +210,10 @@
             </div>
           {/each}
           <details class="source-help"><summary>{t("ขั้นตอนการตั้งค่า", "Setup steps")}</summary><ol class="k-numbered">
-            <li>{t("สร้างแอป OpenID Connect ในระบบจัดการบัญชีขององค์กร และลงทะเบียน Callback URL ด้านบน", "Create an OpenID Connect app in your organization’s identity provider and register the callback URL above.")}</li>
+            <li>{t("สร้างแอป OpenID Connect ที่ผู้ให้บริการบัญชีของบริษัท (เช่น Microsoft Entra หรือ Okta) แล้วใส่ Callback URL ด้านบน", "Create an OpenID Connect app with your company's identity provider (such as Microsoft Entra or Okta) and register the callback URL above.")}</li>
             <li>{t("กรอก Issuer URL, Client ID และ Client secret ของแอปดังกล่าวในหน้านี้", "Enter that app’s issuer URL, client ID and client secret on this page.")}</li>
             <li>{t("จับคู่ Subject (sub) ของแต่ละบัญชีกับสมาชิก ORCA โดย ORCA จะไม่จับคู่บัญชีจากอีเมลโดยอัตโนมัติ", "Map each account’s subject (sub) to an ORCA member. ORCA does not match accounts by email automatically.")}</li>
-            <li>{t("เลือกผู้ให้บริการเข้าสู่ระบบนี้ในการตั้งค่าพื้นที่ทำงาน AI ที่สมาชิกจะใช้งาน", "Select this sign-in source in the settings of the AI workspace your members will use.")}</li>
+            <li>{t("เลือกผู้ให้บริการเข้าสู่ระบบนี้ในการตั้งค่าของพื้นที่ทำงาน AI ที่จะใช้", "Choose this sign-in source in the settings of the AI workspace that will use it.")}</li>
           </ol></details>
         </fieldset>
         <footer class="source-actions"><button type="button" class="k-button" disabled={busy} onclick={close}>{t("ยกเลิก", "Cancel")}</button><button type="submit" class="k-button primary" disabled={busy}>{#if busy}<LoaderCircle size={16} class="k-spin" />{/if}{t("บันทึก", "Save")}</button></footer>
@@ -229,7 +229,7 @@
     {:else if !error}
       <div class="source-empty"><KeyRound size={28} /><h2>{t("ยังไม่มีผู้ให้บริการเข้าสู่ระบบ", "No sign-in sources yet")}</h2><button class="k-button primary small" onclick={() => open()}><Plus size={16} />{t("เพิ่มผู้ให้บริการเข้าสู่ระบบ", "Add sign-in source")}</button></div>
     {/if}
-    {#if deleting}<section class="delete-confirm" aria-label={t("ยืนยันการลบ", "Confirm deletion")}><h2>{t(`ต้องการลบ ${deleting.name} หรือไม่`, `Delete ${deleting.name}?`)}</h2><p>{t("สมาชิกจะไม่สามารถเข้าสู่ระบบผ่านผู้ให้บริการนี้ได้อีก", "Members will no longer be able to sign in through this source.")}</p><div class="source-actions"><button class="k-button" disabled={busy} onclick={() => deleting = undefined}>{t("ยกเลิก", "Cancel")}</button><button class="k-button danger" disabled={busy} onclick={remove}>{t("ลบ", "Delete")}</button></div></section>{/if}
+    {#if deleting}<section class="delete-confirm" aria-label={t("ยืนยันการลบ", "Confirm deletion")}><h2>{t(`ลบ ${deleting.name} ไหม`, `Delete ${deleting.name}?`)}</h2><p>{t("สมาชิกจะเข้าสู่ระบบผ่านผู้ให้บริการนี้ไม่ได้อีก", "Members will no longer be able to sign in through this source.")}</p><div class="source-actions"><button class="k-button" disabled={busy} onclick={() => deleting = undefined}>{t("ยกเลิก", "Cancel")}</button><button class="k-button danger" disabled={busy} onclick={remove}>{t("ลบ", "Delete")}</button></div></section>{/if}
   {/if}
 </section>
 

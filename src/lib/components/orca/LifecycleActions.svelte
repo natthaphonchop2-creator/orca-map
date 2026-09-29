@@ -64,7 +64,7 @@
     // Use the version the user reviewed, even if data changed while the dialog was open.
     if (snapshot.id !== entity.id || snapshot.version !== entity.version) {
       requiresReload = true;
-      error = t('ข้อมูลนี้มีการเปลี่ยนแปลง กรุณาโหลดข้อมูลล่าสุดแล้วตรวจสอบอีกครั้ง', 'This record has changed. Reload the latest data and review it again.');
+      error = t('มีคนเปลี่ยนข้อมูลนี้ไปแล้ว โหลดข้อมูลล่าสุดแล้วตรวจอีกครั้ง', 'Someone changed this. Reload the latest data and check it again.');
       return;
     }
     pending = true;
@@ -79,7 +79,7 @@
       await onchanged(action);
     } catch (cause) {
       error = completed
-        ? t('บันทึกแล้ว แต่โหลดรายการใหม่ไม่สำเร็จ กรุณาโหลดข้อมูลล่าสุด', 'Saved, but the list could not be refreshed. Reload the latest data.')
+        ? t('บันทึกแล้ว แต่โหลดรายการใหม่ไม่สำเร็จ โหลดข้อมูลล่าสุดอีกครั้ง', 'Saved, but the list could not be refreshed. Reload the latest data.')
         : orcaError(cause);
       requiresReload = completed || parseErrorContent(cause).status === 409;
       if (completed && dialog.isConnected && !dialog.open) dialog.showModal();
@@ -115,18 +115,18 @@
     <p class="entity-name">{snapshot?.name}</p>
     {#if action === 'archive'}
       <p>{kind === 'gateway'
-        ? t('พื้นที่ทำงานนี้จะย้ายไปอยู่ในรายการที่จัดเก็บแล้ว แอป AI จะเรียกใช้เครื่องมือและเข้าถึงความรู้ผ่านพื้นที่ทำงานนี้ไม่ได้ และคีย์เดิมทั้งหมดจะถูกยกเลิก', 'This workspace moves to Archived. AI apps can no longer call tools or access knowledge through it, and all existing keys will be revoked.')
-        : t('โปรแกรมนี้จะย้ายไปอยู่ในรายการที่จัดเก็บแล้วและถูกปิดใช้งาน AI ในทุกพื้นที่ทำงานที่ใช้โปรแกรมนี้จะใช้โปรแกรมนี้ไม่ได้ และคีย์เดิมของพื้นที่ทำงานเหล่านั้นจะถูกยกเลิก', 'This program moves to Archived and is disabled. AI in every workspace that uses it can no longer use it, and the existing keys for those workspaces will be revoked.')}</p>
-      <p>{t('กู้คืนได้ภายหลัง แต่ต้องเปิดใช้งานและสร้างคีย์ใหม่ก่อนให้ทีมกลับมาใช้งาน', 'You can restore it later. Activate it and issue new keys before your team uses it again.')}</p>
+        ? t('พื้นที่ทำงานนี้จะย้ายไปที่ “จัดเก็บแล้ว” AI จะใช้โปรแกรมและความรู้ผ่านพื้นที่นี้ไม่ได้ และคีย์ของพื้นที่นี้จะถูกตัดการเชื่อมต่อ', 'This workspace moves to Archived. AI can no longer use its programs or knowledge, and its keys are disconnected.')
+        : t('โปรแกรมนี้จะย้ายไปที่ “จัดเก็บแล้ว” และหยุดทำงาน AI ในทุกพื้นที่ทำงานจะใช้โปรแกรมนี้ไม่ได้ และคีย์ของพื้นที่ทำงานเหล่านั้นจะถูกตัดการเชื่อมต่อ', "This program moves to Archived and stops. AI in every workspace can no longer use it, and those workspaces' keys are disconnected.")}</p>
+      <p>{t('กู้คืนได้ภายหลัง แต่ต้องเปิดใช้งานอีกครั้ง และสร้างคีย์ใหม่ถ้ามีคนใช้คีย์', 'You can restore it later. Then turn it on again, and make new keys if anyone used one.')}</p>
     {:else if action === 'restore'}
       <p>{kind === 'gateway'
-        ? t('พื้นที่ทำงานนี้จะกลับมาในรายการด้วยสถานะระงับ กรุณาตรวจสอบสิทธิ์และเปิดใช้งานก่อนสร้างคีย์ใหม่', 'This workspace returns to the list with Paused status. Review access and activate it before issuing new keys.')
-        : t('โปรแกรมนี้จะกลับมาในรายการโดยยังระงับอยู่ ตรวจสิ่งที่ AI ทำได้แล้วเปิดใช้อีกครั้งก่อนให้ทีมใช้', 'This program returns to the list and stays paused. Check what AI can do and resume it before your team uses it.')}</p>
+        ? t('พื้นที่ทำงานนี้จะกลับมาแบบหยุดชั่วคราว ตรวจว่าใครใช้ได้บ้าง แล้วเปิดใช้งานอีกครั้ง', 'This workspace comes back paused. Check who can use it, then turn it on again.')
+        : t('โปรแกรมนี้จะกลับมาแบบหยุดชั่วคราว ตรวจสิ่งที่ AI ทำได้ แล้วเปิดใช้อีกครั้งก่อนให้ทีมใช้', 'This program comes back paused. Check what AI can do and turn it on again before your team uses it.')}</p>
     {:else if blockedDelete}
       <p>{t('โปรแกรมนี้ยังอยู่ในพื้นที่ทำงาน AI ด้านล่าง เอาโปรแกรมออกจากพื้นที่ทำงานเหล่านั้น หรือลบพื้นที่ทำงานก่อน (รวมที่จัดเก็บแล้ว) แล้วจึงกลับมาลบโปรแกรมนี้', 'This program is still used by the AI workspaces below. Remove it from those workspaces, or delete them (including archived ones), then come back to delete it.')}</p>
     {:else}
       <p>{kind === 'gateway'
-        ? t('พื้นที่ทำงานนี้จะถูกลบออกจากรายการ และคีย์ทั้งหมดจะถูกยกเลิก การเรียกใช้เครื่องมือและการเข้าถึงความรู้ผ่านพื้นที่ทำงานนี้จะหยุดลง และไม่สามารถกู้คืนได้', 'This workspace will be removed and all its keys revoked. Tool calls and knowledge access through it will stop. It cannot be restored.')
+        ? t('พื้นที่ทำงานนี้จะถูกลบและกู้คืนไม่ได้ AI จะใช้โปรแกรมและความรู้ผ่านพื้นที่นี้ไม่ได้ และคีย์ทั้งหมดของพื้นที่นี้จะถูกตัดการเชื่อมต่อ', "This workspace is deleted and can't be restored. AI can no longer use its programs or knowledge, and all its keys are disconnected.")
         : t('โปรแกรมนี้จะถูกลบออกจากรายการและกู้คืนไม่ได้ ถ้าอาจต้องใช้อีก ให้เลือกจัดเก็บแทน', 'This program will be removed from the list and cannot be restored. Choose Archive if you may need it again.')}</p>
     {/if}
     {#if !blockedDelete}<p class="preserved">{t('บัญชีที่เชื่อมไว้ ข้อมูลในโปรแกรม และประวัติการใช้งานยังคงอยู่', 'Connected accounts, data in the programs and activity history are retained.')}</p>{/if}

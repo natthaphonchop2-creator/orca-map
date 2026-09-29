@@ -82,7 +82,7 @@ test('company managers who are not platform operators get invitations, never pas
  for(const role of ['owner','admin']){
   const result=screen(role,[employee],{}, {localAvailable:true,accounts:[{id:'local-employee',email:employee.email},{id:'local-new',email:'new@example.test'}]});
   assert.doesNotMatch(result.html,/Create a password account|Reset password|Set a new password|Waiting for first sign-in|Protected administrator account/,role);
-  assert.match(result.html,/Invite someone with a link/,role);
+  assert.match(result.html,/Invite with a link/,role);
  }
 });
 test('password accounts left ทีม for the platform\'s บัญชีฉุกเฉิน, even for the ORCA team',()=>{
@@ -108,5 +108,5 @@ test('each member shows whether they can reach company data, and how to fix it',
 test('a view-only member sees the list without management menus',()=>{
  const result=screen('employee',[employee]);
  assert.doesNotMatch(result.html,/Invite a member|More options|Manage employee@example.test|Add to a workspace|See connected AI apps/);
- assert.match(result.html,/can view members only/);
+ assert.match(result.html,/can only view this list/);
 });

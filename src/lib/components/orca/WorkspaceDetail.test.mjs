@@ -252,7 +252,7 @@ test('ตั้งค่า shows the sign-in choice only when the workspace has
 	assert.match(html, /ชื่อพื้นที่ทำงาน/);
 	assert.match(html, /value="100"/);
 	assert.doesNotMatch(html, /วิธีเข้าสู่ระบบ/);
-	assert.match(html, /หยุดใช้ชั่วคราว/);
+	assert.match(html, /หยุดชั่วคราว/);
 	html = htmlOf(Settings, { props: { data: company(), hub: { ...hub, userSourceID: 'sso-1', status: 'paused' }, onchanged: async () => {} } }).body;
 	assert.match(html, /วิธีเข้าสู่ระบบ/);
 	assert.match(html, /เปิดใช้งาน/);

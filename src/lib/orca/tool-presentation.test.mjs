@@ -14,7 +14,7 @@ test('known tools receive a readable label while preserving the exact identifier
 	assert.equal(result.description, input.description);
 	assert.equal(input.name, 'list_files');
 	assert.equal(toolPresentation(input, 'en').label, 'List files');
-	assert.equal(toolPresentation({ name: 'orca_template_use' }).label, 'เตรียมแม่แบบพร้อมบทความความรู้');
+	assert.equal(toolPresentation({ name: 'orca_template_use' }).label, 'เตรียมคำสั่งสำเร็จรูปพร้อมความรู้ประกอบ');
 });
 
 test('an explicit provider title wins, including the annotation title fallback', () => {

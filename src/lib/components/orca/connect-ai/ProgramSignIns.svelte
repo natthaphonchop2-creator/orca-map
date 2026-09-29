@@ -112,7 +112,7 @@
 				<span class="ca-logo"><CatalogIcon name={row.name} size={28} /></span>
 				<div class="ca-copy">
 					{#if row.state === 'client-needed'}
-						<h2>{t(`${row.name}: รอผู้ดูแลตั้งค่าการลงชื่อเข้าใช้`, `${row.name}: waiting for sign-in to be set up`)}</h2>
+						<h2>{t(`${row.name}: รอทีม ORCA ตั้งค่าการลงชื่อเข้าใช้`, `${row.name}: waiting for the ORCA team to set up sign-in`)}</h2>
 						<p>{t('เมื่อตั้งค่าเสร็จ ปุ่มลงชื่อเข้าใช้จะขึ้นที่นี่', 'Once it is set up, the sign-in button appears here.')}</p>
 					{:else}
 						<h2><CircleAlert size={16} aria-hidden="true" />{t(`อ่านสถานะบัญชี ${row.name} ไม่สำเร็จ`, `Could not read your ${row.name} account`)}</h2>

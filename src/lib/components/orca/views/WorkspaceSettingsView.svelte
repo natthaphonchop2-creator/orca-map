@@ -121,7 +121,7 @@
 		try {
 			await saveHubPatch(hub.id, () => ({ status }), hubWriteService);
 			pauseOpen = false;
-			showToast(status === 'active' ? t('เปิดใช้งานแล้ว', 'Activated') : t('หยุดใช้ชั่วคราวแล้ว', 'Paused'));
+			showToast(status === 'active' ? t('เปิดใช้งานแล้ว', 'Activated') : t('หยุดชั่วคราวแล้ว', 'Paused'));
 			await onchanged();
 		} catch (cause) {
 			statusError = workspaceWriteError(cause);
@@ -189,12 +189,12 @@
 		<div class="st-danger-copy">
 			<h2 id="st-danger-title">{t('หยุดหรือลบพื้นที่นี้', 'Pause or remove')}</h2>
 			<p>{hub.status === 'active'
-				? t('หยุดใช้ชั่วคราว: AI ของทุกคนใช้พื้นที่นี้ไม่ได้จนกว่าจะเปิดอีกครั้ง จัดเก็บหรือลบ: ย้ายออกจากรายการ', "Pause: nobody's AI can use it until it's on again. Archive or delete: take it off the list.")
+				? t('หยุดชั่วคราว: AI ของทุกคนใช้พื้นที่นี้ไม่ได้จนกว่าจะเปิดอีกครั้ง จัดเก็บหรือลบ: ย้ายออกจากรายการ', "Pause: nobody's AI can use it until it's on again. Archive or delete: take it off the list.")
 				: t('เปิดใช้งานเมื่อพร้อม หรือจัดเก็บ / ลบถ้าไม่ใช้แล้ว', "Activate it when ready, or archive / delete it if it's not needed.")}</p>
 			{#if statusError}<p class="st-error" role="alert">{statusError}</p>{/if}
 		</div>
 		<div class="st-danger-actions">
-			{#if hub.status === 'active'}<button type="button" class="k-button" disabled={statusBusy} onclick={() => (pauseOpen = true)}><Pause size={16} aria-hidden="true" />{t('หยุดใช้ชั่วคราว', 'Pause')}</button>
+			{#if hub.status === 'active'}<button type="button" class="k-button" disabled={statusBusy} onclick={() => (pauseOpen = true)}><Pause size={16} aria-hidden="true" />{t('หยุดชั่วคราว', 'Pause')}</button>
 			{:else}<button type="button" class="k-button" disabled={statusBusy} onclick={() => setStatus('active')}><Play size={16} aria-hidden="true" />{t('เปิดใช้งาน', 'Activate')}</button>{/if}
 			<LifecycleActions entity={hub} kind="gateway" canManage={data.canManage} onchanged={lifecycleChanged} onreload={onchanged} />
 		</div>
@@ -207,9 +207,9 @@
 
 <ConfirmDialog
 	bind:open={pauseOpen}
-	title={t('หยุดใช้พื้นที่นี้ชั่วคราว?', 'Pause this workspace?')}
+	title={t('หยุดพื้นที่นี้ชั่วคราว?', 'Pause this workspace?')}
 	message={t('AI ของทุกคนในพื้นที่นี้จะใช้ไม่ได้จนกว่าคุณจะเปิดใช้งานอีกครั้ง การตั้งค่าและคนที่ใช้ได้ยังอยู่เหมือนเดิม', "Nobody's AI can use it until you activate it again. Settings and people stay as they are.")}
-	confirmLabel={t('หยุดใช้ชั่วคราว', 'Pause')}
+	confirmLabel={t('หยุดชั่วคราว', 'Pause')}
 	busy={statusBusy}
 	icon={Pause}
 	onconfirm={() => setStatus('paused')}

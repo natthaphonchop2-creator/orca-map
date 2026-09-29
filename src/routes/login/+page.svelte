@@ -36,16 +36,16 @@
   const googleHref = $derived(localProvider ? googleStartHref(page.url.origin, localeHref(data.rd), localProvider) : "");
   function googleMessage(reason: GoogleSignInReason) {
     return {
-      off: t("ยังไม่ได้เปิดการเข้าสู่ระบบด้วย Google กรุณาใช้อีเมลและรหัสผ่าน หรือติดต่อผู้ดูแล", "Google sign-in is not turned on. Use your email and password, or contact your administrator."),
-      unreachable: t("ติดต่อ Google ไม่ได้ในขณะนี้ กรุณาลองอีกครั้ง", "Google could not be reached. Please try again."),
-      expired: t("การเข้าสู่ระบบหมดเวลาหรือเริ่มจากหน้าต่างอื่น กรุณาลองอีกครั้ง", "The sign-in expired or started in another window. Please try again."),
+      off: t("ตอนนี้ยังเข้าสู่ระบบด้วย Google ไม่ได้ ใช้อีเมลและรหัสผ่านถ้ามี หรือแจ้งทีม ORCA", "Google sign-in isn't on right now. Use an email and password if you have one, or tell the ORCA team."),
+      unreachable: t("ติดต่อ Google ไม่ได้ตอนนี้ ลองอีกครั้ง", "Google couldn't be reached. Try again."),
+      expired: t("การเข้าสู่ระบบหมดเวลา หรือเริ่มจากหน้าต่างอื่น ลองอีกครั้ง", "The sign-in timed out or started in another window. Try again."),
       cancelled: t("ยกเลิกการเข้าสู่ระบบด้วย Google แล้ว", "Google sign-in was cancelled."),
       unverified: t("อีเมลของบัญชี Google นี้ยังไม่ได้ยืนยัน", "This Google account's email is not verified."),
-      domain: t("อีเมลโดเมนนี้ยังไม่ได้รับอนุญาตให้เข้าสู่ระบบ ORCA นี้ กรุณาติดต่อผู้ดูแล", "This email's domain is not allowed to sign in to this ORCA. Contact your administrator."),
-      workspace: t("กรุณาใช้บัญชี Google Workspace ของบริษัท ไม่ใช่บัญชี Google ส่วนตัวที่สมัครด้วยอีเมลงาน", "Use your company's Google Workspace account, not a personal Google account made with a work email."),
-      organization: t("บัญชี Google นี้เป็นขององค์กรอื่น", "This Google account belongs to another organization."),
-      member: t("บัญชี Google นี้ยังไม่ได้เป็นสมาชิก ขอคำเชิญจากผู้ดูแล หรือใช้บัญชี Google ของบริษัท", "This Google account is not a member yet. Ask your administrator for an invitation, or use your company Google account."),
-      failed: t("เข้าสู่ระบบด้วย Google ไม่สำเร็จ กรุณาลองอีกครั้ง", "Google sign-in failed. Please try again."),
+      domain: t("อีเมลโดเมนนี้ยังเข้าสู่ระบบ ORCA นี้ไม่ได้ ขอลิงก์เชิญจากผู้ดูแลบริษัท", "This email's domain can't sign in here yet. Ask your company admin for an invite link."),
+      workspace: t("ใช้บัญชี Google Workspace ของบริษัท ไม่ใช่บัญชี Google ส่วนตัวที่สมัครด้วยอีเมลงาน", "Use your company's Google Workspace account, not a personal Google account made with a work email."),
+      organization: t("บัญชี Google นี้เป็นของบริษัทอื่น", "This Google account belongs to another company."),
+      member: t("บัญชี Google นี้ยังไม่ได้อยู่ในบริษัทไหน ขอลิงก์เชิญจากผู้ดูแลบริษัท หรือใช้บัญชี Google ของบริษัท", "This Google account isn't in a company yet. Ask your company admin for an invite link, or use your company Google account."),
+      failed: t("เข้าสู่ระบบด้วย Google ไม่สำเร็จ ลองอีกครั้ง", "Google sign-in failed. Try again."),
     }[reason];
   }
   onMount(initializeLocale);
@@ -81,20 +81,20 @@
       <p class="o-login-eyebrow"><span aria-hidden="true"></span>ORCA Workspace</p>
       <h1>
         {t("พื้นที่ทำงาน AI", "The AI workspace")}<br />{t(
-          "สำหรับองค์กรของคุณ",
-          "for your organization",
+          "สำหรับบริษัทของคุณ",
+          "for your company",
         )}
       </h1>
       <p>
         {t(
-          "เชื่อมต่อระบบที่องค์กรใช้ จัดเก็บคลังความรู้ และกำหนดสิทธิ์การใช้งาน AI ของสมาชิกได้จากที่เดียว",
-          "Connect your organization’s systems, manage its knowledge and control each member’s AI access in one place.",
+          "เชื่อมโปรแกรมที่บริษัทใช้ เก็บความรู้ของบริษัท และเลือกว่าใครใช้ AI ทำอะไรได้ ในที่เดียว",
+          "Connect the programs your company uses, keep its knowledge, and choose who can do what with AI, in one place.",
         )}
       </p>
       <ul class="o-login-points">
-        <li><span class="o-login-icon"><Plug size={16} aria-hidden="true" /></span>{t("เชื่อมโปรแกรมที่บริษัทใช้อยู่ ผ่าน MCP หรือ API", "Connect the software you already use, through MCP or its API")}</li>
+        <li><span class="o-login-icon"><Plug size={16} aria-hidden="true" /></span>{t("เชื่อมโปรแกรมที่บริษัทใช้อยู่ เช่น FlowAccount, PEAK, LINE", "Connect the programs you already use, like FlowAccount, PEAK and LINE")}</li>
         <li><span class="o-login-icon"><BookOpen size={16} aria-hidden="true" /></span>{t("คลังความรู้ของบริษัท แยกตามแผนก", "Company knowledge, kept by department")}</li>
-        <li><span class="o-login-icon"><ShieldCheck size={16} aria-hidden="true" /></span>{t("สิทธิ์รายคน อนุมัติก่อนแก้ข้อมูล และบันทึกทุกการใช้งาน", "Access per person, approval before changes and a record of every call")}</li>
+        <li><span class="o-login-icon"><ShieldCheck size={16} aria-hidden="true" /></span>{t("สิทธิ์รายคน อนุมัติก่อนแก้ข้อมูล และบันทึกทุกการใช้งาน", "Access per person, approval before changes, and a record of everything AI does")}</li>
       </ul>
     </section>
     <section class="o-auth-form">
@@ -105,20 +105,20 @@
             ? "เข้าสู่ระบบด้วยบัญชี Google ของบริษัท หรืออีเมลและรหัสผ่าน"
             : localProvider
               ? "กรอกอีเมลและรหัสผ่านของคุณเพื่อเข้าสู่ระบบ"
-              : "เลือกวิธีเข้าสู่ระบบที่องค์กรของคุณกำหนดไว้",
+              : "เลือกวิธีเข้าสู่ระบบที่บริษัทของคุณใช้",
           localProvider && data.google
             ? "Sign in with your company Google account, or your email and password."
             : localProvider
               ? "Enter your email and password to sign in."
-              : "Choose the sign-in method set up by your organization.",
+              : "Choose the sign-in your company uses.",
         )}
       </p>
       <!-- Inside LINE or Facebook, Google refuses to sign in: open the page in a real browser first. -->
       <InAppBrowserNotice />
       {#if data.unavailable}<div class="o-alert" role="alert">
           {t(
-            "โหลดวิธีเข้าสู่ระบบไม่สำเร็จ กรุณาโหลดหน้านี้อีกครั้ง",
-            "Sign-in methods could not be loaded. Please reload this page.",
+            "โหลดวิธีเข้าสู่ระบบไม่สำเร็จ โหลดหน้านี้อีกครั้ง",
+            "Sign-in methods could not be loaded. Reload this page.",
           )}
         </div>{/if}
       {#if googleReason}<div class="o-alert" role="alert">{googleMessage(googleReason)}</div>{/if}
@@ -140,7 +140,7 @@
         <form method="POST" action="/oauth2/start">
           {#if error}<div class="o-alert" role="alert">
               {t(
-                "เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบอีเมลและรหัสผ่าน แล้วลองอีกครั้ง",
+                "เข้าสู่ระบบไม่สำเร็จ ตรวจอีเมลและรหัสผ่าน แล้วลองอีกครั้ง",
                 "Sign-in failed. Check your email and password, then try again.",
               )}
             </div>{/if}
@@ -184,8 +184,8 @@
       {#if externalProviders.length > 0}
         {#if localProvider}<p class="o-auth-bottom">
             {t(
-              "หรือเข้าสู่ระบบด้วยบัญชีขององค์กร",
-              "Or sign in with your organization account",
+              "หรือเข้าสู่ระบบด้วยวิธีอื่น",
+              "Or sign in another way",
             )}
           </p>{/if}
         <div class="o-auth-provider">
@@ -204,13 +204,13 @@
       {#if !data.unavailable && data.authProviders.length === 0}
         <p class="o-alert">
           {t(
-            "องค์กรยังไม่ได้ตั้งค่าวิธีเข้าสู่ระบบ กรุณาติดต่อผู้ดูแลระบบ",
-            "Sign-in has not been set up yet. Contact your administrator.",
+            "ยังไม่มีวิธีเข้าสู่ระบบที่เปิดไว้ แจ้งทีม ORCA",
+            "No sign-in method is set up yet. Tell the ORCA team.",
           )}
         </p>
       {/if}
       <p class="o-login-new">
-        {t("ยังไม่มีบัญชีองค์กร?", "No company account yet?")}
+        {t("บริษัทยังไม่มี ORCA?", "Company not on ORCA yet?")}
         <a href={site("start")}>{t("คุยกับทีม ORCA", "Talk to the ORCA team")}<ArrowRight size={14} aria-hidden="true" /></a>
       </p>
     </section>

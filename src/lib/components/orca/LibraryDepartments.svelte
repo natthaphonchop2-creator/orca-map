@@ -118,7 +118,7 @@
       newName = "";
       choose(unit.id);
       notice = t(
-        "สร้างแผนกแล้ว กรุณาเลือกสมาชิกและบันทึก",
+        "สร้างแผนกแล้ว เลือกคนในแผนกแล้วกดบันทึก",
         "Department created. Select its members and save.",
       );
       await onchanged();
@@ -146,14 +146,14 @@
       selectedVersion = department.version;
       baselineMembers = [...selectedMembers];
       notice = t(
-        "บันทึกสมาชิกของแผนกแล้ว สิทธิ์การเข้าถึงเนื้อหาจะใช้รายชื่อใหม่ตั้งแต่คำขอครั้งถัดไป",
+        "บันทึกสมาชิกของแผนกแล้ว มีผลตั้งแต่ AI ถามครั้งถัดไป",
         "Department members saved. Content access uses the updated list from the next request.",
       );
     } catch (cause) {
       conflict = getHttpStatusCode(cause) === 409;
       error = conflict
         ? t(
-            "รายชื่อสมาชิกมีการเปลี่ยนแปลงแล้ว รายชื่อที่คุณเลือกยังคงอยู่ กรุณาโหลดรายชื่อล่าสุดก่อนแก้ไขอีกครั้ง",
+            "มีคนเปลี่ยนรายชื่อนี้ไปแล้ว รายชื่อที่คุณเลือกยังอยู่ โหลดรายชื่อล่าสุดก่อนแก้อีกครั้ง",
             "The member list has changed. Your selection is preserved. Load the latest list before editing again.",
           )
         : orcaError(cause);
@@ -209,16 +209,16 @@
       </h2>
       <p>
         {t(
-          "สร้างแผนกตามโครงสร้างองค์กร และกำหนดสมาชิกของแต่ละแผนก",
-          "Create departments that match your organization and assign members to each one.",
+          "สร้างแผนกตามโครงสร้างบริษัท แล้วเลือกคนในแต่ละแผนก",
+          "Create departments that match your company and choose who is in each.",
         )}
       </p>
     </div>
   </header>
   <p class="library-note">
     <Info size={16} />{t(
-      "แผนกใช้กำหนดกลุ่มผู้เข้าถึงเนื้อหา ผู้ใช้ยังต้องเป็นสมาชิกของพื้นที่ทำงาน AI นั้นจึงจะอ่านเนื้อหาได้",
-      "Departments define who can receive content. A person must also be a member of the AI workspace to read it.",
+      "แผนกใช้แชร์ความรู้ให้คนกลุ่มหนึ่ง แต่คนนั้นต้องอยู่ในพื้นที่ทำงาน AI ด้วย AI จึงจะอ่านได้",
+      "Departments group people for sharing knowledge. They must also be in the AI workspace for AI to read it.",
     )}
   </p>
   {#if error}<div class="library-alert" role="alert">
@@ -245,7 +245,7 @@
     </p>{:else if loaded}
     <div class="library-department-grid">
       <aside class="library-department-list">
-        <h3>{t("แผนกในองค์กร", "Departments")}</h3>
+        <h3>{t("แผนกในบริษัท", "Departments")}</h3>
         <div class="library-segmented"><button class:chosen={!showArchived} aria-pressed={!showArchived} disabled={dirty || saving || lifecycleBusy || renameOpen} onclick={() => {showArchived=false;selectedID='';}}>{t('เปิดใช้งาน','Active')}</button><button class:chosen={showArchived} aria-pressed={showArchived} disabled={dirty || saving || lifecycleBusy || renameOpen} onclick={() => {showArchived=true;selectedID='';}}>{t('จัดเก็บแล้ว','Archived')}</button></div>
         {#each units.filter((unit) => !unit.deletedAt && !!unit.archivedAt === showArchived) as unit}<button
             class:chosen={selectedID === unit.id}
@@ -300,7 +300,7 @@
             >
           </div>
           <TeamLifecycleActions kind="department" id={selectedUnit.id} name={selectedUnit.name} version={selectedUnit.version} inactive={!!selectedUnit.archivedAt} disabled={!data.canManage || saving || dirty || renameOpen} onbusy={(value) => lifecycleBusy=value} onchanged={async () => {extraUnits=[];selectedID='';selectedMembers=[];baselineMembers=[];await onchanged();await load();}} />
-          {#if selectedUnit.archivedAt}<p class="library-note">{t('แผนกนี้ถูกจัดเก็บแล้ว กรุณากู้คืนแผนกก่อนกำหนดสมาชิกอีกครั้ง', 'This department is archived. Restore it to assign members again.')}</p>{:else}
+          {#if selectedUnit.archivedAt}<p class="library-note">{t('แผนกนี้จัดเก็บแล้ว กู้คืนก่อนแล้วค่อยเลือกคนอีกครั้ง', 'This department is archived. Restore it to assign members again.')}</p>{:else}
           {#if renameOpen}<form class="department-rename" onsubmit={rename}>
               <div class="k-field">
                 <label for="department-rename"
@@ -359,7 +359,7 @@
               <div>
                 <p>
                   {t(
-                    "ต้องการแทนที่รายชื่อที่เลือกไว้ด้วยรายชื่อล่าสุดที่บันทึกไว้หรือไม่",
+                    "ใช้รายชื่อล่าสุดที่บันทึกไว้แทนรายชื่อที่คุณเลือกไหม",
                     "Replace your selection with the latest saved list?",
                   )}
                 </p>
@@ -412,8 +412,8 @@
             <h3>{t("เลือกแผนกเพื่อกำหนดสมาชิก", "Select a department to manage its members")}</h3>
             <p>
               {t(
-                "เพิ่มหรือนำสมาชิกออกให้ตรงกับโครงสร้างขององค์กร",
-                "Add or remove members to match your organization.",
+                "เพิ่มหรือเอาคนออกให้ตรงกับโครงสร้างของบริษัท",
+                "Add or remove people to match your company.",
               )}
             </p>
           </div>{/if}

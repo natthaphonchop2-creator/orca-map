@@ -82,7 +82,7 @@
 	async function save() {
 		if (busy || !changeCount) return;
 		if (hub.status === 'active' && !memberIDs.length && !accessUnitIDs.length) {
-			error = t('พื้นที่ที่เปิดใช้งานต้องมีคนหรือแผนกอย่างน้อย 1 หยุดใช้ชั่วคราวในแท็บ “ตั้งค่า” ก่อนถ้าจะเอาออกทั้งหมด', 'An active workspace needs at least one person or department. Pause it under “Settings” first.');
+			error = t('พื้นที่ที่เปิดใช้งานต้องมีคนหรือแผนกอย่างน้อย 1 หยุดชั่วคราวในแท็บ “ตั้งค่า” ก่อนถ้าจะเอาออกทั้งหมด', 'An active workspace needs at least one person or department. Pause it under “Settings” first.');
 			return;
 		}
 		busy = true;

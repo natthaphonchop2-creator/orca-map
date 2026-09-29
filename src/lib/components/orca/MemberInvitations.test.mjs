@@ -86,7 +86,7 @@ test("a manager invites by email and gets a one-time link, a LINE share and a me
   });
   try {
     await view.submit();
-    assert.match(view.formError, /กรุณากรอกอีเมล/, "an empty email is caught before any request");
+    assert.match(view.formError, /กรอกอีเมล/, "an empty email is caught before any request");
     assert.equal(calls.invite.length, 0);
     view.setEmail("  Somchai@Example.test ");
     view.setRole("admin");
@@ -168,7 +168,7 @@ test("an owner invitation from the platform names ORCA and offers no new link he
     assert.equal(view.inviter(invitation("owner", { role: "owner", invitedBy: "99" })), "ORCA");
     assert.equal(view.inviter(invitation("gone", { role: "employee", invitedBy: "99" })), "—", "a former member is not ORCA");
     assert.equal(view.inviter(invitation("mine", { role: "owner", invitedBy: "1" })), "Owner");
-    assert.equal(view.roleLabel("owner"), "เจ้าของ");
+    assert.equal(view.roleLabel("owner"), "เจ้าของบริษัท");
   } finally { stop(); }
   // Only the platform renews an owner's link; everyone may revoke it.
   assert.match(component, /\{#if item\.role !== "owner"\}<button class="k-button small" disabled=\{!!actionID \|\| !canRenewInvitation\(item, canInviteAdmins\)\} onclick=\{\(\) => reissue\(item\)\}/);
@@ -176,7 +176,7 @@ test("an owner invitation from the platform names ORCA and offers no new link he
 });
 
 test("the invite page names an owner's role and explains a company that has one", () => {
-  assert.match(invitePage, /preview\.role === "owner" \? t\("เจ้าของ", "Owner"\)/);
+  assert.match(invitePage, /preview\.role === "owner" \? t\("เจ้าของบริษัท", "Company owner"\)/);
   assert.match(invitePage, /You are now the owner of \$\{organizationName\}\./);
   assert.match(invitePage, /status === 409 && parseErrorContent\(cause\)\.message\.includes\("already has an owner"\)/);
   assert.match(invitePage, /This company already has an owner\. Ask them to invite you\./);

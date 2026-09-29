@@ -143,7 +143,7 @@ test('the programs list: one row per program with what AI can do, workspaces and
 	const html = text(render(Component, { props: { data } }).body);
 	assert.match(html, /c-read.*1 อย่าง.*อ่านอย่างเดียว.*1 พื้นที่.*data-pill="ok">พร้อมใช้/);
 	assert.match(html, /c-write.*2 อย่าง.*อ่านและแก้ไข.*ยังไม่ได้ใช้/);
-	assert.match(html, /c-paused.*data-pill="neutral">ระงับ/);
+	assert.match(html, /c-paused.*data-pill="neutral">หยุดชั่วคราว/);
 	assert.match(html, /c-new.*ยังไม่ได้เลือก.*data-pill="warn">ต้องตรวจใหม่/);
 	assert.equal(calls[0].props.title, 'โปรแกรมที่เชื่อม');
 	const empty = render(Component, { props: { data: { ...data, connections: [], hubs: [] } } }).body;

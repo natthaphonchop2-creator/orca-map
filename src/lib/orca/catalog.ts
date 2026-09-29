@@ -24,24 +24,24 @@ export interface CatalogSource {
 export function catalogSetupState(source: Pick<CatalogSource, 'guideOnly' | 'setupStatus' | 'setupCanConfigure' | 'setupReason'>) {
 	if (source.guideOnly) return {
 		kind: 'guide' as const, canStart: false,
-		labelTh: 'ต้องใช้ตัวเชื่อมขององค์กร', label: 'Requires your own connector',
-		actionTh: 'เพิ่มระบบด้วย MCP URL', action: 'Add a system with an MCP URL'
+		labelTh: 'เร็วๆ นี้', label: 'Coming soon',
+		actionTh: 'แจ้งทีม ORCA', action: 'Tell the ORCA team'
 	};
 	if (source.setupStatus === 'admin_setup_required') return {
 		kind: 'admin_setup_required' as const, canStart: source.setupCanConfigure === true,
-		labelTh: 'ต้องให้ผู้ดูแลระบบตั้งค่า', label: 'Administrator setup required',
-		actionTh: source.setupCanConfigure === true ? 'ตั้งค่าแอป' : 'รอผู้ดูแลระบบตั้งค่า',
-		action: source.setupCanConfigure === true ? 'Set up app' : 'Administrator required'
+		labelTh: 'รอทีม ORCA ตั้งค่า', label: 'Waiting for the ORCA team',
+		actionTh: source.setupCanConfigure === true ? 'ตั้งค่าแอป' : 'เร็วๆ นี้',
+		action: source.setupCanConfigure === true ? 'Set up app' : 'Coming soon'
 	};
 	if (source.setupStatus === 'review_required') return {
 		kind: 'review_required' as const, canStart: true,
-		labelTh: source.setupReason === 'provider_review' ? 'รอยืนยันจากผู้ให้บริการ' : 'รอตรวจสอบวิธีเชื่อมต่อ',
+		labelTh: source.setupReason === 'provider_review' ? 'รอยืนยันจากผู้ให้บริการ' : 'รอทีม ORCA ตรวจวิธีเชื่อมต่อ',
 		label: source.setupReason === 'provider_review' ? 'Provider review required' : 'Connection review required',
 		actionTh: 'ตรวจสอบการตั้งค่า', action: 'Check setup'
 	};
 	if (source.setupStatus === 'available') return {
 		kind: 'available' as const, canStart: true,
-		labelTh: '', label: '', actionTh: 'เชื่อมต่อระบบนี้', action: 'Connect this system'
+		labelTh: '', label: '', actionTh: 'เชื่อมโปรแกรมนี้', action: 'Connect this program'
 	};
 	return {
 		kind: 'unknown' as const, canStart: true,
@@ -69,24 +69,24 @@ function installedAPIReference(source: CatalogSource) {
 const catalogAuthDescriptions = {
 	oauth: {
 		id: 'oauth',
-		label: 'OAuth',
-		labelTh: 'OAuth',
-		descriptionTh: 'ลงชื่อเข้าใช้ด้วยบัญชีของระบบนั้นและอนุญาตการเข้าถึง (OAuth)',
-		descriptionEn: 'Sign in with that system’s account and authorize access (OAuth).'
+		label: 'Sign in',
+		labelTh: 'เข้าสู่ระบบ',
+		descriptionTh: 'ลงชื่อเข้าใช้ด้วยบัญชีของโปรแกรมนั้น แล้วกดอนุญาต',
+		descriptionEn: 'Sign in with that program’s account and allow access.'
 	},
 	secrets: {
 		id: 'secrets',
-		label: 'Secrets',
-		labelTh: 'คีย์หรือโทเคน',
-		descriptionTh: 'ใช้ข้อมูลลับ เช่น คีย์ API โทเคน หรือข้อมูลรับรองอื่น',
-		descriptionEn: 'Uses credentials such as API keys, tokens, or other connection secrets.'
+		label: 'Key',
+		labelTh: 'คีย์',
+		descriptionTh: 'ใช้คีย์ที่ออกให้ในโปรแกรมนั้น',
+		descriptionEn: 'Uses a key issued in that program.'
 	},
 	none: {
 		id: 'none',
 		label: 'No authentication',
 		labelTh: 'ไม่ต้องยืนยันตัวตน',
-		descriptionTh: 'ข้อมูลของระบบระบุว่าไม่ต้องใช้บัญชีหรือข้อมูลลับ',
-		descriptionEn: 'The system’s metadata states that no authentication is required.'
+		descriptionTh: 'โปรแกรมนี้ไม่ต้องใช้บัญชีหรือคีย์',
+		descriptionEn: 'This program needs no account or key.'
 	},
 	unknown: {
 		id: 'unknown',

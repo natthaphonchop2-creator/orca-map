@@ -87,7 +87,7 @@ test("the operator opens a company, then invites its owner and gets the link onc
     assert.deepEqual(view.items.map((item) => item.id), ["default"]);
     await view.show("open");
     await view.openCompany();
-    assert.match(view.formError, /กรุณากรอกชื่อบริษัท/, "an empty name is caught before any request");
+    assert.match(view.formError, /กรอกชื่อบริษัท/, "an empty name is caught before any request");
     assert.equal(calls.open.length, 0);
     view.setName("  Hotel A ");
     await view.openCompany();
@@ -98,7 +98,7 @@ test("the operator opens a company, then invites its owner and gets the link onc
     assert.deepEqual(view.items.map((item) => item.id), ["default", B], "the list reloads");
 
     await view.inviteOwner();
-    assert.match(view.formError, /กรุณากรอกอีเมลของเจ้าของบริษัท/);
+    assert.match(view.formError, /กรอกอีเมลของเจ้าของบริษัท/);
     assert.equal(calls.invite.length, 0);
     view.setEmail(" owner@hotel-a.example ");
     await view.inviteOwner();

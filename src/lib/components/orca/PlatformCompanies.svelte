@@ -122,7 +122,7 @@
     if (busy) return;
     const displayName = name.trim();
     if (!displayName) {
-      formError = t("กรุณากรอกชื่อบริษัท", "Enter the company's name.");
+      formError = t("กรอกชื่อบริษัท", "Enter the company's name.");
       return;
     }
     busy = true;
@@ -145,7 +145,7 @@
     if (busy || !target) return;
     const address = email.trim();
     if (!address) {
-      formError = t("กรุณากรอกอีเมลของเจ้าของบริษัท", "Enter the owner's email.");
+      formError = t("กรอกอีเมลของเจ้าของบริษัท", "Enter the owner's email.");
       return;
     }
     busy = true;

@@ -22,8 +22,8 @@ const knownLabels: Record<string, readonly [string, string]> = {
 	list_recent_files: ['ดูไฟล์ล่าสุด', 'List recent files'],
 	orca_knowledge_search: ['ค้นหาบทความความรู้', 'Search knowledge articles'],
 	orca_knowledge_read: ['อ่านบทความความรู้', 'Read a knowledge article'],
-	orca_template_list: ['ดูรายการแม่แบบ', 'List templates'],
-	orca_template_use: ['เตรียมแม่แบบพร้อมบทความความรู้', 'Prepare a template with knowledge']
+	orca_template_list: ['ดูรายการคำสั่งสำเร็จรูป', 'List ready-made prompts'],
+	orca_template_use: ['เตรียมคำสั่งสำเร็จรูปพร้อมความรู้ประกอบ', 'Prepare a ready-made prompt with its knowledge']
 };
 
 function humanizeIdentifier(name: string): string {

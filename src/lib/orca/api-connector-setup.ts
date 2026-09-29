@@ -25,24 +25,24 @@ const connectors: Record<string, ApiConnectorSetupCopy> = {
       'Connect a Page you manage to read its information and recent posts in ORCA.'
     ],
     result: [
-      'Facebook ยืนยันว่า ORCA อ่านข้อมูลเพจนี้ได้แล้ว ขั้นตอนถัดไปคือเลือกเครื่องมือที่อนุญาตให้ทีมใช้',
-      'Facebook confirmed that ORCA can read this Page. Next, choose the tools your team may use.'
+      'Facebook ยืนยันแล้วว่า ORCA อ่านข้อมูลเพจนี้ได้',
+      'Facebook confirmed that ORCA can read this Page.'
     ],
     fields: {
       Authorization: {
-        label: ['โทเคนของเพจ Facebook', 'Facebook Page access token'],
+        label: ['คีย์ของเพจ Facebook', 'Facebook Page key'],
         hint: [
-          'คัดลอก Page access token ของเพจที่ต้องการเชื่อมต่อจาก Meta โทเคนนี้ใช้อนุญาตให้ ORCA เข้าถึงเพจ และไม่ใช่รหัสผ่าน Facebook',
-          'Copy the Page access token for this Page from Meta. The token authorizes ORCA to access the Page. Do not enter your Facebook password.'
+          'คัดลอก Page access token ของเพจนี้จาก Meta คีย์นี้ให้ ORCA อ่านเพจได้ และไม่ใช่รหัสผ่าน Facebook',
+          "Copy this Page's Page access token from Meta. It lets ORCA read the Page. Do not enter your Facebook password."
         ],
-        linkLabel: ['ดูวิธีรับโทเคนของเพจ', 'How to get a Page access token'],
+        linkLabel: ['ดูวิธีหาคีย์ของเพจ', 'How to get the Page key'],
         href: 'https://developers.facebook.com/docs/pages-api/getting-started/'
       },
       FACEBOOK_PAGE_ID: {
         label: ['หมายเลขเพจ Facebook', 'Facebook Page ID'],
         hint: [
-          'กรอก Page ID ของเพจเดียวกับโทเคน ซึ่งเป็นตัวเลข ไม่ใช่ชื่อเพจหรือลิงก์ Facebook',
-          'Enter the numeric Page ID for the same Page as the token, not the Page name or Facebook URL.'
+          'กรอก Page ID ของเพจเดียวกับคีย์ ซึ่งเป็นตัวเลข ไม่ใช่ชื่อเพจหรือลิงก์ Facebook',
+          'Enter the numeric Page ID for the same Page as the key, not the Page name or Facebook URL.'
         ],
         linkLabel: ['ดูวิธีหาหมายเลขเพจ', 'How to find the Page ID'],
         href: 'https://developers.facebook.com/docs/pages-api/getting-started/',
@@ -57,12 +57,12 @@ const connectors: Record<string, ApiConnectorSetupCopy> = {
       'Connect your LINE Official Account to check its profile, message quota, and usage this month.'
     ],
     result: [
-      'LINE ยืนยันว่า ORCA อ่านข้อมูล LINE OA นี้ได้แล้ว ขั้นตอนถัดไปคือเลือกเครื่องมือที่อนุญาตให้ทีมใช้',
-      'LINE confirmed that ORCA can read this Official Account. Next, choose the tools your team may use.'
+      'LINE ยืนยันแล้วว่า ORCA อ่านข้อมูล LINE OA นี้ได้',
+      'LINE confirmed that ORCA can read this Official Account.'
     ],
     fields: {
       Authorization: {
-        label: ['โทเคนของ LINE OA', 'LINE channel access token'],
+        label: ['คีย์ของ LINE OA', 'LINE OA key'],
         hint: [
           'เปิด LINE Developers เลือกช่องทาง Messaging API ของ LINE OA นี้ แล้วคัดลอก Channel access token จากแท็บ Messaging API',
           'Open LINE Developers, choose this Official Account’s Messaging API channel, and copy its Channel access token from the Messaging API tab.'
@@ -79,24 +79,24 @@ const connectors: Record<string, ApiConnectorSetupCopy> = {
       'Connect an Instagram Business or Creator account to read its profile and recent posts.'
     ],
     result: [
-      'Instagram ยืนยันว่า ORCA อ่านข้อมูลบัญชีนี้ได้แล้ว ขั้นตอนถัดไปคือเลือกเครื่องมือที่อนุญาตให้ทีมใช้',
-      'Instagram confirmed that ORCA can read this account. Next, choose the tools your team may use.'
+      'Instagram ยืนยันแล้วว่า ORCA อ่านข้อมูลบัญชีนี้ได้',
+      'Instagram confirmed that ORCA can read this account.'
     ],
     fields: {
       Authorization: {
-        label: ['โทเคนของ Instagram', 'Instagram User access token'],
+        label: ['คีย์ของ Instagram', 'Instagram key'],
         hint: [
-          'ใช้ Instagram User access token จากแอป Meta ที่เชื่อมบัญชีนี้ผ่าน Instagram Login แล้ว ไม่ใช่โทเคนของเพจ Facebook หรือรหัสผ่าน Instagram',
+          'ใช้ Instagram User access token จากแอป Meta ที่เชื่อมบัญชีนี้ผ่าน Instagram Login แล้ว ไม่ใช่คีย์ของเพจ Facebook หรือรหัสผ่าน Instagram',
           'Use the Instagram User access token from your Meta app’s Instagram Login connection. Do not enter a Facebook Page token or your Instagram password.'
         ],
-        linkLabel: ['ดูวิธีรับโทเคน Instagram', 'How to get an Instagram access token'],
+        linkLabel: ['ดูวิธีหาคีย์ของ Instagram', 'How to get the Instagram key'],
         href: 'https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login'
       },
       INSTAGRAM_ACCOUNT_ID: {
         label: ['หมายเลขบัญชี Instagram', 'Instagram account ID'],
         hint: [
-          'กรอก Instagram User ID ของบัญชีเดียวกับโทเคน ซึ่งเป็นตัวเลขที่ได้รับเมื่อเชื่อม Instagram Login ไม่ใช่ชื่อผู้ใช้ (@username)',
-          'Enter the numeric Instagram User ID returned by Instagram Login for the same account as the token, not the @username.'
+          'กรอก Instagram User ID ของบัญชีเดียวกับคีย์ ซึ่งเป็นตัวเลขที่ได้รับเมื่อเชื่อม Instagram Login ไม่ใช่ชื่อผู้ใช้ (@username)',
+          'Enter the numeric Instagram User ID returned by Instagram Login for the same account as the key, not the @username.'
         ],
         linkLabel: ['ดูวิธีหาหมายเลขบัญชี', 'How to find the account ID'],
         href: 'https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login',
@@ -112,23 +112,23 @@ export function apiConnectorSetup(sourceID: string): ApiConnectorSetupCopy | und
 
 const connectionErrors: Record<string, SetupCopy> = {
   'the API token is invalid or expired; replace it and test again': [
-    'โทเคนนี้ใช้ไม่ได้หรือหมดอายุแล้ว กรุณาคัดลอกโทเคนใหม่จากบัญชีที่ต้องการเชื่อม แล้วทดสอบอีกครั้ง',
-    'This token is invalid or expired. Copy a new token from the account you want to connect and test again.'
+    'คีย์นี้ใช้ไม่ได้หรือหมดอายุแล้ว คัดลอกคีย์ใหม่จากบัญชีที่จะเชื่อม แล้วทดสอบอีกครั้ง',
+    'This key is invalid or expired. Copy a new key from the account you want to connect and test again.'
   ],
   'this API token cannot read the selected account; check its account ID and permissions': [
-    'โทเคนนี้อ่านข้อมูลบัญชีที่ระบุไม่ได้ กรุณาตรวจสอบว่าหมายเลขบัญชีตรงกับโทเคน และได้อนุญาตสิทธิ์อ่านข้อมูลแล้ว',
-    'This token cannot read the selected account. Check that the account ID matches the token and that read access was granted.'
+    'คีย์นี้อ่านข้อมูลบัญชีที่ระบุไม่ได้ ตรวจว่าหมายเลขบัญชีตรงกับคีย์ และอนุญาตให้อ่านข้อมูลแล้ว',
+    'This key cannot read the selected account. Check that the account ID matches the key and that read access was granted.'
   ],
   'the provider is limiting requests; wait and test again': [
-    'ผู้ให้บริการจำกัดจำนวนคำขอชั่วคราว กรุณารอสักครู่แล้วทดสอบอีกครั้ง',
+    'โปรแกรมนี้จำกัดจำนวนคำขอชั่วคราว รอสักครู่แล้วทดสอบอีกครั้ง',
     'The provider is temporarily limiting requests. Wait a moment and test again.'
   ],
   'enter a valid access token for this account': [
-    'กรุณากรอกโทเคนของบัญชีที่ต้องการเชื่อมต่อ และตรวจสอบว่าคัดลอกมาครบถ้วน',
-    'Enter the complete access token for the account you want to connect.'
+    'กรอกคีย์ของบัญชีที่จะเชื่อม และตรวจว่าคัดลอกมาครบ',
+    'Enter the complete key for the account you want to connect.'
   ],
   'enter the numeric account ID, not a username or URL': [
-    'กรุณากรอกหมายเลขบัญชีเป็นตัวเลข ไม่ใช่ชื่อผู้ใช้หรือลิงก์',
+    'กรอกหมายเลขบัญชีเป็นตัวเลข ไม่ใช่ชื่อผู้ใช้หรือลิงก์',
     'Enter the numeric account ID, not a username or URL.'
   ]
 };

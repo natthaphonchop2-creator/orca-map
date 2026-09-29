@@ -119,7 +119,7 @@
         }
       }
     } catch {
-      if (alive && current === request) error = t("โหลดสถานะแอปไม่สำเร็จ กรุณาลองอีกครั้ง", "The app status could not be loaded. Try again.");
+      if (alive && current === request) error = t("โหลดสถานะแอปไม่สำเร็จ ลองอีกครั้ง", "The app status could not be loaded. Try again.");
     } finally {
       if (alive && current === request) loading = false;
     }
@@ -146,7 +146,7 @@
       const setup = await OrcaService.sourceSetup(target.sourceID);
       if (alive && editing?.key === target.key) redirectURL = setup.oauthRedirectURL;
     } catch {
-      if (alive && editing?.key === target.key) formError = t("โหลด Callback URL ไม่สำเร็จ กรุณาปิดแล้วเปิดใหม่", "The callback URL could not be loaded. Close this form and open it again.");
+      if (alive && editing?.key === target.key) formError = t("โหลด Callback URL ไม่สำเร็จ ปิดแล้วเปิดใหม่", "The callback URL could not be loaded. Close this form and open it again.");
     }
   }
 
@@ -239,7 +239,7 @@
   }
 </script>
 
-<PageHeader title={term("programOAuthApps", t)} subtitle={t("แอปที่ให้พนักงานกด อนุญาต แล้วเชื่อมบัญชีโปรแกรมของตัวเอง ตั้งค่าครั้งเดียวต่อผู้ให้บริการ", "Apps that let people connect their own program accounts with one Allow. Set up once per provider.")}>
+<PageHeader title={term("programOAuthApps", t)} subtitle={t("แอปที่ให้พนักงานกด อนุญาต แล้วเชื่อมบัญชีโปรแกรมของตัวเอง ตั้งค่าครั้งเดียวต่อผู้ให้บริการ", "Let people connect their own program accounts with one Allow. Set up once per provider.")}>
   {#snippet eyebrow()}<PlatformBadge everyCompany />{/snippet}
   {#snippet action()}{#if data.canManage}<button type="button" class="k-button" disabled={loading} onclick={refresh}><RefreshCw size={16} class={loading ? "k-spin" : ""} aria-hidden="true" />{t("โหลดใหม่", "Refresh")}</button>{/if}{/snippet}
 </PageHeader>
@@ -401,7 +401,7 @@
     </form>
   {:else if checking}
     {#key checking.id}
-      <SourceSetup sourceID={checking.id} sourceLabel={checking.name} endpointHost={checking.endpointHost} onstatechange={(state) => (checkBusy = state.busy)} />
+      <SourceSetup operator sourceID={checking.id} sourceLabel={checking.name} endpointHost={checking.endpointHost} onstatechange={(state) => (checkBusy = state.busy)} />
     {/key}
   {/if}
   {#snippet footer()}

@@ -623,34 +623,34 @@ export function orcaError(error: unknown): string {
   const parsed = parseErrorContent(error);
   if (parsed.status === 412 && parsed.message.includes("orca_account_changed"))
     return t(
-      "คุณเข้าสู่ระบบด้วยบัญชีอื่นในอีกแท็บ กรุณาโหลดหน้านี้ใหม่",
+      "คุณเข้าสู่ระบบด้วยบัญชีอื่นในอีกแท็บ โหลดหน้านี้ใหม่",
       "You signed in as someone else in another tab. Reload this page.",
     );
   if (parsed.status === 409)
     return t(
-      "ข้อมูลนี้มีการเปลี่ยนแปลงแล้ว กรุณาโหลดข้อมูลล่าสุดก่อนบันทึกอีกครั้ง",
-      "This record has changed. Reload the latest data before saving again.",
+      "มีคนเปลี่ยนข้อมูลนี้ไปแล้ว โหลดข้อมูลล่าสุดก่อน แล้วบันทึกอีกครั้ง",
+      "Someone changed this. Reload the latest data, then save again.",
     );
   if (parsed.status === 401)
     return t(
-      "การเข้าสู่ระบบหมดอายุแล้ว กรุณาเข้าสู่ระบบอีกครั้ง",
-      "Your session has expired. Please sign in again.",
+      "การเข้าสู่ระบบหมดอายุแล้ว เข้าสู่ระบบอีกครั้ง",
+      "Your sign-in has expired. Sign in again.",
     );
   if (parsed.status === 403)
     return t(
-      "บัญชีของคุณไม่มีสิทธิ์ดำเนินการนี้ หรือสิทธิ์มีการเปลี่ยนแปลงแล้ว กรุณาโหลดข้อมูลล่าสุด",
-      "Your account does not have permission for this action, or its access has changed. Reload the latest data.",
+      "บัญชีของคุณไม่มีสิทธิ์ทำสิ่งนี้ หรือสิทธิ์เพิ่งเปลี่ยน โหลดข้อมูลล่าสุดแล้วลองอีกครั้ง",
+      "Your account can't do this, or its access just changed. Reload the latest data and try again.",
     );
   if (parsed.status === 429)
     return t(
-      "มีการใช้งานครบตามจำนวนที่กำหนดแล้ว กรุณาลองอีกครั้งภายหลัง",
-      "The usage limit has been reached. Please try again later.",
+      "ใช้ครบจำนวนที่กำหนดแล้ว ลองอีกครั้งภายหลัง",
+      "The usage limit has been reached. Try again later.",
     );
   return (
     parsed.message ||
     t(
-      "ไม่สามารถเชื่อมต่อได้ กรุณาลองอีกครั้ง",
-      "Could not connect. Please try again.",
+      "เชื่อมต่อไม่ได้ ลองอีกครั้ง",
+      "Could not connect. Try again.",
     )
   );
 }
@@ -677,7 +677,7 @@ export const statusLabels: Record<HubStatus, string> = {
     return t("เปิดใช้งาน", "Active");
   },
   get paused() {
-    return t("ระงับ", "Paused");
+    return t("หยุดชั่วคราว", "Paused");
   },
   get archived() {
     return t("จัดเก็บแล้ว", "Archived");

@@ -65,9 +65,9 @@ const shortCopy: Record<string, readonly [string, string]> = {
 	[LINE_API]: ['ดูข้อมูลบัญชี LINE OA และยอดข้อความ', "Your LINE OA's profile and message usage"]
 };
 
-// The catalog's line for a program it has no copy for (catalog-data.ts) names the
-// mechanism ("…ระบบนี้ผ่าน MCP"); people see a plain line instead.
-const UNKNOWN_PROGRAM_LINE = 'ดูรายละเอียดและวิธีเชื่อมต่อระบบนี้ผ่าน MCP';
+// The catalog's Thai-only line for a program it has no copy for (catalog-data.ts);
+// it gets its English pair here.
+const UNKNOWN_PROGRAM_LINE = 'โปรแกรมที่ทีม ORCA เพิ่มไว้';
 const addedProgramLine = ['โปรแกรมที่ทีม ORCA เพิ่มไว้', 'A program the ORCA team added'] as const;
 
 /** One Thai line about the program. */

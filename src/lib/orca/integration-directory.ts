@@ -24,7 +24,7 @@ export const integrationReferences: IntegrationReference[] = [
   {
     id: 'default-orca-oracle-ords', name: 'Oracle ORDS MCP', protocol: 'MCP',
     categoryId: 'cloud-infrastructure', icon: '/orca/tools/oracle.svg', authMethods: ['oauth'], checkedOn,
-    description: ["ค้นหาข้อมูลในฐานข้อมูล Oracle ขององค์กรผ่าน AI", "Search your organization’s Oracle database through AI."],
+    description: ["ค้นหาข้อมูลในฐานข้อมูล Oracle ของบริษัทผ่าน AI", "Search your company’s Oracle database through AI."],
     requirements: [
       ['ผู้ดูแลระบบเตรียม ORDS รุ่น 26.2 ขึ้นไป เปิดใช้ MCP และกำหนดสิทธิ์ฐานข้อมูล', 'An administrator enables MCP in ORDS 26.2 or later and configures database access.'],
       ['ใช้ URL /mcp ขององค์กร และตั้งค่า OAuth/JWT กับผู้ให้บริการยืนยันตัวตน', 'Use your organization’s /mcp URL and configure OAuth/JWT with its identity provider.'],

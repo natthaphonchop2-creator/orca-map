@@ -93,8 +93,8 @@
 {/if}
 <a class="settings-help-link" href={localeHref("/app?view=help")}
   >{t(
-    "คู่มือการเชื่อมต่อและการใช้งาน",
-    "Connection and usage guide",
+    "ดูคำถามที่พบบ่อย",
+    "Read the common questions",
   )}<ArrowRight size={16} /></a
 >
 

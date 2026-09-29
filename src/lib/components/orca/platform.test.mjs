@@ -518,5 +518,5 @@ test('แอป OAuth ของโปรแกรม sets up a program’s own a
 		assert.doesNotMatch(source, /catalogSetupHref|view=add-program|view=servers/, `${key} keeps the ORCA team in the platform area`);
 	}
 	const oauth = await readFile(files.oauth, 'utf8');
-	assert.match(oauth, /\{:else if checking\}[\s\S]*?<SourceSetup sourceID=\{checking\.id\}/);
+	assert.match(oauth, /\{:else if checking\}[\s\S]*?<SourceSetup operator sourceID=\{checking\.id\}/);
 });

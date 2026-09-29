@@ -28,7 +28,7 @@
   async function confirm() {
     if (saving || stale || disabled || completed || !snapshot) return;
     if (id !== snapshot.id || kind !== snapshot.kind || version !== snapshot.version) {
-      stale = true; error = t('ข้อมูลนี้มีการเปลี่ยนแปลงแล้ว กรุณาปิดหน้าต่างนี้และตรวจสอบข้อมูลล่าสุดก่อนดำเนินการอีกครั้ง', 'This record has changed. Close this dialog and review the latest data before trying again.'); return;
+      stale = true; error = t('มีคนเปลี่ยนข้อมูลนี้ไปแล้ว ปิดหน้าต่างนี้ ดูข้อมูลล่าสุด แล้วลองอีกครั้ง', 'Someone changed this. Close this dialog, check the latest details, and try again.'); return;
     }
     saving = true; onbusy(true); error = '';
     try {
@@ -40,7 +40,7 @@
       await onchanged();
     } catch (cause) {
       stale = completed || getHttpStatusCode(cause) === 409;
-      error = completed ? t('บันทึกแล้ว แต่โหลดรายการล่าสุดไม่สำเร็จ กรุณาปิดหน้าต่างนี้และโหลดข้อมูลใหม่', 'Saved, but the list could not be refreshed. Close this dialog and reload the latest data.') : stale ? t('ข้อมูลหรือสิทธิ์มีการเปลี่ยนแปลงแล้ว กรุณาปิดหน้าต่างนี้และโหลดข้อมูลใหม่ก่อนดำเนินการอีกครั้ง หากเป็นเจ้าของระบบคนสุดท้าย ต้องแต่งตั้งเจ้าของระบบคนอื่นก่อน', 'The record or permissions have changed. Close this dialog and refresh before trying again. If this is the last Owner, appoint another Owner first.') : orcaError(cause);
+      error = completed ? t('บันทึกแล้ว แต่โหลดรายการล่าสุดไม่สำเร็จ ปิดหน้าต่างนี้แล้วโหลดหน้าใหม่', "Saved, but the list couldn't refresh. Close this dialog and reload the page.") : stale ? t('ข้อมูลหรือสิทธิ์เปลี่ยนไปแล้ว ปิดหน้าต่างนี้ โหลดหน้าใหม่ แล้วลองอีกครั้ง ถ้าเป็นเจ้าของบริษัทคนสุดท้าย ให้ตั้งคนอื่นเป็นเจ้าของบริษัทก่อน', 'The details or permissions changed. Close this dialog, reload, and try again. If this is the last company owner, make someone else an owner first.') : orcaError(cause);
       if (completed && dialog.isConnected && !dialog.open) dialog.showModal();
     } finally { saving = false; onbusy(false); }
   }
@@ -59,11 +59,11 @@
   </div>
   <h2>{label}</h2><p class="subject">{snapshot?.name}</p>
   <p>{action === 'restore'
-    ? t('หลังกู้คืน ต้องกำหนดสมาชิกหรือสิทธิ์การเข้าถึงใหม่ สิทธิ์และคีย์ API ที่ถูกเพิกถอนแล้วจะไม่กลับคืนโดยอัตโนมัติ', 'After restoring, assign membership or access again. Revoked permissions and API keys are not restored automatically.')
+    ? t('หลังกู้คืน ต้องเพิ่มคนและสิทธิ์ใหม่เอง สิทธิ์และคีย์ที่ถูกตัดไปแล้วจะไม่กลับมาเอง', "After restoring, add people and access again. Access and keys that were removed don't come back by themselves.")
     : kind === 'department'
-      ? t('นำสมาชิกทั้งหมดออกจากแผนกนี้ และยกเลิกสิทธิ์เข้าถึงความรู้ที่ให้ผ่านแผนกนี้ สมาชิกยังคงใช้สิทธิ์ที่ได้รับจากช่องทางอื่นได้', 'Removes all members from this department and ends knowledge access granted through it. Members keep access granted in other ways.')
-      : t('ยุติการเข้าถึง ORCA ของสมาชิกรายนี้ เพิกถอนสิทธิ์ในพื้นที่ทำงาน AI แผนก และความรู้ที่แบ่งปันโดยตรง รวมถึงเพิกถอนคีย์ API ที่มีอยู่', 'Ends this member’s access to ORCA, removes AI workspace, department and direct knowledge access, and revokes existing API keys.')}</p>
-  {#if action === 'delete'}<p>{t('รายการนี้จะถูกนำออกจากหน้าจัดการและไม่สามารถกู้คืนจากหน้านี้ได้ ประวัติการใช้งานและเอกสารที่สร้างไว้จะยังคงเก็บรักษาไว้', 'This entry will be removed from management and cannot be restored here. Activity history and authored documents are retained.')}</p>{/if}
+      ? t('ทุกคนจะออกจากแผนกนี้ และเลิกเห็นความรู้ที่แชร์ผ่านแผนกนี้ แต่ยังใช้สิ่งที่ได้รับสิทธิ์ทางอื่นได้ตามเดิม', 'Everyone leaves this department and loses the knowledge shared through it. Access they have in other ways stays.')
+      : t('คนนี้จะใช้ ORCA ไม่ได้ ORCA จะเอาเขาออกจากพื้นที่ทำงาน AI แผนก และความรู้ที่แชร์ให้โดยตรง และตัดการเชื่อมต่อคีย์ของเขาทั้งหมด', "This person can no longer use ORCA. ORCA takes them out of AI workspaces, departments and knowledge shared with them, and disconnects all their keys.")}</p>
+  {#if action === 'delete'}<p>{t('รายการนี้จะหายไปจากหน้านี้และกู้คืนจากที่นี่ไม่ได้ ประวัติการใช้งานและเอกสารที่เคยเขียนไว้ยังเก็บไว้ตามเดิม', "This is removed from this page and can't be restored here. Activity history and anything they wrote are kept.")}</p>{/if}
   {#if error}<p class="dialog-error" role="alert">{error}</p>{/if}
   <div class="dialog-actions"><button bind:this={cancelButton} class="k-button" disabled={saving} onclick={() => dialog.close()}>{t('ยกเลิก', 'Cancel')}</button><button class="k-button" class:primary={action !== 'delete'} class:danger-solid={action === 'delete'} disabled={saving || stale || disabled || completed} onclick={confirm}>{saving ? t('กำลังบันทึก…', 'Saving…') : label}</button></div>
 </dialog>

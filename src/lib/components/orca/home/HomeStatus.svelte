@@ -71,10 +71,10 @@
 		if (hub.status === 'active')
 			return workspaceToolingReady(hub, data.connections) ? { label: t('เปิดใช้', 'Active'), tone: 'ok' } : { label: t('ยังใช้ไม่ได้', 'Not usable'), tone: 'warn' };
 		if (hub.status === 'draft') return { label: t('ฉบับร่าง', 'Draft'), tone: 'neutral' };
-		return { label: t('หยุดไว้', 'Paused'), tone: 'warn' };
+		return { label: t('หยุดชั่วคราว', 'Paused'), tone: 'warn' };
 	}
 	function programStatus(connection: OrcaConnection): { label: string; tone: StatusTone } {
-		if (!connection.enabled) return { label: t('หยุดไว้', 'Paused'), tone: 'warn' };
+		if (!connection.enabled) return { label: t('หยุดชั่วคราว', 'Paused'), tone: 'warn' };
 		return connectionReady(connection) ? { label: t('พร้อมใช้', 'Ready'), tone: 'ok' } : { label: t('รอเลือกสิ่งที่ AI ทำได้', 'Needs review'), tone: 'warn' };
 	}
 	const usage = (hub: OrcaHub) => (hub.dailyLimit > 0 ? Math.min(100, Math.round(((hub.usedToday || 0) / hub.dailyLimit) * 100)) : 0);
@@ -187,14 +187,14 @@
 					{#if blockedSpaces > 0}
 						<a class="home-alert" href={localeHref('/app?view=workspaces')}>
 							<CircleAlert size={17} aria-hidden="true" />
-							<span><strong>{t(`พื้นที่ทำงานที่ยังใช้ไม่ได้ ${blockedSpaces} แห่ง`, `${blockedSpaces} workspaces are not usable`)}</strong><small>{t('มีโปรแกรมที่หยุดไว้ หรือยังไม่ได้เลือกสิ่งที่ AI ทำได้', 'A program is paused or not reviewed yet')}</small></span>
+							<span><strong>{t(`พื้นที่ทำงานที่ยังใช้ไม่ได้ ${blockedSpaces} แห่ง`, `${blockedSpaces} workspaces are not usable`)}</strong><small>{t('มีโปรแกรมที่หยุดชั่วคราว หรือยังไม่ได้เลือกสิ่งที่ AI ทำได้', 'A program is paused or not reviewed yet')}</small></span>
 							<ArrowRight size={15} aria-hidden="true" />
 						</a>
 					{/if}
 					{#if paused > 0}
 						<a class="home-alert quiet" href={localeHref('/app?view=servers')}>
 							<CircleAlert size={17} aria-hidden="true" />
-							<span><strong>{t(`โปรแกรมที่หยุดไว้ ${paused} โปรแกรม`, `${paused} programs are paused`)}</strong><small>{t('ทีมใช้ไม่ได้จนกว่าจะเปิดอีกครั้ง', "Your team can't use them until they're resumed")}</small></span>
+							<span><strong>{t(`โปรแกรมที่หยุดชั่วคราว ${paused} โปรแกรม`, `${paused} programs are paused`)}</strong><small>{t('ทีมใช้ไม่ได้จนกว่าจะเปิดอีกครั้ง', "Your team can't use them until they're resumed")}</small></span>
 							<ArrowRight size={15} aria-hidden="true" />
 						</a>
 					{/if}

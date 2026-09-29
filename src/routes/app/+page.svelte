@@ -89,7 +89,7 @@
         // in as them): start again as them, never show their data here.
         if (result.currentUserID !== route.account) {
           if (!reloadForAccount(() => window.location.reload(), sessionStorageOrNothing()))
-            error = t("คุณเข้าสู่ระบบด้วยบัญชีอื่นในอีกแท็บ กรุณาโหลดหน้านี้ใหม่", "You signed in as someone else in another tab. Reload this page.");
+            error = t("คุณเข้าสู่ระบบด้วยบัญชีอื่นในอีกแท็บ โหลดหน้านี้ใหม่", "You signed in as someone else in another tab. Reload this page.");
           return;
         }
         data = result;
@@ -175,8 +175,8 @@
   ><meta
     name="description"
     content={t(
-      "เชื่อมระบบขององค์กร เลือกเครื่องมือและสมาชิก ให้ทีมใช้ AI กับข้อมูลตามสิทธิ์ที่กำหนด",
-      "Connect your organization’s systems, choose data and members, and give your team clear AI access.",
+      "เชื่อมโปรแกรมของบริษัท เลือกว่าใครใช้ได้ และให้ทีมใช้ AI กับข้อมูลตามสิทธิ์",
+      "Connect your company's programs, choose who can use them, and let your team use AI with the data they're allowed.",
     )}
   /></svelte:head
 >
@@ -196,8 +196,8 @@
   {#if !data}<div class="k-loading" role="status" aria-live="polite">
       {#if refreshing}<LoaderCircle size={25} class="k-spin" />
         {t("กำลังโหลดข้อมูลบริษัท…", "Loading company data…")}{:else}{t(
-          "โหลดข้อมูลบริษัทไม่สำเร็จ กรุณาลองอีกครั้ง",
-          "Company data could not be loaded. Please try again.",
+          "โหลดข้อมูลบริษัทไม่สำเร็จ ลองอีกครั้ง",
+          "Company data could not be loaded. Try again.",
         )}{/if}
     </div>
   {:else if navigation.redirect}<div class="k-loading" role="status" aria-live="polite">
@@ -288,8 +288,8 @@
   <footer class="k-footer">
     <span
       >{t(
-        "ORCA · เข้าถึงข้อมูลองค์กรตามสิทธิ์ที่กำหนด",
-        "ORCA · Governed access to organizational data",
+        "ORCA · ใช้ AI กับข้อมูลบริษัทตามสิทธิ์ที่กำหนด",
+        "ORCA · AI with company data, within the access you set",
       )}</span
     ><a href={localeHref("/privacy")}>{t("ความเป็นส่วนตัว", "Privacy")}</a><a
       href="/terms-of-service">{t("เงื่อนไขการใช้งาน", "Terms of use")}</a

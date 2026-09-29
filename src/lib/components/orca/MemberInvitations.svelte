@@ -42,7 +42,10 @@
     openCount = groups.open.length;
   });
   const roleLabel = (value: OrcaInvitation["role"]) =>
-    value === "owner" ? t("เจ้าของ", "Owner") : value === "admin" ? t("ผู้ดูแลระบบ", "Admin") : t("สมาชิกทั่วไป", "Member");
+    value === "owner" ? t("เจ้าของบริษัท", "Company owner") : value === "admin" ? t("ผู้ดูแล", "Admin") : t("พนักงาน", "Employee");
+  // The same role inside the invitation's English sentence ("as an admin").
+  const roleInSentence = (value: OrcaInvitation["role"]) =>
+    value === "owner" ? t("เจ้าของบริษัท", "a company owner") : value === "admin" ? t("ผู้ดูแล", "an admin") : t("พนักงาน", "an employee");
   const statusLabel = (value: OrcaInvitation["status"]) =>
     ({ pending: t("รอตอบรับ", "Waiting"), accepted: t("ตอบรับแล้ว", "Accepted"), revoked: t("ยกเลิกแล้ว", "Revoked"), expired: t("หมดอายุ", "Expired") })[value];
   const departmentNames = (ids: string[]) =>
@@ -56,8 +59,8 @@
   const message = $derived(
     issued
       ? t(
-          `คุณได้รับเชิญเข้าร่วม ${organization} บน ORCA ในฐานะ${roleLabel(issued.invitation.role)} เปิดลิงก์นี้แล้วเข้าสู่ระบบด้วยอีเมล ${issued.invitation.email} (ใช้ได้ถึง ${displayDate(issued.invitation.expiresAt)})\n${issued.link}`,
-          `You're invited to join ${organization} on ORCA as ${roleLabel(issued.invitation.role)}. Open this link and sign in with ${issued.invitation.email} (valid until ${displayDate(issued.invitation.expiresAt)}):\n${issued.link}`,
+          `คุณได้รับเชิญเข้าร่วม ${organization} บน ORCA ในฐานะ${roleInSentence(issued.invitation.role)} เปิดลิงก์นี้แล้วเข้าสู่ระบบด้วยอีเมล ${issued.invitation.email} (ใช้ได้ถึง ${displayDate(issued.invitation.expiresAt)})\n${issued.link}`,
+          `You're invited to join ${organization} on ORCA as ${roleInSentence(issued.invitation.role)}. Open this link and sign in with ${issued.invitation.email} (valid until ${displayDate(issued.invitation.expiresAt)}):\n${issued.link}`,
         )
       : "",
   );
@@ -108,7 +111,7 @@
     if (busy) return;
     const address = email.trim();
     if (!address) {
-      formError = t("กรุณากรอกอีเมลของคนที่ต้องการเชิญ", "Enter the email of the person to invite.");
+      formError = t("กรอกอีเมลของคนที่จะเชิญ", "Enter the email of the person to invite.");
       return;
     }
     busy = true;
@@ -170,7 +173,7 @@
       await navigator.clipboard.writeText(text);
       copied = what;
     } catch {
-      formError = t("คัดลอกไม่สำเร็จ กรุณาเลือกข้อความแล้วคัดลอกเอง", "Copy failed. Select the text and copy it yourself.");
+      formError = t("คัดลอกไม่สำเร็จ เลือกข้อความแล้วคัดลอกเอง", "Copy failed. Select the text and copy it yourself.");
     }
   }
 </script>
@@ -194,8 +197,8 @@
       </div>
       <p class="k-small k-muted">
         {t(
-          "ORCA ยังไม่ส่งอีเมลเอง ส่งลิงก์ให้แต่ละคนทาง LINE หรืออีเมล เมื่อเขาเข้าสู่ระบบด้วยอีเมลที่เชิญและกดรับ จะได้บทบาทและแผนกตามที่กำหนดทันที",
-          "ORCA does not send email yet. Share each link by LINE or email. When the person signs in with the invited email and accepts, they get the role and departments you chose.",
+          "ส่งลิงก์ให้แต่ละคนเองทาง LINE หรืออีเมล เขาเข้าสู่ระบบด้วยอีเมลนั้นแล้วกดรับ ก็ได้บทบาทและแผนกตามที่เลือก",
+          "Send each link yourself by LINE or email. When they sign in with that email and accept, they get the role and departments you chose.",
         )}
       </p>
     </div>
@@ -304,8 +307,8 @@
         {#if canInviteAdmins}
           <p class="invitation-label">{t("บทบาท", "Role")}</p>
           <div class="invitation-roles" role="radiogroup" aria-label={t("บทบาท", "Role")}>
-            <label class:chosen={role === "employee"}><input type="radio" name="invitation-role" value="employee" bind:group={role} /><span><strong>{t("สมาชิกทั่วไป", "Member")}</strong><small>{t("ใช้พื้นที่ทำงาน AI ตามสิทธิ์", "Uses assigned AI workspaces")}</small></span></label>
-            <label class:chosen={role === "admin"}><input type="radio" name="invitation-role" value="admin" bind:group={role} /><span><strong>{t("ผู้ดูแลระบบ", "Admin")}</strong><small>{t("จัดการระบบ พื้นที่ทำงาน และสมาชิก", "Manages systems, workspaces and members")}</small></span></label>
+            <label class:chosen={role === "employee"}><input type="radio" name="invitation-role" value="employee" bind:group={role} /><span><strong>{t("พนักงาน", "Employee")}</strong><small>{t("ใช้ AI ในพื้นที่ทำงานที่ได้รับสิทธิ์", "Uses AI in the workspaces they're given")}</small></span></label>
+            <label class:chosen={role === "admin"}><input type="radio" name="invitation-role" value="admin" bind:group={role} /><span><strong>{t("ผู้ดูแล", "Admin")}</strong><small>{t("จัดการโปรแกรม พื้นที่ทำงาน และสมาชิก", "Manages programs, workspaces and members")}</small></span></label>
           </div>
         {/if}
         {#if departments.length}

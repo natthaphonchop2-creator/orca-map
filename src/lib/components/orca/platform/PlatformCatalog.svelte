@@ -250,6 +250,7 @@
 		{:else if checking}
 			{#key checking.id}
 				<SourceSetup
+					operator
 					sourceID={checking.id}
 					sourceLabel={checking.name}
 					endpointHost={checking.endpointHost}

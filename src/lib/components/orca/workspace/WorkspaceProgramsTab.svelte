@@ -79,7 +79,7 @@
 	async function save() {
 		if (busy || !dirty) return;
 		if (hub.status === 'active' && !current.length) {
-			error = t('พื้นที่ที่เปิดใช้งานต้องมีอย่างน้อย 1 โปรแกรม หยุดใช้ชั่วคราวในแท็บ “ตั้งค่า” ก่อนถ้าจะปิดทั้งหมด', 'An active workspace needs at least one program. Pause it under “Settings” first to turn them all off.');
+			error = t('พื้นที่ที่เปิดใช้งานต้องมีอย่างน้อย 1 โปรแกรม หยุดชั่วคราวในแท็บ “ตั้งค่า” ก่อนถ้าจะปิดทั้งหมด', 'An active workspace needs at least one program. Pause it under “Settings” first to turn them all off.');
 			return;
 		}
 		busy = true;

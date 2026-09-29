@@ -50,8 +50,8 @@
       error =
         conflict === "last-owner"
           ? t(
-              "องค์กรต้องมีเจ้าของระบบอย่างน้อยหนึ่งคน กรุณาแต่งตั้งสมาชิกคนอื่นเป็นเจ้าของระบบก่อนเปลี่ยนบทบาทนี้",
-              "Your organization needs at least one Owner. Appoint another Owner before changing this role.",
+              "บริษัทต้องมีเจ้าของบริษัทอย่างน้อย 1 คน ตั้งคนอื่นเป็นเจ้าของบริษัทก่อน แล้วค่อยเปลี่ยนบทบาทนี้",
+              "The company needs at least one company owner. Make someone else an owner before changing this role.",
             )
           : orcaError(cause);
     } finally {
@@ -76,7 +76,7 @@
         {error}
         {#if staleRole}<p>
             {t(
-              "กรุณาปิดแล้วเปิดการแก้ไขบทบาทอีกครั้งเพื่อแสดงบทบาทล่าสุด",
+              "ปิดแล้วเปิดหน้าแก้บทบาทอีกครั้งเพื่อดูบทบาทล่าสุด",
               "Close and reopen this editor to see the latest role.",
             )}
           </p>{/if}
@@ -94,34 +94,34 @@
     <fieldset disabled={saving || saved}>
       <div class="k-field">
         <label for="member-role"
-          >{t("บทบาทในองค์กร", "Organization role")}</label
+          >{t("บทบาทในบริษัท", "Company role")}</label
         >
         <select id="member-role" bind:value={role}>
-          <option value="owner">{t("เจ้าของระบบ", "Owner")}</option><option value="admin"
-            >{t("ผู้ดูแลระบบ", "Admin")}</option
-          ><option value="employee">{t("สมาชิกทั่วไป", "Member")}</option>
+          <option value="owner">{t("เจ้าของบริษัท", "Company owner")}</option><option value="admin"
+            >{t("ผู้ดูแล", "Admin")}</option
+          ><option value="employee">{t("พนักงาน", "Employee")}</option>
         </select>
       </div>
       <p class="role-help">
         {role === "owner"
           ? t(
-              "ดูแลการตั้งค่าทั้งหมดขององค์กรและกำหนดบทบาทของสมาชิก",
-              "Manages all organization settings and member roles.",
+              "ดูแลการตั้งค่าทั้งบริษัท และเปลี่ยนบทบาทของทุกคนได้",
+              "Manages all company settings and everyone's role.",
             )
           : role === "admin"
             ? t(
-                "จัดการระบบที่เชื่อมต่อ พื้นที่ทำงาน AI สมาชิก และแผนก แต่เปลี่ยนบทบาทของผู้ดูแลไม่ได้",
-                "Manages connected systems, AI workspaces, members and departments, but cannot change administrative roles.",
+                "จัดการโปรแกรมที่เชื่อม พื้นที่ทำงาน AI สมาชิก และแผนก แต่เปลี่ยนบทบาทไม่ได้",
+                "Manages connected programs, AI workspaces, members and departments, but can't change roles.",
               )
             : t(
-                "ใช้งานได้เฉพาะพื้นที่ทำงาน AI เครื่องมือ และความรู้ที่ได้รับสิทธิ์",
-                "Uses only assigned AI workspaces, tools and knowledge.",
+                "ใช้ AI ได้เฉพาะในพื้นที่ทำงานและความรู้ที่ได้รับสิทธิ์",
+                "Uses AI only in the workspaces and knowledge they're given.",
               )}
       </p>
       {#if member.id === currentUserID && role !== "owner"}<p class="k-banner">
           {t(
-            "คุณกำลังลดสิทธิ์ของตนเอง หลังบันทึกแล้วคุณจะจัดการบทบาทไม่ได้ และองค์กรต้องมีเจ้าของระบบคนอื่นอยู่",
-            "You are reducing your own access. After saving, you will no longer manage roles, and another Owner must remain.",
+            "คุณกำลังลดสิทธิ์ของตัวเอง หลังบันทึกคุณจะเปลี่ยนบทบาทไม่ได้อีก และต้องมีเจ้าของบริษัทคนอื่นอยู่",
+            "You're lowering your own access. After saving you can't change roles, and another company owner must remain.",
           )}
         </p>{/if}
     </fieldset>

@@ -165,7 +165,7 @@
   async function copyURI(uri: string) {
     const ok = await copyText(uri, typeof navigator === "undefined" ? undefined : navigator.clipboard, typeof document === "undefined" ? undefined : document);
     if (!ok) {
-      error = t("คัดลอกไม่สำเร็จ กรุณาเลือกที่อยู่แล้วคัดลอกเอง", "Copy failed. Select the address and copy it yourself.");
+      error = t("คัดลอกไม่สำเร็จ เลือกที่อยู่แล้วคัดลอกเอง", "Copy failed. Select the address and copy it yourself.");
       return;
     }
     copied = uri;
@@ -175,7 +175,7 @@
 </script>
 
 <div class="google-page">
-  <PageHeader title={term("googleSignIn", t)} subtitle={t("ลูกค้าทุกบริษัทเข้า ORCA และรับคำเชิญด้วยบัญชี Google ของตัวเอง ตั้งค่าครั้งเดียวที่นี่", "Every customer signs in and accepts invitations with their own Google account. Set it up once here.")}>
+  <PageHeader title={term("googleSignIn", t)} subtitle={t("ลูกค้าทุกบริษัทเข้า ORCA และรับคำเชิญด้วยบัญชี Google ของตัวเอง ตั้งค่าครั้งเดียวที่นี่", "Every customer signs in and accepts invitations with Google. Set it up once here.")}>
     {#snippet eyebrow()}<PlatformBadge everyCompany />{/snippet}
   </PageHeader>
 

@@ -39,20 +39,20 @@
     if (app === 'chatgpt') return [
       t('เปิด ChatGPT แล้วไปที่ ตั้งค่า → Apps & Connectors', 'In ChatGPT, open Settings → Apps & Connectors.'),
       t('ใน Advanced settings เปิด Developer mode (ใช้ได้กับแพ็กเกจที่รองรับ เช่น Plus, Pro, Business)', 'Under Advanced settings, turn on Developer mode (on plans that support it, such as Plus, Pro and Business).'),
-      t(`กด Create ตั้งชื่อ ${connectorName} วางลิงก์เชื่อม AI ด้านบน แล้วเลือกการยืนยันตัวตนแบบ OAuth`, `Choose Create, name it ${connectorName}, paste the AI connection link above, and choose OAuth authentication.`),
+      t(`กด Create ตั้งชื่อ ${connectorName} วางลิงก์ ORCA ด้านบน แล้วเลือกการยืนยันตัวตนแบบ OAuth`, `Choose Create, name it ${connectorName}, paste the ORCA link above, and choose OAuth authentication.`),
       t('กด Create แล้วเข้าสู่ระบบด้วยบัญชี ORCA ของคุณ', 'Choose Create, then sign in with your ORCA account.')
     ];
     if (app === 'claude') return [
       t('เปิด Claude (เว็บหรือแอปเดสก์ท็อป) แล้วไปที่ Settings → Connectors', 'In Claude (web or desktop), open Settings → Connectors.'),
-      t(`กด Add custom connector ตั้งชื่อ ${connectorName} แล้ววางลิงก์เชื่อม AI ด้านบน`, `Choose Add custom connector, name it ${connectorName}, and paste the AI connection link above.`),
+      t(`กด Add custom connector ตั้งชื่อ ${connectorName} แล้ววางลิงก์ ORCA ด้านบน`, `Choose Add custom connector, name it ${connectorName}, and paste the ORCA link above.`),
       t('กด Add แล้ว Connect จากนั้นเข้าสู่ระบบด้วยบัญชี ORCA ของคุณ', 'Choose Add, then Connect, and sign in with your ORCA account.'),
-      t('ถ้าใช้ Claude แบบองค์กร (Team หรือ Enterprise) ผู้ดูแลต้องเพิ่ม connector ในการตั้งค่าองค์กรก่อน', 'On a Team or Enterprise plan, an owner adds the connector in the organization settings first.')
+      t('ถ้าใช้ Claude แบบ Team หรือ Enterprise ผู้ดูแล Claude ของบริษัทต้องเพิ่ม connector ในการตั้งค่าองค์กรของ Claude ก่อน', "On a Claude Team or Enterprise plan, your company's Claude admin adds the connector in Claude's organization settings first.")
     ];
     return [];
   });
   const afterInstall = $derived.by(() => {
     if (app === 'cursor') return t('ใน Cursor กด Install แล้วกด Connect เพื่อเข้าสู่ระบบ ORCA', 'In Cursor, choose Install, then Connect to sign in to ORCA.');
-    if (app === 'vscode') return t('ใน VS Code กด Install แล้วเริ่มการเชื่อมต่อ ระบบจะเปิดหน้าเข้าสู่ระบบ ORCA', 'In VS Code, choose Install and start the server; it opens the ORCA sign-in page.');
+    if (app === 'vscode') return t('ใน VS Code กด Install แล้วเริ่มการเชื่อมต่อ หน้าเข้าสู่ระบบ ORCA จะเปิดขึ้นมา', 'In VS Code, choose Install and start the server; it opens the ORCA sign-in page.');
     if (app === 'claude-code') return oauth ? t(`จากนั้นพิมพ์ /mcp ใน Claude Code แล้วเลือก ${clientName.server} เพื่อเข้าสู่ระบบ`, `Then type /mcp in Claude Code and choose ${clientName.server} to sign in.`) : t(`ตั้งตัวแปร ${clientName.keyEnv} ก่อนรันคำสั่ง`, `Set ${clientName.keyEnv} before running the command.`);
     if (app === 'codex') return oauth ? t('คำสั่งที่สองจะเปิดหน้าเข้าสู่ระบบ ORCA', 'The second command opens the ORCA sign-in page.') : t(`ตั้งตัวแปร ${clientName.keyEnv} ในสภาพแวดล้อมที่ใช้เปิด Codex`, `Set ${clientName.keyEnv} in the environment Codex starts from.`);
     if (app === 'windsurf') return t('บันทึกไฟล์แล้วกด Refresh ในแผง MCP ของ Windsurf', 'Save the file, then choose Refresh in Windsurf’s MCP panel.');
@@ -67,17 +67,17 @@
   async function copy(text: string, name: string) {
     copied = ''; error = '';
     try { await navigator.clipboard.writeText(text); copied = name; }
-    catch { error = t('คัดลอกอัตโนมัติไม่สำเร็จ กรุณาเลือกข้อความแล้วคัดลอกด้วยตนเอง', 'The text could not be copied automatically. Select and copy it manually.'); }
+    catch { error = t('คัดลอกไม่ได้ เลือกข้อความแล้วคัดลอกเอง', 'Copy failed. Select the text and copy it yourself.'); }
   }
 </script>
 
 <div class="client-setup">
   {#if instructions}
-    <div class="link-field"><label for={endpointID}>{scope === 'orca' ? t('ลิงก์เชื่อม AI สำหรับทุกพื้นที่ทำงานของคุณ (MCP URL)', 'AI connection link for all your workspaces (MCP URL)') : t('ลิงก์เชื่อม AI (MCP URL)', 'AI connection link (MCP URL)')}</label>
+    <div class="link-field"><label for={endpointID}>{scope === 'orca' ? t('ลิงก์ ORCA ของบริษัท (MCP URL)', "Your company's ORCA link (MCP URL)") : t('ลิงก์ ORCA ของพื้นที่นี้ (MCP URL)', "This workspace's ORCA link (MCP URL)")}</label>
       <div class="endpoint"><input id={endpointID} readonly value={endpoint} /><button class="k-button" onclick={() => copy(endpoint, t('ลิงก์', 'Link'))} aria-label={t('คัดลอกลิงก์', 'Copy link')}><Copy size={16} aria-hidden="true" />{t('คัดลอกลิงก์', 'Copy link')}</button></div>
       <p class="link-hint">{scope === 'orca' ? t('ลิงก์เดียวใช้ได้กับทุกพื้นที่ทำงาน AI ที่คุณได้รับสิทธิ์ ', 'One link for every AI workspace you can access. ') : ''}{oauth
         ? t('แต่ละคนเข้าสู่ระบบด้วยบัญชี ORCA ของตัวเอง (OAuth)', 'Each person signs in with their own ORCA account (OAuth).')
-        : t('ใช้คีย์ API ส่วนตัว เก็บคีย์ไว้ในการตั้งค่าของแอป ห้ามวางในแชท', 'Uses a personal API key. Keep the key in the app’s settings, never in a chat.')}</p>
+        : t('ใช้คีย์ส่วนตัว เก็บคีย์ไว้ในการตั้งค่าของแอป อย่าวางในแชท', 'Uses a personal key. Keep the key in the app’s settings, never in a chat.')}</p>
     </div>
     {#if !ready}<p class="setup-note">{notReady}</p>{/if}
     <div class="app-field">
@@ -99,7 +99,7 @@
       {#if app === 'other'}
         <p class="setup-intro">{oauth
           ? t('เพิ่มลิงก์นี้ในแอป AI ที่รองรับ MCP และ OAuth จากนั้นเข้าสู่ระบบด้วยบัญชี ORCA ของคุณเพื่อยืนยันตัวตน', 'Add this link to an AI app that supports MCP and OAuth, then sign in with your ORCA account to verify your identity.')
-          : t('เพิ่มลิงก์นี้ในแอป AI ที่รองรับ MCP และการกำหนด Authorization header จากนั้นใส่คีย์ส่วนตัวในช่องเก็บข้อมูลลับของแอป', 'Add this link to an AI app that supports MCP and custom Authorization headers, then enter your personal key in the app’s secure credential field.')}</p>
+          : t('เพิ่มลิงก์นี้ในแอป AI ที่รองรับ MCP และการกำหนด Authorization header จากนั้นใส่คีย์ส่วนตัวในช่องเก็บคีย์ของแอป', 'Add this link to an AI app that supports MCP and custom Authorization headers, then enter your personal key in the app’s secure credential field.')}</p>
         <dl><dt>{t('การรับส่งข้อมูล', 'Transport')}</dt><dd>Streamable HTTP</dd><dt>{t('การยืนยันตัวตน', 'Authorization')}</dt><dd>{oauth ? 'OAuth' : 'Bearer <personal-key>'}</dd></dl>
         <div class="setup-actions"><span class="auth-mode">{t('ให้ AI ช่วยตั้งค่าแทน', 'Let your AI set it up')}</span><button class="k-button" onclick={() => copy(instructions, t('คำสั่งตั้งค่า', 'Setup instructions'))}><Copy size={16} aria-hidden="true" />{t('คัดลอกคำสั่งตั้งค่า', 'Copy setup instructions')}</button></div>
         <pre class="prompt-preview" aria-label={t('ข้อความตั้งค่าสำหรับแอป AI', 'Setup instructions for your AI app')}>{instructions}</pre>
@@ -116,7 +116,7 @@
         </div>
       </details>
     {/if}
-  {:else}<p class="copy-error" role="alert">{t('ลิงก์เชื่อม AI นี้ใช้สร้างการตั้งค่าไม่ได้ กรุณาติดต่อผู้ดูแลระบบ', 'This AI connection link cannot be used to generate a configuration. Contact your administrator.')}</p>{/if}
+  {:else}<p class="copy-error" role="alert">{t('ลิงก์นี้ใช้สร้างการตั้งค่าไม่ได้ แจ้งผู้ดูแลบริษัท', "This link can't be used to make a configuration. Tell a company admin.")}</p>{/if}
   {#if copied}<p role="status" class="copied"><Check size={14} aria-hidden="true" />{t(`คัดลอก${copied}แล้ว`, `${copied} copied`)}</p>{/if}
   {#if error}<p class="copy-error" role="alert">{error}</p>{/if}
 </div>

@@ -319,7 +319,7 @@ const presentations: Record<string, CatalogPresentation> = {
 	},
 	'composio-connect': {
 		categoryId: 'productivity',
-		descriptionTh: 'เข้าถึงเครื่องมือของแอปต่าง ๆ ผ่าน MCP ของ Composio',
+		descriptionTh: 'ใช้งานแอปต่าง ๆ ที่เชื่อมไว้ใน Composio',
 		icon: '/orca/catalog/composio-connect.ico',
 		aliases: ['automation', 'อัตโนมัติ', 'แอป']
 	},
@@ -528,7 +528,7 @@ const presentations: Record<string, CatalogPresentation> = {
 	},
 	'github-enterprise-cloud': {
 		categoryId: 'developer-tools',
-		descriptionTh: 'เชื่อมต่อ GitHub Enterprise Cloud ตามเขตที่จัดเก็บข้อมูลขององค์กร',
+		descriptionTh: 'เชื่อมต่อ GitHub Enterprise Cloud ตามเขตที่จัดเก็บข้อมูลของบริษัท',
 		icon: '/orca/catalog/github-enterprise-cloud.svg',
 		aliases: ['GitHub', 'GHE', 'git', 'องค์กร']
 	},
@@ -582,7 +582,7 @@ const presentations: Record<string, CatalogPresentation> = {
 	},
 	'google-drive': {
 		categoryId: 'productivity',
-		descriptionTh: 'เชื่อมต่อไฟล์และโฟลเดอร์ใน Google Drive ตามสิทธิ์และเครื่องมือที่เปิดให้ใช้',
+		descriptionTh: 'ค้นหาและอ่านไฟล์และโฟลเดอร์ใน Google Drive ตามสิทธิ์ของคุณ',
 		icon: '/orca/tools/google-drive.svg',
 		aliases: ['Google Workspace', 'ไฟล์', 'storage']
 	},
@@ -618,7 +618,7 @@ const presentations: Record<string, CatalogPresentation> = {
 	},
 	guru: {
 		categoryId: 'research-knowledge',
-		descriptionTh: 'ค้นหาและดูแลความรู้ขององค์กรที่ผ่านการตรวจสอบใน Guru',
+		descriptionTh: 'ค้นหาและดูแลความรู้ของบริษัทที่ผ่านการตรวจสอบใน Guru',
 		icon: '/orca/catalog/guru.png',
 		aliases: ['คลังความรู้', 'knowledge', 'wiki']
 	},
@@ -900,7 +900,7 @@ const presentations: Record<string, CatalogPresentation> = {
 	},
 	playmcp: {
 		categoryId: 'productivity',
-		descriptionTh: 'เข้าถึงเครื่องมือที่เลือกจาก Kakao และผู้ให้บริการอื่นในกล่องเดียว',
+		descriptionTh: 'ใช้บริการที่เลือกจาก Kakao และผู้ให้บริการอื่นได้ในที่เดียว',
 		icon: '/orca/catalog/playmcp.png',
 		aliases: ['Kakao', 'แอป', 'tools']
 	},
@@ -977,7 +977,7 @@ const presentations: Record<string, CatalogPresentation> = {
 	},
 	salesforce: {
 		categoryId: 'crm-sales',
-		descriptionTh: 'เข้าถึงระเบียน Salesforce ผ่าน MCP ที่ Salesforce ให้บริการ',
+		descriptionTh: 'ค้นหาและดูระเบียนลูกค้าและงานขายใน Salesforce',
 		icon: '/orca/catalog/salesforce.svg',
 		aliases: ['CRM', 'ลูกค้า', 'งานขาย']
 	},
@@ -1031,7 +1031,7 @@ const presentations: Record<string, CatalogPresentation> = {
 	},
 	snowflake: {
 		categoryId: 'data-analytics',
-		descriptionTh: 'เข้าถึงข้อมูลผ่าน Snowflake MCP ด้วย OAuth และสิทธิ์ตามบทบาท',
+		descriptionTh: 'ค้นหาและอ่านข้อมูลใน Snowflake ตามสิทธิ์ของบัญชีคุณ',
 		icon: '/orca/catalog/snowflake.svg',
 		aliases: ['SQL', 'คลังข้อมูล', 'database']
 	},
@@ -1229,7 +1229,7 @@ export function getCatalogPresentation(name: string, description = ''): CatalogP
 
 	return {
 		categoryId: 'developer-tools',
-		descriptionTh: 'ดูรายละเอียดและวิธีเชื่อมต่อระบบนี้ผ่าน MCP',
+		descriptionTh: 'โปรแกรมที่ทีม ORCA เพิ่มไว้',
 		aliases: description ? [description] : []
 	};
 }

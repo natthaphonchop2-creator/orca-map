@@ -62,7 +62,7 @@
       file.size > 128 * 1024
     ) {
       error = t(
-        "กรุณาเลือกไฟล์ PNG หรือ JPG ขนาดไม่เกิน 128 KB",
+        "เลือกไฟล์ PNG หรือ JPG ขนาดไม่เกิน 128 KB",
         "Choose a PNG or JPG file up to 128 KB.",
       );
       input.value = "";
@@ -89,7 +89,7 @@
       logoDataURL = value;
     } catch {
       error = t(
-        "ไม่สามารถเปิดไฟล์รูปภาพนี้ได้ กรุณาเลือกไฟล์ PNG หรือ JPG อื่น",
+        "เปิดรูปนี้ไม่ได้ เลือกไฟล์ PNG หรือ JPG อื่น",
         "This image could not be opened. Choose another PNG or JPG file.",
       );
     } finally {

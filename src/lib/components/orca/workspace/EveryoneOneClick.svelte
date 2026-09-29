@@ -35,7 +35,7 @@
 	const busy = $derived(step !== '');
 	const progress = $derived(
 		step === 'department'
-			? t('กำลังเตรียมแผนก “ทุกคน”…', 'Preparing the “ทุกคน” department…')
+			? t('กำลังเตรียมแผนก “ทุกคน”…', 'Preparing the “ทุกคน” (Everyone) department…')
 			: step === 'members'
 				? t('กำลังเพิ่มทุกคนในบริษัท…', 'Adding everyone in the company…')
 				: step === 'workspace'
@@ -114,7 +114,7 @@
 					<strong>{plan.memberIDs.includes(data.currentUserID)
 						? t(`ทุกคน ${plan.memberIDs.length} คน รวมคุณ ใช้ได้ทันที`, `All ${plan.memberIDs.length} people, you included, can use it now`)
 						: t(`ทุกคน ${plan.memberIDs.length} คน ใช้ได้ทันที`, `All ${plan.memberIDs.length} people can use it now`)}</strong>
-					<p>{t('ทุกคนอยู่ในแผนก “ทุกคน” คนที่เชิญเข้ามาทีหลังจะอยู่ในแผนกนี้และใช้ได้เอง', 'Everyone is in the “ทุกคน” department; people invited later join it and get access.')}</p>
+					<p>{t('ทุกคนอยู่ในแผนก “ทุกคน” คนที่เชิญเข้ามาทีหลังจะอยู่ในแผนกนี้และใช้ได้เอง', 'Everyone is in the “ทุกคน” (Everyone) department; people invited later join it and get access.')}</p>
 				</div>
 			</li>
 			<li>

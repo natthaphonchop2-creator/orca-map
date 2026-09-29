@@ -141,8 +141,8 @@
 	);
 	const heading = $derived(
 		existing
-			? kind === 'template' ? t('แก้ไขคำสั่งสำเร็จรูป', 'Edit prompt') : t('แก้ไขความรู้', 'Edit knowledge')
-			: kind === 'template' ? t('เพิ่มคำสั่งสำเร็จรูป', 'Add a prompt') : t('เพิ่มความรู้', 'Add knowledge')
+			? kind === 'template' ? t('แก้ไขคำสั่งสำเร็จรูป', 'Edit ready-made prompt') : t('แก้ไขความรู้', 'Edit knowledge')
+			: kind === 'template' ? t('เพิ่มคำสั่งสำเร็จรูป', 'Add a ready-made prompt') : t('เพิ่มความรู้', 'Add knowledge')
 	);
 	const saveState = $derived(
 		!existing

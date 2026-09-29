@@ -27,7 +27,7 @@
 	const archivedHubs = $derived(currentHubs.filter((hub) => hub.status === 'archived'));
 	async function lifecycleChanged(action: 'archive' | 'restore' | 'delete') {
 		notice = action === 'archive' ? t('จัดเก็บพื้นที่ทำงาน AI แล้ว ดูได้ที่ตัวกรอง “จัดเก็บแล้ว”', 'AI workspace archived. It is listed under Archived.')
-			: action === 'restore' ? t('กู้คืนพื้นที่ทำงาน AI แล้ว โดยมีสถานะระงับ', 'AI workspace restored with Paused status.')
+			: action === 'restore' ? t('กู้คืนพื้นที่ทำงาน AI แล้ว ตอนนี้หยุดชั่วคราวอยู่', 'AI workspace restored. It is paused for now.')
 			: t('ลบพื้นที่ทำงาน AI แล้ว', 'AI workspace deleted.');
 		await onchanged();
 		await tick();
@@ -44,7 +44,7 @@
 		{ value: '' as const, label: t('ทั้งหมด', 'All') },
 		{ value: 'active' as const, label: t('เปิดใช้งาน', 'Active') },
 		{ value: 'draft' as const, label: t('ฉบับร่าง', 'Draft') },
-		{ value: 'paused' as const, label: t('ระงับ', 'Paused') },
+		{ value: 'paused' as const, label: t('หยุดชั่วคราว', 'Paused') },
 		...(data.canManage ? [{ value: 'archived' as const, label: t(`จัดเก็บแล้ว (${archivedHubs.length})`, `Archived (${archivedHubs.length})`) }] : [])
 	]);
 	const visibleHubs = $derived(filterGateways(data.hubs, data.connections, query, statusFilter));
@@ -89,12 +89,12 @@
 			<p class="k-subtitle">
 				{data.canManage
 					? t(
-							'รวมระบบ เครื่องมือ และสมาชิกไว้ในพื้นที่ทำงานเดียว โดยสมาชิกใช้งานผ่านลิงก์เชื่อม AI เพียงลิงก์เดียว',
-							'Combine systems, tools and members in one workspace. Members connect through a single AI connection link.'
+							'เลือกว่าใครใช้ AI กับโปรแกรมไหนได้ และ AI ทำอะไรได้บ้าง',
+							'Choose who can use AI with which programs, and what AI can do.'
 						)
 					: t(
-							'เลือกพื้นที่ทำงาน AI แล้วเชื่อมกับแอป AI ที่คุณใช้อยู่',
-							'Select an AI workspace and connect it to the AI app you use.'
+							'พื้นที่ทำงาน AI ที่คุณใช้ได้ เชื่อม AI ของฉันครั้งเดียวก็ใช้ได้ทุกพื้นที่',
+							'The AI workspaces you can use. Connect your AI once to use them all.'
 						)}
 			</p>
 		</div>
@@ -141,8 +141,8 @@
 					<thead>
 						<tr>
 							<th scope="col">{t('ชื่อ', 'Name')}</th>
-							<th scope="col">{t('ระบบ', 'Systems')}</th>
-							<th scope="col" class="num">{t('เครื่องมือ', 'Tools')}</th>
+							<th scope="col">{t('โปรแกรม', 'Programs')}</th>
+							<th scope="col" class="num">{t('สิ่งที่ AI ทำได้', 'What AI can do')}</th>
 							<th scope="col" class="num">{t('สมาชิก', 'Members')}</th>
 							<th scope="col" class="usage-col">{t('การใช้งานวันนี้', 'Usage today')}</th>
 							<th scope="col">{t('สถานะ', 'Status')}</th>
@@ -160,8 +160,8 @@
 									{#if hub.description}<small>{hub.description}</small>{/if}
 									<small class="spaces-mobile-meta"
 										>{t(
-											`เครื่องมือ ${gatewayToolCount(hub)} รายการ · สมาชิก ${gatewayMemberIDs(hub).length} คน`,
-											`Tools: ${gatewayToolCount(hub)} · Members: ${gatewayMemberIDs(hub).length}`
+											`AI ทำได้ ${gatewayToolCount(hub)} อย่าง · ${gatewayMemberIDs(hub).length} คน`,
+											`AI can do ${gatewayToolCount(hub)} things · ${gatewayMemberIDs(hub).length} people`
 										)}</small
 									>
 								</td>
@@ -177,7 +177,7 @@
 										></span
 									>
 									{:else}
-										<span class="spaces-none"><Plug size={14} aria-hidden="true" />{t('ยังไม่ได้เลือกระบบ', 'No system selected')}</span>
+										<span class="spaces-none"><Plug size={14} aria-hidden="true" />{t('ยังไม่ได้เลือกโปรแกรม', 'No program selected')}</span>
 									{/if}
 								</td>
 								<td class="num">{gatewayToolCount(hub)}</td>
@@ -196,7 +196,7 @@
 												class="k-button small"
 												href={hub.userSourceID ? hubHref(hub, 'overview') : localeHref('/app?view=connect-ai')}
 												aria-label={t(`เชื่อม AI กับ ${hub.name}`, `Connect AI to ${hub.name}`)}
-												><Unplug size={15} aria-hidden="true" />{t('เชื่อม AI', 'Connect')}</a
+												><Unplug size={15} aria-hidden="true" />{t('เชื่อม AI', 'Connect AI')}</a
 											>{/if}
 										{#if data.canManage && !archived}<a
 												class="spaces-icon-button"
@@ -244,17 +244,17 @@
 				<p>
 					{data.canManage
 						? t(
-								'สร้างพื้นที่ทำงาน AI เพื่อรวมระบบ เครื่องมือ และสมาชิกที่ทีมต้องใช้ไว้ในที่เดียว',
-								'Create an AI workspace to bring the systems, tools and members your team needs into one place.'
+								'สร้างพื้นที่ทำงาน AI เพื่อเลือกโปรแกรม สิ่งที่ AI ทำได้ และคนที่ใช้ได้ไว้ในที่เดียว',
+								'Create an AI workspace to choose the programs, what AI can do and who can use it, in one place.'
 							)
 						: t(
-								'เมื่อผู้ดูแลระบบเพิ่มคุณในพื้นที่ทำงาน AI คุณจะดูเครื่องมือและเชื่อมแอป AI ได้จากหน้านี้',
-								'When an administrator adds you to an AI workspace, you can view its tools and connect your AI app here.'
+								'เมื่อผู้ดูแลเพิ่มคุณในพื้นที่ทำงาน AI พื้นที่นั้นจะขึ้นที่นี่',
+								'When an admin adds you to an AI workspace, it shows up here.'
 							)}
 				</p>
 				{#if data.canManage}<div class="spaces-empty-actions">
 						{#if readyConnections.length === 0}<a class="k-button primary small" href={localeHref('/app?view=servers')}
-								><Plug size={15} aria-hidden="true" />{t('เชื่อมต่อระบบ', 'Connect a system')}</a
+								><Plug size={15} aria-hidden="true" />{t('เชื่อมโปรแกรม', 'Connect a program')}</a
 							>{/if}<a
 							class="k-button small"
 							class:primary={readyConnections.length > 0}
@@ -273,8 +273,8 @@
 			<Info size={16} aria-hidden="true" />
 			<p>
 				{t(
-					'คุณเห็นเฉพาะพื้นที่ทำงาน AI ที่ได้รับสิทธิ์ หากต้องการสิทธิ์เพิ่มเติม กรุณาติดต่อผู้ดูแลระบบ',
-					'You see only the AI workspaces you have access to. Contact your administrator if you need more access.'
+					'คุณเห็นเฉพาะพื้นที่ทำงาน AI ที่ได้รับสิทธิ์ ถ้าต้องการใช้พื้นที่อื่น ขอให้ผู้ดูแลบริษัทเพิ่มคุณ',
+					'You see only the AI workspaces you can use. To use another, ask a company admin to add you.'
 				)}
 			</p>
 		</div>

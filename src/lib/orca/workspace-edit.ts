@@ -575,12 +575,12 @@ export function workspaceInviteMessage(input: { company: string; workspace: stri
 export function samplePrompt(program: string, t: Translate): string {
 	const name = program.toLowerCase();
 	if (name.includes('flowaccount') || name.includes('peak'))
-		return t(`สรุปใบแจ้งหนี้ที่ค้างชำระจาก ${program}`, `Summarise unpaid invoices in ${program}`);
+		return t(`สรุปใบแจ้งหนี้ที่ค้างชำระจาก ${program}`, `Summarize unpaid invoices in ${program}`);
 	if (name.includes('drive') || name.includes('onedrive') || name.includes('notion'))
 		return t(`หาเอกสารล่าสุดเรื่องลูกค้าใน ${program}`, `Find the latest customer documents in ${program}`);
 	if (name.includes('slack') || /\bline\b/.test(name) || name.includes('gmail') || name.includes('outlook'))
-		return t(`สรุปข้อความสำคัญเมื่อวานจาก ${program}`, `Summarise yesterday's important messages in ${program}`);
-	return t(`สรุปข้อมูลล่าสุดจาก ${program}`, `Summarise the latest from ${program}`);
+		return t(`สรุปข้อความสำคัญเมื่อวานจาก ${program}`, `Summarize yesterday's important messages in ${program}`);
+	return t(`สรุปข้อมูลล่าสุดจาก ${program}`, `Summarize the latest from ${program}`);
 }
 
 /**

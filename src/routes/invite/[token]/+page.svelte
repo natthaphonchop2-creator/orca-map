@@ -26,7 +26,7 @@
   const signInHref = $derived(localeHref(`/login?rd=${encodeURIComponent(returnPath)}`));
   const signOutHref = $derived(`/oauth2/sign_out?rd=${encodeURIComponent(returnPath)}`);
   const googleHref = $derived(googleStartHref(window.location.origin, localeHref(returnPath), { id: "local-auth-provider" }));
-  const roleLabel = $derived(preview?.role === "admin" ? t("ผู้ดูแลระบบ", "an admin") : t("สมาชิก", "a member"));
+  const roleLabel = $derived(preview?.role === "admin" ? t("ผู้ดูแล", "an admin") : t("พนักงาน", "an employee"));
   const organizationName = $derived(preview?.organization ?? "ORCA");
   const joinedText = $derived(
     preview?.role === "owner"
@@ -70,7 +70,7 @@
       } else if (status === 403) {
         wrongAccount = true;
         error = t(
-          `คำเชิญนี้ส่งถึง ${preview?.email ?? ""} แต่ตอนนี้คุณเข้าสู่ระบบด้วย ${data.email || "บัญชีอื่น"} กรุณาออกจากระบบ แล้วเข้าสู่ระบบด้วยอีเมลที่ได้รับเชิญ`,
+          `คำเชิญนี้ส่งถึง ${preview?.email ?? ""} แต่ตอนนี้คุณเข้าสู่ระบบด้วย ${data.email || "บัญชีอื่น"} ออกจากระบบ แล้วเข้าสู่ระบบด้วยอีเมลที่ได้รับเชิญ`,
           `This invitation is for ${preview?.email ?? ""}, but you are signed in as ${data.email || "another account"}. Sign out, then sign in with the invited email.`,
         );
       } else if (status === 409 && parseErrorContent(cause).message.includes("already has an owner")) {
@@ -100,8 +100,8 @@
       </h1>
       <p>
         {t(
-          "ORCA คือพื้นที่ทำงาน AI ขององค์กร ให้ทีมใช้ AI กับระบบและข้อมูลของบริษัทตามสิทธิ์ที่ผู้ดูแลกำหนด",
-          "ORCA is your organization's AI workspace: your team uses AI with company systems and data, within the access managers set.",
+          "ORCA ให้ทีมใช้ Claude หรือ ChatGPT กับโปรแกรมและข้อมูลของบริษัท ตามสิทธิ์ที่ผู้ดูแลกำหนด",
+          "ORCA lets your team use Claude or ChatGPT with company programs and data, within the access your admins set.",
         )}
       </p>
     </section>
@@ -140,7 +140,7 @@
       {:else if preview}
         <h2>{t(`เข้าร่วม ${preview.organization}`, `Join ${preview.organization}`)}</h2>
         <dl class="invite-facts">
-          <div><dt>{t("บทบาท", "Role")}</dt><dd>{preview.role === "owner" ? t("เจ้าของ", "Owner") : preview.role === "admin" ? t("ผู้ดูแลระบบ", "Admin") : t("สมาชิกทั่วไป", "Member")}</dd></div>
+          <div><dt>{t("บทบาท", "Role")}</dt><dd>{preview.role === "owner" ? t("เจ้าของบริษัท", "Company owner") : preview.role === "admin" ? t("ผู้ดูแล", "Admin") : t("พนักงาน", "Employee")}</dd></div>
           <div><dt>{t("อีเมลที่ได้รับเชิญ", "Invited email")}</dt><dd>{preview.email}</dd></div>
           <div><dt>{t("ใช้ได้ถึง", "Valid until")}</dt><dd>{displayDate(preview.expiresAt)}</dd></div>
         </dl>

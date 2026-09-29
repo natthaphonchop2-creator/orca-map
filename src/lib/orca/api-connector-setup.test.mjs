@@ -5,7 +5,7 @@ const { apiConnectorSetup } = await importTypeScript(new URL('./api-connector-se
 
 test('native setup identifies the specific account credential and resource ID instead of requesting a password', () => {
   const facebook = apiConnectorSetup('default-orca-api-facebook-pages');
-  assert.match(facebook.fields.Authorization.label[0], /โทเคนของเพจ Facebook/);
+  assert.match(facebook.fields.Authorization.label[0], /คีย์ของเพจ Facebook/);
   assert.match(facebook.fields.Authorization.hint[0], /ไม่ใช่รหัสผ่าน Facebook/);
   assert.equal(facebook.fields.FACEBOOK_PAGE_ID.numeric, true);
   const instagram = apiConnectorSetup('default-orca-api-instagram');
@@ -31,7 +31,7 @@ test('native account help is never applied to similarly named custom sources', (
 
 test('known native API failures explain the next action without echoing unrecognized provider text', async () => {
   const { apiConnectorError } = await importTypeScript(new URL('./api-connector-setup.ts', import.meta.url));
-  assert.match(apiConnectorError('the API token is invalid or expired; replace it and test again')[0], /คัดลอกโทเคนใหม่/);
+  assert.match(apiConnectorError('the API token is invalid or expired; replace it and test again')[0], /คัดลอกคีย์ใหม่/);
   assert.match(apiConnectorError('invalid ORCA workspace input: enter the numeric account ID, not a username or URL')[0], /เป็นตัวเลข/);
   assert.equal(apiConnectorError('unknown custom source error'), undefined);
 });

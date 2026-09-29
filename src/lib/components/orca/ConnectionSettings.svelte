@@ -41,7 +41,7 @@
 			title={t('คลังโปรแกรม', 'Program catalog')}
 			subtitle={t('เพิ่มโปรแกรมใหม่ด้วยลิงก์ MCP แล้วพาไปเชื่อมบัญชีและเลือกสิ่งที่ AI ทำได้', 'Add a program by its MCP link, then connect it and choose what AI can do.')}
 		/>
-		<SourceSetup canCreate oncreated={added} />
+		<SourceSetup operator canCreate oncreated={added} />
 	{/if}
 {:else}
 	<AddProgramFlow

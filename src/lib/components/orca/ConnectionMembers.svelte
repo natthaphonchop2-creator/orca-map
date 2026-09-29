@@ -75,7 +75,7 @@
 		return { th: 'ยังยืนยันไม่ได้', en: 'Not verified', tone: 'neutral' };
 	}
 	function hubState(row: OrcaConnectionMember, id: string) {
-		return row.activeHubIDs.includes(id) ? '' : row.pausedHubIDs.includes(id) ? t(' (ระงับ)', ' (paused)') : t(' (ฉบับร่าง)', ' (draft)');
+		return row.activeHubIDs.includes(id) ? '' : row.pausedHubIDs.includes(id) ? t(' (หยุดชั่วคราว)', ' (paused)') : t(' (ฉบับร่าง)', ' (draft)');
 	}
 </script>
 

@@ -80,7 +80,7 @@
         </p>
       {:else if mode === "error"}
         <h2>{t("โหลดรายชื่อบริษัทไม่สำเร็จ", "Your companies could not be loaded")}</h2>
-        <p>{t("ORCA ไม่ได้เลือกบริษัทให้แทน ลองอีกครั้ง", "ORCA won't pick a company for you instead. Please try again.")}</p>
+        <p>{t("ORCA ไม่ได้เลือกบริษัทให้แทน ลองอีกครั้ง", "ORCA won't pick a company for you instead. Try again.")}</p>
         <button class="o-button" onclick={() => window.location.reload()}>{t("ลองอีกครั้ง", "Try again")}</button>
       {:else}
         <h2>{t("บัญชีนี้ยังไม่อยู่ในบริษัทใด", "This account isn't in a company yet")}</h2>

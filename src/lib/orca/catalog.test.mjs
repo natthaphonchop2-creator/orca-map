@@ -10,9 +10,9 @@ const { catalogAuthTags, catalogSetupState, catalogSetupHref, catalogSource, cat
 
 test('catalog authentication tags use explicit methods, preserve combinations, and never claim account readiness', () => {
 	for (const [methods, expected] of [
-		[['oauth'], ['OAuth']],
-		[['secrets'], ['Secrets']],
-		[['secrets', 'oauth', 'oauth'], ['OAuth', 'Secrets']],
+		[['oauth'], ['Sign in']],
+		[['secrets'], ['Key']],
+		[['secrets', 'oauth', 'oauth'], ['Sign in', 'Key']],
 		[['none'], ['No authentication']]
 	]) {
 		const source = { id: 'custom', name: 'An organization MCP', authMethods: methods };
@@ -398,14 +398,14 @@ test('catalog readiness separates OAuth capability, platform setup and live acco
   for (const setupCanConfigure of [undefined, false, 'true', 1]) {
     const state = catalogSetupState({ ...missing, setupCanConfigure });
     assert.equal(state.canStart, false);
-    assert.equal(state.action, 'Administrator required');
+    assert.equal(state.action, 'Coming soon');
   }
   const owner = catalogSetupState({ ...missing, setupCanConfigure: true });
   assert.equal(owner.canStart, true);
   assert.equal(owner.action, 'Set up app');
   const available = catalogSetupState({ ...oauth, setupStatus: 'available' });
   assert.equal(available.canStart, true);
-  assert.equal(available.action, 'Connect this system');
+  assert.equal(available.action, 'Connect this program');
   assert.doesNotMatch(JSON.stringify(available), /connected|verified|healthy/i);
 });
 
@@ -425,7 +425,7 @@ test('review gates and unknown metadata offer inspection without claiming availa
   const guide = catalogSetupState({ guideOnly: true, setupStatus: 'available', setupCanConfigure: true });
   assert.equal(guide.kind, 'guide');
   assert.equal(guide.canStart, false);
-  assert.equal(guide.action, 'Add a system with an MCP URL');
+  assert.equal(guide.action, 'Tell the ORCA team');
 });
 
 test('guides never enter adoption or starters and starters exclude known blockers and unknown setup', () => {

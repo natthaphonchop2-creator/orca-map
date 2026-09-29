@@ -97,7 +97,7 @@
 			<span class="ov-created-icon" aria-hidden="true"><CircleCheck size={20} /></span>
 			<div class="ov-created-copy">
 				<h2 id="ov-created-title">{t('ส่งให้ทีมเริ่มใช้', 'Tell your team')}</h2>
-				<p>{t('ส่งข้อความนี้ทาง LINE หรืออีเมล ใครเชื่อม AI กับ ORCA ไว้แล้วไม่ต้องทำอะไรเพิ่ม พื้นที่นี้จะขึ้นให้เอง', 'Send this by LINE or email. Anyone already connected to ORCA needs to do nothing; the workspace appears by itself.')}</p>
+				<p>{t('ส่งข้อความนี้ทาง LINE หรืออีเมล ใครเชื่อม Claude หรือ ChatGPT กับ ORCA ไว้แล้วไม่ต้องทำอะไรเพิ่ม พื้นที่นี้จะขึ้นให้เอง', 'Send this by LINE or email. Anyone who connected Claude or ChatGPT to ORCA has nothing more to do; the workspace appears by itself.')}</p>
 				<blockquote class="ov-message">{message}</blockquote>
 				<div class="ov-created-actions">
 					<button type="button" class="ov-primary" onclick={() => copy('invite')}>{#if copied === 'invite'}<Check size={16} aria-hidden="true" />{t('คัดลอกแล้ว', 'Copied')}{:else}<Copy size={16} aria-hidden="true" />{t('คัดลอกข้อความเชิญ', 'Copy the invite message')}{/if}</button>
@@ -179,7 +179,7 @@
 			{#if !active}
 				<li>
 					<span class="ov-step-icon" aria-hidden="true"><Play size={17} /></span>
-					<div class="ov-step-copy"><strong>{hub.status === 'paused' ? t('หยุดใช้ชั่วคราวอยู่', 'Paused') : t('ยังเป็นฉบับร่าง', 'Still a draft')}</strong><span>{data.canManage ? t('ทีมจะเห็นพื้นที่นี้ใน AI หลังกด เปิดใช้งาน ด้านบน', 'Your team sees it in their AI after you choose Activate above.') : t('ผู้ดูแลบริษัทยังไม่ได้เปิดให้ใช้', "A company admin hasn't turned it on yet.")}</span></div>
+					<div class="ov-step-copy"><strong>{hub.status === 'paused' ? t('หยุดชั่วคราวอยู่', 'Paused') : t('ยังเป็นฉบับร่าง', 'Still a draft')}</strong><span>{data.canManage ? t('ทีมจะเห็นพื้นที่นี้ใน AI หลังกด เปิดใช้งาน ด้านบน', 'Your team sees it in their AI after you choose Activate above.') : t('ผู้ดูแลบริษัทยังไม่ได้เปิดให้ใช้', "A company admin hasn't turned it on yet.")}</span></div>
 				</li>
 			{/if}
 			{#if data.canManage && !isMember}

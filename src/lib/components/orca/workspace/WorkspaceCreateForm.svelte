@@ -306,7 +306,7 @@
 		<!-- Not a live region: the name is typed into it one key at a time. -->
 		<div class="ws-bar-copy">
 			<b>{#each summary as part, index (index)}{#if index}<span class="ws-dot" aria-hidden="true">·</span>{/if}{part}{/each}</b>
-			<span>{t('ใครเชื่อม AI กับ ORCA ไว้แล้ว จะเห็นพื้นที่นี้ทันทีหลังสร้าง', 'Anyone already connected to ORCA sees it right after it is created.')}</span>
+			<span>{t('ใครเชื่อม Claude หรือ ChatGPT กับ ORCA ไว้แล้ว จะเห็นพื้นที่นี้ทันทีหลังสร้าง', 'Anyone who connected Claude or ChatGPT to ORCA sees it as soon as it is created.')}</span>
 		</div>
 		<div class="ws-bar-actions">
 			<button type="button" class="ws-draft" disabled={!!busy} onclick={() => submit('draft')}>{#if busy === 'draft'}<LoaderCircle size={16} class="k-spin" aria-hidden="true" />{/if}{t('บันทึกเป็นฉบับร่าง', 'Save as draft')}</button>

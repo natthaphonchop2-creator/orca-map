@@ -62,7 +62,7 @@
 	const statusCopy: Record<ProgramStatus, { th: string; en: string; tone: StatusTone }> = {
 		ready: { th: 'พร้อมใช้', en: 'Ready', tone: 'ok' },
 		review: { th: 'ต้องตรวจใหม่', en: 'Needs review', tone: 'warn' },
-		paused: { th: 'ระงับ', en: 'Paused', tone: 'neutral' },
+		paused: { th: 'หยุดชั่วคราว', en: 'Paused', tone: 'neutral' },
 		archived: { th: 'จัดเก็บแล้ว', en: 'Archived', tone: 'neutral' }
 	};
 	const tabs = $derived([
@@ -141,7 +141,7 @@
 				connection.id
 			);
 			pauseOpen = false;
-			showToast(enabled ? t(`เปิดใช้ ${connection.name} อีกครั้งแล้ว`, `${connection.name} resumed`) : t(`ระงับ ${connection.name} แล้ว`, `${connection.name} paused`));
+			showToast(enabled ? t(`เปิดใช้ ${connection.name} อีกครั้งแล้ว`, `${connection.name} resumed`) : t(`หยุด ${connection.name} ชั่วคราวแล้ว`, `${connection.name} paused`));
 			await onchanged();
 		} catch (cause) {
 			pauseError = orcaError(cause);
@@ -279,9 +279,9 @@
 					<div>
 						<dt>{t('สถานะ', 'Status')}</dt>
 						<dd>
-							<span>{connection.enabled ? t('เปิดใช้', 'On') : t('ระงับอยู่ AI ใช้โปรแกรมนี้ไม่ได้', 'Paused: AI cannot use it')}</span>
+							<span>{connection.enabled ? t('เปิดใช้', 'On') : t('หยุดชั่วคราว AI ใช้โปรแกรมนี้ไม่ได้', "Paused: AI can't use it")}</span>
 							{#if data.canManage && !archived}
-								{#if connection.enabled}<button type="button" class="k-button small" onclick={() => (pauseOpen = true)}><Pause size={15} aria-hidden="true" />{t('ระงับชั่วคราว', 'Pause')}</button>
+								{#if connection.enabled}<button type="button" class="k-button small" onclick={() => (pauseOpen = true)}><Pause size={15} aria-hidden="true" />{t('หยุดชั่วคราว', 'Pause')}</button>
 								{:else}<button type="button" class="k-button small" disabled={pausing} onclick={() => setEnabled(true)}><Play size={15} aria-hidden="true" />{pausing ? t('กำลังเปิด…', 'Resuming…') : t('เปิดใช้อีกครั้ง', 'Resume')}</button>{/if}
 							{/if}
 						</dd>
@@ -296,12 +296,12 @@
 
 	<ConfirmDialog
 		bind:open={pauseOpen}
-		title={t(`ระงับ ${connection.name} ชั่วคราว?`, `Pause ${connection.name}?`)}
+		title={t(`หยุด ${connection.name} ชั่วคราว?`, `Pause ${connection.name}?`)}
 		message={t(
 			`AI ใน ${liveWorkspaces.length} พื้นที่ทำงานที่ใช้โปรแกรมนี้จะใช้ไม่ได้จนกว่าจะเปิดใช้อีกครั้ง สิ่งที่ AI ทำได้ยังเก็บไว้เหมือนเดิม`,
 			`AI in the ${liveWorkspaces.length} workspaces that use it can't use it until you resume it. What AI can do stays as it is.`
 		)}
-		confirmLabel={t('ระงับชั่วคราว', 'Pause')}
+		confirmLabel={t('หยุดชั่วคราว', 'Pause')}
 		busy={pausing}
 		onconfirm={() => setEnabled(false)}
 	>

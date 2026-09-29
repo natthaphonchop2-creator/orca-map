@@ -91,8 +91,8 @@
       label: t("เจ้าของบริษัท", "Company owner"),
       icon: Crown,
       detail: t(
-        "ดูแลการตั้งค่าทั้งองค์กรและกำหนดบทบาทสมาชิก",
-        "Manages all organization settings and member roles",
+        "ดูแลการตั้งค่าทั้งบริษัท และเปลี่ยนบทบาทของทุกคนได้",
+        "Manages all company settings and everyone's role",
       ),
     },
     {
@@ -100,8 +100,8 @@
       label: t("ผู้ดูแล", "Admin"),
       icon: Shield,
       detail: t(
-        "จัดการระบบที่เชื่อมต่อ พื้นที่ทำงาน AI สมาชิก และแผนก",
-        "Manages connected systems, AI workspaces, members and departments",
+        "จัดการโปรแกรมที่เชื่อม พื้นที่ทำงาน AI สมาชิก และแผนก",
+        "Manages connected programs, AI workspaces, members and departments",
       ),
     },
     {
@@ -109,8 +109,8 @@
       label: t("พนักงาน", "Employee"),
       icon: Users,
       detail: t(
-        "ใช้งานพื้นที่ทำงาน AI และเครื่องมือตามสิทธิ์ที่ได้รับ",
-        "Uses assigned AI workspaces and tools",
+        "ใช้ AI ในพื้นที่ทำงานที่ได้รับสิทธิ์",
+        "Uses AI in the workspaces they're given",
       ),
     },
   ]);
@@ -191,7 +191,7 @@
         {data.canManage
           ? t(
               "คนที่ใช้ ORCA ของบริษัทนี้ เชิญคนใหม่ด้วยลิงก์ แล้วเขาเข้าสู่ระบบด้วยบัญชี Google ของตัวเอง",
-              "People who use this company's ORCA. Invite someone with a link; they sign in with their own Google account.",
+              "People using this company's ORCA. Invite with a link; each person signs in with Google.",
             )
           : t("คนที่ใช้ ORCA ของบริษัทนี้", "People who use this company's ORCA.")}
       </p>
@@ -232,8 +232,8 @@
 </div>
 {#if !data.canManage}<div class="k-banner">
     <Info size={16} />{t(
-      "บัญชีนี้ดูรายชื่อได้อย่างเดียว ถ้าต้องการเปลี่ยนบทบาทหรือแผนก ติดต่อเจ้าของหรือผู้ดูแลระบบ",
-      "This account can view members only. To change roles or departments, contact an Owner or Admin.",
+      "คุณดูรายชื่อได้อย่างเดียว ถ้าจะเปลี่ยนบทบาทหรือแผนก ขอให้เจ้าของบริษัทหรือผู้ดูแลเปลี่ยนให้",
+      "You can only view this list. To change a role or department, ask a company owner or admin.",
     )}
   </div>{/if}
 <nav class="team-tabs" aria-label={t("การจัดการสมาชิก", "Member management")}>
@@ -262,7 +262,7 @@
 </nav>
 {#if navigationBlocked}<div class="k-banner" role="alert">
     <Info size={16} />{t(
-      "มีการแก้ไขที่ยังไม่ได้บันทึก กรุณาบันทึกหรือยกเลิกการแก้ไขก่อนออกจากหน้านี้",
+      "มีการแก้ไขที่ยังไม่ได้บันทึก บันทึกหรือยกเลิกก่อนออกจากหน้านี้",
       "You have unsaved changes. Save or discard them before leaving this page.",
     )}
   </div>{/if}
@@ -334,7 +334,7 @@
                   </p>{/if}{#if member.status === "suspended"}<span class="team-status">{t("บัญชีถูกระงับ", "Account suspended")}</span>{/if}</td
               ><td class="team-role"
                 ><span class="role-badge role-{organizationRole(member.role)}">{memberRole(member.role)}</span
-                >{#if member.roleLocked}<small class="role-locked">{t("กำหนดโดยการตั้งค่า ORCA", "Set by ORCA configuration")}</small>{/if}</td
+                >{#if member.roleLocked}<small class="role-locked">{t("ทีม ORCA ตั้งไว้", "Set by the ORCA team")}</small>{/if}</td
               ><td class="team-hubs"
                 >{#if !active(member)}<span class="team-none">—</span>{:else if hubs.length}{#each hubs as hub}<a
                       class="team-hub-link"
@@ -423,7 +423,7 @@
       )}
     </p>
     {#if data.canManage && !canManageRoles}<p>
-        {t("ผู้ดูแลระบบจัดการสมาชิกและแผนกได้ ส่วนการเปลี่ยนบทบาทต้องให้เจ้าของระบบทำ", "Admins manage members and departments. Only an Owner changes roles.")}
+        {t("ผู้ดูแลจัดการสมาชิกและแผนกได้ ส่วนการเปลี่ยนบทบาทต้องให้เจ้าของบริษัททำ", "Admins manage members and departments. Only a company owner changes roles.")}
       </p>{/if}
   </details>
 {/if}

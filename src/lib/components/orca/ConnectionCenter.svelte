@@ -62,7 +62,7 @@
 			[
 				{ id: 'all', label: t('ทั้งหมด', 'All') },
 				{ id: 'review', label: t('ต้องตรวจใหม่', 'Needs review') },
-				{ id: 'paused', label: t('ระงับ', 'Paused') },
+				{ id: 'paused', label: t('หยุดชั่วคราว', 'Paused') },
 				{ id: 'archived', label: t('จัดเก็บแล้ว', 'Archived') }
 			] as { id: Filter; label: string }[]
 		).filter((item) => item.id === 'all' || counts[item.id] > 0 || filter === item.id)
@@ -71,7 +71,7 @@
 	const statusCopy: Record<ProgramStatus, { th: string; en: string; tone: StatusTone }> = {
 		ready: { th: 'พร้อมใช้', en: 'Ready', tone: 'ok' },
 		review: { th: 'ต้องตรวจใหม่', en: 'Needs review', tone: 'warn' },
-		paused: { th: 'ระงับ', en: 'Paused', tone: 'neutral' },
+		paused: { th: 'หยุดชั่วคราว', en: 'Paused', tone: 'neutral' },
 		archived: { th: 'จัดเก็บแล้ว', en: 'Archived', tone: 'neutral' }
 	};
 
