@@ -31,11 +31,16 @@
 	const catalogWaiting = $derived(catalog ? catalogSummary(catalog).attention.length : 0);
 	const loading = $derived((!companies && !companiesError) || (canReviewPilotRequests && !pilots && !pilotsError) || (!google && !googleError));
 
+	// A failed reload drops the numbers it had: the tiles never show old
+	// numbers beside "โหลดไม่สำเร็จ" (Codex release review 60).
 	async function loadUsage() {
 		usageError = '';
 		await PlatformUsageService.usage().then(
 			(result) => (usage = result),
-			(cause) => (usageError = orcaError(cause))
+			(cause) => {
+				usage = undefined;
+				usageError = orcaError(cause);
+			}
 		);
 	}
 

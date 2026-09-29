@@ -171,7 +171,7 @@ test('the section uses the workspace tokens only, compiles clean, and turns rows
 // ภาพรวมแพลตฟอร์ม: its own call, its own error
 // ---------------------------------------------------------------------------
 
-test('a usage failure leaves the overview\'s other numbers alone, and a retry reloads only the usage', async () => {
+test('a usage failure leaves the overview\'s other numbers alone, a retry reloads only the usage, and a failed reload drops the old numbers', async () => {
 	const script = stripTypeScriptTypes((await readFile(files.overview, 'utf8')).match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
 		.replace(/^\s*import[\s\S]*?;$/gm, '')
 		.replace('$props()', '$state(testProps)');
@@ -222,6 +222,11 @@ test('a usage failure leaves the overview\'s other numbers alone, and a retry re
 	fail = false;
 	await view.loadUsage();
 	assert.deepEqual([usageCalls, companyCalls, view.state.usageError, view.state.usage.toolCalls.last7Days], [2, 1, '', 1210]);
+	// A later reload that fails drops the numbers it had, so no old number sits beside the failure.
+	fail = true;
+	await view.loadUsage();
+	assert.deepEqual([usageCalls, companyCalls, view.state.usageError, view.state.usage], [3, 1, 'usage failed', undefined]);
+	assert.deepEqual(view.state.tiles.map((tile) => [tile.value, tile.detail]).slice(0, 2), [['1', 'มีเจ้าของแล้ว 1'], ['5', 'รวมทุกบริษัทลูกค้า']]);
 	const source = await readFile(files.overview, 'utf8');
 	assert.match(source, /<PlatformUsage \{usage\} error=\{usageError\} onretry=\{loadUsage\} \/>/);
 });
