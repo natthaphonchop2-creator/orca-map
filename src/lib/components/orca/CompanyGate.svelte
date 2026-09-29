@@ -1,10 +1,15 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import Brand from "./Brand.svelte";
   import "./forms.css";
   import "./orca.css";
   import { companyHref, rememberCompany, type OrcaCompanyChoice } from "$lib/orca/company";
+  import { term } from "$lib/orca/glossary";
+  import { inviteRequestText } from "$lib/orca/home-setup";
   import { localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
-  import { ArrowRight, Building2 } from "@lucide/svelte";
+  import { ArrowRight, Building2, Check, Copy, UserRound } from "@lucide/svelte";
+  import { onDestroy } from "svelte";
+  import { copyFeedback, copyText } from "./ui/copy";
 
   // Shown instead of the workspace when this page has no company to open:
   // the person has several and must choose, has none yet, or asked for one
@@ -20,9 +25,22 @@
   } = $props();
 
   function roleLabel(role: string) {
-    if (role === "owner") return t("เจ้าของ", "Owner");
-    if (role === "admin") return t("ผู้ดูแลระบบ", "Admin");
-    return t("สมาชิก", "Member");
+    if (role === "owner") return term("companyOwner", t);
+    if (role === "admin") return term("admin", t);
+    return term("employee", t);
+  }
+  // No company at all: the owner asks for a trial, an employee for an invite link.
+  const email = $derived((page?.data?.profile?.email as string | undefined) ?? "");
+  const inviteRequest = $derived(inviteRequestText(email, t));
+  let copied = $state(false);
+  let copyFailed = $state(false);
+  const feedback = copyFeedback((value) => (copied = value));
+  onDestroy(() => feedback.dispose());
+  async function copyRequest() {
+    copyFailed = false;
+    const ok = await copyText(inviteRequest, typeof navigator === "undefined" ? undefined : navigator.clipboard, typeof document === "undefined" ? undefined : document);
+    if (ok) feedback.copied();
+    else copyFailed = true;
   }
 </script>
 
@@ -37,8 +55,8 @@
       <h1>{t("พื้นที่ทำงาน AI ของบริษัทคุณ", "Your company's AI workspace")}</h1>
       <p>
         {t(
-          "แต่ละบริษัทมีสมาชิก ระบบที่เชื่อม และประวัติการใช้งานแยกกัน ทำงานได้ทีละบริษัท",
-          "Each company has its own members, connected systems and history. You work in one company at a time.",
+          "แต่ละบริษัทมีสมาชิก โปรแกรมที่เชื่อม และประวัติการใช้งานแยกกัน ทำงานได้ทีละบริษัท",
+          "Each company has its own members, connected programs and history. You work in one company at a time.",
         )}
       </p>
     </section>
@@ -66,17 +84,37 @@
         <button class="o-button" onclick={() => window.location.reload()}>{t("ลองอีกครั้ง", "Try again")}</button>
       {:else}
         <h2>{t("บัญชีนี้ยังไม่อยู่ในบริษัทใด", "This account isn't in a company yet")}</h2>
+        <p>{t("เลือกข้อที่ตรงกับคุณ", "Choose the one that fits you.")}</p>
       {/if}
       {#if mode === "error"}
         <!-- Nothing to choose from until the list loads. -->
       {:else if companies.length === 0}
-        <p>
-          {t(
-            "เปิดลิงก์คำเชิญที่ได้รับ หรือขอลิงก์ใหม่จากผู้ดูแลบริษัทของคุณ",
-            "Open your invitation link, or ask your company's administrator for a new one.",
-          )}
-        </p>
-        <a class="o-button outline" href="/oauth2/sign_out?rd=/">{t("ออกจากระบบ", "Sign out")}</a>
+        <ul class="company-gate-paths">
+          <li>
+            <span class="company-gate-icon" aria-hidden="true"><Building2 size={18} strokeWidth={1.8} /></span>
+            <div>
+              <h3>{t("ฉันเป็นเจ้าของบริษัท", "I own the company")}</h3>
+              <p>{t("ขอทดลองใช้ ORCA ทีม ORCA จะติดต่อกลับเพื่อเปิดบริษัทของคุณ", "Ask for a trial. The ORCA team gets back to you and opens your company.")}</p>
+              <a class="o-button" href={localeHref("/home?to=start")}>{t("ขอทดลองใช้", "Request a trial")}<ArrowRight size={16} aria-hidden="true" /></a>
+            </div>
+          </li>
+          <li>
+            <span class="company-gate-icon" aria-hidden="true"><UserRound size={18} strokeWidth={1.8} /></span>
+            <div>
+              <h3>{t("ฉันเป็นพนักงาน", "I work for the company")}</h3>
+              <p>{t("ขอลิงก์เชิญจากหัวหน้าหรือผู้ดูแลบริษัท แล้วเปิดลิงก์นั้นในเบราว์เซอร์นี้", "Ask your manager or company admin for an invite link, then open it in this browser.")}</p>
+              <button type="button" class="o-button outline" onclick={copyRequest}>
+                {#if copied}<Check size={16} aria-hidden="true" />{t("คัดลอกแล้ว", "Copied")}{:else}<Copy size={16} aria-hidden="true" />{t("คัดลอกข้อความขอลิงก์เชิญ", "Copy an invite request")}{/if}
+              </button>
+              <span class="company-gate-announce" role="status">{copied ? t("คัดลอกแล้ว", "Copied") : ""}</span>
+              {#if copyFailed}<p class="company-gate-failed" role="alert">{inviteRequest}</p>{/if}
+            </div>
+          </li>
+        </ul>
+        <div class="company-gate-signout">
+          {t("ใช้บัญชีผิด?", "Wrong account?")}
+          <a href="/oauth2/sign_out?rd=/">{t("ออกจากระบบ", "Sign out")}</a>
+        </div>
       {:else}
         <ul class="company-gate-list">
           {#each companies as company (company.id)}
@@ -104,12 +142,31 @@
   .company-gate-list { display: grid; gap: 10px; margin: 4px 0 0; padding: 0; list-style: none; }
   .company-gate-list a {
     display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
-    padding: 14px 16px; border: 1px solid var(--orca-line, #e5e7eb); border-radius: 12px;
-    color: inherit; text-decoration: none; background: var(--orca-surface, #fff);
+    padding: 14px 16px; border: 1px solid var(--orca-line); border-radius: 12px;
+    color: inherit; text-decoration: none; background: var(--orca-surface);
   }
-  .company-gate-list a:hover, .company-gate-list a:focus-visible { border-color: var(--orca-ink, #111827); }
+  .company-gate-list a:hover, .company-gate-list a:focus-visible { border-color: var(--orca-ink); }
   .company-gate-list span { display: grid; gap: 2px; min-width: 0; }
   .company-gate-list strong { overflow-wrap: anywhere; }
-  .company-gate-list small { color: var(--orca-muted, #5b6270); font-size: 13px; }
+  .company-gate-list small { color: var(--orca-muted); font-size: 13px; }
   a.o-button { text-decoration: none; }
+
+  /* No company: two paths, as two cards. */
+  .company-gate-paths { display: grid; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; }
+  .company-gate-paths li {
+    display: flex; gap: 14px; padding: 18px;
+    border: 1px solid var(--orca-line-strong); border-radius: 12px; background: var(--orca-surface-2);
+  }
+  .company-gate-paths li > div { display: grid; flex: 1; gap: 6px; min-width: 0; }
+  .company-gate-paths h3 { margin: 0; color: var(--orca-ink); font-size: 16px; font-weight: 700; line-height: 1.4; }
+  .company-gate-paths p { margin: 0 0 6px; color: var(--orca-muted); font-size: 13.5px; line-height: 1.6; }
+  .company-gate-paths .o-button { gap: 8px; }
+  .company-gate-icon {
+    display: grid; flex: none; place-items: center; width: 36px; height: 36px;
+    border: 1px solid var(--orca-line); border-radius: 10px; background: var(--orca-surface); color: var(--orca-ink);
+  }
+  .company-gate-announce { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .company-gate-paths .company-gate-failed { margin: 4px 0 0; color: var(--orca-ink); font-size: 13px; user-select: all; overflow-wrap: anywhere; }
+  .company-gate-signout { margin-top: 20px; color: var(--orca-muted); font-size: 13.5px; text-align: center; }
+  .company-gate-signout a { color: var(--orca-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 </style>

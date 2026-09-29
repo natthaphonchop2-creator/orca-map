@@ -13,8 +13,8 @@
   import ConnectionSettings from "$lib/components/orca/ConnectionSettings.svelte";
   import SettingsCenter from "$lib/components/orca/SettingsCenter.svelte";
   import KnowledgeLibrary from "$lib/components/orca/KnowledgeLibrary.svelte";
-  import WorkspaceSetup from "$lib/components/orca/WorkspaceSetup.svelte";
   import AddProgramView from "$lib/components/orca/views/AddProgramView.svelte";
+  import HelpView from "$lib/components/orca/views/HelpView.svelte";
   import ConnectAIView from "$lib/components/orca/views/ConnectAIView.svelte";
   import OversightView from "$lib/components/orca/views/OversightView.svelte";
   import PlatformView from "$lib/components/orca/views/PlatformView.svelte";
@@ -280,74 +280,7 @@
       onchanged={refresh}
     />
   {:else if view === "workspaces"}<AppOverview data={managementData!} onchanged={refresh} />
-  {:else if view === "help"}
-    <div class="k-breadcrumb">
-      <a href={localeHref("/app")}>{t("หน้าหลัก", "Home")}</a><span>/</span><span>{t("ช่วยเหลือ", "Help")}</span>
-    </div>
-    <div class="k-intro">
-      <h1>{t("ช่วยเหลือ", "Help")}</h1>
-      <p class="k-subtitle">
-        {t(
-          "ขั้นตอนตั้งค่าสำหรับผู้ดูแลและพนักงาน เพื่อให้ AI ของทีมใช้ข้อมูลบริษัทได้ตามสิทธิ์",
-          "Setup steps for admins and employees, so your team's AI can use company data within its permissions.",
-        )}
-      </p>
-    </div>
-    <WorkspaceSetup data={currentData!} />
-    <div class="k-banner">
-      <Info size={18} />
-      <p>{t(
-        "ลำดับการตั้งค่า: เชื่อมโปรแกรม → เลือกสิ่งที่ AI ทำได้ → สร้างพื้นที่ทำงาน AI และเลือกคนที่ใช้ได้ → เชื่อม AI ของฉัน",
-        "Setup order: connect a program → choose what AI can do → create an AI workspace and choose who can use it → connect my AI.",
-      )}</p>
-    </div>
-    <div class="k-panel">
-      <h2>{t("สำหรับผู้ดูแล", "For admins")}</h2>
-      <ol class="k-numbered">
-        <li>
-          {t("เปิดหน้า", "Open")}
-          <a href={localeHref("/app?view=servers")}>{t("โปรแกรมที่เชื่อม", "Programs")}</a>
-          {t(
-            "เพื่อเชื่อมโปรแกรมของบริษัท แล้วเลือกสิ่งที่ AI ทำได้",
-            "to connect your company's programs, then choose what AI can do.",
-          )}
-        </li>
-        <li>
-          <a href={localeHref("/app?view=new")}>{t("สร้างพื้นที่ทำงาน AI", "Create an AI workspace")}</a>
-          {t(
-            "โดยเลือกโปรแกรม คนที่ใช้ได้ และจำกัดการใช้ต่อวัน",
-            "and choose its programs, who can use it and its daily limit.",
-          )}
-        </li>
-        <li>
-          {t(
-            "ตรวจสิทธิ์ก่อนเปิดใช้ แต่ละคนเข้าสู่ระบบด้วยบัญชีของตัวเอง",
-            "Review access before activating. Each person signs in with their own account.",
-          )}
-        </li>
-        <li>
-          {t("ดู", "Check")}
-          <a href={localeHref("/app?view=executions")}>{t("ประวัติการใช้งาน", "Activity")}</a>
-          {t(
-            "และหยุดพื้นที่ทำงานได้ทุกเมื่อ",
-            "and pause a workspace at any time.",
-          )}
-        </li>
-      </ol>
-    </div>
-    <div class="k-panel">
-      <h2>{t("สำหรับพนักงาน", "For employees")}</h2>
-      <ol class="k-numbered">
-        <li>{t("เปิดหน้า", "Open")} <a href={localeHref("/app?view=connect-ai")}>{t("เชื่อม AI ของฉัน", "Connect my AI")}</a> {t("แล้วคัดลอกลิงก์ ORCA ของบริษัท", "and copy your company's ORCA link.")}</li>
-        <li>{t("วางลิงก์ใน Claude หรือ ChatGPT", "Paste the link into Claude or ChatGPT.")}</li>
-        <li>{t("เมื่อหน้าต่าง ORCA เด้งขึ้น ให้เข้าสู่ระบบด้วยบัญชีของคุณแล้วกด อนุญาต", "When the ORCA window opens, sign in with your account and choose Allow.")}</li>
-      </ol>
-    </div>
-    <div class="k-actions">
-      {#if data.canManage}<a class="k-button" href={localeHref("/app?view=members")}>{t("ไปที่ทีม", "Go to Team")}</a
-        ><a class="k-button" href={localeHref("/app?view=servers")}>{t("ไปที่โปรแกรมที่เชื่อม", "Go to Programs")}</a
-        >{/if}<a class="k-button quiet" href="/oauth2/sign_out?rd=/">{t("ออกจากระบบ", "Sign out")}</a>
-    </div>
+  {:else if view === "help"}<HelpView {data} />
   {:else}{#key data}<WorkspaceDashboard data={currentData!} />{/key}
   {/if}
   <footer class="k-footer">
