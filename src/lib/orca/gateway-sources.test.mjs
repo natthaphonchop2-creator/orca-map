@@ -5,7 +5,6 @@ const { gatewaySources, gatewayToolCount, gatewayMemberIDs, gatewayHasMember } =
 const { workspaceToolingReady } = await importTypeScript(new URL('./activation.ts', import.meta.url));
 const { personalSources } = await importTypeScript(new URL('./personal-connections.ts', import.meta.url));
 const { filterGateways } = await importTypeScript(new URL('./gateway-list.ts', import.meta.url));
-const { selectedToolInventory } = await importTypeScript(new URL('./tool-inventory.ts', import.meta.url));
 
 const source = (id) => ({ id, name: id, mcpID: id, enabled: true, reviewedTools: true, toolNames: ['search'], tools: [{name:'search'}] });
 const hub = { id:'team', name:'Team', description:'', connectionID:'drive', toolNames:['search'], status:'active', memberIDs:['me'], sources:[{connectionID:'drive',toolNames:['search']},{connectionID:'slack',toolNames:['search']}] };
@@ -28,13 +27,9 @@ test('readiness and personal account access keep healthy sources usable without 
   assert.deepEqual(personalSources({currentUserID:'owner-without-membership',canManage:true,connections,hubs:[hub]}), []);
 });
 
-test('secondary source names and same-named tools retain the right Gateway in search and inventory', () => {
+test('secondary source names retain the right Gateway in search', () => {
   const connections = [source('drive'), source('slack')];
   assert.deepEqual(filterGateways([hub],connections,'slack','').map((h)=>h.id), ['team']);
-  const inventory = selectedToolInventory({ currentUserID:'me',connections,hubs:[hub] });
-  assert.equal(inventory.length, 2);
-  assert.equal(new Set(inventory.map((item)=>item.key)).size, 2);
-  assert.ok(inventory.every((item)=>item.hub.id==='team'));
 });
 
 test('effective membership is authoritative, including an empty list, while legacy hubs retain direct membership', () => {
@@ -50,12 +45,10 @@ test('effective membership is authoritative, including an empty list, while lega
   assert.deepEqual(inherited.memberIDs, ['owner'], 'resolved members must not become saved direct grants');
 });
 
-test('team grants expose personal sources and selected tool access, then disappear when membership is revoked', () => {
+test('team grants expose personal sources, then they disappear when membership is revoked', () => {
   const inherited = { ...hub, memberIDs: ['owner'], accessUnitIDs: ['finance'], effectiveMemberIDs: ['owner', 'me'] };
   const data = { currentUserID: 'me', canManage: false, hubs: [inherited], connections: [source('drive'), source('slack')] };
   assert.deepEqual(personalSources(data).map((item) => item.sourceID), ['drive', 'slack']);
-  assert.ok(selectedToolInventory(data).every((item) => item.hub?.id === 'team'));
   const revoked = { ...data, hubs: [{ ...inherited, effectiveMemberIDs: ['owner'] }] };
   assert.deepEqual(personalSources(revoked), []);
-  assert.ok(selectedToolInventory(revoked).every((item) => item.hub === undefined));
 });

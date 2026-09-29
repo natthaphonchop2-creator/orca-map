@@ -38,7 +38,7 @@ const flowTools = [
 test('every U4 component compiles without warnings', async () => {
 	const files = [
 		...(await readdir(new URL('./programs/', import.meta.url))).filter((name) => name.endsWith('.svelte')).map((name) => `programs/${name}`),
-		'ConnectionCenter.svelte', 'ConnectionSettings.svelte', 'ConnectionSetupDialog.svelte', 'ConnectionMembers.svelte', 'views/AddProgramView.svelte'
+		'ConnectionCenter.svelte', 'ConnectionSettings.svelte', 'ConnectionMembers.svelte', 'views/AddProgramView.svelte'
 	];
 	assert.ok(files.length >= 13, files.join());
 	for (const file of files) {
@@ -246,21 +246,6 @@ test('the old entry points land in the new flow: detail, the ORCA team\'s add-by
 	assert.deepEqual([calls[0].name, calls[0].props.step, calls[0].props.sourceID], ['AddProgramFlow', 'connect', 'src']);
 });
 
-test('the workspace form adds a program in a side sheet with the same steps, never a modal on a modal', async () => {
-	const calls = [];
-	const deps = { ...base, OrcaService: {}, Sheet: spy(calls, 'Sheet'), AddProgramFlow: spy(calls, 'AddProgramFlow') };
-	const { warnings, Component } = await serverComponent(new URL('./ConnectionSetupDialog.svelte', import.meta.url), deps);
-	assert.deepEqual(warnings, []);
-	const oncompleted = async () => {};
-	render(Component, { props: { data: { connections: [] }, onclose() {}, oncompleted, initialSourceID: 'src' } }).body;
-	assert.deepEqual(calls.map((call) => call.name), ['Sheet', 'AddProgramFlow']);
-	assert.equal(calls[0].props.open, true);
-	assert.equal(calls[0].props.title, 'เชื่อมโปรแกรม');
-	assert.equal(calls[1].props.mode, 'sheet');
-	assert.equal(calls[1].props.initialSourceID, 'src');
-	assert.equal(calls[1].props.oncompleted, oncompleted);
-});
-
 test('the retired program pages are gone and nothing imports them', async () => {
 	const root = new URL('../../../', import.meta.url);
 	const files = [];
@@ -274,6 +259,6 @@ test('the retired program pages are gone and nothing imports them', async () => 
 	await walk(root);
 	for (const file of files) {
 		const source = await readFile(file, 'utf8');
-		assert.doesNotMatch(source, /\/(Connections|ToolCatalog|ConnectedUsers)\.svelte['"]|orca\/connected-users['"]/, file.pathname);
+		assert.doesNotMatch(source, /\/(Connections|ToolCatalog|ConnectedUsers|ConnectionSetupDialog)\.svelte['"]|orca\/(connected-users|tool-inventory)['"]/, file.pathname);
 	}
 });

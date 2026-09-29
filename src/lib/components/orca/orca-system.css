@@ -103,19 +103,6 @@
 .orca-workspace.orca-app .k-small {
   font-size: 13px;
 }
-.orca-workspace.orca-app .k-breadcrumb {
-  gap: 8px;
-  font-size: 13px;
-  margin-bottom: 12px;
-}
-.orca-workspace.orca-app .k-breadcrumb a {
-  color: var(--orca-muted);
-  font-weight: 500;
-  transition: color 0.15s var(--orca-ease);
-}
-.orca-workspace.orca-app .k-breadcrumb a:hover {
-  color: var(--orca-ink);
-}
 
 /* ---------- Sidebar ---------- */
 .orca-workspace.orca-app .workspace-sidebar {
@@ -148,13 +135,6 @@
 }
 .orca-workspace.orca-app .workspace-nav-group {
   gap: 1px;
-}
-.orca-workspace.orca-app .workspace-nav-heading {
-  margin: 0 10px 4px;
-  color: var(--orca-subtle);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0;
 }
 .orca-workspace.orca-app .workspace-nav a {
   gap: 10px;
@@ -554,15 +534,13 @@
 
 /* ---------- Forms ---------- */
 .orca-workspace.orca-app .k-field > label,
-.orca-workspace.orca-app .k-field label,
-.orca-workspace.orca-app .k-label {
+.orca-workspace.orca-app .k-field label {
   font-size: 13.5px;
   font-weight: 600;
 }
 .orca-workspace.orca-app .k-field input:not([type='checkbox']):not([type='radio']),
 .orca-workspace.orca-app .k-field select,
-.orca-workspace.orca-app .k-field textarea,
-.orca-workspace.orca-app .k-search {
+.orca-workspace.orca-app .k-field textarea {
   min-height: 36px;
   padding: 7px 11px;
   /* --orca-field(-line) equal the light literals (#fff, #d4d4d8); in dark the border meets 3:1. */
@@ -573,8 +551,7 @@
   font-size: 14px;
   transition: border-color 0.15s var(--orca-ease), box-shadow 0.15s var(--orca-ease);
 }
-.orca-workspace.orca-app .k-field :is(input, select, textarea):focus-visible,
-.orca-workspace.orca-app .k-search:focus-visible {
+.orca-workspace.orca-app .k-field :is(input, select, textarea):focus-visible {
   outline: none;
   border-color: var(--orca-focus, var(--orca-ink));
   box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1));
@@ -656,11 +633,6 @@
   background: var(--orca-warn-bg);
   color: var(--orca-warn);
 }
-.orca-workspace.orca-app .k-badge.accent {
-  background: var(--orca-citron-soft);
-  border-color: var(--orca-citron-line, #e3f0b0);
-  color: var(--orca-ink);
-}
 
 /* Numbered steps in help and setup panels. */
 .orca-workspace.orca-app .k-numbered {
@@ -708,7 +680,7 @@
 
 /* ---------- Dialogs ---------- */
 /* Modal dialogs are rounder than the panels behind them (the components set radius-lg). */
-.orca-workspace.orca-app :is(.lifecycle-dialog, .team-dialog, .invitation-dialog, .company-dialog, .connection-dialog) {
+.orca-workspace.orca-app :is(.lifecycle-dialog, .team-dialog, .invitation-dialog, .company-dialog) {
   border-radius: var(--orca-radius-xl);
 }
 
@@ -811,27 +783,6 @@
     background: var(--orca-surface);
     color: var(--orca-ink);
   }
-  /* Check lists and icon tiles (workspace-base.css). Safety nets for markup that no
-     component styles: the theme hook is inside :where(), so each rule is one step above
-     the legacy rule it replaces and below every scoped component rule (Connections'
-     .k-check-list rows are (0,3,0) and up). */
-  :where(:root[data-orca-theme='dark']) .orca-app .k-check-list {
-    border-color: var(--orca-line-strong);
-  }
-  :where(:root[data-orca-theme='dark']) .orca-app .k-check-row + .k-check-row {
-    border-top-color: var(--orca-line-soft);
-  }
-  :where(:root[data-orca-theme='dark']) .orca-app .k-check-row:hover {
-    background: var(--orca-hover);
-  }
-  :where(:root[data-orca-theme='dark']) .orca-app .k-check-row.selected {
-    border-color: var(--orca-citron-line);
-    background: var(--orca-citron-soft);
-  }
-  :where(:root[data-orca-theme='dark']) .orca-app .k-icon {
-    background: var(--orca-secondary);
-  }
-
   /* ---------- Dark: v3 skin ---------- */
   /* Top bar: the website's nav glass. */
   :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-topbar {
@@ -852,20 +803,19 @@
     color: var(--orca-subtle) !important;
   }
   /* Fields: one step brighter on hover (website .control:hover). */
-  :root[data-orca-theme='dark'] .orca-workspace.orca-app .k-field :is(input:not([type='checkbox']):not([type='radio']), select, textarea):hover:not(:focus-visible):not(:disabled),
-  :root[data-orca-theme='dark'] .orca-workspace.orca-app .k-search:hover:not(:focus-visible) {
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app .k-field :is(input:not([type='checkbox']):not([type='radio']), select, textarea):hover:not(:focus-visible):not(:disabled) {
     border-color: var(--orca-field-line-hover);
   }
   /* Underline tabs: the active bar is citron. The tab rules are scoped in their components
      (border-bottom-color: var(--orca-ink)); only the bar colour changes here. */
-  :root[data-orca-theme='dark'] .orca-workspace.orca-app :is(.settings-tabs a.chosen, .gateway-tabs a.active, .detail-tabs a.chosen, .catalog-tabs button.chosen, .team-tabs button.active, .library-tabs button.active, .audit-tabs a.active) {
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app :is(.settings-tabs a.chosen, .team-tabs button.active, .audit-tabs a.active) {
     border-bottom-color: var(--orca-tab-indicator);
   }
   /* Dialogs: one plane above the dimmed page (the website's #141517) with the stronger
      edge, so they separate by more than a hairline. The surface tokens move up with them:
      the sticky header and cards follow the dialog; nested blocks and fields stay one step
      above it. (Not --orca-surface-2 on the first line: it is redefined on this element.) */
-  :root[data-orca-theme='dark'] .orca-workspace.orca-app :is(.lifecycle-dialog, .team-dialog, .invitation-dialog, .company-dialog, .connection-dialog) {
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app :is(.lifecycle-dialog, .team-dialog, .invitation-dialog, .company-dialog) {
     --orca-surface: var(--orca-popover);
     --orca-surface-2: var(--orca-raised);
     --orca-field: var(--orca-raised);
