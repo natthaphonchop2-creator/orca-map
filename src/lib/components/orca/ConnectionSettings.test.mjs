@@ -66,6 +66,14 @@ test('manager Tools renders policy mode directly while new source retains the se
   assert.equal(source[0].input.mode, undefined);
 });
 
+test('managers get a คนที่เชื่อมบัญชีแล้ว tab (the old Connected users page); nonmanagers do not', () => {
+  const members = screen('members');
+  assert.deepEqual(members.calls.map((call) => call.name), ['ConnectionMembers']);
+  assert.match(members.html, /tab=members" aria-current="page" class="[^"]*chosen[^"]*">People signed in/);
+  assert.doesNotMatch(screen('overview', false).html, /tab=members/);
+  assert.deepEqual(screen('members', false).calls, []);
+});
+
 test('nonmanagers cannot mount account controls or policy editor through detail tabs', () => {
   assert.deepEqual(screen('account', false).calls, []);
   assert.deepEqual(screen('overview', false).calls, []);

@@ -28,6 +28,17 @@ test('copies with the clipboard, falls back to a hidden textarea, and reports fa
 	assert.equal(await copy.copyText('', { writeText: async () => {} }), false);
 });
 
+test('the textarea fallback gives the focus back to the copy button', async () => {
+	let focused = 0;
+	const doc = { ...fakeDocument(), activeElement: { focus() { focused += 1; } } };
+	assert.equal(await copy.copyText('link', undefined, doc), true);
+	assert.equal(focused, 1);
+	// A failed copy gives it back too.
+	const failing = { ...fakeDocument(false), activeElement: { focus() { focused += 1; } } };
+	assert.equal(await copy.copyText('link', undefined, failing), false);
+	assert.equal(focused, 2);
+});
+
 test('"คัดลอกแล้ว" shows for a moment; a second copy restarts the timer', () => {
 	const timers = [];
 	const cancelled = [];
@@ -51,4 +62,8 @@ test('CopyField shows a big copy button beside the value in small mono text', as
 	assert.match(html, /<button type="button" class="orca-copy-button[^"]*"[^>]*>(?:(?!<\/button>)[\s\S])*Copy ORCA link/);
 	assert.match(html, /<code[^>]*>https:\/\/orca.example\/api\/orca\/mcp<\/code>/);
 	assert.match(html, /role="status"/);
+	// The button is described by the value it copies (several copy buttons stay distinguishable).
+	const described = html.match(/class="orca-copy-button[^"]*"[^>]*aria-describedby="([^"]+)"/)?.[1];
+	assert.ok(described, 'the button names what it copies');
+	assert.match(html, new RegExp(`<div class="orca-copy-value[^"]*" id="${described}">`));
 });

@@ -28,6 +28,7 @@
 	let restore: (() => void) | undefined;
 	const uid = $props.id();
 	const titleID = `orca-sheet-${uid}`;
+	const descriptionID = `orca-sheet-description-${uid}`;
 
 	$effect(() => {
 		const element = dialog;
@@ -60,6 +61,7 @@
 	bind:this={dialog}
 	class="orca-sheet"
 	aria-labelledby={titleID}
+	aria-describedby={description ? descriptionID : undefined}
 	oncancel={(event) => {
 		event.preventDefault();
 		close();
@@ -74,7 +76,7 @@
 		<header class="orca-sheet-head">
 			<div>
 				<h2 id={titleID}>{title}</h2>
-				{#if description}<p>{description}</p>{/if}
+				{#if description}<p id={descriptionID}>{description}</p>{/if}
 			</div>
 			<button type="button" class="orca-sheet-close" disabled={busy} onclick={close} aria-label={t('ปิด', 'Close')} title={t('ปิด', 'Close')}><X size={18} aria-hidden="true" /></button>
 		</header>

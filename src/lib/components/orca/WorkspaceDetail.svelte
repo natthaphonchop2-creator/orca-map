@@ -833,7 +833,7 @@
 <div class="detail-stack">
 	<section class="detail-card gateway-identity" aria-labelledby="detail-identity-title">
 		<header class="detail-card-head">
-			<h2 id="detail-identity-title">{t('การเข้าสู่ระบบของสมาชิก', 'Member sign-in')}</h2>{#if data.canManage}<a class="k-button small" href={localeHref('/app?view=settings&section=advanced')}>{t('จัดการ SSO ของบริษัท', 'Manage company SSO')}</a>{/if}
+			<h2 id="detail-identity-title">{t('การเข้าสู่ระบบของสมาชิก', 'Member sign-in')}</h2>{#if data.canManage && (userSources.length || hub.userSourceID)}<a class="k-button small" href={localeHref('/app?view=settings&section=advanced')}>{t('จัดการ SSO ของบริษัท', 'Manage company SSO')}</a>{/if}
 		</header>
 		<div class="detail-card-body">
 		{#if data.canManage}

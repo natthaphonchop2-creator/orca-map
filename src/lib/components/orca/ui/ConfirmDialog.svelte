@@ -36,6 +36,7 @@
 	let restore: (() => void) | undefined;
 	const uid = $props.id();
 	const titleID = `orca-confirm-${uid}`;
+	const messageID = `orca-confirm-message-${uid}`;
 
 	$effect(() => {
 		const element = dialog;
@@ -66,6 +67,7 @@
 	class="orca-confirm"
 	class:danger={tone === 'danger'}
 	aria-labelledby={titleID}
+	aria-describedby={message ? messageID : undefined}
 	oncancel={(event) => {
 		event.preventDefault();
 		cancel();
@@ -79,7 +81,7 @@
 	<div class="orca-confirm-body">
 		{#if Icon}<span class="orca-confirm-icon" aria-hidden="true"><Icon size={20} /></span>{/if}
 		<h2 id={titleID}>{title}</h2>
-		{#if message}<p>{message}</p>{/if}
+		{#if message}<p id={messageID}>{message}</p>{/if}
 		{#if children}{@render children()}{/if}
 		<div class="orca-confirm-actions">
 			<button type="button" class="k-button" bind:this={cancelButton} disabled={busy} onclick={cancel}>{cancelLabel ?? t('ยกเลิก', 'Cancel')}</button>

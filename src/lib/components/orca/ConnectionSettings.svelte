@@ -81,6 +81,10 @@
       { id: "tools", name: t("สิ่งที่ AI ทำได้", "What AI can do") }
     ] : []),
     { id: "workspaces", name: t("พื้นที่ทำงาน AI", "AI workspaces") },
+    // Who signed in to this program with their own account (was view=connected-users).
+    ...(!connection?.archivedAt && data.canManage ? [
+      { id: "members", name: t("คนที่เชื่อมบัญชีแล้ว", "People signed in") }
+    ] : []),
     { id: "activity", name: t("ประวัติการใช้งาน", "Activity") },
   ]);
   let events = $state<OrcaAuditEvent[]>([]);

@@ -220,7 +220,7 @@
                       ><div class="connected-user-gateways">
                         {#each row.gateways as gateway (gateway.id)}<a
                             href={localeHref(
-                              `/app?view=hub&hub=${encodeURIComponent(gateway.id)}&tab=access`,
+                              `/app?view=hub&hub=${encodeURIComponent(gateway.id)}&tab=people`,
                             )}>{gateway.name}</a
                           >{/each}
                       </div></td

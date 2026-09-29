@@ -58,7 +58,8 @@
 		gap: 5px;
 		padding: 3px 10px;
 		border-radius: 999px;
-		background: var(--orca-ink);
+		/* Ink in light (the mockup); citron in dark, where a white badge would glare. */
+		background: var(--orca-chosen);
 		color: var(--orca-on-ink);
 		font-size: 12px;
 		font-weight: 600;

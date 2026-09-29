@@ -19,6 +19,8 @@
 		size?: 'large' | 'small';
 		oncopied?: () => void;
 	} = $props();
+	const uid = $props.id();
+	const valueID = `orca-copy-value-${uid}`;
 	let copied = $state(false);
 	let failed = $state(false);
 	const feedback = copyFeedback((value) => (copied = value));
@@ -34,10 +36,10 @@
 </script>
 
 <div class="orca-copy {size}">
-	<button type="button" class="orca-copy-button" class:copied onclick={copy} disabled={!value}>
+	<button type="button" class="orca-copy-button" class:copied onclick={copy} disabled={!value} aria-describedby={valueID}>
 		{#if copied}<Check size={size === 'large' ? 18 : 15} aria-hidden="true" />{t('คัดลอกแล้ว', 'Copied')}{:else}<Copy size={size === 'large' ? 18 : 15} aria-hidden="true" />{buttonLabel ?? t('คัดลอก', 'Copy')}{/if}
 	</button>
-	<div class="orca-copy-value">
+	<div class="orca-copy-value" id={valueID}>
 		{#if label}<span class="orca-copy-label">{label}</span>{/if}
 		<code>{value}</code>
 	</div>

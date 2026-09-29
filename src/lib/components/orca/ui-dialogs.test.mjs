@@ -38,6 +38,9 @@ test('ConfirmDialog and Sheet are labelled modal dialogs with a cancel and a clo
 	assert.match(html, /<dialog class="orca-confirm[^"]*danger[^"]*" aria-labelledby="(orca-confirm-[^"]+)"/);
 	const id = html.match(/aria-labelledby="([^"]+)"/)[1];
 	assert.match(html, new RegExp(`<h2 id="${id}"[^>]*>Disconnect ChatGPT for Malee\\?</h2>`));
+	const described = html.match(/aria-describedby="([^"]+)"/)?.[1];
+	assert.ok(described, 'the message describes the dialog');
+	assert.match(html, new RegExp(`<p id="${described}"[^>]*>It stops at once.</p>`));
 	assert.match(html, />Cancel<\/button>/);
 	assert.match(html, /class="k-button danger-solid[^"]*"[^>]*>Disconnect<\/button>/);
 	const sheet = await serverComponent(new URL('./ui/Sheet.svelte', import.meta.url), deps);
@@ -45,5 +48,10 @@ test('ConfirmDialog and Sheet are labelled modal dialogs with a cancel and a clo
 	const panel = render(sheet.Component, { props: { title: 'Sign in to FlowAccount', children: (renderer) => renderer.push('<p>inside</p>') } }).body;
 	assert.match(panel, /<dialog class="orca-sheet[^"]*" aria-labelledby="orca-sheet-/);
 	assert.match(panel, /aria-label="Close"/);
+	assert.doesNotMatch(panel, /aria-describedby/, 'no description, no reference');
+	const withDescription = render(sheet.Component, { props: { title: 'Sign in', description: 'Use your own account.', children: () => {} } }).body;
+	const descriptionID = withDescription.match(/aria-describedby="([^"]+)"/)?.[1];
+	assert.ok(descriptionID);
+	assert.match(withDescription, new RegExp(`<p id="${descriptionID}"[^>]*>Use your own account.</p>`));
 	assert.doesNotMatch(panel, /inside/, 'the content mounts only while open');
 });

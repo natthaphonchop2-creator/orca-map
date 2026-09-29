@@ -153,11 +153,18 @@
     { id: "settings", label: term("settings", t), href: "/app?view=settings", icon: Settings },
     { id: "help", label: term("help", t), href: "/app?view=help", icon: CircleHelp },
   ]);
-  const activeView = $derived(activeNavigationView(view, section));
+  // An employee has no ตรวจสอบ: their "คำขอของฉัน" lights only on their
+  // requests, not on their own activity history.
+  const activeView = $derived.by(() => {
+    const active = activeNavigationView(view, section);
+    return active === "oversight" && !canManage && !platformMode && view !== "approvals" ? "" : active;
+  });
   const aiLine = $derived(aiConnectionLine(aiStatus ?? aiConnection, t));
   const aiConnected = $derived((aiStatus ?? aiConnection)?.state === "connected");
   // The platform always opens the default company; from another company that is a new page.
   const platformReload = $derived(company !== DEFAULT_COMPANY);
+  // The breadcrumb names the page; an employee's oversight pages by their own names.
+  const employeeOversight: Record<string, Parameters<typeof term>[0]> = { approvals: "myRequests", executions: "usageHistory", audit: "settingsHistory" };
   const currentPage = $derived(
     view === "new"
       ? term("newWorkspace", t)
@@ -165,8 +172,10 @@
         ? term("addProgram", t)
         : activeView === "connect-ai"
           ? term("connectMyAI", t)
-          : [...navigationItems, ...utilityNavigation].find((item) => item.id === activeView)?.label ||
-            (activeView === "oversight" ? term("oversight", t) : term("home", t)),
+          : !canManage && !platformMode && employeeOversight[view]
+            ? term(employeeOversight[view], t)
+            : [...navigationItems, ...utilityNavigation].find((item) => item.id === activeView)?.label ||
+              (activeView === "oversight" ? term("oversight", t) : term("home", t)),
   );
   const accountInitial = $derived(
     (accountName.trim()[0] || "O").toLocaleUpperCase(),

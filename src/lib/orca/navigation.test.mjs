@@ -351,12 +351,24 @@ test("no component links to a retired view", async () => {
     [/[?&]tab=connect(?![\w-])/, "the old workspace connect tab (use view=connect-ai)"],
     [/href=["'{`(]*#connect-ai/, "the old #connect-ai anchor"],
   ];
+  // Old tab names, checked line by line: a workspace link with tools/access,
+  // a program link with its folded account tab.
+  const linePatterns = [
+    [/view=hub&/, /[?&]tab=(?:tools|access)(?![\w-])/, "an old workspace tab (use programs or people)"],
+    [/view=servers&/, /[?&]tab=account(?![\w-])/, "a program's old account tab (use overview)"],
+  ];
   const found = [];
   for (const file of files) {
     const text = await readFile(file, "utf8");
     for (const [pattern, reason] of patterns) {
       const match = text.match(pattern);
       if (match) found.push(`${file.pathname.split("/src/")[1]}: ${match[0]} (${reason})`);
+    }
+    for (const line of text.split("\n")) {
+      for (const [where, pattern, reason] of linePatterns) {
+        const match = where.test(line) && line.match(pattern);
+        if (match) found.push(`${file.pathname.split("/src/")[1]}: ${match[0]} (${reason})`);
+      }
     }
   }
   assert.deepEqual(found, []);

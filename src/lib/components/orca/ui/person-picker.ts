@@ -45,6 +45,17 @@ export function moveHighlight(index: number, count: number, step: 1 | -1): numbe
 	return (index + step + count) % count;
 }
 
+/**
+ * The person Enter picks from an open list: the highlighted one (moved to with
+ * the arrow keys, even before anything is typed), else a typed search's first
+ * match. Nothing when the list is closed or empty.
+ */
+export function enterChoice<T>(suggestions: readonly T[], highlight: number, query: string, open: boolean): T | undefined {
+	if (!open || !suggestions.length) return undefined;
+	if (highlight >= 0 && highlight < suggestions.length) return suggestions[highlight];
+	return query.trim() ? suggestions[0] : undefined;
+}
+
 export function personInitial(name: string): string {
 	const first = [...name.trim()].find((character) => /[\p{L}\p{N}]/u.test(character));
 	return (first ?? '?').toLocaleUpperCase();

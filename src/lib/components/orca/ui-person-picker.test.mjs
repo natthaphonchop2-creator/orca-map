@@ -40,6 +40,16 @@ test('arrow keys wrap through the suggestions; initials skip punctuation', () =>
 	assert.equal(picker.personInitial(''), '?');
 });
 
+test('Enter picks the highlighted person even before typing, else a search\'s first match', () => {
+	const list = ['a', 'b', 'c'];
+	assert.equal(picker.enterChoice(list, 1, '', true), 'b', 'arrow keys alone are enough (keyboard-only choice)');
+	assert.equal(picker.enterChoice(list, -1, 'ม', true), 'a');
+	assert.equal(picker.enterChoice(list, -1, '  ', true), undefined, 'an empty search with nothing highlighted submits nothing');
+	assert.equal(picker.enterChoice(list, 0, 'x', false), undefined, 'a closed list picks nothing');
+	assert.equal(picker.enterChoice([], 0, 'x', true), undefined);
+	assert.equal(picker.enterChoice(list, 5, 'x', true), 'a', 'a stale highlight falls back to the first match');
+});
+
 test('PersonPicker renders the chosen chips, "you" first-class, and a labelled combobox', async () => {
 	const { warnings, Component } = await serverComponent(new URL('./ui/PersonPicker.svelte', import.meta.url), { ...picker, t: (_th, en) => en });
 	assert.deepEqual(warnings, []);

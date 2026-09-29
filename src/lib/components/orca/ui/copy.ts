@@ -7,6 +7,7 @@ type DocumentLike =
 			createElement(tag: 'textarea'): HTMLTextAreaElement;
 			body: { appendChild(node: Node): unknown; removeChild(node: Node): unknown };
 			execCommand?(command: string): boolean;
+			activeElement?: Element | null;
 	  }
 	| undefined;
 
@@ -21,6 +22,8 @@ export async function copyText(text: string, clipboard: ClipboardLike, doc?: Doc
 		// Fall through to the textarea copy.
 	}
 	if (!doc?.execCommand) return false;
+	// Selecting the hidden textarea takes focus; it goes back to the copy button after.
+	const previous = doc.activeElement as (Element & { focus?: () => void }) | null | undefined;
 	const area = doc.createElement('textarea');
 	area.value = text;
 	area.setAttribute('readonly', '');
@@ -34,6 +37,7 @@ export async function copyText(text: string, clipboard: ClipboardLike, doc?: Doc
 		return false;
 	} finally {
 		doc.body.removeChild(area);
+		if (previous && typeof previous.focus === 'function') previous.focus();
 	}
 }
 

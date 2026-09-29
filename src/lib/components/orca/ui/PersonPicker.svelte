@@ -3,6 +3,7 @@
 	import { t } from '$lib/orca/locale.svelte';
 	import {
 		addPerson,
+		enterChoice,
 		matchPeople,
 		moveHighlight,
 		personInitial,
@@ -57,8 +58,8 @@
 			open = true;
 			highlight = moveHighlight(highlight, suggestions.length, event.key === 'ArrowDown' ? 1 : -1);
 		} else if (event.key === 'Enter') {
-			const person = suggestions[highlight >= 0 ? highlight : 0];
-			if (open && person && query.trim()) {
+			const person = enterChoice(suggestions, highlight, query, open);
+			if (person) {
 				event.preventDefault();
 				choose(person);
 			}
@@ -84,7 +85,11 @@
 					{#if !locked.includes(person.id)}<button
 							type="button"
 							{disabled}
-							onclick={() => update(removePerson(selected, person.id, locked))}
+							onclick={() => {
+								update(removePerson(selected, person.id, locked));
+								// The chip's button is gone; the search keeps the focus.
+								input?.focus();
+							}}
 							aria-label={t(`เอา ${person.name} ออก`, `Remove ${person.name}`)}><X size={14} aria-hidden="true" /></button
 						>{/if}
 				</li>

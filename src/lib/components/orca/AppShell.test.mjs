@@ -120,3 +120,24 @@ test('sub-pages keep their sidebar item lit', async () => {
 	const { html } = await renderShell({ data: owner, companies: [companies[0]], account: '7', view: 'connect-ai' });
 	assert.match(html, /class="workspace-pin active"/);
 });
+
+test("an employee's oversight pages are named for them, and My requests lights only on their requests", async () => {
+	const requests = { ...data, hubs: [{ id: 'h', status: 'active', writeMode: 'approval' }] };
+	const current = (html) => html.match(/<strong class="workspace-current-page"[^>]*>([^<]*)<\/strong>/)?.[1];
+	const lit = (html) => {
+		const aside = html.slice(html.indexOf('<aside'), html.indexOf('</aside>'));
+		return [...aside.matchAll(/aria-current="page"[^>]*>(?:(?!<\/a>)[\s\S])*?<span class="workspace-nav-label">([^<]*)<\/span>/g)].map((match) => match[1]);
+	};
+	let { html } = await renderShell({ data: requests, companies: [companies[1]], account: '7', view: 'approvals' });
+	assert.equal(current(html), 'My requests');
+	assert.deepEqual(lit(html), ['My requests']);
+	({ html } = await renderShell({ data: requests, companies: [companies[1]], account: '7', view: 'executions' }));
+	assert.equal(current(html), 'Activity', 'not "Oversight", which employees do not have');
+	assert.deepEqual(lit(html), []);
+	({ html } = await renderShell({ data, companies: [companies[1]], account: '7', view: 'audit' }));
+	assert.equal(current(html), 'Settings history');
+	// Owners and Admins keep ตรวจสอบ lit on every oversight tab.
+	({ html } = await renderShell({ data: owner, companies: [companies[0]], account: '7', view: 'executions' }));
+	assert.equal(current(html), 'Oversight');
+	assert.deepEqual(lit(html), ['Oversight']);
+});

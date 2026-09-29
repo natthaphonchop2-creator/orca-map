@@ -55,4 +55,8 @@
 		border-radius: 50%;
 		background: currentColor;
 	}
+	/* A neutral state ("ยังไม่ได้เชื่อม") has a quiet dot, as on the pinned button. */
+	.orca-pill.neutral .orca-pill-dot {
+		background: var(--orca-muted);
+	}
 </style>

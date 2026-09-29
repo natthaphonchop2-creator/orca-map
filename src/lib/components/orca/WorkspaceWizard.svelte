@@ -1211,7 +1211,7 @@
 					class="k-button"
 					href={localeHref(
 						existing
-							? `/app?view=hub&hub=${encodeURIComponent(existing.id)}${toolsOnly ? '&tab=tools' : ''}`
+							? `/app?view=hub&hub=${encodeURIComponent(existing.id)}${toolsOnly ? '&tab=programs' : ''}`
 							: '/app?view=workspaces'
 					)}>{t('ยกเลิก', 'Cancel')}</a
 				>
