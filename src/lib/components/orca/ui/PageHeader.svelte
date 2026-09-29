@@ -82,7 +82,8 @@
 		align-items: center;
 		gap: 8px 14px;
 	}
-	.orca-page-title h1 {
+	/* Under .orca-page-header so it outranks the shell's `.orca-workspace.orca-app h1` (24px). */
+	.orca-page-header .orca-page-title h1 {
 		margin: 0;
 		font-size: 28px;
 		line-height: 1.3;
@@ -102,7 +103,7 @@
 		gap: 8px;
 	}
 	@media (max-width: 720px) {
-		.orca-page-title h1 {
+		.orca-page-header .orca-page-title h1 {
 			font-size: 24px;
 		}
 		.orca-page-action {
