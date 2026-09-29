@@ -13,7 +13,10 @@ export const UNAUTHORIZED_PATHS = new Set([
 	'/admin',
 	// The local auth provider's login form: anonymous by definition, so a 401 from the layout's
 	// profile fetch must not bounce the user back to the provider list.
-	'/login/local'
+	'/login/local',
+	// An AI app's sign-in (C4 design §14h): the page sends a signed-out person to
+	// /login?ai=1 itself, and shows its expired message to anyone.
+	'/login/ai'
 ]);
 // Public pages under these prefixes, such as an invitation link opened before sign-in.
 export const UNAUTHORIZED_PATH_PREFIXES = ['/invite/'];

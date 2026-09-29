@@ -129,6 +129,8 @@
     "oauth_app.replace": t("เปลี่ยนการเข้าสู่ระบบของโปรแกรม", "Program sign-in replaced"),
     "oauth_app.remove": t("นำการเข้าสู่ระบบของโปรแกรมออก", "Program sign-in removed"),
     "oauth_session.revoke": t("ตัดการเชื่อมต่อแอป AI", "AI app disconnected"),
+    // An AI app's sign-in continued on the workspace's login (C4 design §14h).
+    "ai.signin.handoff": t("เข้าสู่ระบบเพื่อเชื่อมแอป AI", "Signed in to connect an AI app"),
     "approval.request": t("ขออนุมัติงานที่แก้ข้อมูล", "Approval requested"),
     "approval.approve": t("อนุมัติงานที่แก้ข้อมูล", "Change approved"),
     "approval.reject": t("ปฏิเสธงานที่แก้ข้อมูล", "Change rejected"),

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { mkdtemp, mkdir, writeFile, symlink, rm, readdir } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, symlink, rm, readdir, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { once } from 'node:events';
@@ -569,3 +569,177 @@ for (const mode of ['standalone', 'vite']) {
     }
   });
 }
+
+// ---------------------------------------------------------------------------
+// W1-B4 (C4 design §14h): an AI app's ORCA sign-in on this workspace's login.
+// ---------------------------------------------------------------------------
+
+const HANDOFF_CODE = 'Syn7hetic-hand_off-code-0123456789abcdefghi';
+const HANDOFF_REQUEST = 'Syn7hetic-hand_off-request-0123456789abcdef';
+
+test('the hand-off page is served; nothing below it is', async (t) => {
+  let upstream = 0;
+  const { appURL } = await fixture(t, (_req, res) => { upstream++; res.end('backend'); });
+  for (const route of ['/login/ai', '/login/ai?signed=1', '/login/ai?error=expired&lang=en']) {
+    const page = await request(appURL, route);
+    assert.equal(page.status, 200, route);
+    assert.match(page.body, /ORCA app/);
+    assert.equal(page.headers['cache-control'], 'no-store');
+  }
+  for (const route of ['/login/ai/x', '/login/aix']) assert.equal((await request(appURL, route)).status, 404, route);
+  assert.equal(upstream, 0);
+});
+
+for (const mode of ['standalone', 'vite']) {
+  async function app(t, handler, backendPublicOrigin = 'https://backend.orca.example') {
+    const f = await fixture(t, handler, { backendPublicOrigin });
+    if (mode === 'standalone') return f;
+    const middleware = createBackendMiddleware({ backendURL: f.backendURL, backendPublicOrigin });
+    const vite = http.createServer((req, res) => middleware(req, res, () => res.end('vite')));
+    const appURL = await listen(vite);
+    t.after(async () => { vite.closeAllConnections(); await new Promise((resolve) => vite.close(resolve)); });
+    return { ...f, appURL };
+  }
+
+  test(`${mode}: the code and the backup page go to the configured backend origin with the raw query`, async (t) => {
+    let seen = 0;
+    const { appURL } = await app(t, (_req, res) => { seen++; res.end('backend'); });
+    const same = { 'sec-fetch-site': 'same-origin', 'sec-fetch-mode': 'navigate', referer: appURL + '/login/ai' };
+    for (const pathname of [`/orca/oauth/handoff?code=${HANDOFF_CODE}`, `/orca/oauth/handoff?code=a%2Bb&redirect=https%3A%2F%2Fevil.example`, '/orca/oauth/fallback', '/orca/oauth/fallback?to=https%3A%2F%2Fevil.example']) {
+      const response = await request(appURL, pathname, { headers: same });
+      assert.equal(response.status, 302, pathname);
+      // Only the configured origin, never the query or the Host: the raw path and query follow it.
+      assert.equal(response.headers.location, 'https://backend.orca.example' + pathname);
+      assert.equal(response.headers['cache-control'], 'no-store');
+      assert.equal(response.headers['referrer-policy'], 'no-referrer');
+      assert.equal(response.headers['set-cookie'], undefined);
+    }
+    assert.equal((await request(appURL, '/orca/oauth/handoff?code=x', { headers: { host: 'evil.example' } })).status, 421);
+    // The two are exact paths; anything else under them is not a navigation.
+    const cross = { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate' };
+    for (const [pathname, method] of [['/orca/oauth/handoff/extra', 'GET'], ['/orca/oauth/fallback/extra', 'GET'], ['/orca/oauth/handoff', 'POST'], ['/orca/oauth/handoff/begin', 'HEAD'], ['/orca/oauth/handoff/begin/x', 'GET'], ['/orca/oauth/handoff/confirm', 'POST']])
+      assert.equal((await request(appURL, pathname, { method, headers: cross })).status, 403, `${method} ${pathname}`);
+    assert.equal(seen, 0, 'the backend never sees them here');
+  });
+
+  test(`${mode}: the claim and the confirm are proxied with this workspace's cookies, their answers kept as the backend wrote them`, async (t) => {
+    const seen = [];
+    const { appURL } = await app(t, (req, res) => {
+      seen.push({ url: req.url, cookie: req.headers.cookie, authorization: req.headers.authorization, host: req.headers.host, referer: req.headers.referer });
+      if (req.url.startsWith('/orca/oauth/handoff/begin')) {
+        res.writeHead(302, {
+          location: 'https://workspace.orca.example/login/ai',
+          'cache-control': 'no-store',
+          'referrer-policy': 'no-referrer',
+          'set-cookie': [
+            'orca_ai_handoff=synthetic; Path=/api/orca/ai-sign-in; Max-Age=600; HttpOnly; Secure; SameSite=Lax',
+            'orca_ai_handoff=synthetic; Path=/orca/oauth/handoff; Max-Age=600; HttpOnly; Secure; SameSite=Lax'
+          ]
+        });
+      } else {
+        res.writeHead(302, { location: 'https://claude.example/api/callback?code=client-code&state=client%2Bstate', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
+      }
+      res.end();
+    });
+    // Another site started both: the AI app's authorize, and the consent page's 303.
+    const cross = { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', cookie: 'obot_access_token=workspace-session; orca_ai_handoff=synthetic' };
+    const begin = await request(appURL, `/orca/oauth/handoff/begin?request=${HANDOFF_REQUEST}`, { headers: cross });
+    assert.equal(begin.status, 302);
+    assert.equal(begin.headers.location, 'https://workspace.orca.example/login/ai', 'the backend\'s absolute Location passes');
+    assert.equal(begin.headers['referrer-policy'], 'no-referrer', 'kept: the next page must not carry ?request= (Codex review 57, MINOR 3)');
+    assert.equal(begin.headers['cache-control'], 'no-store');
+    assert.deepEqual(begin.headers['set-cookie'], [
+      'orca_ai_handoff=synthetic; Path=/api/orca/ai-sign-in; Max-Age=600; HttpOnly; Secure; SameSite=Lax',
+      'orca_ai_handoff=synthetic; Path=/orca/oauth/handoff; Max-Age=600; HttpOnly; Secure; SameSite=Lax'
+    ]);
+    const confirm = await request(appURL, '/orca/oauth/handoff/confirm', { headers: cross });
+    assert.equal(confirm.status, 302);
+    assert.equal(confirm.headers.location, 'https://claude.example/api/callback?code=client-code&state=client%2Bstate');
+    assert.equal(confirm.headers['referrer-policy'], 'no-referrer');
+    assert.deepEqual(seen.map((item) => item.url), [`/orca/oauth/handoff/begin?request=${HANDOFF_REQUEST}`, '/orca/oauth/handoff/confirm']);
+    for (const item of seen) {
+      assert.equal(item.cookie, 'obot_access_token=workspace-session; orca_ai_handoff=synthetic', 'the workspace\'s own cookies reach the backend');
+      assert.equal(item.authorization, undefined, 'a cookie-only browser session, never a key');
+      assert.equal(item.host, 'backend.orca.example');
+      assert.equal(item.referer, undefined);
+    }
+  });
+}
+
+test('the proxy keeps ORCA sign-in pages\' own referrer policy and sets same-origin everywhere else', async (t) => {
+  const f = await fixture(t, (req, res) => {
+    res.writeHead(200, { 'referrer-policy': req.url.startsWith('/orca/oauth/') ? 'no-referrer' : 'unsafe-url' });
+    res.end('ok');
+  });
+  assert.equal((await request(f.appURL, '/orca/oauth/handoff/begin?request=x')).headers['referrer-policy'], 'no-referrer');
+  assert.equal((await request(f.appURL, '/api/me')).headers['referrer-policy'], 'same-origin');
+  const bare = await fixture(t, (_req, res) => res.end('ok'));
+  assert.equal((await request(bare.appURL, '/orca/oauth/handoff/confirm')).headers['referrer-policy'], 'same-origin', 'an answer without one gets the default');
+});
+
+test('the mint goes through the /api proxy with the page\'s account and cookies, same-origin only', async (t) => {
+  const seen = [];
+  const f = await fixture(t, async (req, res) => {
+    const body = [];
+    for await (const chunk of req) body.push(chunk);
+    seen.push({ method: req.method, url: req.url, account: req.headers['x-orca-account'], cookie: req.headers.cookie, authorization: req.headers.authorization, origin: req.headers.origin, body: Buffer.concat(body).toString() });
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+    res.end(JSON.stringify({ code: HANDOFF_CODE, expiresIn: 120 }));
+  });
+  const headers = { origin: f.appURL, 'sec-fetch-site': 'same-origin', 'content-type': 'application/json', 'x-orca-account': '41', cookie: 'obot_access_token=workspace-session; orca_ai_handoff=synthetic' };
+  const minted = await request(f.appURL, '/api/orca/ai-sign-in/handoff', { method: 'POST', headers, body: '{"decision":"continue"}' });
+  assert.equal(minted.status, 200);
+  assert.equal(minted.headers['cache-control'], 'no-store');
+  assert.deepEqual(seen, [{ method: 'POST', url: '/api/orca/ai-sign-in/handoff', account: '41', cookie: 'obot_access_token=workspace-session; orca_ai_handoff=synthetic', authorization: undefined, origin: f.backendURL, body: '{"decision":"continue"}' }]);
+  for (const bad of [{ origin: 'https://evil.example' }, { 'sec-fetch-site': 'cross-site' }, { 'sec-fetch-site': 'same-site' }])
+    assert.equal((await request(f.appURL, '/api/orca/ai-sign-in/handoff', { method: 'POST', headers: { ...headers, ...bad }, body: '{"decision":"continue"}' })).status, 403, JSON.stringify(bad));
+  assert.equal(seen.length, 1);
+});
+
+// The Google-only path through the proxy (Codex review 58, MINOR 4): /login?ai=1
+// starts Google with the fixed hand-off return, Google comes back cross-site to
+// this workspace's /oauth2/callback, and the backend's relative Location and
+// Lax session cookie pass unchanged, host-only.
+test('Google sign-in for an AI app returns to the hand-off page with a host-only Lax session', async (t) => {
+  const seen = [];
+  const f = await fixture(t, (req, res) => {
+    seen.push(req.url);
+    const url = new URL(req.url, 'http://backend.invalid');
+    if (url.pathname === '/oauth2/start') {
+      assert.equal(url.searchParams.get('rd'), '/login/ai?signed=1');
+      assert.equal(url.searchParams.get('via'), 'google');
+      res.writeHead(302, { location: 'https://accounts.google.example/o/oauth2/v2/auth?redirect_uri=' + encodeURIComponent('https://workspace.orca.example/oauth2/callback') + '&state=google-state' });
+    } else if (url.pathname === '/oauth2/callback') {
+      res.writeHead(302, { location: '/login/ai?signed=1', 'set-cookie': `obot_access_token=workspace-session; Domain=${new URL(f.backendURL).hostname}; Path=/; Max-Age=604800; HttpOnly; Secure; SameSite=Lax` });
+    } else res.writeHead(404);
+    res.end();
+  });
+  const start = await request(f.appURL, '/oauth2/start?rd=%2Flogin%2Fai%3Fsigned%3D1&obot-auth-provider=default%2Flocal-auth-provider&via=google', { headers: { 'sec-fetch-site': 'same-origin', 'sec-fetch-mode': 'navigate', referer: f.appURL + '/login?ai=1' } });
+  assert.equal(start.status, 302);
+  assert.match(start.headers.location, /^https:\/\/accounts\.google\.example\//, 'Google\'s own address is never rewritten');
+  const back = await request(f.appURL, '/oauth2/callback?code=google-code&state=google-state', { headers: { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', referer: 'https://accounts.google.example/' } });
+  assert.equal(back.status, 302);
+  assert.equal(back.headers.location, '/login/ai?signed=1');
+  assert.deepEqual(back.headers['set-cookie'], ['obot_access_token=workspace-session; Path=/; Max-Age=604800; HttpOnly; Secure; SameSite=Lax'], 'host-only, and still Lax so the confirm\'s cross-site hop carries it');
+  const page = await request(f.appURL, back.headers.location);
+  assert.equal(page.status, 200);
+  assert.match(page.body, /ORCA app/);
+  assert.deepEqual(seen, ['/oauth2/start?rd=%2Flogin%2Fai%3Fsigned%3D1&obot-auth-provider=default%2Flocal-auth-provider&via=google', '/oauth2/callback?code=google-code&state=google-state']);
+});
+
+test('a wrong password in AI mode comes back through the sign-in page with the hand-off return', async (t) => {
+  const f = await fixture(t, async (req, res) => {
+    for await (const _chunk of req) { /* drain */ }
+    res.writeHead(302, { location: '/login/local?rd=%2Flogin%2Fai%3Fsigned%3D1&error=Incorrect+email+or+password.' });
+    res.end();
+  });
+  const failed = await request(f.appURL, '/oauth2/start', { method: 'POST', headers: { origin: f.appURL, referer: f.appURL + '/login?ai=1', 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ rd: '/login/ai?signed=1', email: 'member@example.test', password: 'synthetic-wrong-password' }).toString() });
+  assert.equal(failed.status, 302);
+  assert.equal(failed.headers.location, '/login/local?rd=%2Flogin%2Fai%3Fsigned%3D1&error=Incorrect+email+or+password.');
+  assert.equal((await request(f.appURL, failed.headers.location)).status, 200);
+});
+
+test('the server logs no request, so no code, request or state reaches a log', async () => {
+  const source = await readFile(new URL('./server/app.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /console\.|process\.stdout|process\.stderr/);
+});

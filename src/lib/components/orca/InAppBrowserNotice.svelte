@@ -14,7 +14,8 @@
 		userAgent,
 		href,
 		level = 3,
-		variant = 'auth'
+		variant = 'auth',
+		aiSignIn = false
 	}: {
 		/** For tests; the browser's own by default. */
 		userAgent?: string;
@@ -23,6 +24,12 @@
 		level?: 2 | 3;
 		/** `workspace`: inside the signed-in app, with its buttons and a warning panel. */
 		variant?: 'auth' | 'workspace';
+		/**
+		 * An AI app's sign-in (/login in AI mode, C4 design §14h). It belongs to this
+		 * browser, so this page's link can't continue it in Chrome or Safari: the
+		 * notice says to start again from the AI app there, and offers no link.
+		 */
+		aiSignIn?: boolean;
 	} = $props();
 	const button = $derived(variant === 'workspace' ? 'k-button' : 'o-button outline');
 	// Tests pass the user agent and address; the page reads the browser's on mount.
@@ -54,16 +61,20 @@
 	<section class="o-inapp" class:workspace={variant === 'workspace'} aria-labelledby="o-inapp-{uid}">
 		<svelte:element this={`h${level}`} id="o-inapp-{uid}" class="o-inapp-title"><Globe size={18} aria-hidden="true" />{t('เปิดใน Chrome หรือ Safari', 'Open in Chrome or Safari')}</svelte:element>
 		<p>{t(`${app} เปิดหน้านี้ในเบราว์เซอร์ของแอป ซึ่ง Google ไม่ให้เข้าสู่ระบบ`, `${app} opened this page in its own browser, where Google won't sign you in.`)}</p>
-		{#if browser === 'line'}
+		{#if aiSignIn}
+			<p class="o-inapp-step">{t('ถ้าจะใช้ Google ให้เปิด Chrome หรือ Safari แล้วเริ่มเชื่อมใหม่จากแอป AI', 'To use Google, open Chrome or Safari and start connecting again from your AI app.')}</p>
+		{:else if browser === 'line'}
 			<a class={button} href={lineExternalURL(here)}>{t('เปิดใน Chrome หรือ Safari', 'Open in Chrome or Safari')}<ExternalLink size={16} aria-hidden="true" /></a>
 		{:else}
 			<p class="o-inapp-step">{t('แตะ ⋯ มุมขวาบน แล้วเลือก “เปิดในเบราว์เซอร์” หรือคัดลอกลิงก์ไปวางเอง', 'Tap ⋯ at the top right and choose “Open in browser”, or copy the link and paste it yourself.')}</p>
 		{/if}
-		<button type="button" class={button} onclick={copy}>
-			{#if copied}<Check size={16} aria-hidden="true" />{t('คัดลอกลิงก์แล้ว', 'Link copied')}{:else}<Copy size={16} aria-hidden="true" />{t('คัดลอกลิงก์', 'Copy the link')}{/if}
-		</button>
-		<span class="o-inapp-announce" role="status" aria-live="polite">{copied ? t('คัดลอกลิงก์แล้ว', 'Link copied') : ''}</span>
-		{#if failed}<p class="o-inapp-failed" role="alert">{t('คัดลอกไม่ได้ กดค้างที่ลิงก์นี้แล้วคัดลอก:', 'Copy failed. Press and hold this link to copy it:')} <span class="o-inapp-url">{here}</span></p>{/if}
+		{#if !aiSignIn}
+			<button type="button" class={button} onclick={copy}>
+				{#if copied}<Check size={16} aria-hidden="true" />{t('คัดลอกลิงก์แล้ว', 'Link copied')}{:else}<Copy size={16} aria-hidden="true" />{t('คัดลอกลิงก์', 'Copy the link')}{/if}
+			</button>
+			<span class="o-inapp-announce" role="status" aria-live="polite">{copied ? t('คัดลอกลิงก์แล้ว', 'Link copied') : ''}</span>
+			{#if failed}<p class="o-inapp-failed" role="alert">{t('คัดลอกไม่ได้ กดค้างที่ลิงก์นี้แล้วคัดลอก:', 'Copy failed. Press and hold this link to copy it:')} <span class="o-inapp-url">{here}</span></p>{/if}
+		{/if}
 	</section>
 {/if}
 

@@ -6,12 +6,16 @@
 	import { platformHref, type PlatformSection } from '$lib/orca/navigation';
 	import { OrcaService, orcaError, type OrcaCandidate, type OrcaGoogleSignIn, type OrcaPlatformCompany, type PilotRequest } from '$lib/services/orca';
 	import { catalogSummary, googleClientSaved, platformCounts } from '$lib/services/orca-platform';
+	import { PlatformUsageService } from '$lib/services/orca-platform-usage';
+	import type { OrcaPlatformUsage } from '$lib/orca/platform-usage';
 	import PlatformBadge from '../platform/PlatformBadge.svelte';
+	import PlatformUsage from '../platform/PlatformUsage.svelte';
 	import PageHeader from '../ui/PageHeader.svelte';
 
 	// ภาพรวมแพลตฟอร์ม: counts from the lists the platform already has (the
 	// customer companies, the pilot requests and the Google sign-in setting),
-	// then what is waiting for the ORCA team, then every section.
+	// then what is waiting for the ORCA team, then the AI usage numbers (B5,
+	// their own call and their own error), then every section.
 	let { canReviewPilotRequests = false }: { canReviewPilotRequests?: boolean } = $props();
 	let companies = $state<OrcaPlatformCompany[]>();
 	let pilots = $state<PilotRequest[]>();
@@ -21,13 +25,36 @@
 	let companiesError = $state('');
 	let pilotsError = $state('');
 	let googleError = $state('');
+	let usage = $state<OrcaPlatformUsage>();
+	let usageError = $state('');
 	const counts = $derived(platformCounts(companies ?? [], pilots ?? []));
 	const catalogWaiting = $derived(catalog ? catalogSummary(catalog).attention.length : 0);
 	const loading = $derived((!companies && !companiesError) || (canReviewPilotRequests && !pilots && !pilotsError) || (!google && !googleError));
 
+	// A failed reload drops the numbers it had: the tiles never show old
+	// numbers beside "โหลดไม่สำเร็จ" (Codex release review 60). Only the
+	// newest load's answer counts: an older one that lands later (the usage
+	// retry, then the overview's own retry) is dropped (Codex release review 61).
+	let usageLoad = 0;
+	async function loadUsage() {
+		const current = ++usageLoad;
+		usageError = '';
+		await PlatformUsageService.usage().then(
+			(result) => {
+				if (current === usageLoad) usage = result;
+			},
+			(cause) => {
+				if (current !== usageLoad) return;
+				usage = undefined;
+				usageError = orcaError(cause);
+			}
+		);
+	}
+
 	async function load() {
 		companiesError = pilotsError = googleError = '';
 		await Promise.all([
+			loadUsage(),
 			OrcaService.platformCompanies().then((items) => (companies = items), (cause) => (companiesError = orcaError(cause))),
 			canReviewPilotRequests
 				? OrcaService.listPilotRequests().then((response) => (pilots = response.items ?? []), (cause) => (pilotsError = orcaError(cause)))
@@ -149,6 +176,8 @@
 		<p class="overview-error" role="alert">{t('โหลดข้อมูลบางส่วนไม่สำเร็จ', "Some of this couldn't load.")} <button type="button" class="k-link-button" onclick={load}>{t('ลองอีกครั้ง', 'Try again')}</button></p>
 	{/if}
 </section>
+
+<PlatformUsage {usage} error={usageError} onretry={loadUsage} />
 
 <section class="overview-block" aria-labelledby="overview-sections-title">
 	<h2 id="overview-sections-title">{t('ส่วนของแพลตฟอร์ม', 'Platform sections')}</h2>

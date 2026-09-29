@@ -8,8 +8,16 @@ const METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIO
 const SAFE = new Set(['GET', 'HEAD']);
 const HOP_HEADERS = new Set(['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade']);
 const BACKEND_PREFIXES = ['/api/', '/oauth2/', '/oauth/', '/.well-known/', '/orca/oauth/', '/orca/.well-known/', '/mcp-connect/', '/mcp-connect-composite/'];
-const ORCA_OAUTH_NAVIGATION = new Set(['/orca/oauth/authorize', '/orca/oauth/callback', '/orca/oauth/session', '/orca/oauth/login']);
-const UI_PATHS = new Set(['/', '/app', '/login', '/login/local', '/privacy', '/privacy-policy', '/terms-of-service', '/oauth-debugger/callback', '/auth/oauth/complete']);
+// Redirected to the backend's public origin before anything reads them: the
+// backend's host-only flow cookie lives there. /orca/oauth/handoff (a one-time
+// code) and /orca/oauth/fallback belong to an AI app's sign-in on this
+// workspace's login (C4 design §14h).
+const ORCA_OAUTH_NAVIGATION = new Set(['/orca/oauth/authorize', '/orca/oauth/callback', '/orca/oauth/session', '/orca/oauth/login', '/orca/oauth/handoff', '/orca/oauth/fallback']);
+// Proxied, never redirected, even when another site started the navigation:
+// the backend claims (begin) and finishes (confirm) that sign-in with this
+// workspace's own cookies, and its answers keep their Locations and cookies.
+const ORCA_OAUTH_PROXIED_NAVIGATION = new Set(['/orca/oauth/handoff/begin', '/orca/oauth/handoff/confirm']);
+const UI_PATHS = new Set(['/', '/app', '/login', '/login/local', '/login/ai', '/privacy', '/privacy-policy', '/terms-of-service', '/oauth-debugger/callback', '/auth/oauth/complete']);
 const MARKETING = /^\/(?:pricing|services|start)(?:\.html|\/|$)/;
 // ORCA source checks may take 60s and governed MCP calls have a 90s budget,
 // followed by up to 5s for audit finalization. Let the backend return its own
@@ -62,7 +70,7 @@ function parsedPath(raw) {
 }
 
 function oauthNavigation(pathname, method) {
-  return (method === 'GET' && ORCA_OAUTH_NAVIGATION.has(pathname)) || /^\/oauth\/(?:authorize|callback|complete)(?:\/|$)/.test(pathname) || pathname === '/oauth/mcp/callback' || ['/oauth2/start', '/oauth2/callback'].includes(pathname) || pathname.startsWith('/api/oauth/redirect/');
+  return (method === 'GET' && (ORCA_OAUTH_NAVIGATION.has(pathname) || ORCA_OAUTH_PROXIED_NAVIGATION.has(pathname))) || /^\/oauth\/(?:authorize|callback|complete)(?:\/|$)/.test(pathname) || pathname === '/oauth/mcp/callback' || ['/oauth2/start', '/oauth2/callback'].includes(pathname) || pathname.startsWith('/api/oauth/redirect/');
 }
 
 function validBrowserRequest(req, appOrigin, pathname, backendRoute) {
@@ -150,11 +158,14 @@ function proxy(req, res, config, appOrigin, requestPath = req.url) {
     const responseHeaders = cleanHeaders(response.headers);
     // The adapter is same-origin; upstream CORS policy cannot grant access here.
     for (const name of Object.keys(responseHeaders)) if (name.startsWith('access-control-')) delete responseHeaders[name];
-    if (responseHeaders.location && !requestPath.split('?')[0].startsWith('/orca/oauth/')) responseHeaders.location = rewriteLocation(responseHeaders.location, config.redirectOrigins, appOrigin);
+    const orcaOAuth = requestPath.split('?')[0].startsWith('/orca/oauth/');
+    if (responseHeaders.location && !orcaOAuth) responseHeaders.location = rewriteLocation(responseHeaders.location, config.redirectOrigins, appOrigin);
     if (responseHeaders['set-cookie']) responseHeaders['set-cookie'] = responseHeaders['set-cookie'].map((cookie) => scopeCookie(scopeCookie(cookie, config.backend), backendOrigin));
     responseHeaders['x-content-type-options'] = 'nosniff';
     responseHeaders['x-frame-options'] = 'DENY';
-    responseHeaders['referrer-policy'] = 'same-origin';
+    // ORCA's sign-in answers set their own policy (no-referrer after a URL that
+    // carries a one-time value); everything else stays same-origin.
+    if (!orcaOAuth || !responseHeaders['referrer-policy']) responseHeaders['referrer-policy'] = 'same-origin';
     res.writeHead(response.statusCode || 502, responseHeaders);
     res.flushHeaders();
     response.on('error', () => res.destroy());

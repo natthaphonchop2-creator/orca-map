@@ -7,6 +7,9 @@ export function safeReturnPath(value: string | null | undefined, fallback = '/ap
 		// Route paths do not need encoded separators, controls or nested percent
 		// escapes. Query values remain encoded and may legitimately contain URLs.
 		if (/%(?:2f|5c|25|0[0-9a-f]|1[0-9a-f]|7f)/i.test(url.pathname)) return fallback;
+		// The one sign-in page a sign-in may return to: an AI app's hand-off (§14h).
+		const handoff = aiHandoffReturn(url);
+		if (handoff) return handoff;
 		if (
 			url.origin !== 'https://orca.invalid' ||
 			url.pathname.startsWith('/login') ||
@@ -17,6 +20,23 @@ export function safeReturnPath(value: string | null | undefined, fallback = '/ap
 	} catch {
 		return fallback;
 	}
+}
+
+/**
+ * `/login/ai` with only `signed=1` and `lang=th|en`, each at most once, and no
+ * fragment (C4 design §14h, safeReturnPath's one exception): the page an AI
+ * app's sign-in continues on. Its canonical form, or undefined for anything else.
+ */
+function aiHandoffReturn(url: URL): string | undefined {
+	if (url.pathname !== '/login/ai' || url.hash) return undefined;
+	const kept = new URLSearchParams();
+	for (const [key, value] of url.searchParams) {
+		const known = (key === 'signed' && value === '1') || (key === 'lang' && (value === 'th' || value === 'en'));
+		if (!known || kept.has(key)) return undefined;
+		kept.append(key, value);
+	}
+	const query = kept.toString();
+	return query ? `/login/ai?${query}` : '/login/ai';
 }
 
 /** Sign in again and come back to this page, including its view and filters. */

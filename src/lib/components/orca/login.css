@@ -1,8 +1,8 @@
 /*
  * Sign-in page, dark like the public website (orca/site/site.css on the backend).
- * Only src/routes/login/+page.svelte imports this file, and every rule is scoped to
- * .orca.o-auth-page.o-login, so the invitation page and the company chooser, which share
- * forms.css, keep their light look.
+ * Only src/routes/login/+page.svelte and the AI hand-off page (src/routes/login/ai) import
+ * this file, and every rule is scoped to .orca.o-auth-page.o-login, so the invitation page
+ * and the company chooser, which share forms.css, keep their light look.
  */
 .orca.o-auth-page.o-login {
 	--login-bg: #08090a;
@@ -260,6 +260,174 @@
 }
 .orca.o-auth-page.o-login .o-login-new a:hover {
 	color: var(--login-citron);
+}
+
+/* ---------- An AI app's sign-in (C4 design §14h) ---------- */
+/* The one-line note above the form's title, on /login?ai=1 and /login/ai. */
+.orca.o-auth-page.o-login .o-auth-form > .o-login-ai-note {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 16px;
+	padding: 5px 12px;
+	border: 1px solid var(--login-line-2);
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.03);
+	color: var(--login-text-2);
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1.5;
+}
+.orca.o-auth-page.o-login .o-auth-form > .o-login-ai-note svg {
+	flex: none;
+	color: var(--login-citron);
+}
+/* Break-glass: the backend's own sign-in page for the same sign-in. */
+.orca.o-auth-page.o-login .o-auth-form > .o-login-ai-fallback {
+	margin: 20px 0 0;
+	color: var(--login-muted);
+	font-size: 13.5px;
+	text-align: center;
+}
+.orca.o-auth-page.o-login .o-login-ai-fallback a {
+	color: var(--login-text);
+	font-weight: 500;
+	text-decoration: underline;
+	text-decoration-color: var(--login-line-2);
+	text-underline-offset: 3px;
+}
+.orca.o-auth-page.o-login .o-login-ai-fallback a:hover {
+	color: var(--login-citron);
+}
+/* /login/ai: one card in the middle, no story beside it. */
+.orca.o-auth-page.o-login.o-login-handoff .o-auth {
+	grid-template-columns: minmax(0, 460px);
+	justify-content: center;
+}
+.orca.o-auth-page.o-login.o-login-handoff .o-auth-form {
+	justify-self: stretch;
+	max-width: none;
+}
+.orca.o-auth-page.o-login.o-login-handoff .o-auth-form h1 {
+	color: var(--login-text);
+	font-size: 22px;
+	font-weight: 600;
+	line-height: 1.4;
+	text-wrap: balance;
+}
+/* The title takes focus when the card changes (not a control): no ring. */
+.orca.o-auth-page.o-login.o-login-handoff .o-auth-form h1:focus {
+	outline: none;
+}
+.orca.o-auth-page.o-login.o-login-handoff .o-auth-form > p:not([class]) {
+	margin-top: 8px;
+	color: var(--login-muted);
+	font-size: 14.5px;
+	line-height: 1.65;
+}
+.orca.o-auth-page.o-login .o-auth-form > .o-handoff-account,
+.orca.o-auth-page.o-login .o-auth-form > .o-handoff-state {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 20px 0 0;
+	padding: 14px 16px;
+	border: 1px solid var(--login-line);
+	border-radius: 12px;
+	background: var(--login-surface-2);
+}
+.orca.o-auth-page.o-login .o-handoff-state {
+	align-items: flex-start;
+}
+.orca.o-auth-page.o-login .o-handoff-state p {
+	margin: 0;
+	color: var(--login-text-2);
+	font-size: 14.5px;
+	line-height: 1.65;
+}
+.orca.o-auth-page.o-login .o-handoff-icon {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	border: 1px solid var(--login-line);
+	border-radius: 10px;
+	background: var(--login-surface);
+	color: var(--login-citron);
+}
+.orca.o-auth-page.o-login .o-handoff-account > span:last-child {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+.orca.o-auth-page.o-login .o-handoff-account small {
+	color: var(--login-muted);
+	font-size: 12.5px;
+}
+.orca.o-auth-page.o-login .o-handoff-account strong {
+	color: var(--login-text);
+	font-size: 15px;
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+.orca.o-auth-page.o-login .o-auth-form > .o-alert {
+	margin-top: 16px;
+}
+.orca.o-auth-page.o-login .o-handoff-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-top: 22px;
+}
+.orca.o-auth-page.o-login .o-handoff-actions .o-button {
+	height: auto;
+	padding-block: 10px;
+	text-align: center;
+}
+/* Tailwind's own .outline utility (outline: 1px) also matches .o-button.outline: only the focus ring draws one. */
+.orca.o-auth-page.o-login .o-handoff-actions .o-button.outline:not(:focus-visible) {
+	outline: 0;
+}
+.orca.o-auth-page.o-login .o-handoff-label {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+.orca.o-auth-page.o-login .o-button:disabled {
+	cursor: default;
+	opacity: 0.6;
+}
+.orca.o-auth-page.o-login .o-handoff-cancel {
+	align-self: center;
+	min-height: 40px;
+	padding: 0 14px;
+	border: 0;
+	border-radius: 10px;
+	background: none;
+	color: var(--login-muted);
+	font: inherit;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+}
+.orca.o-auth-page.o-login .o-handoff-cancel:hover:not(:disabled) {
+	color: var(--login-text);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+.orca.o-auth-page.o-login .o-handoff-cancel:disabled {
+	cursor: default;
+	opacity: 0.6;
+}
+.orca.o-auth-page.o-login .o-auth-form > .o-handoff-progress {
+	min-height: 0;
+	margin: 12px 0 0;
+	color: var(--login-text-2);
+	font-size: 13.5px;
+	text-align: center;
+}
+.orca.o-auth-page.o-login .o-auth-form > .o-handoff-progress:empty {
+	margin: 0;
 }
 
 /* ---------- Footer ---------- */

@@ -2,17 +2,19 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
 import test from 'node:test';
+import { importTypeScript } from './test-import.mjs';
 
 const navigation = stripTypeScriptTypes(await readFile(new URL('./navigation.ts', import.meta.url), 'utf8'));
 const { safeReturnPath, loginHref } = await import('data:text/javascript;base64,' + Buffer.from(navigation).toString('base64'));
 const googleSignIn = stripTypeScriptTypes(await readFile(new URL('./google-signin.ts', import.meta.url), 'utf8'));
 const { googleSignInReason } = await import('data:text/javascript;base64,' + Buffer.from(googleSignIn).toString('base64'));
+const aiHandoff = await importTypeScript(new URL('./ai-handoff.ts', import.meta.url));
 const redirect = (status, location) => ({ status, location });
 async function route(path, providers = []) {
   const source = stripTypeScriptTypes(await readFile(new URL(path, import.meta.url), 'utf8'))
     .replace(/^import[^;]+;\s*/gm, '').replaceAll('export const ', 'const ');
-  return new Function('safeReturnPath', 'googleSignInReason', 'redirect', 'UserService', source + ';return load;')(
-    safeReturnPath, googleSignInReason, redirect, { listAuthProviders: async () => providers });
+  return new Function('safeReturnPath', 'googleSignInReason', 'redirect', 'UserService', 'aiLoginMode', 'AI_HANDOFF_PAGE', 'AI_HANDOFF_RETURN', source + ';return load;')(
+    safeReturnPath, googleSignInReason, redirect, { listAuthProviders: async () => providers }, aiHandoff.aiLoginMode, aiHandoff.AI_HANDOFF_PAGE, aiHandoff.AI_HANDOFF_RETURN);
 }
 const legacy = await route('../../routes/login/local/+page.ts');
 const page = await route('../../routes/login/+page.ts', [{ id: 'local-auth-provider', name: 'Local' }]);
