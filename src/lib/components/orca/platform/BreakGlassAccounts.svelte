@@ -32,6 +32,8 @@
 	let formError = $state('');
 	const currentUser = $derived(data.members.find((member) => member.id === data.currentUserID));
 	const rows = $derived(passwordAccounts(accounts, data.members, { canManage: data.canManage, role: currentUser?.role }));
+	/** Resetting your own password signs this page out too. */
+	const resettingSelf = $derived(!!resetting && resetting.member?.id === data.currentUserID);
 
 	const stateLabel = (state: PasswordAccountState) =>
 		({
@@ -112,7 +114,7 @@
 </script>
 
 {#if allowed}
-	<PageHeader title={term('breakGlass', t)} subtitle={t('บัญชีอีเมลและรหัสผ่านของบริษัทหลัก ใช้เมื่อเข้าสู่ระบบด้วย Google ไม่ได้', "Email-and-password accounts of the main company, for when Google sign-in can't be used.")}>
+	<PageHeader title={term('breakGlass', t)} subtitle={t('บัญชีอีเมลและรหัสผ่านของบริษัทของทีม ORCA ใช้เมื่อเข้าสู่ระบบด้วย Google ไม่ได้', "Email-and-password accounts of the ORCA team's company, for when Google sign-in can't be used.")}>
 		{#snippet eyebrow()}<PlatformBadge />{/snippet}
 		{#snippet action()}{#if available}<button type="button" class="k-button primary breakglass-create" onclick={() => start()}><Plus size={16} aria-hidden="true" />{t('สร้างบัญชีรหัสผ่าน', 'Create a password account')}</button>{/if}{/snippet}
 	</PageHeader>
@@ -153,7 +155,7 @@
 								<div class="breakglass-account">
 									<span class="breakglass-mark" aria-hidden="true"><KeyRound size={16} /></span>
 									<span>
-										<strong>{row.account.email}</strong>
+										<strong>{row.account.email}{#if row.member?.id === data.currentUserID}<span class="breakglass-you">{t(' (คุณ)', ' (you)')}</span>{/if}</strong>
 										{#if row.member && memberName(row.member) !== row.member.email}<small>{memberName(row.member)}</small>{/if}
 									</span>
 								</div>
@@ -177,8 +179,10 @@
 		bind:open={sheetOpen}
 		title={resetting ? t('ตั้งรหัสผ่านใหม่', 'Set a new password') : t('สร้างบัญชีรหัสผ่าน', 'Create a password account')}
 		description={resetting
-			? t('บัญชีนี้ต้องเข้าสู่ระบบใหม่บนทุกอุปกรณ์', 'This account must sign in again on every device.')
-			: t('บัญชีนี้เข้าบริษัทหลักของ ORCA หลังเข้าสู่ระบบครั้งแรก', "This account joins ORCA's main company after its first sign-in.")}
+			? resettingSelf
+				? t('นี่คือบัญชีของคุณ หลังบันทึก คุณต้องเข้าสู่ระบบใหม่บนทุกอุปกรณ์ รวมถึงหน้านี้', 'This is your own account. After saving, you must sign in again on every device, this page included.')
+				: t('บัญชีนี้ต้องเข้าสู่ระบบใหม่บนทุกอุปกรณ์', 'This account must sign in again on every device.')
+			: t('บัญชีนี้เข้าบริษัทของทีม ORCA หลังเข้าสู่ระบบครั้งแรก', "This account joins the ORCA team's company after its first sign-in.")}
 		busy={saving}
 		onclose={closed}
 	>
@@ -280,6 +284,7 @@
 		white-space: nowrap;
 	}
 	.breakglass-list {
+		container: breakglass / inline-size;
 		overflow: hidden;
 		border: 1px solid var(--orca-line);
 		border-radius: var(--orca-radius-lg);
@@ -399,11 +404,16 @@
 		color: var(--orca-deny);
 		font-size: 13.5px;
 	}
-	/* Under 720px each account is a card instead of a table row. */
+	/* Each account is a card when the list is narrower than the table needs (a phone, or a laptop
+	   with the sidebar open), so emails never break letter by letter. */
 	.breakglass-card-label {
 		display: none;
 	}
-	@media (max-width: 720px) {
+	.breakglass-you {
+		color: var(--orca-muted);
+		font-weight: 500;
+	}
+	@container breakglass (max-width: 760px) {
 		.breakglass-table thead {
 			display: none;
 		}

@@ -4,8 +4,8 @@
 	import { term } from '$lib/orca/glossary';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { platformHref, type PlatformSection } from '$lib/orca/navigation';
-	import { OrcaService, orcaError, type OrcaGoogleSignIn, type OrcaPlatformCompany, type PilotRequest } from '$lib/services/orca';
-	import { googleClientSaved, platformCounts } from '$lib/services/orca-platform';
+	import { OrcaService, orcaError, type OrcaCandidate, type OrcaGoogleSignIn, type OrcaPlatformCompany, type PilotRequest } from '$lib/services/orca';
+	import { catalogSummary, googleClientSaved, platformCounts } from '$lib/services/orca-platform';
 	import PlatformBadge from '../platform/PlatformBadge.svelte';
 	import PageHeader from '../ui/PageHeader.svelte';
 
@@ -16,10 +16,13 @@
 	let companies = $state<OrcaPlatformCompany[]>();
 	let pilots = $state<PilotRequest[]>();
 	let google = $state<OrcaGoogleSignIn>();
+	// คลังโปรแกรม's "รอทีม ORCA" (an app to set up, a provider review): the same heading here counts them too.
+	let catalog = $state<OrcaCandidate[]>();
 	let companiesError = $state('');
 	let pilotsError = $state('');
 	let googleError = $state('');
 	const counts = $derived(platformCounts(companies ?? [], pilots ?? []));
+	const catalogWaiting = $derived(catalog ? catalogSummary(catalog).attention.length : 0);
 	const loading = $derived((!companies && !companiesError) || (canReviewPilotRequests && !pilots && !pilotsError) || (!google && !googleError));
 
 	async function load() {
@@ -29,7 +32,13 @@
 			canReviewPilotRequests
 				? OrcaService.listPilotRequests().then((response) => (pilots = response.items ?? []), (cause) => (pilotsError = orcaError(cause)))
 				: Promise.resolve(),
-			OrcaService.googleSignIn().then((setting) => (google = setting), (cause) => (googleError = orcaError(cause)))
+			OrcaService.googleSignIn().then((setting) => (google = setting), (cause) => (googleError = orcaError(cause))),
+			OrcaService.candidates().then(
+				(items) => (catalog = items),
+				() => {
+					/* Advisory: the catalog page shows its own error. */
+				}
+			)
 		]);
 	}
 	onMount(() => void load());
@@ -82,6 +91,9 @@
 			: []),
 		...(counts.waiting
 			? [{ tone: 'warn' as const, icon: Building2, title: t(`${counts.waiting} บริษัทรอเจ้าของตอบรับ`, `${counts.waiting} waiting for the owner`), detail: t('ส่งลิงก์ใหม่ได้ถ้าเจ้าของหาลิงก์ไม่เจอ', "Send a new link if the owner can't find theirs"), action: t('ดูบริษัท', 'View companies'), href: 'companies' as PlatformSection }]
+			: []),
+		...(catalogWaiting
+			? [{ tone: 'warn' as const, icon: Grid2x2Plus, title: t(`${catalogWaiting} โปรแกรมในคลังรอทีม ORCA`, `${catalogWaiting} catalog ${catalogWaiting === 1 ? 'program waits' : 'programs wait'} for the ORCA team`), detail: t('ตั้งค่าแอปหรือยืนยันกับผู้ให้บริการ ลูกค้าจึงเชื่อมได้', 'Set up an app or confirm with the provider so customers can connect'), action: t('ดูคลังโปรแกรม', 'View the catalog'), href: 'catalog' as PlatformSection }]
 			: []),
 		...(canReviewPilotRequests && counts.pilots.received
 			? [{ tone: 'warn' as const, icon: Inbox, title: t(`${counts.pilots.received} คำขอทดลองใช้ใหม่`, `${counts.pilots.received} new pilot ${counts.pilots.received === 1 ? 'request' : 'requests'}`), detail: t('ยังไม่มีใครติดต่อกลับ', 'Nobody has replied yet'), action: t('ดูคำขอ', 'View requests'), href: 'pilots' as PlatformSection }]

@@ -16,8 +16,15 @@ test("legacy records do not invent execution metadata", () => {
   });
   assert.equal(auditDetailValues({ hubID: "hub-1", version: 3 }).hubVersion, 3);
   assert.equal(auditDetailValues({ durationMs: 0 }).durationMs, 0);
-  assert.equal(auditDuration(0), "0 ms");
-  assert.equal(auditDuration(1250), "1.25 s");
+  // Seconds, not milliseconds (the history table is for a shop owner).
+  assert.equal(auditDuration(0), "ไม่ถึง 0.1 วินาที");
+  assert.equal(auditDuration(277), "0.3 วินาที");
+  assert.equal(auditDuration(1050), "1.1 วินาที");
+  assert.equal(auditDuration(1000), "1 วินาที");
+  assert.equal(auditDuration(12_400), "12 วินาที");
+  assert.equal(auditDuration(75_000), "1 นาที 15 วินาที");
+  assert.equal(auditDuration(120_000), "2 นาที");
+  assert.equal(auditDuration(1250, "en"), "1.3 s");
 });
 
 test("administrative resource versions are not mislabeled as Hub versions", () => {

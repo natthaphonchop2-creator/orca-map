@@ -68,7 +68,7 @@
   let moreOpen = $state(false);
   let menuFor = $state("");
   // Each manageable row keeps its confirmation dialog; its menu items open it.
-  const lifecycle = $state<Record<string, { request: (action: "suspend" | "restore" | "delete") => void } | undefined>>({});
+  const lifecycle = $state<Record<string, { request: (action: "suspend" | "restore" | "delete", returnTo?: HTMLElement) => void } | undefined>>({});
   function closeMenus() {
     moreOpen = false;
     menuFor = "";
@@ -151,8 +151,12 @@
     return data.canManage && member.id !== data.currentUserID && (organizationRole(currentUser?.role ?? '') === 'owner' || organizationRole(currentUser?.role ?? '') === 'admin' && organizationRole(member.role) === 'employee' && !member.roleLocked);
   }
   async function memberChanged() { await onchanged(); await refreshDepartments(); }
+  /** The row's "…" button, where focus returns after a confirmation opened from its menu. */
+  const menuButton = (event: Event) =>
+    (event.currentTarget as HTMLElement | null)?.closest(".team-row-menu")?.querySelector<HTMLElement>('button[aria-haspopup="menu"]') ?? undefined;
   const active = (member: OrcaMember) => !member.status || member.status === "active";
-  const hubsFor = (member: OrcaMember) => data.hubs.filter((hub) => gatewayHasMember(hub, member.id));
+  // Only an active workspace gives data access: not a draft, a paused or an archived one.
+  const hubsFor = (member: OrcaMember) => data.hubs.filter((hub) => hub.status === "active" && gatewayHasMember(hub, member.id));
   const departmentsFor = (member: OrcaMember) =>
     departments
       .filter((department) => department.memberIDs.includes(member.id))
@@ -369,16 +373,16 @@
                           >{t("ดูแอป AI ที่เชื่อมอยู่", "See connected AI apps")}</a
                         >{/if}{#if manageable}<button
                           role="menuitem"
-                          onclick={() => {
+                          onclick={(event) => {
                             menuFor = "";
-                            lifecycle[member.id]?.request(member.status === "suspended" ? "restore" : "suspend");
+                            lifecycle[member.id]?.request(member.status === "suspended" ? "restore" : "suspend", menuButton(event));
                           }}>{member.status === "suspended" ? t("เปิดใช้งานอีกครั้ง", "Restore") : t("ระงับการใช้งาน", "Suspend")}</button
                         ><button
                           role="menuitem"
                           class="danger"
-                          onclick={() => {
+                          onclick={(event) => {
                             menuFor = "";
-                            lifecycle[member.id]?.request("delete");
+                            lifecycle[member.id]?.request("delete", menuButton(event));
                           }}>{t("นำออกจากบริษัท", "Remove from company")}</button
                         >{/if}
                     </div>

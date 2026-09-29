@@ -715,6 +715,56 @@
   color: var(--orca-muted);
 }
 
+/* Footer links: a tap target of at least 24px on a phone (WCAG 2.5.8). */
+.orca-workspace.orca-app .k-footer a {
+  display: inline-block;
+  padding-block: 4px;
+}
+
+/* ---------- Sticky save bars ---------- */
+/* A save bar stuck to the bottom (a tab's บันทึก, the create form, step 3): whatever keyboard
+   focus lands on scrolls clear of it, never under it (WCAG 2.4.11). */
+html:has(.orca-workspace.orca-app :is(.save-bar, .ws-bar, .sbar)) {
+  scroll-padding-bottom: 150px;
+}
+
+/* ---------- Phone drawer ---------- */
+/* The page behind an open drawer does not scroll. */
+html:has(.orca-workspace.orca-app .workspace-drawer[open]) {
+  overflow: hidden;
+}
+.orca-workspace.orca-app .workspace-drawer {
+  overscroll-behavior: contain;
+}
+.orca-workspace.orca-app .workspace-drawer-company {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 12px 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--orca-line);
+  border-radius: var(--orca-radius);
+  background: var(--orca-surface);
+  color: var(--orca-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+.orca-workspace.orca-app .workspace-drawer-company > svg {
+  flex: none;
+  color: var(--orca-muted);
+}
+.orca-workspace.orca-app .workspace-drawer-company > span,
+.orca-workspace.orca-app .workspace-drawer-company summary > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.orca-workspace.orca-app .workspace-drawer-company .workspace-company-switch {
+  flex: 1;
+  min-width: 0;
+}
+
 /* ---------- Small screens ---------- */
 @media (max-width: 820px) {
   .orca-workspace.orca-app .workspace-topbar {

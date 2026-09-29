@@ -165,6 +165,36 @@ export function programsPatch(fresh: OrcaHub, changes: Readonly<Record<string, r
 	return { sources };
 }
 
+/** Whether any of these programs, as a workspace would hold them, can change data. */
+export function sourcesChangeData(sources: readonly OrcaHubSource[], connections: readonly (ProgramLike & { id: string })[]): boolean {
+	return sources.some((source) => sourceChangesData(connections.find((item) => item.id === source.connectionID), source.toolNames));
+}
+
+/**
+ * The owner's safety default (plan §1): the first change action added to a
+ * workspace that runs changes at once turns "ให้ผู้ดูแลอนุมัติก่อน" on, the
+ * same as the create form and the one click. A workspace that already lets AI
+ * change data without approval was set that way on purpose, so it stays.
+ */
+export function approvalTurnsOn(
+	fresh: Pick<OrcaHub, 'writeMode' | 'sources' | 'connectionID' | 'toolNames'>,
+	next: readonly OrcaHubSource[],
+	connections: readonly (ProgramLike & { id: string })[]
+): boolean {
+	if (fresh.writeMode === 'approval') return false;
+	return !sourcesChangeData(gatewaySources(fresh), connections) && sourcesChangeData(next, connections);
+}
+
+/** The โปรแกรม tab's save: the programs as changed, and approval when the first change action arrives. */
+export function programsSavePatch(
+	fresh: OrcaHub,
+	changes: Readonly<Record<string, readonly string[] | null>>,
+	connections: readonly (ProgramLike & { id: string })[]
+): Pick<HubInput, 'sources' | 'writeMode'> {
+	const patch = programsPatch(fresh, changes);
+	return approvalTurnsOn(fresh, patch.sources ?? [], connections) ? { ...patch, writeMode: 'approval' } : patch;
+}
+
 /** The fields of a settings form that differ from what the page showed. */
 export function changedFields<T extends Record<string, unknown>>(before: T, after: T): Partial<T> {
 	const patch: Partial<T> = {};

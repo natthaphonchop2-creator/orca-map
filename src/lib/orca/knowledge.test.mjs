@@ -53,6 +53,11 @@ test('prerequisites: create, join (managers only), request (employees) and missi
 	const requested = k.libraryScope({ hubs: [mine, a], currentUserID: 'me', canManage: true, requestedID: 'a' });
 	assert.equal(requested.kind, 'join');
 	assert.deepEqual(requested.hubs.map((h) => h.id), ['a'], 'the requested workspace, not every workspace');
+	assert.deepEqual(requested.mine.map((h) => h.id), ['mine'], 'with the workspaces they are in, to switch to instead');
+	assert.equal(k.libraryScope({ hubs: [a], currentUserID: 'me', canManage: true, requestedID: 'a' }).mine, undefined);
+	// "&create=1" is used once: a reload opens the list, not an empty form.
+	assert.equal(k.withoutCreateIntent(new URL('https://orca.invalid/app?view=knowledge&hub=h&kind=knowledge&create=1&lang=th')), '/app?view=knowledge&hub=h&kind=knowledge&lang=th');
+	assert.equal(k.withoutCreateIntent(new URL('https://orca.invalid/app?view=knowledge&kind=knowledge')), undefined);
 	assert.deepEqual(k.libraryScope({ hubs: [mine, a], currentUserID: 'me', canManage: false, requestedID: 'a' }), { kind: 'missing' });
 	assert.deepEqual(k.libraryScope({ hubs: [mine], currentUserID: 'me', canManage: true, requestedID: 'nope' }), { kind: 'missing' });
 	assert.equal(k.libraryScope({ hubs: [mine], currentUserID: 'me', canManage: true, requestedID: 'mine' }).hub.id, 'mine');

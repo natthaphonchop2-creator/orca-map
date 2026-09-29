@@ -272,13 +272,16 @@ export function appNavigation(
 		only();
 	}
 
-	// 7. ทีม tabs.
+	// 7. ทีม is for Owners and Admins. An employee receives only their own row,
+	// so the page would read as a one-person company: they go Home.
+	if (view === 'members' && manager === false) {
+		go('dashboard');
+		only();
+	}
 	if (view === 'members') {
 		const tab = p.get('tab');
-		if (tab && (!(TEAM_TABS as readonly string[]).includes(tab) || (manager === false && tab !== 'members'))) p.delete('tab');
+		if (tab && !(TEAM_TABS as readonly string[]).includes(tab)) p.delete('tab');
 		if (p.get('tab') === 'members') p.delete('tab');
-		// Only Owners and Admins invite.
-		if (manager === false) p.delete('invite');
 	}
 
 	// 8. Settings: บริษัท and ขั้นสูง are for Owners and Admins.

@@ -98,9 +98,13 @@ test('the header offers one invite button, a small menu, and no sign-in link to 
  assert.doesNotMatch(result.html,/Copy sign-in link/);
 });
 test('each member shows whether they can reach company data, and how to fix it',()=>{
- const hub={id:'hub-1',name:'Main workspace',memberIDs:['employee']};
- const result=screen('owner',[employee,{id:'new',email:'new@example.test',role:'employee',version:1}],{},{hubs:[hub]});
+ const hub={id:'hub-1',name:'Main workspace',status:'active',memberIDs:['employee']};
+ // Archived and paused workspaces give no data access: no tick, and they don't count.
+ const old={id:'hub-old',name:'Old workspace',status:'archived',memberIDs:['employee','new']};
+ const paused={id:'hub-paused',name:'Paused workspace',status:'paused',memberIDs:['new']};
+ const result=screen('owner',[employee,{id:'new',email:'new@example.test',role:'employee',version:1}],{},{hubs:[hub,old,paused]});
  assert.match(result.html,/Main workspace/);
+ assert.doesNotMatch(result.html,/Old workspace|Paused workspace/);
  assert.match(result.html,/No data access yet/);assert.match(result.html,/Add to a workspace/);
  assert.match(result.html,/No data access<span[^>]*>2<\/span>/,'the filter counts members without a workspace');
  assert.match(result.html,/<a role="menuitem" href="\/app\?view=secrets&amp;holder=employee"[^>]*>See connected AI apps<\/a>/,'each row links to that person\'s connected AI apps');

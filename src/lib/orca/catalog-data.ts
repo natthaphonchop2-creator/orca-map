@@ -1223,7 +1223,9 @@ export function getCatalogPresentation(name: string, description = ''): CatalogP
 	const key = normalizeCatalogName(name);
 	const presentation = presentations[({
 		'microsoft-outlook': 'outlook', 'microsoft-calendar': 'calendar', 'microsoft-contacts': 'contact',
-		'bigquery-mcp': 'bigquery-toolbox'
+		'bigquery-mcp': 'bigquery-toolbox',
+		// A program is often named after the product alone ("Slack", "Microsoft OneDrive").
+		slack: 'slack-workspace', 'microsoft-onedrive': 'onedrive'
 	} as Record<string, string>)[key] || key];
 	if (presentation) return presentation;
 

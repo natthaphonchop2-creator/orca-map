@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { importTypeScript } from './test-import.mjs';
 
@@ -154,4 +155,21 @@ test('an address naming another company opens it afresh, but a failed list never
 	// The list failed with org=B in the address: reloading would fail again, forever.
 	assert.equal(reloadForAddress({ kind: 'error' }, B), false);
 	assert.equal(reloadForAddress({ kind: 'error' }, 'default'), false);
+});
+
+test('a platform link opened by someone outside the ORCA team\'s company opens their own Home, not the denied gate', async () => {
+	const customerOnly = [{ id: 'org-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', displayName: 'ร้านค้าตัวอย่าง' }];
+	// +page.ts asks for "default" for a platform address.
+	const place = await company.resolvePlace(async () => customerOnly, () => false, 'default', null);
+	assert.equal(company.companyDenied(place), true);
+	assert.equal(company.platformOutsider(place), true);
+	// The ORCA team (in "default") keeps the platform; navigation then checks the operator flag.
+	const team = await company.resolvePlace(async () => [{ id: 'default', displayName: 'ORCA' }, ...customerOnly], () => false, 'default', null);
+	assert.equal(company.platformOutsider(team), false);
+	// An older server without the list opens "default" as before.
+	assert.equal(company.platformOutsider(await company.resolvePlace(async () => { throw new Error('404'); }, () => true, 'default', null)), false);
+	assert.equal(company.homeKeepingLanguage(new URL('https://orca.invalid/app?view=platform&section=companies&org=default&lang=en')), '/app?lang=en');
+	assert.equal(company.homeKeepingLanguage(new URL('https://orca.invalid/app?view=platform')), '/app');
+	const loader = await readFile(new URL('../../routes/app/+page.ts', import.meta.url), 'utf8');
+	assert.match(loader, /if \(platform && platformOutsider\(chosen\)\) \{[\s\S]*?place = undefined;[\s\S]*?throw redirect\(307, homeKeepingLanguage\(url\)\);/);
 });

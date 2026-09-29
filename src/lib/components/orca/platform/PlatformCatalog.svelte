@@ -201,7 +201,7 @@
 							<CatalogIcon name={displayName(candidate)} size={32} />
 							<span class="catalog-name">
 								<strong>{displayName(candidate)}</strong>
-								<small>{[candidate.endpointHost || candidate.description, candidate.protocol === 'API' ? 'API' : 'MCP', typeof candidate.toolCount === 'number' ? t(`AI ทำได้ ${candidate.toolCount} อย่าง`, `AI can do ${candidate.toolCount} things`) : ''].filter(Boolean).join(' · ')}</small>
+								<small>{[candidate.endpointHost || candidate.description, candidate.protocol === 'API' ? 'API' : 'MCP', typeof candidate.toolCount === 'number' ? t(`AI ทำได้ ${candidate.toolCount} อย่าง`, `AI can do ${candidate.toolCount} ${candidate.toolCount === 1 ? 'thing' : 'things'}`) : ''].filter(Boolean).join(' · ')}</small>
 							</span>
 							<StatusPill label={stateLabel(state, candidate)} tone={stateTone(state)} />
 							<button type="button" class="k-button quiet small catalog-action" onclick={() => openCheck(candidate)} aria-label={t(`ตรวจการเชื่อมต่อ ${displayName(candidate)}`, `Check ${displayName(candidate)}`)}>{t('ตรวจการเชื่อมต่อ', 'Check')}</button>
@@ -219,7 +219,7 @@
 		title={panelMode === 'add' ? t('เพิ่มโปรแกรมด้วยลิงก์ MCP', 'Add a program by its MCP link') : (checking?.name ?? '')}
 		description={panelMode === 'add'
 			? t('โปรแกรมที่เพิ่มจะอยู่ในคลังของทุกบริษัท แต่ละคนเชื่อมด้วยบัญชีของตัวเอง', 'It joins every company’s catalog. Each person connects with their own account.')
-			: t('ตรวจการเชื่อมต่อด้วยบัญชีของคุณในบริษัทหลัก ลูกค้าแต่ละบริษัทเชื่อมบัญชีของตัวเอง', 'Check the connection with your own account in the main company. Each customer connects their own.')}
+			: t('ตรวจการเชื่อมต่อด้วยบัญชีของคุณในบริษัทของทีม ORCA ลูกค้าแต่ละบริษัทเชื่อมบัญชีของตัวเอง', "Check the connection with your own account in the ORCA team's company. Each customer connects their own.")}
 		busy={adding}
 		onclose={panelClosed}
 	>

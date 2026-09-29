@@ -68,6 +68,11 @@ test("the platform operator saves the client, a typed secret and the company dom
     await view.load();
     flush();
     assert.equal(view.state.redirectURI, "https://orca-workspace.example/oauth2/callback", "a new setup uses this workspace's address");
+    // Nothing typed: no request, and it says what is missing instead of "saved".
+    await view.save();
+    assert.equal(saves.length, 0);
+    assert.match(view.state.error, /กรอก Client ID/);
+    assert.equal(view.state.notice, "");
     view.set({ clientID: " 1-abc.apps.googleusercontent.com ", clientSecret: " s3cret ", domains: "Example.co.th, @branch.example.co.th", enabled: true });
     await view.save();
     assert.deepEqual(saves[0], { clientID: "1-abc.apps.googleusercontent.com", clientSecret: "s3cret", allowedDomains: ["example.co.th", "branch.example.co.th"], redirectURI: "https://orca-workspace.example/oauth2/callback", enabled: true, version: 0 });
@@ -244,7 +249,7 @@ test("the page follows the mockup's order and never shows a secret value", async
   assert.ok(steps > 0 && steps < component.indexOf('id="google-client-id"'));
   assert.ok(component.indexOf('id="google-client-id"') < component.indexOf('id="google-client-secret"'));
   assert.match(component, /อันที่สองใช้ตอนลูกค้าเชื่อม Claude หรือ ChatGPT/);
-  assert.match(component, /ขั้นสูง: ให้คนในโดเมนเข้าร่วมบริษัทหลักอัตโนมัติ/);
+  assert.match(component, /ขั้นสูง: ให้คนในโดเมนเข้าร่วมบริษัทของทีม ORCA อัตโนมัติ/);
   assert.match(component, /<details class="google-card google-advanced" bind:open=\{advancedOpen\}>/, "the domains are collapsed");
   assert.match(component, /let advancedOpen = \$state\(false\);/, "and start collapsed");
   // The secret field is a password input bound to the typed value only; the saved one is a chip.
@@ -259,4 +264,9 @@ test("the page follows the mockup's order and never shows a secret value", async
   const { Component } = await serverComponent(file, { ...helpers, t: (_th, en) => en, term: (_key, t) => t("เข้าสู่ระบบด้วย Google", "Sign in with Google"), OrcaService: {}, displayDate: (value) => value });
   const html = render(Component, { props: { data: { platformOperator: true } } }).body;
   assert.match(html, /Loading/);
+});
+
+test("turning Google sign-in off warns that the ORCA team loses it too", async () => {
+  const source = await readFile(new URL("./GoogleSignInSettings.svelte", import.meta.url), "utf8");
+  assert.match(source, /ทีม ORCA เองก็เข้าสู่ระบบด้วย Google ไม่ได้[\s\S]*เตรียมบัญชีฉุกเฉินไว้ก่อนปิด/);
 });

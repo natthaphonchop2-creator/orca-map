@@ -619,6 +619,54 @@ export const OrcaService = {
   },
 };
 
+/**
+ * The server's 409 refusals that are not "someone changed this" (pkg/gateway/client
+ * orca_invitations.go, orca_admin_passwords.go, orca_platform_companies.go):
+ * each gets its own words and the next step, never "reload and save again".
+ */
+export const conflictReasons: readonly (readonly [message: string, th: string, en: string])[] = [
+  [
+    "this email already belongs to a member",
+    "อีเมลนี้เป็นสมาชิกของบริษัทอยู่แล้ว ไม่ต้องเชิญใหม่ ดูหรือเปลี่ยนบทบาทได้ที่แท็บ สมาชิก",
+    "This email already belongs to a member, so there's no need to invite them. See or change their role under Members.",
+  ],
+  [
+    "an invitation for this email is already waiting",
+    "มีคำเชิญของอีเมลนี้รออยู่แล้ว ถ้าลิงก์หาย กด สร้างลิงก์ใหม่ ที่คำเชิญนั้นในแท็บ คำเชิญ",
+    "An invitation for this email is already waiting. If the link is lost, choose New link on it under Invitations.",
+  ],
+  [
+    "this person is suspended or removed; restore them instead",
+    "คนนี้ถูกระงับหรือถูกนำออกจากบริษัทแล้ว ให้กู้คืนเขาที่แท็บ สมาชิก แทนการเชิญใหม่",
+    "This person is suspended or removed. Restore them under Members instead of inviting them again.",
+  ],
+  [
+    "this account already has a higher role than the invitation",
+    "บัญชีนี้มีบทบาทสูงกว่าคำเชิญอยู่แล้ว ติดต่อทีม ORCA ถ้าต้องการเปลี่ยน",
+    "This account already has a higher role than the invitation. Ask the ORCA team if it should change.",
+  ],
+  [
+    "this invitation was already used, revoked or has expired",
+    "คำเชิญนี้ถูกใช้ ยกเลิก หรือหมดอายุไปแล้ว ถ้ายังต้องการเชิญ ให้สร้างคำเชิญใหม่",
+    "This invitation was already used, revoked or has expired. To invite them again, make a new invitation.",
+  ],
+  [
+    "password was set by an administrator, so it can't join another company",
+    "บัญชีนี้ใช้รหัสผ่านที่ทีม ORCA ตั้งให้ จึงเข้าบริษัทอื่นไม่ได้ เข้าร่วมด้วยบัญชี Google ของคุณแทน หรือติดต่อทีม ORCA",
+    "This account's password was set by the ORCA team, so it can't join another company. Join with your Google account instead, or ask the ORCA team.",
+  ],
+  [
+    "this company already has an owner",
+    "บริษัทนี้มีเจ้าของแล้ว ขอให้เจ้าของบริษัทเชิญคุณ",
+    "This company already has an owner. Ask them to invite you.",
+  ],
+  [
+    "this person belongs to another company and signs in with Google",
+    "คนนี้อยู่ในบริษัทลูกค้าและเข้าสู่ระบบด้วย Google ทีม ORCA ตั้งรหัสผ่านให้บัญชีนี้ไม่ได้ ไม่ต้องลองอีก",
+    "This person belongs to a customer company and signs in with Google. The ORCA team can't set a password for this account; there's no need to retry.",
+  ],
+];
+
 export function orcaError(error: unknown): string {
   const parsed = parseErrorContent(error);
   if (parsed.status === 412 && parsed.message.includes("orca_account_changed"))
@@ -626,6 +674,11 @@ export function orcaError(error: unknown): string {
       "คุณเข้าสู่ระบบด้วยบัญชีอื่นในอีกแท็บ โหลดหน้านี้ใหม่",
       "You signed in as someone else in another tab. Reload this page.",
     );
+  if (parsed.status === 409) {
+    // A refusal that names its reason: say it plainly, with what to do next.
+    const known = conflictReasons.find(([message]) => parsed.message.includes(message));
+    if (known) return t(known[1], known[2]);
+  }
   if (parsed.status === 409)
     return t(
       "มีคนเปลี่ยนข้อมูลนี้ไปแล้ว โหลดข้อมูลล่าสุดก่อน แล้วบันทึกอีกครั้ง",

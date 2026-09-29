@@ -31,8 +31,11 @@ const OPEN_STATUSES = ['active', 'draft', 'paused'];
 export type LibraryScope =
 	/** The library of `hub`; `choices` are every workspace the viewer belongs to. */
 	| { kind: 'hub'; hub: OrcaHub; choices: OrcaHub[] }
-	/** A manager who is not in the workspace (or in any): "เพิ่มฉันเลย". */
-	| { kind: 'join'; hubs: OrcaHub[] }
+	/**
+	 * A manager who is not in the workspace (or in any): "เพิ่มฉันเลย". `mine`:
+	 * the workspaces they are in, to switch to instead (a link to someone else's).
+	 */
+	| { kind: 'join'; hubs: OrcaHub[]; mine?: OrcaHub[] }
 	/** A manager in a company with no AI workspace yet. */
 	| { kind: 'create' }
 	/** An employee in no workspace: generic copy asking an admin. */
@@ -63,7 +66,8 @@ export function libraryScope(input: {
 		const hub = mine.find((item) => item.id === input.requestedID);
 		if (hub) return { kind: 'hub', hub, choices: mine };
 		const other = open.find((item) => item.id === input.requestedID);
-		return other && input.canManage ? { kind: 'join', hubs: [other] } : { kind: 'missing' };
+		if (other && input.canManage) return mine.length ? { kind: 'join', hubs: [other], mine } : { kind: 'join', hubs: [other] };
+		return { kind: 'missing' };
 	}
 	if (mine.length)
 		return { kind: 'hub', hub: mine.find((hub) => hub.id === input.rememberedID) ?? mine[0], choices: mine };
@@ -456,3 +460,11 @@ export function brokenReferences(template: Pick<LibraryItem, 'kind' | 'knowledge
 }
 
 // "เพิ่มฉันเลย" saves through workspace-edit's saveHubPatch() and joinPatch() (critique 2).
+
+/** The address without the one-time "&create=1" intent, or undefined when it has none. */
+export function withoutCreateIntent(url: URL): string | undefined {
+	if (!url.searchParams.has('create')) return undefined;
+	const next = new URL(url.href);
+	next.searchParams.delete('create');
+	return next.pathname + next.search + next.hash;
+}

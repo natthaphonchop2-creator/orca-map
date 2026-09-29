@@ -184,8 +184,13 @@ export function ownerChecklist(
 	]);
 }
 
+/**
+ * B1 decides when it answers: "none" means no AI is connected now, even if
+ * this person asked something before (their sign-in expired or was
+ * disconnected). Only while B1 is unknown does an earlier question prove it.
+ */
 function aiDone(ai: AIState, asked: Done): Done {
-	if (ai === 'connected' || asked === true) return true;
+	if (ai === 'connected') return true;
 	if (ai === 'none') return false;
 	return asked;
 }

@@ -10,6 +10,7 @@ import { effect_root, flush } from "svelte/internal/client";
 
 const component = await readFile(new URL("./Approvals.svelte", import.meta.url), "utf8");
 const approvals = await importTypeScript(new URL("../../orca/approvals.ts", import.meta.url));
+const programTools = await importTypeScript(new URL("../../orca/program-tools.ts", import.meta.url));
 const { glossary } = await importTypeScript(new URL("../../orca/glossary.ts", import.meta.url));
 const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
   .replace(/^\s*import[^;]+;/gm, "")
@@ -17,10 +18,10 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(testProps, dependencies) {
-  const { OrcaService, onMount, onDestroy, tick, approvalTone, argumentEntries, orcaLocale, t, term, toolPresentation, displayDate, memberName, orcaError, showToast } = dependencies;
+  const { OrcaService, onMount, onDestroy, tick, approvalTone, argumentEntries, orcaLocale, t, term, eventToolLabel, displayDate, memberName, orcaError, showToast } = dependencies;
   ${script}
   return {
-    load, approve, reject, switchTab, toolLabel, person, workspace, statusLabel, failureLabel, decisionLine,
+    load, approve, reject, switchTab, toolLabel, person, requester, inputSchema, workspace, statusLabel, failureLabel, decisionLine,
     get items() { return items; }, get error() { return error; }, get notice() { return notice; },
     get busyID() { return busyID; }, get loaded() { return loaded; }, get tab() { return tab; },
     get confirming() { return confirming; }, get rejecting() { return rejecting; },
@@ -59,7 +60,7 @@ function mount(props, service) {
       t: (th) => th,
       term: (key, translate) => translate(...glossary[key]),
       showToast: (message, options) => calls.toasts.push([message, options?.tone ?? "ok"]),
-      toolPresentation: (tool) => ({ label: tool.description ? `label:${tool.description}` : `raw:${tool.name}` }),
+      eventToolLabel: programTools.eventToolLabel,
       displayDate: (value) => value ?? "—",
       memberName: (member) => member.displayName || member.id,
       orcaError: (error) => error.message,
@@ -79,7 +80,7 @@ test("a manager approves a waiting request once and sees what happened", async (
     await view.load();
     assert.deepEqual(calls.list, [["pending", false]], "managers list everyone's requests");
     assert.equal(view.items.length, 1);
-    assert.equal(view.toolLabel(view.items[0]), "label:Create a quotation");
+    assert.equal(view.toolLabel(view.items[0]), "Create a quotation", "the program's words for the tool, as on its own page");
     assert.equal(view.person("2"), "Member");
     assert.equal(view.workspace("khh-1"), "Sales");
     view.setConfirming("apr-1");
@@ -149,7 +150,10 @@ test("a rejection sends the trimmed note and members only list their own request
     assert.deepEqual(member.calls.list, [["pending", true]]);
     assert.equal(member.view.person("9"), "ผู้ที่ไม่ได้เป็นสมาชิกแล้ว");
     assert.equal(member.view.workspace("gone"), "พื้นที่ทำงานที่ถูกลบ");
-    assert.equal(member.view.toolLabel(waiting("x", { connectionID: "gone", toolName: "delete_all" })), "raw:delete_all");
+    assert.equal(member.view.toolLabel(waiting("x", { connectionID: "gone", toolName: "delete_all" })), programTools.toolCopy({ name: "delete_all" }).label);
+    // Your own requests say "คุณ", not your name.
+    assert.equal(member.view.requester("2"), "คุณ");
+    assert.equal(member.view.requester("1"), "Owner");
   } finally { member.stop(); }
 });
 

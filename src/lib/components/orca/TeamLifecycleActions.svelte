@@ -3,6 +3,7 @@
   import { OrcaService, orcaError } from '$lib/services/orca';
   import { getHttpStatusCode } from '$lib/errors';
   import { Archive, Ban, RotateCcw, Trash2 } from '@lucide/svelte';
+  import { showToast } from './ui/toast-store.svelte';
   // In a menu the row's own menu items open these confirmations through request().
   let { kind, id, name, version, inactive = false, disabled = false, compact = false, menu = false, onchanged, onbusy = () => {} }: {
     kind: 'department' | 'member'; id: string; name: string; version: number;
@@ -16,14 +17,36 @@
   let stale = $state(false);
   let snapshot = $state<{ id: string; name: string; kind: 'department' | 'member'; version: number }>();
   let completed = $state(false);
-  let notice = $state('');
+  // A row menu's item is gone once the menu closes: focus goes back to the menu's button instead.
+  let opener: HTMLElement | undefined;
+  // Removing, and suspending a person (it cuts their keys and AI sign-ins), use the danger tone.
+  const destructive = $derived(action === 'delete' || (action === 'suspend' && kind === 'member'));
   const label = $derived(action === 'delete' ? (kind === 'member' ? t('นำสมาชิกออก', 'Remove member') : t('ลบแผนก', 'Delete department')) : action === 'restore' ? t('กู้คืน', 'Restore') : kind === 'member' ? t('ระงับสมาชิก', 'Suspend member') : t('จัดเก็บแผนก', 'Archive department'));
   function open(next: typeof action) {
     if (saving || disabled) return;
-    action = next; error = ''; stale = false; notice = ''; completed = false; snapshot = { id, name, kind, version }; dialog.showModal(); cancelButton?.focus();
+    action = next; error = ''; stale = false; completed = false; snapshot = { id, name, kind, version }; dialog.showModal(); cancelButton?.focus();
   }
-  export function request(next: 'suspend' | 'restore' | 'delete') {
+  /** From a row menu: `returnTo` gets focus back when the dialog closes (the menu item is gone by then). */
+  export function request(next: 'suspend' | 'restore' | 'delete', returnTo?: HTMLElement) {
+    opener = returnTo;
     open(next);
+  }
+  function closed() {
+    const back = opener;
+    opener = undefined;
+    if (typeof document === 'undefined' || !back?.isConnected) return;
+    const active = document.activeElement;
+    if (!active || active === document.body) back.focus();
+  }
+  // What happened, by name: suspending also cuts every key and AI sign-in of that person.
+  function doneMessage(done: typeof action, who: string) {
+    if (kind === 'department')
+      return done === 'delete' ? t(`ลบแผนก ${who} แล้ว`, `Deleted the ${who} department`) : done === 'restore' ? t(`กู้คืนแผนก ${who} แล้ว`, `Restored the ${who} department`) : t(`จัดเก็บแผนก ${who} แล้ว`, `Archived the ${who} department`);
+    return done === 'delete'
+      ? t(`นำ ${who} ออกจากบริษัทแล้ว`, `Removed ${who} from the company`)
+      : done === 'restore'
+        ? t(`เปิดใช้งาน ${who} อีกครั้งแล้ว เพิ่มเขาในพื้นที่ทำงานใหม่ถ้าต้องการ`, `${who} can use ORCA again. Add them to workspaces as needed.`)
+        : t(`ระงับ ${who} แล้ว ตัดการเชื่อมต่อทั้งหมดของเขาในบริษัทนี้`, `Suspended ${who}. All their connections in this company are cut.`);
   }
   async function confirm() {
     if (saving || stale || disabled || completed || !snapshot) return;
@@ -36,7 +59,7 @@
       else await OrcaService.memberLifecycle(snapshot.id, action as 'suspend' | 'restore' | 'delete', snapshot.version);
       completed = true;
       dialog.close();
-      notice = t('บันทึกแล้ว', 'Saved');
+      showToast(doneMessage(action, snapshot.name));
       await onchanged();
     } catch (cause) {
       stale = completed || getHttpStatusCode(cause) === 409;
@@ -52,9 +75,8 @@
   </button>
   <button class="lifecycle-button delete-action" class:k-button={!compact} class:small={!compact} class:danger={!compact} aria-haspopup="dialog" aria-label={`${kind === 'member' ? t('นำออก', 'Remove') : t('ลบ', 'Delete')} ${name}`} title={compact ? (kind === 'member' ? t('นำออก', 'Remove') : t('ลบ', 'Delete')) : undefined} disabled={disabled || saving} onclick={() => open('delete')}><Trash2 size={16} aria-hidden="true" />{#if !compact}{kind === 'member' ? t('นำออก', 'Remove') : t('ลบ', 'Delete')}{/if}</button>
 </div>{/if}
-{#if notice}<span class="k-small lifecycle-notice" role="status">{notice}</span>{/if}
-<dialog bind:this={dialog} class="team-dialog" aria-label={label} oncancel={(event) => {if (saving) event.preventDefault();}}>
-  <div class="dialog-icon" class:danger={action === 'delete'} aria-hidden="true">
+<dialog bind:this={dialog} class="team-dialog" aria-label={label} onclose={closed} oncancel={(event) => {if (saving) event.preventDefault();}}>
+  <div class="dialog-icon" class:danger={destructive} aria-hidden="true">
     {#if action === 'delete'}<Trash2 size={20} />{:else if action === 'restore'}<RotateCcw size={20} />{:else if kind === 'member'}<Ban size={20} />{:else}<Archive size={20} />{/if}
   </div>
   <h2>{label}</h2><p class="subject">{snapshot?.name}</p>
@@ -65,7 +87,7 @@
       : t('คนนี้จะใช้ ORCA ไม่ได้ ORCA จะเอาเขาออกจากพื้นที่ทำงาน AI แผนก และความรู้ที่แชร์ให้โดยตรง และตัดการเชื่อมต่อคีย์ของเขาทั้งหมด', "This person can no longer use ORCA. ORCA takes them out of AI workspaces, departments and knowledge shared with them, and disconnects all their keys.")}</p>
   {#if action === 'delete'}<p>{t('รายการนี้จะหายไปจากหน้านี้และกู้คืนจากที่นี่ไม่ได้ ประวัติการใช้งานและเอกสารที่เคยเขียนไว้ยังเก็บไว้ตามเดิม', "This is removed from this page and can't be restored here. Activity history and anything they wrote are kept.")}</p>{/if}
   {#if error}<p class="dialog-error" role="alert">{error}</p>{/if}
-  <div class="dialog-actions"><button bind:this={cancelButton} class="k-button" disabled={saving} onclick={() => dialog.close()}>{t('ยกเลิก', 'Cancel')}</button><button class="k-button" class:primary={action !== 'delete'} class:danger-solid={action === 'delete'} disabled={saving || stale || disabled || completed} onclick={confirm}>{saving ? t('กำลังบันทึก…', 'Saving…') : label}</button></div>
+  <div class="dialog-actions"><button bind:this={cancelButton} class="k-button" disabled={saving} onclick={() => dialog.close()}>{t('ยกเลิก', 'Cancel')}</button><button class="k-button" class:primary={!destructive} class:danger-solid={destructive} disabled={saving || stale || disabled || completed} onclick={confirm}>{saving ? t('กำลังบันทึก…', 'Saving…') : label}</button></div>
 </dialog>
 <style>
   .team-lifecycle { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -74,7 +96,6 @@
   .compact .lifecycle-button:hover:not(:disabled) { background: var(--orca-hover); color: var(--orca-ink); }
   .compact .lifecycle-button.delete-action:hover:not(:disabled) { background: var(--orca-deny-bg); color: var(--orca-deny); }
   .compact .lifecycle-button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .lifecycle-notice { color: var(--orca-muted); }
   .team-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; margin: auto; padding: 24px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); color: var(--orca-ink); box-shadow: var(--orca-dialog-shadow, 0 16px 48px -12px rgba(21, 24, 35, 0.28)); white-space: normal; text-align: start; }
   .team-dialog::backdrop { background: rgba(21, 24, 35, 0.45); }
   .dialog-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--orca-radius); background: var(--orca-secondary); color: var(--orca-nav); }

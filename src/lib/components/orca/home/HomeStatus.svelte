@@ -1,15 +1,16 @@
 <script lang="ts">
 	import { Activity, ArrowRight, BookOpen, Boxes, CircleAlert, CircleCheck, Grid2x2Plus, Users } from '@lucide/svelte';
 	import CatalogIcon from '$lib/orca/CatalogIcon.svelte';
-	import { connectionReady, workspaceToolingReady } from '$lib/orca/activation';
+	import { workspaceToolingReady } from '$lib/orca/activation';
 	import { gatewayConnections, gatewayMemberIDs, gatewayToolCount } from '$lib/orca/gateway-sources';
 	import { term } from '$lib/orca/glossary';
 	import { connectedAppsHref } from '$lib/orca/connected-ai-apps';
 	import { activeMembers, attentionCounts } from '$lib/orca/home-setup';
 	import { STALE_DAYS } from '$lib/orca/secrets';
 	import { localeHref, orcaLocale, t } from '$lib/orca/locale.svelte';
-	import { toolPresentation } from '$lib/orca/tool-presentation';
-	import { displayDate, memberName, type OrcaAuditEvent, type OrcaBootstrap, type OrcaConnection, type OrcaHub } from '$lib/services/orca';
+	import { programEventOutcome, programStatus, programStatusCopy, type ProgramStatus } from '$lib/orca/program-catalog';
+	import { eventToolLabel } from '$lib/orca/program-tools';
+	import { displayDate, memberName, type OrcaAuditEvent, type OrcaBootstrap, type OrcaConnection, type OrcaConnectionHealth, type OrcaHub } from '$lib/services/orca';
 	import StatusPill, { type StatusTone } from '../ui/StatusPill.svelte';
 
 	// Home once setup is done: the company at a glance (the dashboard as it was,
@@ -20,9 +21,12 @@
 		eventsError = false,
 		onretry,
 		iconName = (connection: OrcaConnection) => connection.name,
-		staleApps = 0
+		staleApps = 0,
+		health
 	}: {
 		data: OrcaBootstrap;
+		/** The last week's tool calls per program (managers), so a tool that changed at the provider shows here too. */
+		health?: Map<string, OrcaConnectionHealth>;
 		/** AI apps and keys unused for 30 days (managers; ตรวจสอบ's stale filter). */
 		staleApps?: number;
 		/** The latest tool calls (newest first); undefined while loading. */
@@ -34,9 +38,13 @@
 
 	const manager = $derived(data.canManage);
 	const counts = $derived(attentionCounts(data));
-	const ready = $derived(counts.ready);
-	const paused = $derived(counts.paused);
-	const review = $derived(counts.review);
+	// The same status as โปรแกรมที่เชื่อม and the program's page (programStatus).
+	const statuses = $derived(new Map(data.connections.map((connection) => [connection.id, programStatus(connection, health?.get(connection.id))])));
+	const countOf = (status: ProgramStatus) => [...statuses.values()].filter((value) => value === status).length;
+	const ready = $derived(countOf('ready'));
+	const paused = $derived(countOf('paused'));
+	const setupNeeded = $derived(countOf('setup'));
+	const review = $derived(countOf('review'));
 	const blockedSpaces = $derived(counts.blocked);
 	const activeSpaces = $derived(data.hubs.filter((hub) => hub.status === 'active').length);
 	const today = $derived(data.hubs.reduce((sum, hub) => sum + Math.max(0, hub.usedToday || 0), 0));
@@ -59,26 +67,25 @@
 				]
 	);
 
-	const outcomes: Record<string, { label: string; tone: StatusTone }> = $derived({
-		success: { label: t('สำเร็จ', 'Succeeded'), tone: 'ok' },
-		error: { label: t('ไม่สำเร็จ', 'Failed'), tone: 'deny' },
-		denied: { label: t('ไม่ได้รับอนุญาต', 'Denied'), tone: 'deny' },
-		timeout: { label: t('หมดเวลา', 'Timed out'), tone: 'deny' },
-		admitted: { label: t('รออนุมัติ', 'Waiting'), tone: 'neutral' },
-		unknown: { label: t('รอยืนยันผล', 'Unconfirmed'), tone: 'neutral' }
-	});
+	// The same words as ตรวจสอบ › ประวัติการใช้งาน and the program's ประวัติ: "admitted" is received, never waiting.
+	function outcome(value: string | undefined): { label: string; tone: StatusTone } {
+		const result = programEventOutcome(value);
+		return { label: t(result.th, result.en), tone: result.tone };
+	}
 	function spaceStatus(hub: OrcaHub): { label: string; tone: StatusTone } {
 		if (hub.status === 'active')
 			return workspaceToolingReady(hub, data.connections) ? { label: t('เปิดใช้', 'Active'), tone: 'ok' } : { label: t('ยังใช้ไม่ได้', 'Not usable'), tone: 'warn' };
 		if (hub.status === 'draft') return { label: t('ฉบับร่าง', 'Draft'), tone: 'neutral' };
 		return { label: t('หยุดชั่วคราว', 'Paused'), tone: 'warn' };
 	}
-	function programStatus(connection: OrcaConnection): { label: string; tone: StatusTone } {
-		if (!connection.enabled) return { label: t('หยุดชั่วคราว', 'Paused'), tone: 'warn' };
-		return connectionReady(connection) ? { label: t('พร้อมใช้', 'Ready'), tone: 'ok' } : { label: t('รอเลือกสิ่งที่ AI ทำได้', 'Needs review'), tone: 'warn' };
+	function programChip(connection: OrcaConnection): { label: string; tone: StatusTone } {
+		const copy = programStatusCopy(statuses.get(connection.id) ?? 'ready');
+		return { label: t(copy.th, copy.en), tone: copy.tone };
 	}
 	const usage = (hub: OrcaHub) => (hub.dailyLimit > 0 ? Math.min(100, Math.round(((hub.usedToday || 0) / hub.dailyLimit) * 100)) : 0);
-	const toolLabel = (event: OrcaAuditEvent) => (event.toolName ? toolPresentation({ name: event.toolName }, orcaLocale.value === 'en' ? 'en' : 'th').label : t('เรียกใช้โปรแกรม', 'Program call'));
+	// The program's own title for the tool, as on ตรวจสอบ and the program's page.
+	const toolLabel = (event: OrcaAuditEvent) =>
+		event.toolName ? eventToolLabel(data.connections, event.connectionID, event.toolName, orcaLocale.value === 'en' ? 'en' : 'th') : t('เรียกใช้โปรแกรม', 'Program call');
 	const hubName = (id: string) => data.hubs.find((hub) => hub.id === id)?.name || '';
 	const whoName = (id: string) => {
 		const member = data.members.find((item) => item.id === id);
@@ -157,12 +164,12 @@
 					</thead>
 					<tbody>
 						{#each recent as event (event.id)}
-							{@const outcome = outcomes[event.outcome] ?? outcomes.unknown}
+							{@const result = outcome(event.outcome)}
 							<tr>
 								<td><strong title={event.toolName}>{toolLabel(event)}</strong>{#if hubName(event.hubID)}<small>{hubName(event.hubID)}</small>{/if}</td>
 								<!-- An employee's history is only their own: no person column. -->
 								{#if manager}<td class="home-activity-who" data-label={t('คน', 'Person')}>{whoName(event.userID)}</td>{/if}
-								<td class="home-activity-result"><StatusPill label={outcome.label} tone={outcome.tone} /></td>
+								<td class="home-activity-result"><StatusPill label={result.label} tone={result.tone} /></td>
 								<td class="home-activity-time"><time datetime={event.createdAt}>{displayDate(event.createdAt)}</time></td>
 							</tr>
 						{/each}
@@ -177,10 +184,17 @@
 			<section class="home-card" aria-labelledby="home-attention-title">
 				<header class="home-card-head"><h2 id="home-attention-title">{t('ต้องดูแล', 'Needs attention')}</h2></header>
 				<div class="home-rows">
+					{#if setupNeeded > 0}
+						<a class="home-alert" href={localeHref('/app?view=servers&status=needs-review')}>
+							<CircleAlert size={17} aria-hidden="true" />
+							<span><strong>{t(`โปรแกรมรอเลือกสิ่งที่ AI ทำได้ ${setupNeeded} โปรแกรม`, `${setupNeeded} ${setupNeeded === 1 ? 'program needs' : 'programs need'} you to choose what AI can do`)}</strong><small>{t('เลือกก่อน ทีมถึงจะใช้ได้', 'Choose it before your team can use them')}</small></span>
+							<ArrowRight size={15} aria-hidden="true" />
+						</a>
+					{/if}
 					{#if review > 0}
 						<a class="home-alert" href={localeHref('/app?view=servers&status=needs-review')}>
 							<CircleAlert size={17} aria-hidden="true" />
-							<span><strong>{t(`โปรแกรมรอเลือกสิ่งที่ AI ทำได้ ${review} โปรแกรม`, `${review} programs need a review`)}</strong><small>{t('เลือกก่อน ทีมถึงจะใช้ได้', 'Review them before your team can use them')}</small></span>
+							<span><strong>{t(`โปรแกรมที่ต้องตรวจใหม่ ${review} โปรแกรม`, `${review} ${review === 1 ? 'program needs' : 'programs need'} a new review`)}</strong><small>{t('บางอย่างในโปรแกรมเปลี่ยนไป ตรวจใหม่ก่อน AI จึงใช้สิ่งนั้นได้', 'Something in it changed. Review it again so AI can use it.')}</small></span>
 							<ArrowRight size={15} aria-hidden="true" />
 						</a>
 					{/if}
@@ -205,7 +219,7 @@
 							<ArrowRight size={15} aria-hidden="true" />
 						</a>
 					{/if}
-					{#if review + blockedSpaces + paused + staleApps === 0}
+					{#if setupNeeded + review + blockedSpaces + paused + staleApps === 0}
 						<p class="home-clear"><CircleCheck size={17} aria-hidden="true" />{t('ไม่มีเรื่องที่ต้องดูแล', 'Nothing needs attention')}</p>
 					{/if}
 				</div>
@@ -219,10 +233,10 @@
 			</header>
 			<div class="home-rows">
 				{#each programs as connection (connection.id)}
-					{@const status = programStatus(connection)}
+					{@const status = programChip(connection)}
 					<a class="home-program" href={localeHref(manager ? '/app?view=servers&connection=' + encodeURIComponent(connection.id) : '/app?view=connect-ai#accounts')}>
 						<CatalogIcon name={iconName(connection)} size={32} />
-						<span class="home-program-copy"><strong title={connection.name}>{connection.name}</strong><small>{t(`AI ทำได้ ${connection.toolNames.length} อย่าง`, `AI can do ${connection.toolNames.length} things`)}</small></span>
+						<span class="home-program-copy"><strong title={connection.name}>{connection.name}</strong><small>{t(`AI ทำได้ ${connection.toolNames.length} อย่าง`, `AI can do ${connection.toolNames.length} ${connection.toolNames.length === 1 ? 'thing' : 'things'}`)}</small></span>
 						<StatusPill label={status.label} tone={status.tone} />
 					</a>
 				{:else}

@@ -33,7 +33,9 @@
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { TEAM_INVITE_HREF } from '$lib/orca/navigation';
 	import { personalAccountReader, personalSetup, personalSources } from '$lib/orca/personal-connections';
-	import { OrcaService, type OrcaAuditEvent, type OrcaBootstrap, type OrcaConnection } from '$lib/services/orca';
+	import { OrcaService, type OrcaAuditEvent, type OrcaBootstrap, type OrcaConnection, type OrcaConnectionHealth } from '$lib/services/orca';
+	import { healthByConnection } from '$lib/orca/connection-health';
+	import { programStatus } from '$lib/orca/program-catalog';
 	import { OrcaLibraryService } from '$lib/services/orca-library';
 	import { refreshAIConnection } from '$lib/services/orca-ai-apps';
 	import EmployeeSetup from './home/EmployeeSetup.svelte';
@@ -61,6 +63,8 @@
 	let accountStates = $state<Record<string, AccountState>>({});
 	/** Managers: AI apps unused for 30 days (ตรวจสอบ); 0 until read, or when it cannot be. */
 	let staleApps = $state(0);
+	/** A tool that changed at the provider: Home says ต้องตรวจใหม่ like the program list (managers). */
+	let health = $state.raw<Map<string, OrcaConnectionHealth>>();
 
 	// ---- Per-viewer memory (browser storage, a convenience only) ----
 	const storage = () => (typeof window === 'undefined' ? undefined : window.localStorage);
@@ -97,7 +101,11 @@
 	const mode = $derived(homeMode(list, noWorkspace, loaded));
 	const invite = $derived({ done: invitesSent || activeMembers(data.members).length > 1, skipped: flags['skip-invite'] });
 	const knowledge = $derived({ done: knowledgePublished, skipped: flags['skip-knowledge'] });
-	const attention = $derived(attentionCounts(data).total + staleApps);
+	// Plus a program that changed at the provider since its last review (HomeStatus's "ต้องตรวจใหม่").
+	const changedPrograms = $derived(
+		data.connections.filter((connection) => programStatus(connection) === 'ready' && programStatus(connection, health?.get(connection.id)) === 'review').length
+	);
+	const attention = $derived(attentionCounts(data).total + staleApps + changedPrograms);
 	const requestText = $derived(
 		accessRequestText(
 			{ name: me?.displayName ?? '', email: me?.email ?? '', company, link: typeof window === 'undefined' ? '' : workspacesLink(window.location.origin, currentCompany()) },
@@ -151,6 +159,13 @@
 			})
 			.catch(() => {
 				/* Optional: no alert rather than a wrong one. */
+			});
+		void OrcaService.connectionHealth()
+			.then((result) => {
+				if (alive) health = healthByConnection(result.items);
+			})
+			.catch(() => {
+				/* Advisory: statuses then follow each program's own review state. */
 			});
 		const hubs = usableWorkspaces(data).slice(0, 3);
 		const libraries = await Promise.allSettled(hubs.map((hub) => OrcaLibraryService.load(hub.id)));
@@ -253,7 +268,7 @@
 			<button type="button" class="k-button quiet small" onclick={() => setFlag('setup-dismissed')} aria-label={t('ซ่อน ตั้งค่าเสร็จแล้ว', 'Hide "Setup is done"')}>{t('ซ่อน', 'Hide')}</button>
 		</section>
 	{/if}
-	<HomeStatus {data} {events} {eventsError} onretry={loadActivity} {iconName} {staleApps} />
+	<HomeStatus {data} {events} {eventsError} onretry={loadActivity} {iconName} {staleApps} {health} />
 {/if}
 
 <style>

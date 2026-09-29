@@ -189,8 +189,10 @@
 	.orca-picker-chip button {
 		display: grid;
 		place-items: center;
-		width: 22px;
-		height: 22px;
+		/* At least 24px to tap (WCAG 2.5.8). */
+		width: 24px;
+		height: 24px;
+		margin: -1px -2px -1px 0;
 		border: 0;
 		border-radius: 50%;
 		background: transparent;

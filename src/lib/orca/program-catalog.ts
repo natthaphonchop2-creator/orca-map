@@ -217,14 +217,54 @@ export function teamSizeFor(count: number): '1-5' | '6-20' | '21-50' | '51+' {
 // A program's status (the list's one chip)
 // ---------------------------------------------------------------------------
 
-export type ProgramStatus = 'ready' | 'review' | 'paused' | 'archived';
+export type ProgramStatus = 'ready' | 'setup' | 'review' | 'paused' | 'archived';
 
-/** พร้อมใช้ / ต้องตรวจใหม่ / ระงับ (and จัดเก็บแล้ว). A tool that changed at the provider needs a new review. */
-export function programStatus(connection: OrcaConnection, health?: Pick<OrcaConnectionHealth, 'changed'>): ProgramStatus {
+/** Nobody has chosen what AI can do in the program yet. */
+export function programNeverReviewed(connection: Pick<OrcaConnection, 'reviewedReadOnly' | 'reviewedTools' | 'toolNames'>): boolean {
+	return (!connection.reviewedReadOnly && connection.reviewedTools !== true) || !connection.toolNames?.length;
+}
+
+/**
+ * A tool changed at the provider after the program was last saved, so AI
+ * can't use it until someone reviews it again. The health report covers a
+ * week and gives only the latest failure's time: when every failure in it,
+ * tool changes included, came before the last save (the re-review), it is
+ * history. A later failure of another kind keeps the warning, to be safe.
+ */
+export function toolChangedSinceReview(
+	connection: Pick<OrcaConnection, 'updatedAt'>,
+	health?: Pick<OrcaConnectionHealth, 'changed' | 'lastFailureAt'>
+): boolean {
+	if (!health || !((health.changed ?? 0) > 0)) return false;
+	const saved = Date.parse(connection.updatedAt ?? '');
+	const failed = Date.parse(health.lastFailureAt ?? '');
+	return !(Number.isFinite(saved) && Number.isFinite(failed) && failed <= saved);
+}
+
+/**
+ * พร้อมใช้ / รอเลือกสิ่งที่ AI ทำได้ / ต้องตรวจใหม่ / หยุดชั่วคราว (and
+ * จัดเก็บแล้ว). The list, the program's page and Home all use this one rule.
+ */
+export function programStatus(
+	connection: OrcaConnection,
+	health?: Pick<OrcaConnectionHealth, 'changed' | 'lastFailureAt'>
+): ProgramStatus {
 	if (connection.archivedAt || connection.deletedAt) return 'archived';
 	if (!connection.enabled) return 'paused';
-	if (!connectionReady(connection) || (health?.changed ?? 0) > 0) return 'review';
+	if (programNeverReviewed(connection)) return 'setup';
+	if (!connectionReady(connection) || toolChangedSinceReview(connection, health)) return 'review';
 	return 'ready';
+}
+
+/** One label per status, the same on every page. */
+export function programStatusCopy(status: ProgramStatus): { th: string; en: string; tone: 'ok' | 'warn' | 'neutral' } {
+	return {
+		ready: { th: 'พร้อมใช้', en: 'Ready', tone: 'ok' as const },
+		setup: { th: 'รอเลือกสิ่งที่ AI ทำได้', en: 'Choose what AI can do', tone: 'warn' as const },
+		review: { th: 'ต้องตรวจใหม่', en: 'Needs review', tone: 'warn' as const },
+		paused: { th: 'หยุดชั่วคราว', en: 'Paused', tone: 'neutral' as const },
+		archived: { th: 'จัดเก็บแล้ว', en: 'Archived', tone: 'neutral' as const }
+	}[status];
 }
 
 /**

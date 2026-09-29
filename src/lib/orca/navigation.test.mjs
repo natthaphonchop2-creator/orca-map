@@ -258,16 +258,21 @@ test("the platform area is the ORCA team's, one section at a time", () => {
   assert.equal(platformHref("signin"), "/app?org=default&view=platform&section=signin");
 });
 
-test("ทีม tabs live in the address; employees see members only", () => {
+test("ทีม tabs live in the address; employees go Home (they only receive their own row)", () => {
   stays("view=members&tab=invitations", "members");
   stays("view=members&tab=departments", "members");
   redirects("view=members&tab=members", "/app?view=members");
   redirects("view=members&tab=other", "/app?view=members");
-  redirects("view=members&tab=departments", "/app?view=members", { role: employee });
+  redirects("view=members&tab=departments", "/app", { role: employee });
+  redirects("view=members", "/app", { role: employee });
+  redirects("view=members&lang=th&org=org-12345678-1234-4234-8234-123456789012", "/app?lang=th&org=org-12345678-1234-4234-8234-123456789012", { role: employee });
+  // The old settings address lands there too, for an employee.
+  redirects("view=settings&section=members", "/app", { role: employee });
+  stays("view=members", "members", { role: owner });
   // Home's "ส่งลิงก์เชิญ": the invite dialog opens for managers; employees never invite.
   assert.equal(TEAM_INVITE_HREF, "/app?view=members&tab=invitations&invite=1");
   stays("view=members&tab=invitations&invite=1", "members", { role: owner });
-  redirects("view=members&tab=invitations&invite=1", "/app?view=members", { role: employee });
+  redirects("view=members&tab=invitations&invite=1", "/app", { role: employee });
 });
 
 test("Settings: บริษัท and ขั้นสูง are for Owners and Admins", () => {

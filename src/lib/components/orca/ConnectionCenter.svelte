@@ -12,15 +12,15 @@
 		programDisplayName,
 		programLine,
 		programStatus,
-		recommendedPrograms,
-		type ProgramStatus
+		programStatusCopy,
+		recommendedPrograms
 	} from '$lib/orca/program-catalog';
 	import { accessSummary } from '$lib/orca/program-tools';
 	import { OrcaService, type OrcaBootstrap, type OrcaCandidate, type OrcaConnectionHealth } from '$lib/services/orca';
 	import { ProgramService } from '$lib/services/orca-programs';
 	import { onDestroy, onMount } from 'svelte';
 	import PageHeader from './ui/PageHeader.svelte';
-	import StatusPill, { type StatusTone } from './ui/StatusPill.svelte';
+	import StatusPill from './ui/StatusPill.svelte';
 	import ProgramLogo from './programs/ProgramLogo.svelte';
 
 	// โปรแกรมที่เชื่อม (view=servers): one row per program with what AI can do,
@@ -38,10 +38,12 @@
 	let alive = true;
 
 	const live = $derived(data.connections.filter((item) => !item.deletedAt));
+	const needsLook = (status: string | undefined) => status === 'review' || status === 'setup';
 	const statuses = $derived(new Map(live.map((item) => [item.id, programStatus(item, health.get(item.id))])));
 	const counts = $derived({
 		all: live.filter((item) => !item.archivedAt).length,
-		review: live.filter((item) => statuses.get(item.id) === 'review').length,
+		// Waiting for a choice or for a new review: one chip, "ต้องจัดการ".
+		review: live.filter((item) => needsLook(statuses.get(item.id))).length,
 		paused: live.filter((item) => statuses.get(item.id) === 'paused').length,
 		archived: live.filter((item) => item.archivedAt).length
 	});
@@ -50,7 +52,8 @@
 		live.filter((item) => {
 			const status = statuses.get(item.id);
 			if (filter === 'archived' ? status !== 'archived' : status === 'archived') return false;
-			if ((filter === 'review' || filter === 'paused') && status !== filter) return false;
+			if (filter === 'review' && !needsLook(status)) return false;
+			if (filter === 'paused' && status !== 'paused') return false;
 			const text = `${item.name} ${item.description}`.normalize('NFKC').toLocaleLowerCase();
 			return words.every((word) => text.includes(word));
 		})
@@ -61,19 +64,12 @@
 		(
 			[
 				{ id: 'all', label: t('ทั้งหมด', 'All') },
-				{ id: 'review', label: t('ต้องตรวจใหม่', 'Needs review') },
+				{ id: 'review', label: t('ต้องจัดการ', 'Needs attention') },
 				{ id: 'paused', label: t('หยุดชั่วคราว', 'Paused') },
 				{ id: 'archived', label: t('จัดเก็บแล้ว', 'Archived') }
 			] as { id: Filter; label: string }[]
 		).filter((item) => item.id === 'all' || counts[item.id] > 0 || filter === item.id)
 	);
-
-	const statusCopy: Record<ProgramStatus, { th: string; en: string; tone: StatusTone }> = {
-		ready: { th: 'พร้อมใช้', en: 'Ready', tone: 'ok' },
-		review: { th: 'ต้องตรวจใหม่', en: 'Needs review', tone: 'warn' },
-		paused: { th: 'หยุดชั่วคราว', en: 'Paused', tone: 'neutral' },
-		archived: { th: 'จัดเก็บแล้ว', en: 'Archived', tone: 'neutral' }
-	};
 
 	onMount(() => {
 		if (!data.canManage) return;
@@ -166,7 +162,7 @@
 			</div>
 			{#each rows as connection (connection.id)}
 				{@const summary = accessSummary(connection)}
-				{@const status = statusCopy[statuses.get(connection.id) ?? 'ready']}
+				{@const status = programStatusCopy(statuses.get(connection.id) ?? 'ready')}
 				{@const workspaces = data.hubs.filter((hub) => gatewayUsesConnection(hub, connection.id) && hub.status !== 'archived' && hub.status !== 'deleted').length}
 				{@const source = candidates.find((item) => item.id === connection.mcpID)}
 				<div class="programs-row" role="row">

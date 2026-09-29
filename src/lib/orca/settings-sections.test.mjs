@@ -23,7 +23,7 @@ test('the section shown follows the address and the role', () => {
 });
 
 test('a company without a sign-in source is sent to ทีม from ขั้นสูง (the old sign-in sources page)', () => {
-	assert.equal(advancedFallback('advanced', true, 'none'), '/app?view=members');
+	assert.equal(advancedFallback('advanced', true, 'none'), '/app?view=settings&section=company', 'stays in Settings');
 	assert.equal(advancedFallback('advanced', true, 'unknown'), undefined);
 	assert.equal(advancedFallback('advanced', true, 'some'), undefined);
 	assert.equal(advancedFallback('company', true, 'none'), undefined);

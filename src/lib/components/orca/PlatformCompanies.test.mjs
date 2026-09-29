@@ -21,7 +21,7 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(dependencies) {
-  const { OrcaService, onMount, tick, parseErrorContent, invitationLink, lineShareURL, t, canInviteOwner, emailDomain, ownerStatus, platformRefusal, signInWarnings, displayDate, orcaError, externalBrowserLink, window, navigator } = dependencies;
+  const { OrcaService, onMount, tick, parseErrorContent, invitationLink, lineShareURL, t, canInviteOwner, canRevokeOwnerInvitation, emailDomain, ownerStatus, platformRefusal, resendEmail, signInWarnings, displayDate, orcaError, externalBrowserLink, window, navigator } = dependencies;
   ${script}
   return {
     load, loadGoogle, show, openCompany, inviteOwner, revoke, copy, explain,
@@ -30,6 +30,7 @@ const code = compileModule(
     get target() { return target; }, get justOpened() { return justOpened; }, get formError() { return formError; }, get issued() { return issued; },
     get message() { return message; }, get copied() { return copied; }, get revoking() { return revoking; }, get actionID() { return actionID; },
     get revokingTarget() { return revokingTarget; }, get googleOn() { return googleOn; }, get customers() { return customers; },
+    get email() { return email; }, get resending() { return resending; },
   };
 }`,
   { filename: "platform-companies-test.svelte.js", generate: "client" },
@@ -118,6 +119,12 @@ test("the operator opens a company, then invites its owner and gets the link onc
     assert.equal(view.issued, undefined);
     assert.equal(view.step, "invite");
     assert.equal(view.justOpened, false);
+    // "ส่งลิงก์ใหม่" reissues to the waiting owner's email: nothing to retype, no second invitation by typo.
+    assert.equal(view.email, "owner@hotel-a.example");
+    assert.equal(view.resending, true);
+    await view.show("invite", company(B));
+    assert.equal(view.email, "", "a company never invited starts empty");
+    assert.equal(view.resending, false);
   } finally { stop(); }
 });
 
@@ -209,4 +216,24 @@ test("the section and its first dialog step render, and the component compiles w
   assert.match(html, /A new company has no members yet, you included/);
   // The link and its warnings exist only after an invitation is made.
   assert.doesNotMatch(html, /company-owner-link/);
+});
+
+test("an expired owner link has nothing to revoke; the resend picks the newest waiting link", () => {
+  assert.equal(helpers.canRevokeOwnerInvitation({ status: "pending" }), true);
+  assert.equal(helpers.canRevokeOwnerInvitation({ status: "expired" }), false);
+  assert.match(component, /\{#if canRevokeOwnerInvitation\(invitation\)\}<button type="button" class="k-button quiet small"/);
+  const invitations = [
+    { id: "a", email: "old@x.example", expiresAt: "2026-09-01T00:00:00Z", status: "expired" },
+    { id: "b", email: "new@x.example", expiresAt: "2026-10-05T00:00:00Z", status: "pending" },
+  ];
+  assert.equal(helpers.resendEmail({ ownerInvitations: invitations }), "new@x.example");
+  assert.equal(helpers.resendEmail({ ownerInvitations: invitations.slice(0, 1) }), "old@x.example");
+  assert.equal(helpers.resendEmail({ ownerInvitations: [] }), "");
+  // The one-time link keeps focus inside the dialog, and Escape can't lose it before it is copied.
+  assert.match(component, /linkInput\?\.focus\(\)/);
+  assert.match(component, /step === "issued" && !copied\)\) event\.preventDefault\(\)/);
+  // Cards whenever the list is narrower than the table needs, not only on phones.
+  assert.match(component, /@container companies \(max-width: 860px\)/);
+  // The domain warning names the server's list and warns off the Google joining domains.
+  assert.match(component, /Email domains ของผู้ให้บริการเข้าสู่ระบบบนเซิร์ฟเวอร์ ORCA/);
 });

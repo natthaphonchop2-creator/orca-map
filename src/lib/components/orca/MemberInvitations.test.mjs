@@ -26,7 +26,7 @@ const code = compileModule(
     load, submit, reissue, revoke, copy, toggleUnit, closed, inviter, roleLabel, resetForm,
     setEmail(value) { email = value; }, setRole(value) { role = value; },
     get items() { return items; }, get groups() { return groups; }, get issued() { return issued; }, get message() { return message; },
-    get formError() { return formError; }, get listError() { return listError; }, get notice() { return notice; }, get copied() { return copied; },
+    get formError() { return formError; }, get emailError() { return emailError; }, get listError() { return listError; }, get notice() { return notice; }, get copied() { return copied; },
     get unitIDs() { return unitIDs; }, get canInviteAdmins() { return canInviteAdmins; }, get inviting() { return inviting; }, get actionID() { return actionID; },
   };
 }`,
@@ -86,8 +86,14 @@ test("a manager invites by email and gets a one-time link, a LINE share and a me
   });
   try {
     await view.submit();
-    assert.match(view.formError, /กรอกอีเมล/, "an empty email is caught before any request");
+    assert.match(view.emailError, /กรอกอีเมล/, "an empty email is caught before any request, in Thai, not the browser's tooltip");
     assert.equal(calls.invite.length, 0);
+    view.setEmail("somchai@");
+    await view.submit();
+    assert.match(view.emailError, /อีเมลนี้ไม่ถูกต้อง/);
+    assert.equal(calls.invite.length, 0);
+    assert.match(component, /<form novalidate onsubmit=/, "no native validation bubble");
+    assert.match(component, /aria-invalid=\{emailError \? "true" : undefined\}/);
     view.setEmail("  Somchai@Example.test ");
     view.setRole("admin");
     view.toggleUnit("u-sales");
@@ -171,7 +177,12 @@ test("an owner invitation from the platform names ORCA and offers no new link he
     assert.equal(view.roleLabel("owner"), "เจ้าของบริษัท");
   } finally { stop(); }
   // Only the platform renews an owner's link; everyone may revoke it.
-  assert.match(component, /\{#if item\.role !== "owner"\}<button class="k-button small" disabled=\{!!actionID \|\| !canRenewInvitation\(item, canInviteAdmins\)\} onclick=\{\(\) => reissue\(item\)\}/);
+  assert.match(component, /\{#if item\.role !== "owner" && canRenewInvitation\(item, canInviteAdmins\)\}<button class="k-button small" disabled=\{!!actionID\} onclick=\{\(\) => reissue\(item\)\}/);
+  // An admin's link that only an owner renews says so, instead of a greyed button.
+  assert.match(component, /\{:else if item\.role === "admin"\}<span class="inv-owner-only">\{t\("เจ้าของบริษัทสร้างลิงก์ใหม่ให้ผู้ดูแล"/);
+  // Cards under 760px of list, on a phone or beside the sidebar (the tables-to-cards rule).
+  assert.match(component, /container: inv \/ inline-size/);
+  assert.match(component, /@container inv \(max-width: 760px\)/);
   assert.match(component, /\{#if item\.status === "pending"\}<button class="k-button small" disabled=\{!!actionID\} onclick=\{\(\) => \(revoking = item\.id\)\}/);
 });
 

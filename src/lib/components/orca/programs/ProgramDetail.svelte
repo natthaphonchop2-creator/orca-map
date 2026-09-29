@@ -4,10 +4,11 @@
 	import { page } from '$app/state';
 	import { connectionReady } from '$lib/orca/activation';
 	import { catalogSource } from '$lib/orca/catalog';
-	import { gatewayMemberIDs, gatewayToolCount, gatewayUsesConnection } from '$lib/orca/gateway-sources';
+	import { gatewayMemberIDs, gatewaySources, gatewayUsesConnection } from '$lib/orca/gateway-sources';
+	import { programSummary, programSummaryLabel } from '$lib/orca/workspace-edit';
 	import { term } from '$lib/orca/glossary';
 	import { localeHref, orcaLocale, t } from '$lib/orca/locale.svelte';
-	import { programDisplayName, programEventOutcome, programLine, programStatus, type ProgramStatus } from '$lib/orca/program-catalog';
+	import { programDisplayName, programEventOutcome, programLine, programStatus, programStatusCopy, toolChangedSinceReview, type ProgramStatus } from '$lib/orca/program-catalog';
 	import { accessSummary, toolCopy, type ProgramToolLike } from '$lib/orca/program-tools';
 	import {
 		OrcaService,
@@ -24,7 +25,7 @@
 	import ConnectionMembers from '../ConnectionMembers.svelte';
 	import LifecycleActions from '../LifecycleActions.svelte';
 	import ConfirmDialog from '../ui/ConfirmDialog.svelte';
-	import StatusPill, { type StatusTone } from '../ui/StatusPill.svelte';
+	import StatusPill from '../ui/StatusPill.svelte';
 	import { showToast } from '../ui/toast-store.svelte';
 	import ProgramAccount from './ProgramAccount.svelte';
 	import ProgramLogo from './ProgramLogo.svelte';
@@ -55,16 +56,11 @@
 	const liveWorkspaces = $derived(workspaces.filter((hub) => hub.status !== 'archived'));
 	let health = $state<OrcaConnectionHealth>();
 	const status = $derived<ProgramStatus>(connection ? programStatus(connection, health) : 'review');
-	/** A tool changed at the program since it was reviewed: AI can't use it until someone checks again. */
-	const changedAtProgram = $derived(Boolean(connection && !archived && connection.enabled && (health?.changed ?? 0) > 0));
+	/** A tool changed at the program since it was last reviewed: AI can't use it until someone checks again. */
+	const changedAtProgram = $derived(Boolean(connection && !archived && connection.enabled && toolChangedSinceReview(connection, health)));
 	const summary = $derived(connection ? accessSummary(connection) : undefined);
 	const allowed = $derived(connection ? (connection.tools as ProgramToolLike[]).filter((tool) => connection.toolNames.includes(tool.name)) : []);
-	const statusCopy: Record<ProgramStatus, { th: string; en: string; tone: StatusTone }> = {
-		ready: { th: 'พร้อมใช้', en: 'Ready', tone: 'ok' },
-		review: { th: 'ต้องตรวจใหม่', en: 'Needs review', tone: 'warn' },
-		paused: { th: 'หยุดชั่วคราว', en: 'Paused', tone: 'neutral' },
-		archived: { th: 'จัดเก็บแล้ว', en: 'Archived', tone: 'neutral' }
-	};
+	const statusCopy = $derived(programStatusCopy(status));
 	const tabs = $derived([
 		{ id: 'overview', label: t('ภาพรวม', 'Overview') },
 		...(!archived ? [{ id: 'tools', label: term('whatAICanDo', t) }] : []),
@@ -178,7 +174,7 @@
 		<div class="pd-title">
 			<div class="pd-title-row">
 				<h1>{connection.name}</h1>
-				<StatusPill label={t(statusCopy[status].th, statusCopy[status].en)} tone={statusCopy[status].tone} dot />
+				<StatusPill label={t(statusCopy.th, statusCopy.en)} tone={statusCopy.tone} dot />
 			</div>
 			<p>{connection.description || (presented ? t(...programLine(presented)) : '')}</p>
 		</div>
@@ -208,9 +204,11 @@
 				{#if data.canManage && connectionReady(connection)}<a class="k-button primary" href={localeHref(`/app?view=new&connection=${encodeURIComponent(connection.id)}`)}><Plus size={16} aria-hidden="true" />{term('newWorkspace', t)}</a>{/if}
 			</header>
 			{#each workspaces as hub (hub.id)}
+				<!-- What AI can do in this program there, not the workspace's total across programs. -->
+				{@const here = gatewaySources(hub).find((source) => source.connectionID === connection.id)?.toolNames ?? []}
 				<a class="pd-row" href={localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}`)}>
 					<span class="pd-row-icon" aria-hidden="true"><Folder size={16} /></span>
-					<span class="pd-row-copy"><strong>{hub.name}</strong><small>{t(`AI ทำได้ ${gatewayToolCount(hub)} อย่าง · ${gatewayMemberIDs(hub).length} คน`, `${gatewayToolCount(hub)} things · ${gatewayMemberIDs(hub).length} people`)}</small></span>
+					<span class="pd-row-copy"><strong>{hub.name}</strong><small>{programSummaryLabel(programSummary(connection, here), t)} · {t(`${gatewayMemberIDs(hub).length} คน`, `${gatewayMemberIDs(hub).length} ${gatewayMemberIDs(hub).length === 1 ? 'person' : 'people'}`)}</small></span>
 					<StatusPill label={statusLabels[hub.status]} tone={hub.status === 'active' ? 'ok' : hub.status === 'paused' ? 'warn' : 'neutral'} />
 					<ArrowRight size={16} aria-hidden="true" />
 				</a>

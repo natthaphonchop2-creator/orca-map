@@ -102,11 +102,24 @@ test('step 4: back to the create form, everyone when there is no workspace, othe
 	assert.deepEqual([1, 5, 6, 20, 21, 50, 51].map(teamSizeFor), ['1-5', '1-5', '6-20', '6-20', '21-50', '21-50', '51+']);
 });
 
-test('a program is พร้อมใช้, ต้องตรวจใหม่ (also when a tool changed at the provider), ระงับ or จัดเก็บแล้ว', () => {
-	const ready = { id: 'c', mcpID: 's', enabled: true, reviewedTools: true, reviewedReadOnly: false, toolNames: ['a'], tools: [{ name: 'a' }] };
+test('a program is พร้อมใช้, รอเลือกสิ่งที่ AI ทำได้, ต้องตรวจใหม่ (a tool changed since the last review), ระงับ or จัดเก็บแล้ว', () => {
+	const ready = { id: 'c', mcpID: 's', enabled: true, reviewedTools: true, reviewedReadOnly: false, toolNames: ['a'], tools: [{ name: 'a' }], updatedAt: '2026-09-28T05:00:00Z' };
 	assert.equal(programStatus(ready), 'ready');
-	assert.equal(programStatus(ready, { changed: 2 }), 'review');
-	assert.equal(programStatus({ ...ready, reviewedTools: false }), 'review');
+	// A tool_changed failure after the last save (the re-review) needs a new review…
+	assert.equal(programStatus(ready, { changed: 2, lastFailureAt: '2026-09-28T06:00:00Z' }), 'review');
+	// …one from before it is history, so saving on สิ่งที่ AI ทำได้ clears it at once, not after 7 days.
+	assert.equal(programStatus(ready, { changed: 2, lastFailureAt: '2026-09-27T05:00:00Z' }), 'ready');
+	assert.equal(programStatus(ready, { changed: 0, lastFailureAt: '2026-09-28T06:00:00Z' }), 'ready');
+	// No time to compare: keep the warning.
+	assert.equal(programStatus(ready, { changed: 1 }), 'review');
+	assert.equal(programStatus({ ...ready, updatedAt: '' }, { changed: 1, lastFailureAt: '2026-09-27T05:00:00Z' }), 'review');
+	// Never reviewed is its own state, with the same words as Home.
+	assert.equal(programStatus({ ...ready, reviewedTools: false }), 'setup');
+	assert.equal(programStatus({ ...ready, toolNames: [] }), 'setup');
+	assert.equal(catalog.programStatusCopy('setup').th, 'รอเลือกสิ่งที่ AI ทำได้');
+	assert.equal(catalog.programStatusCopy('review').th, 'ต้องตรวจใหม่');
+	// A listed tool the program no longer offers needs a new review.
+	assert.equal(programStatus({ ...ready, toolNames: ['a', 'gone'] }), 'review');
 	assert.equal(programStatus({ ...ready, enabled: false }), 'paused');
 	assert.equal(programStatus({ ...ready, archivedAt: 'x' }), 'archived');
 	assert.equal(uniqueProgramName('FlowAccount', ['flowaccount', 'FlowAccount (2)']), 'FlowAccount (3)');

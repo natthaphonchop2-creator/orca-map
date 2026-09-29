@@ -169,12 +169,18 @@ test('Home picks its mode from the viewer\'s own data: setup at once, else a sho
 });
 
 test('the status view follows the role: managers see the company and its alerts, employees their own part', async () => {
-	const tools = await importTypeScript(new URL('../../orca/tool-presentation.ts', import.meta.url));
+	const programTools = await importTypeScript(new URL('../../orca/program-tools.ts', import.meta.url));
+	const programCatalog = await importTypeScript(new URL('../../orca/program-catalog.ts', import.meta.url));
 	const HomeStatus = await component('./home/HomeStatus.svelte', {
-		...children, toolPresentation: tools.toolPresentation, displayDate: (value) => value, memberName: (member) => member.displayName
+		...children, eventToolLabel: programTools.eventToolLabel, programEventOutcome: programCatalog.programEventOutcome, programStatus: programCatalog.programStatus,
+		programStatusCopy: programCatalog.programStatusCopy, displayDate: (value) => value, memberName: (member) => member.displayName
 	});
 	const unreviewed = { ...flow, id: 'conn-new', name: 'PEAK', mcpID: 'default-orca-peak', reviewedTools: false };
-	const events = [{ id: 'e1', createdAt: '2026-09-28T03:00:00Z', userID: 'me', hubID: 'hub-1', action: 'tools.call', toolName: 'list_invoices', outcome: 'success' }];
+	const titled = { ...flow, tools: flow.tools.map((item) => ({ ...item, description: 'ค้นใบกำกับตามลูกค้า', definition: { ...item.definition, annotations: { ...item.definition.annotations, title: item.name === 'create_quotation' ? 'สร้างใบเสนอราคา' : 'ดูใบกำกับภาษี' } } })) };
+	const events = [
+		{ id: 'e1', createdAt: '2026-09-28T03:00:00Z', userID: 'me', hubID: 'hub-1', connectionID: 'conn-flow', action: 'tools.call', toolName: 'list_invoices', outcome: 'success' },
+		{ id: 'e2', createdAt: '2026-09-28T02:00:00Z', userID: 'me', hubID: 'hub-1', connectionID: 'conn-flow', action: 'tools.call', toolName: 'create_quotation', outcome: 'admitted' }
+	];
 	const members = [
 		{ id: 'me', displayName: 'วิภา ตัวอย่าง', email: 'me@example.com', role: 'owner' },
 		{ id: 'u2', displayName: 'มาลี สมมุติ', email: 'm@example.com', role: 'member' },
@@ -187,6 +193,25 @@ test('the status view follows the role: managers see the company and its alerts,
 	assert.match(plain, /โปรแกรมรอเลือกสิ่งที่ AI ทำได้ 1 โปรแกรม/);
 	assert.match(html, /<th scope="col"[^>]*>คน<\/th>/);
 	assert.match(html, /href="\/app\?view=servers&amp;connection=conn-flow"/);
+	// The same program status words as โปรแกรมที่เชื่อม.
+	assert.match(plain, /PEAK.*รอเลือกสิ่งที่ AI ทำได้/);
+	// An admitted call is received, never "waiting for approval" (the same words as ตรวจสอบ).
+	assert.match(plain, /รับคำขอแล้ว/);
+	assert.doesNotMatch(plain, /รออนุมัติ/);
+	// The program's own title, not the English id.
+	html = render(HomeStatus, { props: { data: company({ members, connections: [titled], hubs: [workspace] }), events } }).body;
+	assert.match(text(html), /ดูใบกำกับภาษี.*สร้างใบเสนอราคา/);
+	assert.doesNotMatch(text(html), /List invoices|Create quotation/);
+	// A tool changed at the provider after the last save: ต้องตรวจใหม่ here too; before it, history.
+	const changed = new Map([['conn-flow', { connectionID: 'conn-flow', changed: 2, lastFailureAt: '2026-09-05T00:00:00Z' }]]);
+	html = render(HomeStatus, { props: { data: company({ members, connections: [flow], hubs: [workspace] }), events, health: changed } }).body;
+	assert.match(text(html), /โปรแกรมที่ต้องตรวจใหม่ 1 โปรแกรม/);
+	assert.match(text(html), /FlowAccount.*ต้องตรวจใหม่/);
+	const cleared = new Map([['conn-flow', { connectionID: 'conn-flow', changed: 2, lastFailureAt: '2026-09-01T00:00:00Z' }]]);
+	html = render(HomeStatus, { props: { data: company({ members, connections: [flow], hubs: [workspace] }), events, health: cleared } }).body;
+	assert.doesNotMatch(text(html), /ต้องตรวจใหม่/);
+	assert.match(text(html), /พร้อมใช้ 1 โปรแกรม/);
+	html = render(HomeStatus, { props: { data: company({ members, connections: [flow, unreviewed], hubs: [workspace] }), events } }).body;
 
 	assert.doesNotMatch(html, /view=secrets/, 'no unused-apps alert until ตรวจสอบ reports one');
 	// AI apps unused for 30 days: the alert opens ตรวจสอบ on its own filter.

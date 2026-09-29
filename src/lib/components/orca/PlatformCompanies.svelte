@@ -5,7 +5,7 @@
   import { invitationLink, lineShareURL } from "$lib/orca/invitations";
   import { localeHref, t } from "$lib/orca/locale.svelte";
   import { platformHref } from "$lib/orca/navigation";
-  import { canInviteOwner, emailDomain, ownerStatus, platformRefusal, signInWarnings, type OwnerStatus } from "$lib/orca/platform-companies";
+  import { canInviteOwner, canRevokeOwnerInvitation, emailDomain, ownerStatus, platformRefusal, resendEmail, signInWarnings, type OwnerStatus } from "$lib/orca/platform-companies";
   import { OrcaService, displayDate, orcaError, type OrcaOwnerInvitationLink, type OrcaPlatformCompany } from "$lib/services/orca";
   import { externalBrowserLink } from "$lib/services/orca-platform";
   import PlatformBadge from "./platform/PlatformBadge.svelte";
@@ -23,6 +23,9 @@
   let dialog: HTMLDialogElement | undefined = $state();
   let nameInput: HTMLInputElement | undefined = $state();
   let emailInput: HTMLInputElement | undefined = $state();
+  let linkInput: HTMLInputElement | undefined = $state();
+  /** "ส่งลิงก์ใหม่": the dialog reissues the waiting owner's link. */
+  let resending = $state(false);
   // The dialog opens a company, then invites its owner, then shows the link once.
   let step = $state<"open" | "invite" | "issued">("open");
   let target = $state<OrcaPlatformCompany>();
@@ -109,7 +112,9 @@
     target = company;
     justOpened = false;
     name = "";
-    email = "";
+    // A new link for the owner already invited: their email, so a typo can't start a second invitation.
+    email = company ? resendEmail(company) : "";
+    resending = !!email;
     formError = "";
     copied = "";
     issued = undefined;
@@ -154,6 +159,9 @@
       const result = await OrcaService.inviteCompanyOwner(target.id, address);
       issued = { link: invitationLink(window.location.origin, result.token), result };
       step = "issued";
+      // The button that was focused is gone: put focus on the link to copy.
+      await tick();
+      linkInput?.focus();
       await load();
     } catch (cause) {
       formError = explain(cause);
@@ -241,9 +249,9 @@
                 <div class="owner-invitation">
                   <span class="owner-invitation-email">{invitation.email}</span>
                   <small>{invitation.status === "expired" ? t(`หมดอายุ ${displayDate(invitation.expiresAt)}`, `Expired ${displayDate(invitation.expiresAt)}`) : t(`ใช้ได้ถึง ${displayDate(invitation.expiresAt)}`, `Valid until ${displayDate(invitation.expiresAt)}`)}</small>
-                  <button type="button" class="k-button quiet small" disabled={!!actionID} onclick={() => (revoking = invitation.id)} aria-label={t(`ยกเลิกคำเชิญของ ${invitation.email}`, `Revoke the invitation for ${invitation.email}`)}
+                  {#if canRevokeOwnerInvitation(invitation)}<button type="button" class="k-button quiet small" disabled={!!actionID} onclick={() => (revoking = invitation.id)} aria-label={t(`ยกเลิกคำเชิญของ ${invitation.email}`, `Revoke the invitation for ${invitation.email}`)}
                     ><X size={14} aria-hidden="true" />{t("ยกเลิก", "Revoke")}</button
-                  >
+                  >{/if}
                 </div>
               {/each}
             </td>
@@ -272,7 +280,8 @@
   onconfirm={() => revokingTarget && revoke(revokingTarget.company, revokingTarget.invitation.id)}
 />
 
-<dialog bind:this={dialog} class="company-dialog" aria-labelledby="company-dialog-title" oncancel={(event) => { if (busy) event.preventDefault(); }}>
+<!-- The one-time link is shown once: Escape does not close it before it is copied (เสร็จสิ้น does). -->
+<dialog bind:this={dialog} class="company-dialog" aria-labelledby="company-dialog-title" oncancel={(event) => { if (busy || (step === "issued" && !copied)) event.preventDefault(); }}>
   {#if step === "issued" && issued && target}
     <div class="dialog-icon ok"><Link2 size={22} aria-hidden="true" /></div>
     <h2 id="company-dialog-title">{t(`ลิงก์สำหรับเจ้าของ ${target.displayName}`, `The link for ${target.displayName}'s owner`)}</h2>
@@ -297,16 +306,17 @@
               >{t("เปิดการเข้าสู่ระบบด้วย Google", "Turn on Google sign-in")}<ExternalLink size={13} aria-hidden="true" /><span class="companies-sr">{t(" (เปิดในแท็บใหม่)", " (opens in a new tab)")}</span></a
             >
           {:else}
+            <!-- The server's own list (the local auth provider's email domains), not the Google page's joining domains. -->
             {t(
-              `โดเมน @${emailDomain(issued.result.invitation.email)} ยังไม่อยู่ในโดเมนอีเมลที่ ORCA อนุญาต เจ้าของบริษัทจะเข้าสู่ระบบไม่ได้จนกว่าจะเพิ่มโดเมนนี้`,
-              `@${emailDomain(issued.result.invitation.email)} isn't one of the sign-in's allowed email domains, so the owner can't sign in until it's added.`,
+              `โดเมน @${emailDomain(issued.result.invitation.email)} ยังไม่อยู่ในรายการ Email domains ของผู้ให้บริการเข้าสู่ระบบบนเซิร์ฟเวอร์ ORCA เจ้าของบริษัทจะเข้าสู่ระบบไม่ได้จนกว่าผู้ดูแลเซิร์ฟเวอร์จะเพิ่มโดเมนนี้ (หรือ *) ที่นั่น อย่าเพิ่มใน “เข้าสู่ระบบด้วย Google › ขั้นสูง” เพราะคนทั้งโดเมนจะเข้าบริษัทของทีม ORCA เป็นพนักงาน`,
+              `@${emailDomain(issued.result.invitation.email)} isn't in the Email domains of the ORCA server's sign-in provider, so the owner can't sign in until a server admin adds it (or *) there. Don't add it under “Sign in with Google › Advanced”: that makes everyone at the domain join the ORCA team's company as employees.`,
             )}
           {/if}
         </span>
       </div>
     {/each}
     <label class="dialog-label" for="company-owner-link">{t("ลิงก์เชิญเจ้าของ", "Owner invitation link")}</label>
-    <input id="company-owner-link" class="dialog-link" readonly value={issued.link} onfocus={(event) => event.currentTarget.select()} />
+    <input id="company-owner-link" class="dialog-link" readonly bind:this={linkInput} value={issued.link} onfocus={(event) => event.currentTarget.select()} />
     <div class="dialog-share">
       <button type="button" class="k-button" onclick={() => copy(issued!.link, "link")}
         >{#if copied === "link"}<Check size={16} aria-hidden="true" />{t("คัดลอกแล้ว", "Copied")}{:else}<Copy size={16} aria-hidden="true" />{t("คัดลอกลิงก์", "Copy link")}{/if}</button
@@ -324,7 +334,8 @@
   {:else if step === "invite" && target}
     <form onsubmit={(event) => { event.preventDefault(); void inviteOwner(); }}>
       <div class="dialog-icon"><MailPlus size={22} aria-hidden="true" /></div>
-      <h2 id="company-dialog-title">{t(`เชิญเจ้าของ ${target.displayName}`, `Invite ${target.displayName}'s owner`)}</h2>
+      <h2 id="company-dialog-title">{resending ? t(`ส่งลิงก์ใหม่ให้เจ้าของ ${target.displayName}`, `A new link for ${target.displayName}'s owner`) : t(`เชิญเจ้าของ ${target.displayName}`, `Invite ${target.displayName}'s owner`)}</h2>
+      {#if resending}<p class="dialog-note">{t(`ลิงก์ใหม่จะแทนลิงก์เดิมที่ส่งให้ ${email} ลิงก์เดิมจะใช้ไม่ได้อีก`, `The new link replaces the one sent to ${email}; the old link stops working.`)}</p>{/if}
       {#if justOpened}<p class="dialog-note ok"><Check size={16} aria-hidden="true" />{t(`เปิดบริษัท ${target.displayName} แล้ว`, `${target.displayName} is open.`)}</p>{/if}
       <p>
         {t(
@@ -374,7 +385,7 @@
   .companies-error :global(svg) { flex: none; margin-top: 2px; }
   .companies-loading { margin: 0; padding: 18px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); color: var(--orca-muted); font-size: 14px; }
   .companies-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .companies-list { overflow: hidden; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); box-shadow: 0 1px 2px color-mix(in srgb, var(--orca-ink) 5%, transparent); }
+  .companies-list { container: companies / inline-size; overflow: hidden; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); box-shadow: 0 1px 2px color-mix(in srgb, var(--orca-ink) 5%, transparent); }
   .companies-table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .companies-table th { padding: 11px 18px; border-bottom: 1px solid var(--orca-line); background: var(--orca-surface-2); color: var(--orca-muted); font-size: 12.5px; font-weight: 600; text-align: left; white-space: nowrap; }
   .companies-table td { padding: 14px 18px; border-top: 1px solid var(--orca-line-soft); vertical-align: top; }
@@ -417,9 +428,13 @@
   .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 24px; }
   .dialog-actions :global(.k-button) { min-height: 42px; padding: 0 18px; font-weight: 600; }
 
-  /* Under 720px each company is a card instead of a table row. */
+  /* Under 720px of page each company is a card; the cards also start when the list itself is narrower
+     than the table needs (a laptop with the sidebar open), so no action is ever cut off. */
   @media (max-width: 720px) {
     .companies-bar-count { margin-left: 0; }
+    .dialog-share > :global(*) { flex: 1 1 auto; justify-content: center; }
+  }
+  @container companies (max-width: 860px) {
     .companies-table thead { display: none; }
     .companies-table, .companies-table tbody, .companies-table tr, .companies-table td { display: block; width: auto; min-width: 0; }
     .companies-table tr { padding: 14px 16px; border-top: 1px solid var(--orca-line-soft); }
@@ -429,6 +444,5 @@
     .company-seats-label { display: inline; margin-right: 4px; color: var(--orca-muted); font-size: 13px; }
     .companies-table td.company-owner { padding-left: 46px; }
     .companies-actions-col { padding-left: 46px !important; text-align: left; }
-    .dialog-share > :global(*) { flex: 1 1 auto; justify-content: center; }
   }
 </style>

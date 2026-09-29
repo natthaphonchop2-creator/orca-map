@@ -443,3 +443,31 @@ test('the one-click and create addresses stay put, and the old edit forms land o
 	assert.equal(land('view=new&edit=hub-one&step=tools').redirect, '/app?view=hub&hub=hub-one&tab=programs');
 	assert.equal(land('view=hub&hub=hub-one&tab=settings&step=tools').redirect, '/app?view=hub&hub=hub-one&tab=programs');
 });
+
+test('the first change action added on โปรแกรม turns approval on; a workspace already changing data directly keeps its choice', () => {
+	const connections = [flow, drive];
+	// hub-sales: runs changes at once, read-only so far.
+	const direct = { ...hub, writeMode: 'direct', sources: [{ connectionID: 'conn-flow', toolNames: ['list_invoices'] }] };
+	const adding = { 'conn-flow': ['list_invoices', 'create_quotation'] };
+	assert.equal(edit.approvalTurnsOn(direct, edit.programsPatch(direct, adding).sources, connections), true);
+	assert.deepEqual(edit.programsSavePatch(direct, adding, connections), {
+		sources: [{ connectionID: 'conn-flow', toolNames: ['list_invoices', 'create_quotation'] }],
+		writeMode: 'approval'
+	});
+	// No writeMode at all is the backend's direct.
+	assert.equal(edit.programsSavePatch({ ...direct, writeMode: undefined }, adding, connections).writeMode, 'approval');
+	// A program turned on from add-program step 4 with its change actions (&add=).
+	const peak = { ...flow, id: 'conn-peak', name: 'PEAK' };
+	assert.equal(edit.programsSavePatch(direct, { 'conn-peak': peak.toolNames }, [...connections, peak]).writeMode, 'approval');
+	// Only reading added: nothing to approve.
+	assert.equal(edit.programsSavePatch(direct, { 'conn-drive': ['search_files'] }, connections).writeMode, undefined);
+	// Already direct with change actions: the owner chose it, so it stays.
+	const chosen = { ...direct, sources: [{ connectionID: 'conn-flow', toolNames: ['create_quotation'] }] };
+	assert.equal(edit.approvalTurnsOn(chosen, [{ connectionID: 'conn-flow', toolNames: ['create_quotation', 'send_email'] }], connections), false);
+	assert.equal(edit.programsSavePatch(chosen, { 'conn-flow': ['create_quotation', 'send_email'] }, connections).writeMode, undefined);
+	// Approval already on: never sent back to direct, and nothing extra is sent.
+	assert.equal(edit.programsSavePatch(hub, adding, connections).writeMode, undefined);
+	assert.equal(edit.hubInput(hub, edit.programsSavePatch(hub, adding, connections)).writeMode, 'approval');
+	assert.equal(edit.sourcesChangeData([{ connectionID: 'conn-drive', toolNames: ['search_files'] }], connections), false);
+	assert.equal(edit.sourcesChangeData([{ connectionID: 'gone', toolNames: ['x'] }], connections), true);
+});

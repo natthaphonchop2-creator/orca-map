@@ -18,7 +18,7 @@
 	// already signed in (to sign in again). Signing in opens the program's
 	// setup in a side panel. Customer companies can only use personal
 	// accounts, so this is a core step, not an edge case.
-	let { data }: { data: OrcaBootstrap } = $props();
+	let { data, onshown }: { data: OrcaBootstrap; /** The section is on the page (an "#accounts" link scrolls to it then). */ onshown?: () => void } = $props();
 	type AccountRecord = { status: 'loading' | 'ready' | 'error'; setup?: PersonalSetup };
 	let accounts = $state<Record<string, AccountRecord>>({});
 	let accountUserID = $state('');
@@ -41,11 +41,16 @@
 	const reader = personalAccountReader(
 		async (sourceID, signal) => personalSetup(await OrcaService.sourceSetup(sourceID, signal), sourceID),
 		(event) => {
+			const known = accounts[event.sourceID];
+			// Checking again keeps the last answer on screen: the rows (and the button focus returns
+			// to after the sign-in panel closes) don't vanish while it loads.
+			if (event.status === 'loading' && known?.status === 'ready') return;
 			accounts[event.sourceID] = event.status === 'ready' ? { status: 'ready', setup: event.value } : { status: event.status };
 		}
 	);
 	function refresh() {
-		accounts = {};
+		// Another person (a new session in this tab) starts from nothing.
+		if (accountUserID !== data.currentUserID) accounts = {};
 		accountUserID = data.currentUserID;
 		reader.replace(sources.filter((source) => source.canReadSetup).map((source) => source.sourceID));
 	}
@@ -86,6 +91,10 @@
 	const pending = $derived(rows.filter((row) => row.state === 'account-needed' || row.state === 'not-configured'));
 	const blocked = $derived(rows.filter((row) => row.state === 'client-needed' || row.state === 'unknown'));
 	const signedIn = $derived(rows.filter((row) => row.state === 'account-connected' || row.state === 'configured'));
+	const shown = $derived(pending.length + blocked.length + signedIn.length > 0);
+	$effect(() => {
+		if (shown) untrack(() => onshown?.());
+	});
 	function open(row: Row) {
 		signingIn = { sourceID: row.source.sourceID, name: row.name };
 		sheetOpen = true;

@@ -1286,7 +1286,9 @@ test('source setup renders provider branding, native API fields and permission-g
       '$lib/services/orca': moduleURL('export const OrcaService = {}; export const orcaError = (error) => error.message;'),
     }));
     const body = render(ManagedSetup, { props: { sourceID: id } }).body;
-    assert.ok(body.includes(`Connect ${name}`));
+    // A person signing in sees their own account named, not "Connect" (glossary: sign in, not connect).
+    assert.ok(body.includes(`Your ${name} account`));
+    assert.ok(!body.includes(`Connect ${name}`));
     assert.ok(body.includes(`src="${logo}"`));
     assert.ok(body.includes(`Sign in to your own ${name} account and allow ORCA`));
     assert.doesNotMatch(body, /127\.0\.0\.1|Obot|Client Secret|source-client-id|Open Microsoft Entra|Open Google Auth Platform/);
@@ -1300,7 +1302,7 @@ test('source setup renders provider branding, native API fields and permission-g
 		const customer = render(SourceSetup, {
 			props: { sourceID: 'exact-source', sourceLabel: 'Google Drive · ORCA', endpointHost }
 		}).body;
-		assert.match(customer, /<h3[^>]*>Connect Google Drive<\/h3>/);
+		assert.match(customer, /<h3[^>]*>Your Google Drive account<\/h3>/);
 		assert.ok(!customer.includes(endpointHost));
 		assert.doesNotMatch(customer, /Obot|consent page/);
 		assert.match(body, /<h3[^>]*>Connect Google Drive<\/h3>/);
@@ -1320,7 +1322,7 @@ test('source setup renders provider branding, native API fields and permission-g
 			endpointHost: 'drivemcp.googleapis.com.hotel.invalid'
 		}
 	}).body;
-	assert.match(custom, /Connect Google Drive · Hotel/);
+	assert.match(custom, /Your Google Drive · Hotel account/);
 	assert.doesNotMatch(custom, /src="\/orca\/tools\/google-drive\.svg"/);
 	const managed = render(SourceSetup, {
 		props: {
@@ -1328,7 +1330,7 @@ test('source setup renders provider branding, native API fields and permission-g
 			endpointHost: '127.0.0.1', managedProvider: 'google-drive'
 		}
 	}).body;
-	assert.match(managed, /<h3[^>]*>Connect Google Drive<\/h3>/);
+	assert.match(managed, /<h3[^>]*>Your Google Drive account<\/h3>/);
 	assert.match(managed, /src="\/orca\/tools\/google-drive\.svg"/);
 	assert.match(managed, /Sign in to your own Google Drive account and allow ORCA/);
 	assert.doesNotMatch(managed, /127\.0\.0\.1|Google Cloud project/);

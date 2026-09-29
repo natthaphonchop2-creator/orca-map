@@ -16,10 +16,17 @@ const invitations = await importTypeScript(new URL('../../orca/invitations.ts', 
 const copy = await importTypeScript(new URL('./ui/copy.ts', import.meta.url));
 const picker = await importTypeScript(new URL('./ui/person-picker.ts', import.meta.url));
 const formErrors = await importTypeScript(new URL('./ui/form-errors.ts', import.meta.url));
+const programTools = await importTypeScript(new URL('../../orca/program-tools.ts', import.meta.url));
+const personal = await importTypeScript(new URL('../../orca/personal-connections.ts', import.meta.url));
+const connectionPresentation = await importTypeScript(new URL('../../orca/connection-presentation.ts', import.meta.url));
+const homeSetup = await importTypeScript(new URL('../../orca/home-setup.ts', import.meta.url));
 
 const th = (value) => value;
 const base = {
 	...edit, ...sources, ...activation, ...presentation, ...invitations, ...copy, ...picker, ...formErrors,
+	toolCopy: programTools.toolCopy, toolUnspecified: programTools.toolUnspecified,
+	personalAccountReader: personal.personalAccountReader, personalSetup: personal.personalSetup, personalSources: personal.personalSources,
+	sourceAccountState: connectionPresentation.sourceAccountState, accountStateFrom: homeSetup.accountStateFrom,
 	t: th, localeHref: (path) => path, orcaLocale: { value: 'th' }, onMount: () => {}, onDestroy: () => {}, untrack: (fn) => fn(),
 	companyPinned: () => false, currentCompany: () => 'default',
 	memberName: (member) => member.displayName || member.email || member.id,
@@ -105,15 +112,17 @@ test('a program card is a labelled switch with what AI can do, and [ปรับ
 	assert.match(html, /อ่านและแก้ไข · 3 อย่าง/, 'off, it shows what turning it on gives');
 	assert.doesNotMatch(html, /ปรับสิ่งที่ AI/);
 	html = htmlOf(ProgramToggleCard, { props: { connection: drive, on: true, toolNames: ['search_files', 'read_file'] } }).body;
-	assert.match(html, /disabled/, 'a reader sees the card without a working switch');
-	assert.doesNotMatch(html, /program-switch/);
+	// A reader (an employee) gets a plain read-only card: no switch, no faded disabled button, no "chosen" border.
+	assert.match(html, /class="program-card readonly"/);
+	assert.doesNotMatch(html, /role="switch"|disabled|program-switch|program-card on/);
+	assert.match(html, /เปิดใช้ในพื้นที่นี้/);
 	assert.match(html, /อ่านอย่างเดียว · 2 อย่าง/);
 });
 
 test('the write-mode choice defaults to approval and is greyed with a note while nothing can change data', () => {
 	let html = htmlOf(WriteModeChoice, { props: { value: 'approval' } }).body;
 	assert.match(html, /value="approval" checked/);
-	assert.match(html, /ให้ฉันอนุมัติก่อน[\s\S]*แนะนำ/);
+	assert.match(html, /ให้ผู้ดูแลอนุมัติก่อน[\s\S]*แนะนำ/);
 	assert.doesNotMatch(html, /write-note/);
 	html = htmlOf(WriteModeChoice, { props: { value: 'approval', quiet: true, noteTitle: 'ไม่มีผล เพราะเลือกอ่านอย่างเดียว', note: 'จะใช้เมื่อเปิดโปรแกรมที่ AI แก้ข้อมูลได้' } }).body;
 	assert.match(html, /<b>ไม่มีผล เพราะเลือกอ่านอย่างเดียว<\/b> · จะใช้เมื่อเปิดโปรแกรมที่ AI แก้ข้อมูลได้/);
@@ -179,6 +188,17 @@ test('from เพิ่มโปรแกรม step 4: the โปรแกร�
 	// Readers never get a pending change.
 	html = htmlOf(Programs, { props: { data: employee, hub, canEdit: false, onchanged: async () => {}, addConnectionID: 'conn-drive' } }).body;
 	assert.doesNotMatch(html, /pg-notice|Google Drive/);
+	// A workspace that runs changes at once and only reads so far: turning on a program that can
+	// change data says, before บันทึก, that approval comes on (the owner's safety default).
+	const direct = { ...hub, writeMode: 'direct', sources: [{ connectionID: 'conn-drive', toolNames: ['search_files'] }], connectionID: 'conn-drive', toolNames: ['search_files'] };
+	html = htmlOf(Programs, { props: { data: company(), hub: direct, canEdit: true, onchanged: async () => {}, addConnectionID: 'conn-flow' } }).body;
+	assert.match(html, /pg-notice approval[\s\S]*ORCA จะตั้งให้ผู้ดูแลอนุมัติก่อนทุกครั้ง/);
+	assert.match(html, /จะรอผู้ดูแลอนุมัติก่อนแก้ข้อมูล/, 'the save bar says it too');
+	// Already asking for approval: nothing to announce.
+	html = htmlOf(Programs, { props: { data: company(), hub: { ...direct, writeMode: 'approval' }, canEdit: true, onchanged: async () => {}, addConnectionID: 'conn-flow' } }).body;
+	assert.doesNotMatch(html, /pg-notice approval/);
+	const source = await readFile(file('./workspace/WorkspaceProgramsTab.svelte'), 'utf8');
+	assert.match(source, /programsSavePatch\(fresh, pending, data\.connections\)/, 'the save sends approval with the first change action');
 });
 
 test('after a save the toast says สร้างแล้ว or เพิ่มแล้ว once: the flag leaves the address', async () => {
@@ -209,6 +229,11 @@ test('ภาพรวม offers the invite message after creation and one banner
 	const tabHref = (tab) => `/app?view=hub&hub=hub-one&tab=${tab}`;
 	let html = htmlOf(Overview, { props: { data: company(), hub, created: true, tabHref } }).body;
 	assert.match(html, /คัดลอกข้อความเชิญ/);
+	// The success screen says it once: no second invite button in "สิ่งที่ทำต่อได้".
+	assert.equal((html.match(/คัดลอกข้อความเชิญ/g) ?? []).length, 1);
+	assert.doesNotMatch(html, /ชวนทีมเข้ามาใช้/);
+	// Later (not just created), the invite row is the way to it.
+	assert.match(htmlOf(Overview, { props: { data: company(), hub, tabHref } }).body, /ชวนทีมเข้ามาใช้/);
 	assert.match(html, /view=connect-ai&amp;openExternalBrowser=1/, 'the LINE message opens the phone browser');
 	assert.match(html, /สิ่งที่ทำต่อได้/);
 	assert.match(html, /“สรุปใบแจ้งหนี้ที่ค้างชำระจาก FlowAccount”/);

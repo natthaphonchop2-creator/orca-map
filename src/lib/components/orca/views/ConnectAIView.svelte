@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { Check, Copy, Info } from '@lucide/svelte';
 	import { aiConnectionLine } from '$lib/orca/ai-connection';
 	import { aiConnection, setAIConnection } from '$lib/orca/ai-connection.svelte';
@@ -98,6 +98,7 @@
 				appsState = 'ready';
 				checkedAt = Date.now();
 				setAIConnection(aiConnectionFrom(result, checkedAt, t));
+				if (anchorPending) void tick().then(() => requestAnimationFrame(revealAccounts));
 			}
 		} catch (cause) {
 			if (request === generation && !destroyed) {
@@ -129,7 +130,25 @@
 		return poller?.poke();
 	}
 
+	// An old link or a redirect to "#accounts" (บัญชีโปรแกรมของคุณ): the section renders after the
+	// company's data, so the browser's own jump to it happened too early. Go there once it is on the
+	// page, and once more after B1 answers (the list above it changes height), unless the person moved.
+	let anchorPending = false;
+	function revealAccounts() {
+		if (!anchorPending || typeof document === 'undefined') return;
+		const target = document.getElementById('accounts');
+		if (target) target.scrollIntoView({ block: 'start', behavior: 'instant' });
+	}
+	function stopRevealing() {
+		anchorPending = false;
+	}
+
 	onMount(() => {
+		anchorPending = window.location.hash === '#accounts';
+		if (anchorPending) {
+			requestAnimationFrame(revealAccounts);
+			for (const type of ['wheel', 'touchmove', 'keydown', 'pointerdown'] as const) window.addEventListener(type, stopRevealing, { once: true, passive: true });
+		}
 		poller = createPoller(load, { interval: 4000, visible: () => document.visibilityState !== 'hidden' });
 		void poller.poke();
 		// Hidden: no requests. Shown again (back from Claude's tab): check at once.
@@ -140,6 +159,7 @@
 		document.addEventListener('visibilitychange', onVisibility);
 		return () => {
 			destroyed = true;
+			for (const type of ['wheel', 'touchmove', 'keydown', 'pointerdown'] as const) window.removeEventListener(type, stopRevealing);
 			document.removeEventListener('visibilitychange', onVisibility);
 			poller?.stop();
 		};
@@ -232,7 +252,7 @@
 
 	<div class="ca-more">
 		<ConnectedAIList {sessions} {keys} hubs={data.hubs} now={checkedAt} legacy={appsState === 'unavailable'} onchanged={refreshApps} />
-		<ProgramSignIns {data} />
+		<ProgramSignIns {data} onshown={() => requestAnimationFrame(revealAccounts)} />
 		{#if ready}<DeveloperKeys
 			hubs={access.usable}
 			{endpoint}

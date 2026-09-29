@@ -45,9 +45,11 @@ test('someone in several companies can switch from the breadcrumb and the accoun
 		assert.match(html, /workspace-company-switch/);
 		assert.equal(html.match(/Switch company/g)?.length >= 2, true, 'the breadcrumb and the account menu');
 		// Each choice opens that company's page afresh; this page's company is
-		// marked. The account menu renders in the sidebar and the mobile drawer.
-		assert.equal(html.match(/href="\/app\?org=default" data-sveltekit-reload/g)?.length, 3);
-		assert.equal(html.match(new RegExp(`href="/app\\?org=${B}" data-sveltekit-reload(?:="")? aria-current="true"`, 'g'))?.length, 3);
+		// marked. The account menu renders in the sidebar and the mobile drawer,
+		// and the drawer names the company with its own switch (a phone's top bar hides it).
+		assert.equal(html.match(/href="\/app\?org=default" data-sveltekit-reload/g)?.length, 4);
+		assert.equal(html.match(new RegExp(`href="/app\\?org=${B}" data-sveltekit-reload(?:="")? aria-current="true"`, 'g'))?.length, 4);
+		assert.match(html, /class="workspace-drawer-company"/);
 		assert.doesNotMatch(html, /org=default"[^>]*aria-current/);
 	} finally {
 		company.setPageCompany('default', []);

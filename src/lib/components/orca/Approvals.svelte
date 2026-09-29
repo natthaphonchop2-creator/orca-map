@@ -5,7 +5,7 @@
   import { approvalTone, argumentEntries } from "$lib/orca/approvals";
   import { term } from "$lib/orca/glossary";
   import { orcaLocale, t } from "$lib/orca/locale.svelte";
-  import { toolPresentation } from "$lib/orca/tool-presentation";
+  import { eventToolLabel } from "$lib/orca/program-tools";
   import { OrcaService, displayDate, memberName, orcaError, type OrcaApproval, type OrcaBootstrap } from "$lib/services/orca";
   import ConfirmDialog from "./ui/ConfirmDialog.svelte";
   import EmptyState from "./ui/EmptyState.svelte";
@@ -36,11 +36,15 @@
     const member = data.members.find((item) => item.id === id);
     return member ? memberName(member) : t("ผู้ที่ไม่ได้เป็นสมาชิกแล้ว", "Former member");
   };
+  // The person who asked, or "คุณ" on your own requests.
+  const requester = (id?: string) => (id && id === data.currentUserID ? t("คุณ", "you") : person(id));
+  /** The tool's input schema, whose field titles label the arguments. */
+  const inputSchema = (item: OrcaApproval) =>
+    system(item.connectionID)?.tools.find((entry) => entry.name === item.toolName)?.inputSchema;
   const workspace = (id: string) => data.hubs.find((hub) => hub.id === id)?.name ?? t("พื้นที่ทำงานที่ถูกลบ", "Deleted workspace");
   const system = (id: string) => data.connections.find((connection) => connection.id === id);
   function toolLabel(item: OrcaApproval) {
-    const tool = system(item.connectionID)?.tools.find((entry) => entry.name === item.toolName) ?? { name: item.toolName };
-    return toolPresentation(tool, orcaLocale.value === "en" ? "en" : "th").label;
+    return eventToolLabel(data.connections, item.connectionID, item.toolName, orcaLocale.value === "en" ? "en" : "th");
   }
   const statusLabel = (status: OrcaApproval["status"]) =>
     ({
@@ -190,7 +194,7 @@
   <div class="approval-list">
     {#each items as item (item.id)}
       {@const connection = system(item.connectionID)}
-      {@const entries = argumentEntries(item.arguments)}
+      {@const entries = argumentEntries(item.arguments, inputSchema(item), orcaLocale.value === "en" ? "en" : "th")}
       <article class="approval-card" aria-labelledby={`approval-${item.id}`}>
         <header>
           <span class="approval-icon"><CatalogIcon name={connection?.name ?? ""} size={22} /></span>
@@ -200,7 +204,7 @@
           </div>
           <StatusPill label={statusLabel(item.status)} tone={pillTone(item.status)} />
         </header>
-        <p class="approval-meta"><span>{t(`ขอโดย ${person(item.userID)} · ${displayDate(item.createdAt)}`, `Requested by ${person(item.userID)} · ${displayDate(item.createdAt)}`)}</span>{#if item.status === "pending"}{" · "}<span>{t(`หมดเวลา ${displayDate(item.expiresAt)}`, `Expires ${displayDate(item.expiresAt)}`)}</span>{/if}</p>
+        <p class="approval-meta"><span>{t(`ขอโดย ${requester(item.userID)} · ${displayDate(item.createdAt)}`, `Requested by ${requester(item.userID)} · ${displayDate(item.createdAt)}`)}</span>{#if item.status === "pending"}{" · "}<span>{t(`หมดเวลา ${displayDate(item.expiresAt)}`, `Expires ${displayDate(item.expiresAt)}`)}</span>{/if}</p>
         {#if entries.length}
           <dl class="approval-args">
             {#each entries as [key, value], index (index)}<dt>{key || t("ข้อมูล", "Details")}</dt><dd>{value}</dd>{/each}

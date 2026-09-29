@@ -44,6 +44,8 @@
 	let accountURL = $state('');
 	let help = $state<string>('');
 	const phase = $derived(connector.phase);
+	/** Unavailable because the provider's review is pending (not a missing app). */
+	const waitingForReview = $derived(connector.setup?.setupStatus === 'review_required' && !connector.setup?.configured);
 	const busy = $derived(connector.busy || Boolean(pending));
 	const guide = $derived(apiConnectorSetup(sourceID));
 	const provider = $derived(providerGuide(connector.setup?.endpointHost || endpointHost));
@@ -164,7 +166,11 @@
 				<span class="acct-icon"><Plug size={20} aria-hidden="true" /></span>
 				<div>
 					<h2>{t(`ยังเชื่อม ${programName} ไม่ได้ตอนนี้`, `${programName} can't be connected yet`)}</h2>
-					{#if operator}
+					{#if operator && waitingForReview}
+						<!-- Waiting for the provider's review: handled in คลังโปรแกรม › รอทีม ORCA, not on the OAuth apps page. -->
+						<p>{t('ต้องยืนยันข้อกำหนดการเชื่อมต่อกับผู้ให้บริการก่อน ตรวจได้ที่คลังโปรแกรม › รอทีม ORCA', "The provider's connection requirements must be confirmed first. Review it in the program catalog, under Waiting for the ORCA team.")}</p>
+						<div class="acct-actions"><a class="k-button" href={localeHref(platformHref('catalog'))}>{t('ไปที่คลังโปรแกรม', 'Go to the program catalog')}</a></div>
+					{:else if operator}
 						<p>{t('ทีม ORCA ต้องตั้งค่าแอปของโปรแกรมนี้ที่แพลตฟอร์มก่อน', "The ORCA team must set up this program's app on the platform first.")}</p>
 						<div class="acct-actions"><a class="k-button" href={localeHref(platformHref('oauth-apps'))}>{t('ไปที่แอป OAuth ของโปรแกรม', 'Go to program OAuth apps')}</a></div>
 					{:else}

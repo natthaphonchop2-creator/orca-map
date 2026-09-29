@@ -50,6 +50,22 @@ export function companyDenied(place: CompanyPlace): boolean {
 	return place.kind === 'company' && !!place.companies && !place.companies.some((company) => company.id === place.id);
 }
 
+/**
+ * A platform address (an old bookmark, a typed or forwarded link) opened by
+ * someone who isn't in the ORCA team's company: the platform isn't theirs, and
+ * the link never named a company, so it opens their own Home, not the
+ * "can't open this company" gate.
+ */
+export function platformOutsider(place: CompanyPlace): boolean {
+	return place.kind === 'company' && place.id === DEFAULT_COMPANY && companyDenied(place);
+}
+
+/** Home, keeping only the language: the page then opens the person's own company. */
+export function homeKeepingLanguage(url: URL): string {
+	const lang = url.searchParams.get('lang');
+	return lang ? `/app?lang=${encodeURIComponent(lang)}` : '/app';
+}
+
 /** An ORCA API path for the page's company: "default" keeps its legacy
  * paths, and another company's live under /orca/orgs/<id>. */
 export function orcaPath(path: string, company = pageCompany): string {

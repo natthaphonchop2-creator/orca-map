@@ -34,7 +34,8 @@
 </script>
 
 {#snippet key(label: string)}<kbd>{label}</kbd>{/snippet}
-{#snippet arrow()}<span class="ca-arrow" aria-hidden="true">→</span>{/snippet}
+<!-- <wbr> lets a long menu path (ChatGPT's) wrap after an arrow on a phone instead of running off the edge. -->
+{#snippet arrow()}<span class="ca-arrow" aria-hidden="true">→</span><wbr />{/snippet}
 
 {#if isChatApp(app)}
 	{#if app === 'chatgpt'}

@@ -4,7 +4,7 @@
     auditDuration,
     type AuditErrorCategory,
   } from "$lib/orca/audit-details";
-  import { t } from "$lib/orca/locale.svelte";
+  import { orcaLocale, t } from "$lib/orca/locale.svelte";
   import { displayDate, type OrcaAuditEvent } from "$lib/services/orca";
   import { Copy } from "@lucide/svelte";
   // One history record's details in the drawer: how long it took, when it
@@ -73,7 +73,7 @@
   {#if detail.durationMs !== undefined || detail.finishedAt || detail.errorCategory}<dl class="audit-plain">
       {#if detail.durationMs !== undefined}<div>
           <dt>{t("ใช้เวลา", "Duration")}</dt>
-          <dd>{auditDuration(detail.durationMs)}</dd>
+          <dd>{auditDuration(detail.durationMs, orcaLocale.value === "en" ? "en" : "th")}</dd>
         </div>{/if}
       {#if detail.finishedAt}<div>
           <dt>{t("เสร็จเมื่อ", "Finished")}</dt>

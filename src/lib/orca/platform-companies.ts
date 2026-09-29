@@ -1,4 +1,4 @@
-import type { OrcaOwnerInvitationLink, OrcaPlatformCompany } from '$lib/services/orca';
+import type { OrcaOwnerInvitationLink, OrcaPlatformCompany, OrcaPlatformOwnerInvitation } from '$lib/services/orca';
 
 // The platform operator's customer companies (C4 §14e). The platform opens a
 // company and hands it to its first owner; from then on the company invites
@@ -42,4 +42,20 @@ export function platformRefusal(status: number | undefined, message: string): Pl
 	if (message.includes('suspended or removed')) return 'unavailable';
 	if (message.includes('already used, revoked or has expired')) return 'closed';
 	return undefined;
+}
+
+/**
+ * "ส่งลิงก์ใหม่": the email the waiting (or expired) owner link went to, so the
+ * operator reissues it instead of retyping it; a typo would start a second
+ * invitation. The newest pending one first, then the newest expired one.
+ */
+export function resendEmail(company: Pick<OrcaPlatformCompany, 'ownerInvitations'>): string {
+	const newest = (status: 'pending' | 'expired') =>
+		company.ownerInvitations.filter((invitation) => invitation.status === status).sort((a, b) => b.expiresAt.localeCompare(a.expiresAt))[0];
+	return (newest('pending') ?? newest('expired'))?.email ?? '';
+}
+
+/** An expired link already does nothing: there is nothing to revoke. */
+export function canRevokeOwnerInvitation(invitation: Pick<OrcaPlatformOwnerInvitation, 'status'>): boolean {
+	return invitation.status === 'pending';
 }

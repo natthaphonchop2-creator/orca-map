@@ -228,3 +228,20 @@ export function toolHintText(tool: ProgramToolLike): string {
 		.map((key) => `${key}: ${JSON.stringify(annotations[key])}`);
 	return parts.join(', ') || 'no hints';
 }
+
+/**
+ * An AI call's tool in words, the same on Home, ตรวจสอบ and รออนุมัติ as on
+ * the program's own pages: the program's title for it (toolCopy), looked up in
+ * the call's program first, then in any program that has a tool of that name.
+ */
+export function eventToolLabel(
+	connections: readonly { id: string; tools: readonly ProgramToolLike[] }[],
+	connectionID: string | undefined,
+	toolName: string,
+	locale: 'th' | 'en' = 'th'
+): string {
+	const tool =
+		connections.find((connection) => connection.id === connectionID)?.tools.find((item) => item.name === toolName) ??
+		connections.flatMap((connection) => connection.tools).find((item) => item.name === toolName);
+	return toolCopy(tool ?? { name: toolName }, locale).label;
+}

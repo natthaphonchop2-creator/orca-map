@@ -145,8 +145,14 @@ test('until B1 answers, connecting AI is merged with the first question', () => 
 	assert.deepEqual(list.steps.map((s) => s.done), [true, true, false, false]);
 	list = home.ownerChecklist(ready, 'unknown', true);
 	assert.equal(list.complete, true);
-	// B1 says no sign-in, but the person asked (their session since expired): both done.
-	assert.equal(home.ownerChecklist(ready, 'none', true).complete, true);
+	// B1 says no sign-in now, though the person asked before (their sign-in expired or an admin
+	// disconnected it): Home must not say their AI works; the step is open again.
+	list = home.ownerChecklist(ready, 'none', true);
+	assert.equal(list.complete, false);
+	assert.equal(list.incomplete, true);
+	assert.equal(list.current, 'ai');
+	assert.equal(home.employeeChecklist('none', ['signed-in'], true).steps[0].done, false);
+	assert.equal(home.employeeChecklist('none', ['signed-in'], true).current, 'ai');
 });
 
 test('employee checklist: AI, then a sign-in per program, then the first question', () => {

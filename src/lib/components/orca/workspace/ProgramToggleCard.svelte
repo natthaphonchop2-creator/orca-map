@@ -31,23 +31,32 @@
 	const summary = $derived(programSummary(connection, shown));
 </script>
 
-<div class="program-card" class:on class:off={!on} class:problem={!!problem}>
-	<button
-		type="button"
-		class="program-top"
-		role="switch"
-		aria-checked={on}
-		aria-label={t(`ใช้ ${connection.name} ในพื้นที่นี้`, `Use ${connection.name} in this workspace`)}
-		disabled={disabled || !ontoggle}
-		onclick={() => ontoggle?.()}
-	>
-		<span class="program-logo" aria-hidden="true"><CatalogIcon name={connection.name} size={26} /></span>
-		<span class="program-copy">
-			<span class="program-name">{connection.name}</span>
-			<span class="program-state" class:ok={on && !problem} class:bad={!!problem}>{problem || (on ? t('เปิดใช้ในพื้นที่นี้', 'On here') : t('ปิดอยู่', 'Off'))}</span>
-		</span>
-		{#if ontoggle}<span class="program-switch" class:on aria-hidden="true"></span>{/if}
-	</button>
+{#snippet top()}
+	<span class="program-logo" aria-hidden="true"><CatalogIcon name={connection.name} size={26} /></span>
+	<span class="program-copy">
+		<span class="program-name">{connection.name}</span>
+		<span class="program-state" class:ok={on && !problem} class:bad={!!problem}>{problem || (on ? t('เปิดใช้ในพื้นที่นี้', 'On here') : t('ปิดอยู่', 'Off'))}</span>
+	</span>
+	{#if ontoggle}<span class="program-switch" class:on aria-hidden="true"></span>{/if}
+{/snippet}
+
+<!-- Without ontoggle (an employee) it is a plain read-only card: no switch, no faded disabled look, no "chosen" border. -->
+<div class="program-card" class:on={on && !!ontoggle} class:off={!on} class:readonly={!ontoggle} class:problem={!!problem}>
+	{#if ontoggle}
+		<button
+			type="button"
+			class="program-top"
+			role="switch"
+			aria-checked={on}
+			aria-label={t(`ใช้ ${connection.name} ในพื้นที่นี้`, `Use ${connection.name} in this workspace`)}
+			{disabled}
+			onclick={() => ontoggle?.()}
+		>
+			{@render top()}
+		</button>
+	{:else}
+		<div class="program-top">{@render top()}</div>
+	{/if}
 	<div class="program-bottom">
 		{#if summary.access === 'read'}<Eye size={15} aria-hidden="true" />{:else}<Pencil size={15} aria-hidden="true" />{/if}
 		<span class="program-summary">{programSummaryLabel(summary, t)}</span>
@@ -87,7 +96,8 @@
 		text-align: left;
 		cursor: pointer;
 	}
-	.program-top:disabled {
+	.program-top:disabled,
+	.readonly .program-top {
 		cursor: default;
 	}
 	.program-logo {

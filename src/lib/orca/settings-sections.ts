@@ -18,7 +18,10 @@ export function settingsSection(requested: string | null, canManage: boolean, so
 	return requested === 'account' ? 'account' : 'company';
 }
 
-/** A company with no sign-in source has nothing under ขั้นสูง: its people are in ทีม. */
+/**
+ * A company with no sign-in source has nothing under ขั้นสูง: Settings opens
+ * บริษัท, where the person asked to be (not another section like ทีม).
+ */
 export function advancedFallback(requested: string | null, canManage: boolean, sources: SignInSources): string | undefined {
-	return canManage && requested === 'advanced' && sources === 'none' ? '/app?view=members' : undefined;
+	return canManage && requested === 'advanced' && sources === 'none' ? '/app?view=settings&section=company' : undefined;
 }

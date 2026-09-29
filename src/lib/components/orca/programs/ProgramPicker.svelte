@@ -405,6 +405,14 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
+	/* A phone: the one-line description wraps instead of losing its Thai meaning to "…". */
+	@media (max-width: 720px) {
+		.pick-row-copy span {
+			overflow: visible;
+			white-space: normal;
+			overflow-wrap: anywhere;
+		}
+	}
 	.pick-row.soon {
 		border-color: var(--orca-line-soft);
 		background: var(--orca-surface-2);

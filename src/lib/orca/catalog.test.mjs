@@ -511,3 +511,11 @@ test('managed recognition never follows a display name, a reserved-looking sourc
     assert.equal(filterCatalog([managed, api]).length, 2);
   }
 });
+
+test('a program named after the product alone gets its logo, as the catalog shows it', async () => {
+	const { getCatalogPresentation } = await importTypeScript(new URL('./catalog-data.ts', import.meta.url));
+	assert.equal(getCatalogPresentation('Slack').icon, getCatalogPresentation('Slack Workspace').icon);
+	assert.ok(getCatalogPresentation('Slack').icon, 'Slack has a logo, not the plug');
+	assert.equal(getCatalogPresentation('Microsoft OneDrive').icon, getCatalogPresentation('OneDrive').icon);
+	assert.ok(getCatalogPresentation('Microsoft OneDrive').icon);
+});

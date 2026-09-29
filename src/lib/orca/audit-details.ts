@@ -97,6 +97,14 @@ export function auditDetailValues(event: AuditMetadata) {
     errorCategory,
   };
 }
-export function auditDuration(value: number): string {
-  return value < 1000 ? `${value} ms` : `${(value / 1000).toFixed(2)} s`;
+/** How long a call took, in seconds a shop owner reads at a glance ("0.3 วินาที"), not milliseconds. */
+export function auditDuration(value: number, locale: "th" | "en" = "th"): string {
+  const second = locale === "en" ? "s" : "วินาที";
+  if (value < 50) return locale === "en" ? "under 0.1 s" : "ไม่ถึง 0.1 วินาที";
+  if (value < 10_000) return `${(Math.round(value / 100) / 10).toLocaleString("en-US")} ${second}`;
+  if (value < 60_000) return `${Math.round(value / 1000)} ${second}`;
+  const minutes = Math.floor(value / 60_000);
+  const seconds = Math.round((value % 60_000) / 1000);
+  const minute = locale === "en" ? "min" : "นาที";
+  return seconds ? `${minutes} ${minute} ${seconds} ${second}` : `${minutes} ${minute}`;
 }

@@ -250,6 +250,14 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
+	/* A phone: "พนักงาน · email" wraps rather than cutting the email. */
+	@media (max-width: 720px) {
+		.pp-copy small {
+			overflow: visible;
+			white-space: normal;
+			overflow-wrap: anywhere;
+		}
+	}
 	.pp-via {
 		flex: none;
 		padding: 2px 9px;

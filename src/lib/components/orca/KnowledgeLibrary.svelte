@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { beforeNavigate, goto } from '$app/navigation';
+	import { beforeNavigate, goto, replaceState } from '$app/navigation';
+	import { page } from '$app/state';
 	import { getHttpStatusCode, parseErrorContent } from '$lib/errors';
 	import { connectionReady } from '$lib/orca/activation';
 	import { aiConnection } from '$lib/orca/ai-connection.svelte';
 	import { currentCompany } from '$lib/orca/company';
 	import { term } from '$lib/orca/glossary';
-	import { accessRequestMessage, libraryProblem, libraryScope, type LibraryFilter } from '$lib/orca/knowledge';
+	import { accessRequestMessage, libraryProblem, libraryScope, withoutCreateIntent, type LibraryFilter } from '$lib/orca/knowledge';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { memberName, orcaError, statusLabels, type OrcaBootstrap, type OrcaMember } from '$lib/services/orca';
 	import {
@@ -120,7 +121,16 @@
 			if (consumed.has(key) || dirty) return;
 			consumed.add(key);
 			kind = entryKind;
-			if (create) openEditor(entryKind);
+			if (create) {
+				openEditor(entryKind);
+				// Used once: a reload or a copied link must not open an empty form again (a duplicate).
+				const clean = withoutCreateIntent(page.url);
+				try {
+					if (clean) replaceState(clean, page.state);
+				} catch {
+					// Before the router starts: the intent stays in the address.
+				}
+			}
 		});
 	});
 
@@ -335,6 +345,13 @@
 					{/each}
 				</div>
 			{/if}
+			{#if scope.kind === 'join' && scope.mine?.length}
+				<!-- Someone else's workspace: the ones they are in stay one click away. -->
+				<p class="gate-switch">
+					{t('หรือเปิดคลังความรู้ของพื้นที่ที่คุณอยู่:', 'Or open the knowledge of a workspace you are in:')}
+					{#each scope.mine as choice, index (choice.id)}{#if index},{/if} <a href={localeHref(`/app?view=knowledge&hub=${encodeURIComponent(choice.id)}`)}>{choice.name}</a>{/each}
+				</p>
+			{/if}
 			{#if joinError}
 				<p class="gate-error" role="alert">
 					<Info size={16} aria-hidden="true" /><span>{joinError}</span>
@@ -483,6 +500,22 @@
 		flex-basis: 100%;
 		grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
 		gap: 10px;
+	}
+	.gate-switch {
+		order: 4;
+		flex-basis: 100%;
+		margin: 0;
+		padding-top: 12px;
+		border-top: 1px solid var(--orca-line-soft);
+		color: var(--orca-muted);
+		font-size: 14px;
+		line-height: 1.6;
+	}
+	.gate-switch a {
+		color: var(--orca-ink);
+		font-weight: 600;
+		text-decoration: underline;
+		text-underline-offset: 3px;
 	}
 	.gate-error {
 		order: 3;

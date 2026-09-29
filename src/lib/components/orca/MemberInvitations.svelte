@@ -28,6 +28,9 @@
   let unitIDs = $state<string[]>([]);
   let busy = $state(false);
   let formError = $state("");
+  /** The email field's own message, in Thai (the browser's would be in its own language). */
+  let emailError = $state("");
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   let issued = $state<{ link: string; invitation: OrcaInvitation; renewed: boolean }>();
   let copied = $state<"" | "link" | "message">("");
   let actionID = $state("");
@@ -96,6 +99,7 @@
     const everyone = everyoneDepartment(departments);
     unitIDs = everyone ? [everyone.id] : [];
     formError = "";
+    emailError = "";
     copied = "";
   }
   function closed() {
@@ -111,9 +115,16 @@
     if (busy) return;
     const address = email.trim();
     if (!address) {
-      formError = t("กรอกอีเมลของคนที่จะเชิญ", "Enter the email of the person to invite.");
+      emailError = t("กรอกอีเมลของคนที่จะเชิญ", "Enter the email of the person to invite.");
+      emailInput?.focus();
       return;
     }
+    if (!emailPattern.test(address)) {
+      emailError = t("อีเมลนี้ไม่ถูกต้อง ตรวจว่ามี @ และชื่อโดเมน เช่น name@company.com", "This email isn't valid. Check it has an @ and a domain, like name@company.com.");
+      emailInput?.focus();
+      return;
+    }
+    emailError = "";
     busy = true;
     formError = "";
     try {
@@ -218,9 +229,9 @@
             {#each groups.open as item (item.id)}
               <tr>
                 <td class="inv-person"><strong>{item.email}</strong><p class="k-small k-muted">{t(`เชิญโดย ${inviter(item)}`, `Invited by ${inviter(item)}`)}</p></td>
-                <td><span class="inv-role">{roleLabel(item.role)}</span></td>
-                <td>{#if item.unitIDs.length}{departmentNames(item.unitIDs)}{:else}<span class="inv-none">{t("ไม่ระบุ", "None")}</span>{/if}</td>
-                <td
+                <td class="inv-role-cell" data-label={t("บทบาท", "Role")}><span class="inv-role">{roleLabel(item.role)}</span></td>
+                <td class="inv-units" data-label={t("แผนก", "Department")}>{#if item.unitIDs.length}{departmentNames(item.unitIDs)}{:else}<span class="inv-none">{t("ไม่ระบุ", "None")}</span>{/if}</td>
+                <td class="inv-state" data-label={t("สถานะ", "Status")}
                   ><span class="invitation-status tone-{invitationTone(item.status)}">{statusLabel(item.status)}</span>
                   <p class="k-small k-muted">{item.status === "expired" ? t(`หมดอายุ ${displayDate(item.expiresAt)}`, `Expired ${displayDate(item.expiresAt)}`) : t(`ใช้ได้ถึง ${displayDate(item.expiresAt)}`, `Valid until ${displayDate(item.expiresAt)}`)}</p></td
                 >
@@ -233,9 +244,9 @@
                   {:else}
                     <div class="invitation-actions">
                       <!-- Only the platform makes a new link for an owner invitation. -->
-                      {#if item.role !== "owner"}<button class="k-button small" disabled={!!actionID || !canRenewInvitation(item, canInviteAdmins)} onclick={() => reissue(item)}
+                      {#if item.role !== "owner" && canRenewInvitation(item, canInviteAdmins)}<button class="k-button small" disabled={!!actionID} onclick={() => reissue(item)}
                           ><RefreshCw size={14} aria-hidden="true" />{t("สร้างลิงก์ใหม่", "New link")}</button
-                        >{/if}
+                        >{:else if item.role === "admin"}<span class="inv-owner-only">{t("เจ้าของบริษัทสร้างลิงก์ใหม่ให้ผู้ดูแล", "Only an owner renews an admin's link")}</span>{/if}
                       {#if item.status === "pending"}<button class="k-button small" disabled={!!actionID} onclick={() => (revoking = item.id)}
                           ><X size={14} aria-hidden="true" />{t("ยกเลิกคำเชิญ", "Revoke")}</button
                         >{/if}
@@ -292,7 +303,7 @@
       <button type="button" class="k-button primary" onclick={() => dialog?.close()}>{t("เสร็จสิ้น", "Done")}</button>
     </div>
   {:else}
-    <form onsubmit={(event) => { event.preventDefault(); void submit(); }}>
+    <form novalidate onsubmit={(event) => { event.preventDefault(); void submit(); }}>
       <div class="dialog-icon"><MailPlus size={22} aria-hidden="true" /></div>
       <h2 id="invitation-dialog-title">{t("เชิญสมาชิก", "Invite a member")}</h2>
       <p>
@@ -303,7 +314,21 @@
       </p>
       <fieldset disabled={busy}>
         <label class="invitation-label" for="invitation-email">{t("อีเมล", "Email")}</label>
-        <input id="invitation-email" class="invitation-input" type="email" bind:this={emailInput} bind:value={email} autocomplete="off" required maxlength="254" placeholder="name@company.com" />
+        <input
+          id="invitation-email"
+          class="invitation-input"
+          type="email"
+          bind:this={emailInput}
+          bind:value={email}
+          oninput={() => (emailError = "")}
+          autocomplete="off"
+          aria-required="true"
+          aria-invalid={emailError ? "true" : undefined}
+          aria-describedby={emailError ? "invitation-email-error" : undefined}
+          maxlength="254"
+          placeholder="name@company.com"
+        />
+        {#if emailError}<p class="field-error" id="invitation-email-error" role="alert">{emailError}</p>{/if}
         {#if canInviteAdmins}
           <p class="invitation-label">{t("บทบาท", "Role")}</p>
           <div class="invitation-roles" role="radiogroup" aria-label={t("บทบาท", "Role")}>
@@ -334,7 +359,7 @@
   .inv-empty { margin-top: 0; gap: 8px; }
   .inv-empty h2 { margin-top: 4px; font-size: 15px; }
   .inv-empty p { margin: 0 0 8px; font-size: 13.5px; }
-  .team-invitations { margin-top: 0; overflow: hidden; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
+  .team-invitations { container: inv / inline-size; margin-top: 0; overflow: hidden; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
   .team-invitations > :global(.k-banner) { margin: 0 18px 12px; }
   .inv-head { padding: 16px 18px 14px; }
   .inv-head :global(.k-section-title) { justify-content: flex-start; gap: 8px; margin: 0; }
@@ -384,6 +409,25 @@
   .line-share { text-decoration: none; }
   .dialog-error { padding: 10px 12px; border-radius: var(--orca-radius); background: var(--orca-deny-bg); color: var(--orca-deny) !important; font-size: 13px !important; }
   .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+  .invitation-dialog .field-error { margin: 6px 0 0; color: var(--orca-deny); font-size: 13px; font-weight: 500; }
+  .invitation-input[aria-invalid="true"] { border-color: var(--orca-deny); }
+  .inv-owner-only { color: var(--orca-muted); font-size: 12.5px; white-space: normal; }
+  /* Under 760px of list (a phone, or a laptop with the sidebar open), each invitation is a card. */
+  @container inv (max-width: 760px) {
+    /* .team-invitations first: these beat the shared table rules (.k-table min-width, cell padding). */
+    .team-invitations .inv-table, .team-invitations .inv-table tbody { display: block; min-width: 0; }
+    .team-invitations .inv-table thead { display: none; }
+    .team-invitations .inv-table tr { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 6px 12px; padding: 14px 18px; border-top: 1px solid var(--orca-line-soft); }
+    .team-invitations .inv-table tbody tr:first-child { border-top: 0; }
+    .team-invitations .inv-table td { display: contents; min-width: 0; padding: 0; border: 0; }
+    .team-invitations .inv-table td.inv-person { display: block; grid-column: 1 / -1; min-width: 0; margin-bottom: 4px; }
+    .team-invitations .inv-table td[data-label]::before { content: attr(data-label); color: var(--orca-muted); font-size: 13px; }
+    .team-invitations .inv-table td[data-label] > * { justify-self: start; min-width: 0; }
+    .team-invitations .inv-table td.inv-state > p { grid-column: 2; margin-top: -2px; }
+    .team-invitations .inv-table td.inv-actions-col { display: block; grid-column: 1 / -1; width: auto; margin-top: 6px; white-space: normal; }
+    .invitation-actions { flex-wrap: wrap; justify-content: flex-start; }
+    .inv-table-wrap { overflow: visible; }
+  }
   @media (max-width: 600px) {
     .invitation-roles { grid-template-columns: minmax(0, 1fr); }
     .invitation-share > :global(*) { flex: 1 1 auto; justify-content: center; }

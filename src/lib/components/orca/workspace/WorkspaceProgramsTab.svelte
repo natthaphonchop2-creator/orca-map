@@ -2,11 +2,11 @@
 	import { connectionReady } from '$lib/orca/activation';
 	import { gatewaySources } from '$lib/orca/gateway-sources';
 	import { localeHref, orcaLocale, t } from '$lib/orca/locale.svelte';
-	import { toolPresentation } from '$lib/orca/tool-presentation';
-	import { HubConflictError, allowedTools, finishProgramHref, programsPatch, readOnlyToolNames, requestedProgram, saveHubPatch } from '$lib/orca/workspace-edit';
+	import { toolCopy } from '$lib/orca/program-tools';
+	import { HubConflictError, allowedTools, approvalTurnsOn, finishProgramHref, programsPatch, programsSavePatch, readOnlyToolNames, requestedProgram, saveHubPatch, sourcesChangeData } from '$lib/orca/workspace-edit';
 	import type { OrcaBootstrap, OrcaHub } from '$lib/services/orca';
 	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-workspaces';
-	import { ChevronDown, Info, Plus } from '@lucide/svelte';
+	import { ChevronDown, Info, Plus, ShieldCheck } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 	import { showToast } from '../ui/toast-store.svelte';
 	import ProgramToggleCard from './ProgramToggleCard.svelte';
@@ -55,6 +55,10 @@
 	);
 	const missing = $derived(saved.filter((source) => !data.connections.some((item) => item.id === source.connectionID)));
 	const narrowConnection = $derived(data.connections.find((item) => item.id === narrowID));
+	// The owner's safety default: the first change action here turns approval on (shown before บันทึก).
+	const approvalOn = $derived(approvalTurnsOn(hub, current, data.connections));
+	/** What a change action added now does: wait for approval unless this workspace already runs changes at once. */
+	const changesWait = $derived(hub.writeMode === 'approval' || !sourcesChangeData(saved, data.connections));
 
 	function setProgram(id: string, tools: string[] | null) {
 		const before = saved.find((source) => source.connectionID === id)?.toolNames ?? null;
@@ -86,8 +90,17 @@
 		error = '';
 		const pending = $state.snapshot(changes) as Record<string, string[] | null>;
 		try {
-			await saveHubPatch(hub.id, (fresh) => programsPatch(fresh, pending), hubWriteService);
-			showToast(t('บันทึกโปรแกรมแล้ว', 'Programs saved'));
+			let approval = false;
+			await saveHubPatch(
+				hub.id,
+				(fresh) => {
+					const patch = programsSavePatch(fresh, pending, data.connections);
+					approval = patch.writeMode === 'approval';
+					return patch;
+				},
+				hubWriteService
+			);
+			showToast(approval ? t('บันทึกโปรแกรมแล้ว · งานที่สร้างหรือแก้ข้อมูลจะรอผู้ดูแลอนุมัติก่อน', 'Programs saved · changes to data now wait for an admin to approve') : t('บันทึกโปรแกรมแล้ว', 'Programs saved'));
 			await onchanged();
 		} catch (cause) {
 			conflict = cause instanceof HubConflictError;
@@ -113,6 +126,9 @@
 		<p class="pg-notice" role="status"><Info size={15} aria-hidden="true" /><span>{t(`${addingName} ยังเลือกสิ่งที่ AI ทำได้ไม่เสร็จ จึงยังเปิดในพื้นที่นี้ไม่ได้`, `${addingName} isn't finished yet, so it can't be turned on here.`)} <a href={localeHref(finishProgramHref(addConnectionID))}>{t('ตั้งค่าโปรแกรมต่อ', 'Finish the program')}</a></span></p>
 	{:else if addingOn && dirty}
 		<p class="pg-notice ok" role="status"><Info size={15} aria-hidden="true" /><span>{t(`เปิด ${addingName} ไว้ให้แล้ว กด บันทึก เพื่อเพิ่มลงพื้นที่นี้`, `${addingName} is turned on. Choose Save to add it here.`)}</span></p>
+	{/if}
+	{#if approvalOn && dirty}
+		<p class="pg-notice approval" role="status"><ShieldCheck size={15} aria-hidden="true" /><span>{t('AI จะสร้างหรือแก้ข้อมูลในพื้นที่นี้ได้ เมื่อกด บันทึก ORCA จะตั้งให้ผู้ดูแลอนุมัติก่อนทุกครั้ง เปลี่ยนได้ในแท็บ “ตั้งค่า”', 'AI will be able to create or change data here. When you save, ORCA makes every change wait for an admin to approve. You can change this under “Settings”.')}</span></p>
 	{/if}
 	{#if shown.length || canEdit}
 		<div class="pg-grid">
@@ -152,7 +168,7 @@
 					<ul>
 						{#each source.toolNames as name (name)}
 							{@const tool = connection?.tools.find((item) => item.name === name) ?? { name, inputSchema: {} }}
-							{@const label = toolPresentation(tool, orcaLocale.value)}
+							{@const label = toolCopy(tool, orcaLocale.value === 'en' ? 'en' : 'th')}
 							<li>
 								<span class="pg-tool"><strong>{label.label}</strong>{#if label.description && label.description !== label.label}<small>{label.description}</small>{/if}</span>
 								<span class="pg-tag" class:change={!reads.includes(name)}>{reads.includes(name) ? t('ดูข้อมูล', 'View') : t('สร้าง / แก้ไข / ลบ', 'Create / change')}</span>
@@ -167,7 +183,9 @@
 
 {#if dirty || error}
 	<SaveBar
-		summary={t(`แก้โปรแกรม ${Object.keys(changes).length} รายการ ยังไม่บันทึก`, `${Object.keys(changes).length} program change(s) not saved`)}
+		summary={approvalOn
+			? t(`แก้โปรแกรม ${Object.keys(changes).length} รายการ · จะรอผู้ดูแลอนุมัติก่อนแก้ข้อมูล`, `${Object.keys(changes).length} program change(s) · changes will wait for approval`)
+			: t(`แก้โปรแกรม ${Object.keys(changes).length} รายการ ยังไม่บันทึก`, `${Object.keys(changes).length} program change(s) not saved`)}
 		{busy}
 		{error}
 		{conflict}
@@ -177,7 +195,7 @@
 	/>
 {/if}
 
-<ToolNarrowSheet bind:open={narrowOpen} connection={narrowConnection} selected={toolsFor(narrowID) ?? []} onapply={(tools) => setProgram(narrowID, tools)} />
+<ToolNarrowSheet bind:open={narrowOpen} connection={narrowConnection} selected={toolsFor(narrowID) ?? []} approval={changesWait} onapply={(tools) => setProgram(narrowID, tools)} />
 
 <style>
 	.pg-head h2 {
@@ -253,6 +271,16 @@
 		flex: none;
 		margin-top: 3px;
 		color: var(--orca-warn);
+	}
+	.pg-head + .pg-notice {
+		margin-top: 14px;
+	}
+	.pg-notice.approval :global(svg) {
+		color: var(--orca-ok);
+	}
+	.pg-notice.approval {
+		border-color: var(--orca-ok-line);
+		background: var(--orca-ok-bg);
 	}
 	.pg-notice.ok :global(svg) {
 		color: var(--orca-text-2);

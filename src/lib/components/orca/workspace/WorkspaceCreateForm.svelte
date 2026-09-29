@@ -259,7 +259,7 @@
 			{#if errors[FORM_FIELDS.people]}<p class="ws-error" id={`${FORM_FIELDS.people}-error`}>{errors[FORM_FIELDS.people]}</p>{/if}
 		</FormSection>
 
-		<FormSection id="ws-write-title" quiet={!changesData} title={t('เมื่อ AI จะสร้างหรือแก้ข้อมูล', 'When AI would create or change data')} hint={t('เลือกว่าต้องรอคุณอนุมัติก่อนหรือไม่', 'Choose whether it waits for your approval.')}>
+		<FormSection id="ws-write-title" quiet={!changesData} title={t('เมื่อ AI จะสร้างหรือแก้ข้อมูล', 'When AI would create or change data')} hint={t('เลือกว่าต้องรอผู้ดูแลอนุมัติก่อนหรือไม่', 'Choose whether it waits for an admin to approve.')}>
 			<WriteModeChoice
 				bind:value={writeMode}
 				quiet={!changesData}
@@ -315,7 +315,7 @@
 	</div>
 </form>
 
-<ToolNarrowSheet bind:open={narrowOpen} connection={narrowConnection} selected={programs[narrowID] ?? []} onapply={(tools) => { programs = { ...programs, [narrowID]: tools }; edited(); }} />
+<ToolNarrowSheet bind:open={narrowOpen} connection={narrowConnection} selected={programs[narrowID] ?? []} approval={writeMode === 'approval'} onapply={(tools) => { programs = { ...programs, [narrowID]: tools }; edited(); }} />
 
 <style>
 	.ws-form {

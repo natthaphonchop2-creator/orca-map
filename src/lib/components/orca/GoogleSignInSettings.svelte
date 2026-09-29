@@ -85,6 +85,11 @@
   async function save(scope: "all" | "domains" = "all") {
     if (busy || !owner || !setting) return;
     error = notice = "";
+    // Saving the Google Cloud card with nothing in it would "succeed" and change nothing: say what is missing.
+    if (scope === "all" && !clientID.trim()) {
+      error = t("กรอก Client ID จาก Google Cloud ก่อนบันทึก", "Enter the Client ID from Google Cloud before saving.");
+      return;
+    }
     const joining = parseDomains(domains);
     const refusal = refusedDomains(joining);
     if (refusal) {
@@ -305,15 +310,15 @@
       <summary>
         <span class="google-advanced-icon" aria-hidden="true"><Users size={18} /></span>
         <span class="google-advanced-copy">
-          <b>{t("ขั้นสูง: ให้คนในโดเมนเข้าร่วมบริษัทหลักอัตโนมัติ", "Advanced: let a domain join the main company automatically")}</b>
-          <span>{t("คนที่อีเมลอยู่ในโดเมนที่ตั้งไว้จะเข้าบริษัทหลักของ ORCA ไม่ใช่บริษัทลูกค้า", "People with an email in these domains join ORCA's main company, not a customer's.")}</span>
+          <b>{t("ขั้นสูง: ให้คนในโดเมนเข้าร่วมบริษัทของทีม ORCA อัตโนมัติ", "Advanced: let a domain join the ORCA team's company automatically")}</b>
+          <span>{t("คนที่อีเมลอยู่ในโดเมนที่ตั้งไว้จะเข้าบริษัทของทีม ORCA ไม่ใช่บริษัทลูกค้า", "People with an email in these domains join the ORCA team's company, not a customer's.")}</span>
         </span>
         <StatusPill label={savedDomains.length ? t(`${savedDomains.length} โดเมน`, `${savedDomains.length} domain${savedDomains.length === 1 ? "" : "s"}`) : t("ยังไม่ได้ตั้ง", "Not set")} tone={savedDomains.length ? "ok" : "neutral"} />
         <ChevronDown size={18} class="google-advanced-chevron" aria-hidden="true" />
       </summary>
       <form class="google-advanced-body" onsubmit={(event) => { event.preventDefault(); void save("domains"); }}>
         <fieldset disabled={busy || !owner}>
-          <label for="google-domains">{t("โดเมนที่เข้าร่วมบริษัทหลักได้เอง (ไม่บังคับ)", "Domains that join the main company by themselves (optional)")}</label>
+          <label for="google-domains">{t("โดเมนที่เข้าร่วมบริษัทของทีม ORCA ได้เอง (ไม่บังคับ)", "Domains that join the ORCA team's company by themselves (optional)")}</label>
           <div class="google-input"><input id="google-domains" bind:value={domains} autocomplete="off" spellcheck="false" placeholder="example.co.th" aria-describedby="google-domains-help" /></div>
           <p class="google-help" id="google-domains-help">
             {t("คนในโดเมนเหล่านี้เข้าบริษัทของทีม ORCA เป็นพนักงานได้เองโดยไม่ต้องเชิญ", "People in these domains join the ORCA team's company as employees, without an invitation.")}
@@ -329,7 +334,10 @@
 <ConfirmDialog
   bind:open={confirmOff}
   title={t("ปิดการเข้าสู่ระบบด้วย Google ไหม", "Turn off Sign in with Google?")}
-  message={t("ลูกค้าทุกบริษัทจะเข้าสู่ระบบและรับคำเชิญไม่ได้ จนกว่าจะเปิดอีกครั้ง", "No customer can sign in or accept an invitation until it is turned on again.")}
+  message={t(
+    "ลูกค้าทุกบริษัทจะเข้าสู่ระบบและรับคำเชิญไม่ได้ และทีม ORCA เองก็เข้าสู่ระบบด้วย Google ไม่ได้ จนกว่าจะเปิดอีกครั้ง เตรียมบัญชีฉุกเฉินไว้ก่อนปิด",
+    "No customer can sign in or accept an invitation, and the ORCA team can't sign in with Google either, until it is turned on again. Have a break-glass account ready first.",
+  )}
   confirmLabel={t("ปิดการเข้าสู่ระบบ", "Turn it off")}
   tone="danger"
   icon={TriangleAlert}

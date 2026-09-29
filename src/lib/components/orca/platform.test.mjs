@@ -187,7 +187,10 @@ test('the page mounts the platform area only for the ORCA team', async () => {
 	const page = await readFile(files.page, 'utf8');
 	const mounts = [...page.matchAll(/<PlatformView\b/g)];
 	assert.equal(mounts.length, 1);
-	assert.match(page, /\{:else if view === "platform" && data\.platformOperator\}<PlatformView/);
+	assert.match(page, /\{:else if view === "platform" && data\.platformOperator\}\{#key platformReloads\}<PlatformView/);
+	// The top bar's refresh reloads the platform's own lists too (they load on mount).
+	assert.match(page, /function refreshFromTopBar\(\) \{\s*if \(view === "platform"\) platformReloads \+= 1;/);
+	assert.match(page, /onrefresh=\{refreshFromTopBar\}/);
 });
 
 async function platformView(data, section) {

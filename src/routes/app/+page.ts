@@ -1,6 +1,6 @@
 import type { PageLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
-import { companyPinned, DEFAULT_COMPANY, rememberedCompany, resolvePlace, setPageCompany, type CompanyPlace } from '$lib/orca/company';
+import { companyPinned, DEFAULT_COMPANY, homeKeepingLanguage, platformOutsider, rememberedCompany, resolvePlace, setPageCompany, type CompanyPlace } from '$lib/orca/company';
 import { parseErrorContent } from '$lib/errors';
 import { OrcaService } from '$lib/services/orca';
 import { setPageAccount } from '$lib/services/writes';
@@ -37,6 +37,11 @@ export const load: PageLoad = async ({ parent, url }) => {
 		return chosen;
 	})();
 	const chosen = await place;
+	if (platform && platformOutsider(chosen)) {
+		// Not in the ORCA team's company: their own Home, chosen afresh.
+		place = undefined;
+		throw redirect(307, homeKeepingLanguage(url));
+	}
 	// Keep the company in the address, so a reload or a copied link stays in
 	// it whatever another tab chooses. Done here, before the page renders:
 	// the router can't change the address while the first page mounts.

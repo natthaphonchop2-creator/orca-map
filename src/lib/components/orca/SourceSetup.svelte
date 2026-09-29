@@ -107,6 +107,25 @@
     }),
   );
   const busy = $derived(loading || action !== "");
+  // The callback URL goes into the provider's console: one click to copy, as on the shared provider apps.
+  let callbackCopied = $state(false);
+  async function copyCallback() {
+    try {
+      await navigator.clipboard.writeText(setup?.oauthRedirectURL ?? "");
+      callbackCopied = true;
+      setTimeout(() => (callbackCopied = false), 2000);
+    } catch {
+      // The field stays selectable to copy by hand.
+    }
+  }
+  /** "จัดการการเชื่อมต่อ" holds something to do besides reloading the status. */
+  const manageActions = $derived(
+    Boolean(setup) &&
+      ((configured && !appSetupRequired && Boolean(oauthURL || connectionReady)) ||
+        Boolean(setup?.oauthSupported && !appSetupRequired && !setup.oauthConnected && oauthURL) ||
+        ((requiresURL || fields.length > 0) && !appSetupRequired) ||
+        Boolean(setup?.oauthSupported && (setup.oauthConnected || oauthURL))),
+  );
   const signInAvailable = $derived(
     Boolean(
       setup?.oauthSupported &&
@@ -764,13 +783,16 @@
       {#if sourceID}<span class="source-logo"><CatalogIcon name={providerName} size={24} /></span>{/if}
       <h3>
         {sourceID
-          ? t(`เชื่อมต่อ ${providerName}`, `Connect ${providerName}`)
+          ? operator
+            ? t(`เชื่อมต่อ ${providerName}`, `Connect ${providerName}`)
+            : t(`บัญชี ${providerName} ของคุณ`, `Your ${providerName} account`)
           : t("เพิ่มโปรแกรมด้วยลิงก์ MCP", "Add a program by its MCP link")}
       </h3>
     </div>
     {#if !sourceID}<Plug size={18} aria-hidden="true" />{/if}
   </div>
-  {#if apiGuide && !connectionReady}
+  <!-- The account steps only once the app exists: while the ORCA team sets the app up, they would describe the wrong task. -->
+  {#if apiGuide && !connectionReady && !appSetupRequired}
     <div class="api-onboarding">
       {#if !onready}<ol aria-label={t("ขั้นตอนเชื่อมบัญชี", "Account connection steps")}>
         <li class:current={!configured || editing}>{t("กรอกข้อมูลบัญชี", "Enter account details")}</li>
@@ -931,7 +953,12 @@
             {/if}
             <div class="k-field">
               <label for="source-client-callback">{t('URL สำหรับเรียกกลับ (Callback URL)', 'Callback URL')}</label>
-              <input id="source-client-callback" readonly value={setup.oauthRedirectURL} />
+              <div class="callback-row">
+                <input id="source-client-callback" readonly value={setup.oauthRedirectURL} />
+                <button type="button" class="k-button small" onclick={copyCallback}
+                  >{#if callbackCopied}<Check size={14} aria-hidden="true" />{t('คัดลอกแล้ว', 'Copied')}{:else}{t('คัดลอก', 'Copy')}{/if}</button
+                >
+              </div>
             </div>
 
             <div class="k-field">
@@ -1134,7 +1161,8 @@
         {/if}
       </div>
     {/if}
-    {#if !editing && (configured || oauthURL || setup.oauthConnected || fields.length) && (!appSetupRequired || setup.oauthConnected || oauthURL)}
+    <!-- Only when it holds something besides "โหลดสถานะล่าสุด": someone who never signed in has nothing to manage yet. -->
+    {#if !editing && manageActions && (!appSetupRequired || setup.oauthConnected || oauthURL)}
       <details style="margin-top:16px">
         <summary class="k-small k-muted manage-toggle"
           >{t("จัดการการเชื่อมต่อ", "Manage connection")}</summary
@@ -1463,5 +1491,13 @@
     color: var(--orca-nav);
     font-size: 12.5px;
     overflow-wrap: anywhere;
+  }
+  .callback-row {
+    display: flex;
+    gap: 8px;
+  }
+  .callback-row input {
+    flex: 1;
+    min-width: 0;
   }
 </style>

@@ -6,7 +6,7 @@
     unitLabels,
     type OrcaBootstrap,
   } from "$lib/services/orca";
-  import { ArrowRight, Building2, Check, Info } from "@lucide/svelte";
+  import { ArrowRight, Building2, Check, Info, Upload } from "@lucide/svelte";
   import { untrack } from "svelte";
 
   // Settings › บริษัท: the company's name and logo. Departments are edited in
@@ -148,15 +148,19 @@
             />{:else}<Building2 size={20} />{/if}
         </div>
         <div class="k-field organization-logo-field">
-          <label for="organization-logo"
-            >{t("โลโก้บริษัท", "Company logo")}</label
-          >
+          <span class="organization-logo-label" id="organization-logo-label">{t("โลโก้บริษัท", "Company logo")}</span>
+          <!-- A Thai button, not the browser's own "Choose File / No file chosen". -->
           {#if data.canManage}<input
               id="organization-logo"
+              class="organization-logo-input"
               type="file"
               accept="image/png,image/jpeg"
+              aria-labelledby="organization-logo-label organization-logo-choose"
+              aria-describedby="organization-logo-hint"
               onchange={selectLogo}
-            />{/if}
+            /><label class="k-button small organization-logo-choose" id="organization-logo-choose" for="organization-logo"
+              ><Upload size={15} aria-hidden="true" />{logoDataURL ? t("เปลี่ยนโลโก้", "Change logo") : t("เลือกไฟล์โลโก้", "Choose a logo file")}</label
+            ><small class="organization-logo-hint" id="organization-logo-hint">{t("PNG หรือ JPG ไม่เกิน 128 KB", "PNG or JPG, up to 128 KB")}</small>{/if}
         </div>
         {#if data.canManage && logoDataURL}<button
             class="k-button small"
@@ -331,24 +335,42 @@
     max-width: 360px;
     margin: 0;
   }
-  #organization-logo {
-    width: 100%;
-    padding: 3px 4px;
-    color: var(--orca-muted);
-    font-size: 13px;
-  }
-  #organization-logo::file-selector-button {
-    height: 28px;
-    margin-right: 10px;
-    padding: 0 10px;
-    border: 1px solid var(--orca-line);
-    border-radius: var(--orca-radius-sm);
-    background: var(--orca-surface);
+  .organization-logo-label {
+    display: block;
+    margin-bottom: 6px;
     color: var(--orca-ink);
-    font: inherit;
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  /* The real input stays in the page (keyboard and screen readers use it); the label is its button. */
+  .organization-logo-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    opacity: 0;
+  }
+  /* A button, not a field label: the shared .k-field label rule would stretch it. */
+  .organization-logo-field .organization-logo-choose {
+    display: inline-flex;
+    justify-self: start;
+    align-self: start;
+    width: auto;
+    margin: 0;
+    gap: 6px;
     cursor: pointer;
+  }
+  .organization-logo-input:focus-visible + .organization-logo-choose {
+    outline: 2px solid var(--orca-focus, var(--orca-ink));
+    outline-offset: 2px;
+  }
+  .organization-logo-hint {
+    display: block;
+    margin-top: 6px;
+    color: var(--orca-muted);
+    font-size: 12.5px;
   }
   .org-table-wrap {
     overflow-x: auto;

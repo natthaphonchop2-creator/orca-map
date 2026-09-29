@@ -47,7 +47,9 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 4px;
-		margin-bottom: 10px;
+		/* A 28px tap target, the same place on the page (WCAG 2.5.8). */
+		min-height: 28px;
+		margin: -3px 0 7px;
 		color: var(--orca-muted);
 		font-size: 14px;
 		font-weight: 500;

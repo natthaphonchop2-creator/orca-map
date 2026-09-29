@@ -25,7 +25,7 @@
 		onchange?: (value: 'approval' | 'direct') => void;
 	} = $props();
 	const options = $derived([
-		{ id: 'approval' as const, title: t('ให้ฉันอนุมัติก่อน', 'I approve first'), text: t('AI ส่งคำขอมารอในหน้าตรวจสอบ ทำจริงเมื่อคุณกดอนุมัติ', 'AI sends a request to Oversight; it runs when you approve.'), recommended: true },
+		{ id: 'approval' as const, title: t('ให้ผู้ดูแลอนุมัติก่อน', 'An admin approves first'), text: t('AI ส่งคำขอมารอในหน้าตรวจสอบ ทำจริงเมื่อเจ้าของบริษัทหรือผู้ดูแลกดอนุมัติ', 'AI sends a request to Oversight; it runs once the company owner or an admin approves.'), recommended: true },
 		{ id: 'direct' as const, title: t('ทำได้เลย', 'Run at once'), text: t('AI สร้างหรือแก้ข้อมูลได้ทันที ไม่ต้องรอใคร', 'AI creates or changes data right away.'), recommended: false }
 	]);
 </script>

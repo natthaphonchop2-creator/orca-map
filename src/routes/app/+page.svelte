@@ -102,6 +102,13 @@
       if (request === refreshGeneration) refreshing = false;
     }
   }
+  // The top bar's "อัปเดตข้อมูล": on a platform page its lists (companies, Google, accounts,
+  // the catalog) are the platform's own, so they load again too.
+  let platformReloads = $state(0);
+  function refreshFromTopBar() {
+    if (view === "platform") platformReloads += 1;
+    return refresh();
+  }
   // The waiting count on the manager's menu; a failed check keeps the last count.
   async function refreshApprovals() {
     const request = ++approvalsGeneration;
@@ -183,7 +190,7 @@
 
 {#if gate}<CompanyGate mode={gate} {companies} account={route.account} />
 {:else}
-<AppShell {data} {view} {section} {refreshing} {pendingApprovals} {companies} account={route.account} onrefresh={refresh}>
+<AppShell {data} {view} {section} {refreshing} {pendingApprovals} {companies} account={route.account} onrefresh={refreshFromTopBar}>
   {#if error}<div class="k-banner error" role="alert">
       <Info size={20} />
       <div>
@@ -275,12 +282,12 @@
       onapprovalschanged={refreshApprovals}
     />
   {:else if view === "settings"}<SettingsCenter {data} activeData={currentData} onchanged={refresh} />
-  {:else if view === "platform" && data.platformOperator}<PlatformView
+  {:else if view === "platform" && data.platformOperator}{#key platformReloads}<PlatformView
       {data}
       activeData={currentData!}
       section={(section ?? "overview") as PlatformSection}
       onchanged={refresh}
-    />
+    />{/key}
   {:else if view === "workspaces"}<AppOverview data={managementData!} onchanged={refresh} />
   {:else if view === "help"}<HelpView {data} />
   {:else}{#key data}<WorkspaceDashboard data={currentData!} />{/key}

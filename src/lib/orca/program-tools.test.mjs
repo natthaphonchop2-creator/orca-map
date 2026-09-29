@@ -135,3 +135,17 @@ test('a tool shows the provider title first, and one line of description', () =>
 	assert.equal(toolHintText(tool('a', { readOnlyHint: true, destructiveHint: false })), 'readOnlyHint: true, destructiveHint: false');
 	assert.equal(toolHintText(tool('b', undefined)), 'no annotations');
 });
+
+test('an AI call is named by its program’s title everywhere (Home, ตรวจสอบ, รออนุมัติ), not the English id or the description', () => {
+	const connections = [
+		{ id: 'conn-flow', tools: [
+			{ name: 'list_quotations', description: 'ค้นใบเสนอราคาตามสถานะหรือลูกค้า', definition: { name: 'list_quotations', annotations: { title: 'ดูรายการใบเสนอราคา', readOnlyHint: true } } },
+			{ name: 'create_quotation', description: 'ออกใบเสนอราคาฉบับร่างให้ลูกค้า', definition: { name: 'create_quotation', annotations: { title: 'สร้างใบเสนอราคา', readOnlyHint: false } } }
+		] },
+		{ id: 'conn-slack', tools: [{ name: 'search_messages', description: 'Search messages in channels you can read', definition: { name: 'search_messages' } }] }
+	];
+	assert.equal(tools.eventToolLabel(connections, 'conn-flow', 'list_quotations'), 'ดูรายการใบเสนอราคา');
+	assert.equal(tools.eventToolLabel(connections, undefined, 'create_quotation'), 'สร้างใบเสนอราคา', 'any program that has it');
+	assert.equal(tools.eventToolLabel(connections, 'conn-slack', 'search_messages'), 'Search messages in channels you can read');
+	assert.equal(tools.eventToolLabel([], 'gone', 'get_invoice'), tools.toolCopy({ name: 'get_invoice' }).label, 'a removed program still gets a readable name');
+});

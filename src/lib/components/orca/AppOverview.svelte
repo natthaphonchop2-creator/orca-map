@@ -15,7 +15,7 @@
 		type OrcaConnection,
 		type OrcaHub
 	} from '$lib/services/orca';
-	import { Boxes, ChevronRight, Info, Pencil, Plug, Plus, Search, Sparkles, Unplug } from '@lucide/svelte';
+	import { Boxes, ChevronRight, Info, Link2, Pencil, Plug, Plus, Search, Sparkles } from '@lucide/svelte';
 
 	let { data, onchanged }: { data: OrcaBootstrap; onchanged: () => Promise<void> } = $props();
 	let notice = $state('');
@@ -192,11 +192,12 @@
 								<td><span class="spaces-badge {badge.tone}">{badge.label}</span></td>
 								<td class="actions-col">
 									<div class="spaces-row-actions">
-										{#if !archived}<a
+										<!-- One company link for every workspace (owner decision): only a workspace with its own sign-in has its own link. -->
+										{#if hub.userSourceID && hub.status === 'active'}<a
 												class="k-button small"
-												href={hub.userSourceID ? hubHref(hub, 'overview') : localeHref('/app?view=connect-ai')}
-												aria-label={t(`เชื่อม AI กับ ${hub.name}`, `Connect AI to ${hub.name}`)}
-												><Unplug size={15} aria-hidden="true" />{t('เชื่อม AI', 'Connect AI')}</a
+												href={hubHref(hub, 'overview') + '#connect-ai'}
+												aria-label={t(`ลิงก์ของ ${hub.name} (ใช้ SSO ของบริษัท)`, `${hub.name}'s own link (company SSO)`)}
+												><Link2 size={15} aria-hidden="true" />{t('ลิงก์ของพื้นที่นี้', 'Its own link')}</a
 											>{/if}
 										{#if data.canManage && !archived}<a
 												class="spaces-icon-button"
@@ -372,6 +373,7 @@
 		font-weight: 600;
 	}
 	.spaces-panel {
+		container: spaces / inline-size;
 		min-width: 0;
 		border: 1px solid var(--orca-line);
 		border-radius: var(--orca-radius-lg);
@@ -643,7 +645,8 @@
 		white-space: nowrap;
 		border: 0;
 	}
-	@media (max-width: 1180px) {
+	/* The list's own width decides (the sidebar takes 220-248px): usage goes first, then rows become cards. */
+	@container spaces (max-width: 1040px) {
 		.usage-col {
 			display: none;
 		}
@@ -661,13 +664,15 @@
 			max-width: 100%;
 			overflow-x: auto;
 		}
-		.spaces-systems-inner {
-			max-width: none;
-		}
 		.spaces-actions > :global(.k-button) {
 			flex: 1 1 auto;
 		}
-		/* Rows stack on phones: name and status, systems, then actions. */
+	}
+	@container spaces (max-width: 880px) {
+		.spaces-systems-inner {
+			max-width: none;
+		}
+		/* Rows stack: name and status, programs, then actions. */
 		.spaces-table,
 		.spaces-table tbody {
 			display: block;

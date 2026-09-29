@@ -28,7 +28,7 @@
   } from "$lib/orca/audit-filters";
   import { term } from "$lib/orca/glossary";
   import { t, localeHref, orcaLocale } from "$lib/orca/locale.svelte";
-  import { toolPresentation } from "$lib/orca/tool-presentation";
+  import { eventToolLabel } from "$lib/orca/program-tools";
   import {
     OrcaService,
     displayDate,
@@ -81,7 +81,10 @@
   const title = $derived(mode === "administration" ? term("settingsHistory", t) : term("usageHistory", t));
   const subtitle = $derived(
     mode === "administration"
-      ? t("ดูว่าเจ้าของบริษัทและผู้ดูแลเปลี่ยนการตั้งค่าอะไร เมื่อไร", "See what owners and admins changed, and when.")
+      ? data.canManage
+        ? t("ดูว่าเจ้าของบริษัทและผู้ดูแลเปลี่ยนการตั้งค่าอะไร เมื่อไร", "See what owners and admins changed, and when.")
+        : // An employee receives only their own changes.
+          t("สิ่งที่คุณเปลี่ยนเอง เช่น ความรู้และคำสั่งสำเร็จรูปที่คุณแก้ และเมื่อไร", "What you changed yourself, such as knowledge and ready-made prompts, and when.")
       : data.canManage
         ? t("ดูว่าใครให้ AI ทำอะไรกับโปรแกรมไหน และสำเร็จหรือไม่", "See who had AI do what in which program, and whether it worked.")
         : t("ดูว่า AI ของคุณทำอะไรไปบ้าง และสำเร็จหรือไม่", "See what your AI did, and whether it worked."),
@@ -229,10 +232,7 @@
   }
   /** What the AI did, in words: the program's own label for the tool when it is known. */
   function toolLabel(name: string, fromConnection?: string) {
-    const tool = data.connections.find((connection) => connection.id === fromConnection)?.tools.find((entry) => entry.name === name)
-      ?? data.connections.flatMap((connection) => connection.tools).find((entry) => entry.name === name)
-      ?? { name };
-    return toolPresentation(tool, orcaLocale.value === "en" ? "en" : "th").label;
+    return eventToolLabel(data.connections, fromConnection, name, orcaLocale.value === "en" ? "en" : "th");
   }
   function eventLabel(event: OrcaAuditEvent) {
     return mode === "executions"
@@ -513,7 +513,9 @@
         icon={ClipboardList}
         message={mode === "executions"
           ? t("ยังไม่มีประวัติการใช้งาน รายการจะขึ้นเมื่อ AI เริ่มทำงาน", "No activity yet. It appears once AI starts working.")
-          : t("ยังไม่มีการเปลี่ยนการตั้งค่า", "No settings changes yet.")}
+          : data.canManage
+            ? t("ยังไม่มีการเปลี่ยนการตั้งค่า", "No settings changes yet.")
+            : t("คุณยังไม่ได้เปลี่ยนอะไร", "You haven't changed anything yet.")}
       />{/if}
   {:else}<div class="audit-panel">
       <table class="audit-table">
@@ -553,7 +555,7 @@
               >{#if showPeople}<td class="person-cell"
                   ><span class="primary-cell">{names.users[event.userID] || event.userID || t("ORCA (อัตโนมัติ)", "ORCA (automated)")}</span></td
                 >{/if}{#if mode === "executions"}<td class="duration" data-label={t("ใช้เวลา ", "Duration ")}
-                  >{detail.durationMs !== undefined ? auditDuration(detail.durationMs) : "—"}</td
+                  >{detail.durationMs !== undefined ? auditDuration(detail.durationMs, orcaLocale.value === "en" ? "en" : "th") : "—"}</td
                 >{/if}<td class="timestamp">{displayDate(event.createdAt)}</td
               ><td class="open-col"
                 ><button

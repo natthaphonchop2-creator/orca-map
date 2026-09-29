@@ -294,6 +294,27 @@
     {/if}
   </div>
 
+  {#if mobile && !platformMode && data}
+    <!-- A phone's top bar has no room for the company: the drawer names it, and switches it. -->
+    <div class="workspace-drawer-company">
+      <Building2 size={16} strokeWidth={1.6} aria-hidden="true" />
+      {#if switchable}
+        <details class="workspace-company-switch">
+          <summary aria-label={t(`บริษัท ${organization} เปลี่ยนบริษัท`, `Company: ${organization}. Switch company`)}>
+            <span title={organization}>{organization}</span>
+            <ChevronDown size={14} aria-hidden="true" />
+          </summary>
+          <div class="workspace-company-menu">
+            <small>{t("เปลี่ยนบริษัท", "Switch company")}</small>
+            {@render companyLinks()}
+          </div>
+        </details>
+      {:else}
+        <span title={organization}>{organization}</span>
+      {/if}
+    </div>
+  {/if}
+
   {#if operator}
     <!-- The ORCA team works in two places: their own company and the platform. -->
     <nav class="workspace-mode" aria-label={t("เลือกพื้นที่", "Choose an area")}>
@@ -439,10 +460,14 @@
   >
     {@render sidebar(collapsed)}
   </aside>
+  <!-- A tap on the dimmed page beside the drawer closes it (a phone has no Escape key). -->
   <dialog
     class="workspace-drawer"
     bind:this={drawer}
     onclose={closeAccounts}
+    onclick={(event) => {
+      if (event.target === drawer) closeDrawer();
+    }}
     aria-label={t("เมนู ORCA", "ORCA menu")}
   >
     <button
