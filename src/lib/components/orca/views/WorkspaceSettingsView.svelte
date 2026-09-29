@@ -151,7 +151,7 @@
 			bind:value={fields.writeMode}
 			name="settings-write-mode"
 			quiet={!changesData}
-			noteTitle={t('ไม่มีผลตอนนี้ เพราะทุกโปรแกรมอ่านอย่างเดียว', 'No effect now: every program only reads')}
+			noteTitle={gatewaySources(hub).length ? t('ไม่มีผลตอนนี้ เพราะทุกโปรแกรมอ่านอย่างเดียว', 'No effect now: every program only reads') : t('ยังไม่มีผล', 'No effect yet')}
 			note={t('จะใช้เมื่อเปิดโปรแกรมที่ AI แก้ข้อมูลได้', 'It applies once a program that can change data is on.')}
 			disabled={busy}
 			onchange={edited}

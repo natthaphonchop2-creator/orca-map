@@ -286,7 +286,8 @@
 
 	<div class="ws-bar">
 		<span class="ws-bar-icon" aria-hidden="true"><Users size={18} /></span>
-		<div class="ws-bar-copy" aria-live="polite">
+		<!-- Not a live region: the name is typed into it one key at a time. -->
+		<div class="ws-bar-copy">
 			<b>{#each summary as part, index (index)}{#if index}<span class="ws-dot" aria-hidden="true">·</span>{/if}{part}{/each}</b>
 			<span>{t('ใครเชื่อม AI กับ ORCA ไว้แล้ว จะเห็นพื้นที่นี้ทันทีหลังสร้าง', 'Anyone already connected to ORCA sees it right after it is created.')}</span>
 		</div>

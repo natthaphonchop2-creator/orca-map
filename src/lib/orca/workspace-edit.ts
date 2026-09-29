@@ -241,7 +241,7 @@ export function hubConflictMessage(t: Translate): string {
 export function hubRuleMessage(message: string, t: Translate): string | undefined {
 	const text = message.toLowerCase();
 	if (text.includes('requires a connection, reviewed tools, and members or departments'))
-		return t('พื้นที่ที่เปิดใช้งานต้องมีโปรแกรมและคนที่ใช้ได้อย่างน้อยอย่างละ 1 หยุดใช้ชั่วคราวก่อนถ้าจะเอาออกทั้งหมด', 'An active workspace needs at least one program and one person. Pause it first to remove them all.');
+		return t('พื้นที่ที่เปิดใช้งานต้องมีอย่างน้อย 1 โปรแกรม และ 1 คนหรือแผนก เพิ่มในแท็บ “โปรแกรม” และ “คน” ก่อน', 'An active workspace needs at least one program and one person or department. Add them under “Programs” and “People” first.');
 	if (text.includes('enabled, reviewed connection') || text.includes('restore the server'))
 		return t('โปรแกรมที่เลือกปิดอยู่หรือยังตั้งค่าไม่เสร็จ ปิดโปรแกรมนั้นในพื้นที่นี้ หรือแก้ที่หน้าโปรแกรมที่เชื่อม', 'A chosen program is paused or not set up. Turn it off here, or fix it under Programs.');
 	if (text.includes("reviewed allowlist") || text.includes('additional tools'))
@@ -453,7 +453,7 @@ export function companyWideName(company: string): string {
 
 export type EveryonePlan = {
 	connection: OrcaConnection;
-	/** Every active member, the viewer included. */
+	/** Every active member of the company, the viewer included. */
 	memberIDs: string[];
 	toolNames: string[];
 	/** Something AI can do here changes data, so it waits for approval. */
@@ -469,10 +469,8 @@ export function everyonePlan(
 	connection: OrcaConnection
 ): EveryonePlan {
 	const name = companyWideName(data.organization.displayName);
-	const memberIDs = union(
-		data.members.filter((member) => memberActive(member)).map((member) => member.id),
-		data.currentUserID ? [data.currentUserID] : []
-	);
+	// Every active member, me included when I am one: the department refuses anyone else.
+	const memberIDs = union([], data.members.filter((member) => memberActive(member)).map((member) => member.id));
 	const toolNames = allowedTools(connection).map((tool) => tool.name);
 	return {
 		connection,
@@ -499,6 +497,11 @@ export type EveryoneService = {
 	hub: HubWriteService;
 	/** Reports each step for the progress line. */
 	onstep?: (step: 'department' | 'members' | 'workspace') => void;
+	/**
+	 * The "ทุกคน" department just made: a retry after a later step failed must
+	 * reuse it instead of making a second one.
+	 */
+	ondepartment?: (unit: OrcaUnit) => void;
 };
 
 /**
@@ -507,9 +510,15 @@ export type EveryoneService = {
  * department this program. Anything that can change data waits for approval
  * (critique 6). A company-wide workspace made before gets the program added.
  */
+async function createEveryoneDepartment(service: EveryoneService): Promise<OrcaUnit> {
+	const unit = await service.createUnit({ name: EVERYONE_DEPARTMENT, kind: 'department', parentID: '' });
+	service.ondepartment?.(unit);
+	return unit;
+}
+
 export async function runEveryone(plan: EveryonePlan, service: EveryoneService): Promise<OrcaHub> {
 	service.onstep?.('department');
-	const department = plan.department ?? (await service.createUnit({ name: EVERYONE_DEPARTMENT, kind: 'department', parentID: '' }));
+	const department = plan.department ?? (await createEveryoneDepartment(service));
 	service.onstep?.('members');
 	for (let attempt = 0; ; attempt += 1) {
 		const row = (await service.departments()).find((item) => item.unitID === department.id) ?? { unitID: department.id, memberIDs: [], version: 0 };
@@ -528,9 +537,13 @@ export async function runEveryone(plan: EveryonePlan, service: EveryoneService):
 		return saveHubPatch(
 			plan.existing.id,
 			(fresh) => {
-				const saved = gatewaySources(fresh).find((source) => source.connectionID === plan.connection.id);
+				// Keep the saved order, but only what the program still allows: an
+				// active workspace refuses a tool that left the program's allowlist.
+				const saved = (gatewaySources(fresh).find((source) => source.connectionID === plan.connection.id)?.toolNames ?? []).filter((name) =>
+					plan.toolNames.includes(name)
+				);
 				return {
-					...programsPatch(fresh, { [plan.connection.id]: union(saved?.toolNames ?? [], plan.toolNames) }),
+					...programsPatch(fresh, { [plan.connection.id]: union(saved, plan.toolNames) }),
 					...departmentsPatch(fresh, { add: [department.id] }),
 					status: 'active',
 					// Never from approval back to direct.
@@ -586,7 +599,17 @@ export function samplePrompt(program: string, t: Translate): string {
 		return t(`สรุปใบแจ้งหนี้ที่ค้างชำระจาก ${program}`, `Summarise unpaid invoices in ${program}`);
 	if (name.includes('drive') || name.includes('onedrive') || name.includes('notion'))
 		return t(`หาเอกสารล่าสุดเรื่องลูกค้าใน ${program}`, `Find the latest customer documents in ${program}`);
-	if (name.includes('slack') || name.includes('line') || name.includes('gmail') || name.includes('outlook'))
+	if (name.includes('slack') || /\bline\b/.test(name) || name.includes('gmail') || name.includes('outlook'))
 		return t(`สรุปข้อความสำคัญเมื่อวานจาก ${program}`, `Summarise yesterday's important messages in ${program}`);
 	return t(`สรุปข้อมูลล่าสุดจาก ${program}`, `Summarise the latest from ${program}`);
+}
+
+/**
+ * Whether the viewer's own AI already reaches this workspace through the
+ * company link (B1 list): a Claude or ChatGPT sign-in, or a key for every
+ * workspace or for this one. A key for another workspace does not count. (A
+ * workspace with its own sign-in is not on the company link; callers don't ask.)
+ */
+export function aiReachesWorkspace(apps: { sessions: readonly unknown[]; keys: readonly { hubID?: string }[] }, hubID: string): boolean {
+	return apps.sessions.length > 0 || apps.keys.some((key) => !key.hubID || key.hubID === hubID);
 }

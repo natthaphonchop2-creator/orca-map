@@ -173,8 +173,12 @@ test('ภาพรวม offers the invite message after creation and one banner
 	assert.doesNotMatch(html, /คัดลอกข้อความเชิญ/, 'employees are not offered the invite');
 	html = htmlOf(Overview, { props: { data: company({ currentUserID: 'u-x', canManage: false }), hub, tabHref } }).body;
 	assert.match(html, /ขอให้ผู้ดูแลบริษัทเพิ่มคุณ/, 'generic copy for someone who is not in it (critique 8)');
-	html = htmlOf(Overview, { props: { data: company(), hub: { ...hub, userSourceID: 'sso-1' }, tabHref } }).body;
+	html = htmlOf(Overview, { props: { data: company(), hub: { ...hub, userSourceID: 'sso-1' }, created: true, tabHref } }).body;
 	assert.match(html, /id="connect-ai"/, 'a workspace with its own sign-in keeps its own link');
+	assert.match(html, /ส่งลิงก์ของพื้นที่นี้ให้ทีม/);
+	assert.doesNotMatch(html, /คัดลอกข้อความเชิญ|ชวนทีมเข้ามาใช้/, 'the company-link invite would not bring an SSO workspace');
+	assert.doesNotMatch(html, /ใช้ได้กับทุกพื้นที่ที่คุณอยู่/, 'เชื่อม AI ของฉัน does not bring it either');
+	assert.match(html, /เพิ่มลิงก์ของพื้นที่นี้ใน AI ของคุณ/);
 	html = htmlOf(Overview, { props: { data: company({ currentUserID: 'u-admin' }), hub, tabHref } }).body;
 	assert.match(html, /เพิ่มตัวเองในพื้นที่นี้/);
 });

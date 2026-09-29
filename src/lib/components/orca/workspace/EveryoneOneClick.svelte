@@ -4,7 +4,7 @@
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { everyonePlan, everyoneSummary, runEveryone } from '$lib/orca/workspace-edit';
 	import { OrcaLibraryService } from '$lib/services/orca-library';
-	import { OrcaService, type OrcaBootstrap, type OrcaHub } from '$lib/services/orca';
+	import { OrcaService, type OrcaBootstrap, type OrcaHub, type OrcaUnit } from '$lib/services/orca';
 	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-u5';
 	import { Building2, CircleAlert, Eye, Info, LoaderCircle, ShieldCheck, Users } from '@lucide/svelte';
 	import EmptyState from '../ui/EmptyState.svelte';
@@ -28,6 +28,8 @@
 	const plan = $derived(connection && ready ? everyonePlan(data, connection) : undefined);
 	const company = $derived(data.organization.displayName || 'ORCA');
 	let step = $state<'' | 'department' | 'members' | 'workspace'>('');
+	// A "ทุกคน" made by an attempt that then failed: the retry reuses it.
+	let madeDepartment = $state<OrcaUnit>();
 	let error = $state('');
 	const busy = $derived(step !== '');
 	const progress = $derived(
@@ -45,13 +47,16 @@
 		error = '';
 		let hub: OrcaHub | undefined;
 		try {
-			hub = await runEveryone($state.snapshot(plan) as typeof plan, {
+			const current = $state.snapshot(plan) as NonNullable<typeof plan>;
+			const department = current.department ?? ($state.snapshot(madeDepartment) as OrcaUnit | undefined);
+			hub = await runEveryone({ ...current, department }, {
 				createUnit: (input) => OrcaService.unit(input),
 				departments: () => OrcaLibraryService.departments(),
 				saveDepartment: (unitID, memberIDs, version) => OrcaLibraryService.saveDepartment(unitID, memberIDs, version),
 				createHub: (input) => OrcaService.hub(input),
 				hub: hubWriteService,
-				onstep: (next) => (step = next)
+				onstep: (next) => (step = next),
+				ondepartment: (unit) => (madeDepartment = unit)
 			});
 		} catch (cause) {
 			error = workspaceWriteError(cause);
@@ -104,7 +109,9 @@
 			<li>
 				<span class="everyone-icon" aria-hidden="true"><Users size={18} /></span>
 				<div>
-					<strong>{t(`ทุกคน ${plan.memberIDs.length} คน รวมคุณ ใช้ได้ทันที`, `All ${plan.memberIDs.length} people, you included, can use it now`)}</strong>
+					<strong>{plan.memberIDs.includes(data.currentUserID)
+						? t(`ทุกคน ${plan.memberIDs.length} คน รวมคุณ ใช้ได้ทันที`, `All ${plan.memberIDs.length} people, you included, can use it now`)
+						: t(`ทุกคน ${plan.memberIDs.length} คน ใช้ได้ทันที`, `All ${plan.memberIDs.length} people can use it now`)}</strong>
 					<p>{t('ทุกคนอยู่ในแผนก “ทุกคน” คนที่เชิญเข้ามาทีหลังจะอยู่ในแผนกนี้และใช้ได้เอง', 'Everyone is in the “ทุกคน” department; people invited later join it and get access.')}</p>
 				</div>
 			</li>

@@ -49,9 +49,11 @@
 	onMount(() => {
 		if (created && data.canManage)
 			showToast(
-				hub.status === 'active'
-					? t('สร้างแล้ว — Claude/ChatGPT ที่เชื่อม ORCA ไว้จะเห็นพื้นที่นี้เอง', 'Created. Claude or ChatGPT connected to ORCA will see this workspace by itself.')
-					: t('บันทึกเป็นฉบับร่างแล้ว — เปิดใช้งานเมื่อพร้อม', 'Saved as a draft. Activate it when ready.')
+				hub.status !== 'active'
+					? t('บันทึกเป็นฉบับร่างแล้ว — เปิดใช้งานเมื่อพร้อม', 'Saved as a draft. Activate it when ready.')
+					: hub.userSourceID
+						? t('บันทึกแล้ว — ส่งลิงก์ของพื้นที่นี้ให้ทีม', "Saved. Send your team this workspace's link.")
+						: t('สร้างแล้ว — Claude/ChatGPT ที่เชื่อม ORCA ไว้จะเห็นพื้นที่นี้เอง', 'Created. Claude or ChatGPT connected to ORCA will see this workspace by itself.')
 			);
 	});
 	async function activate() {

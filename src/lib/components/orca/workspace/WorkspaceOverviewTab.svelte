@@ -5,7 +5,7 @@
 	import { gatewayHasMember, gatewaySources } from '$lib/orca/gateway-sources';
 	import { lineShareURL } from '$lib/orca/invitations';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
-	import { connectAILink, programSummary, programSummaryLabel, samplePrompt, sourceChangesData, workspaceInviteMessage } from '$lib/orca/workspace-edit';
+	import { aiReachesWorkspace, connectAILink, programSummary, programSummaryLabel, samplePrompt, sourceChangesData, workspaceInviteMessage } from '$lib/orca/workspace-edit';
 	import type { OrcaBootstrap, OrcaHub } from '$lib/services/orca';
 	import { OrcaWorkspaceService } from '$lib/services/orca-u5';
 	import { ArrowRight, BookOpen, Check, CircleCheck, Copy, MessageCircle, Play, ShieldCheck, Sparkles, UserPlus } from '@lucide/svelte';
@@ -30,6 +30,8 @@
 		tabHref: (tab: string) => string;
 	} = $props();
 	const archived = $derived(hub.status === 'archived' || hub.status === 'deleted');
+	// Its own sign-in (SSO): the company link and เชื่อม AI ของฉัน don't bring it; its own link does.
+	const sso = $derived(!!hub.userSourceID);
 	const isMember = $derived(gatewayHasMember(hub, data.currentUserID));
 	const sources = $derived(
 		gatewaySources(hub).map((source) => {
@@ -47,7 +49,7 @@
 		workspaceInviteMessage({ company, workspace: hub.name, programs: programNames, link: connectAILink(origin || 'https://orca.invalid', currentCompany()) }, t)
 	);
 	const prompt = $derived(programNames.length ? samplePrompt(programNames[0], t) : '');
-	// Whether the viewer has Claude or ChatGPT connected (B1); unknown until it answers.
+	// Whether the viewer's AI reaches this workspace (B1); unknown until it answers.
 	let ai = $state<'unknown' | 'none' | 'connected'>('unknown');
 	let copied = $state<'' | 'invite' | 'prompt'>('');
 	let copyFailed = $state(false);
@@ -59,10 +61,10 @@
 	onMount(() => {
 		origin = window.location.origin;
 		const controller = new AbortController();
-		if (isMember && !archived)
+		if (isMember && !archived && !sso)
 			void OrcaWorkspaceService.myAIApps(controller.signal)
 				.then((apps) => {
-					ai = apps.sessions.length || apps.keys.length ? 'connected' : 'none';
+					ai = aiReachesWorkspace(apps, hub.id) ? 'connected' : 'none';
 				})
 				.catch(() => {
 					// Unknown: no banner rather than a wrong one.
@@ -82,7 +84,15 @@
 </script>
 
 {#if created && data.canManage && !archived}
-	{#if active}
+	{#if active && sso}
+		<section class="ov-created" aria-labelledby="ov-created-title">
+			<span class="ov-created-icon" aria-hidden="true"><CircleCheck size={20} /></span>
+			<div class="ov-created-copy">
+				<h2 id="ov-created-title">{t('ส่งลิงก์ของพื้นที่นี้ให้ทีม', "Send your team this workspace's link")}</h2>
+				<p>{t('พื้นที่นี้ใช้ SSO ของบริษัท จึงไม่อยู่ในลิงก์ ORCA ของบริษัท ลิงก์ของพื้นที่นี้อยู่ด้านล่าง', "It uses company SSO, so it isn't on your company's ORCA link. Its own link is below.")}</p>
+			</div>
+		</section>
+	{:else if active}
 		<section class="ov-created" aria-labelledby="ov-created-title">
 			<span class="ov-created-icon" aria-hidden="true"><CircleCheck size={20} /></span>
 			<div class="ov-created-copy">
@@ -107,7 +117,7 @@
 	{/if}
 {/if}
 
-{#if isMember && !archived && ai === 'none'}
+{#if isMember && active && !sso && ai === 'none'}
 	<div class="ov-banner" role="status">
 		<Sparkles size={18} aria-hidden="true" />
 		<div>
@@ -179,14 +189,19 @@
 					<a class="k-button small" href={tabHref('people')}>{t('ไปที่แท็บคน', 'Open People')}</a>
 				</li>
 			{/if}
-			{#if isMember}
+			{#if isMember && sso}
+				<li>
+					<span class="ov-step-icon" aria-hidden="true"><Sparkles size={17} /></span>
+					<div class="ov-step-copy"><strong>{t('เพิ่มลิงก์ของพื้นที่นี้ใน AI ของคุณ', "Add this workspace's link to your AI")}</strong><span>{t('พื้นที่นี้ใช้ SSO ของบริษัท ลิงก์และขั้นตอนอยู่ด้านล่าง', 'It uses company SSO; the link and steps are below.')}</span></div>
+				</li>
+			{:else if isMember}
 				<li class:done={ai === 'connected'}>
 					<span class="ov-step-icon" aria-hidden="true">{#if ai === 'connected'}<Check size={17} />{:else}<Sparkles size={17} />{/if}</span>
 					<div class="ov-step-copy"><strong>{t('เชื่อม AI ของฉัน', 'Connect my AI')}</strong><span>{ai === 'connected' ? t('เชื่อมแล้ว พื้นที่นี้ขึ้นใน AI ของคุณเอง', 'Connected; this workspace shows up in your AI.') : t('ทำครั้งเดียว ใช้ได้กับทุกพื้นที่ที่คุณอยู่', 'Once, for every workspace you are in.')}</span></div>
 					{#if ai !== 'connected'}<a class="k-button small" href={localeHref('/app?view=connect-ai')}>{t('เชื่อม', 'Connect')}</a>{/if}
 				</li>
 			{/if}
-			{#if data.canManage && active}
+			{#if data.canManage && active && !sso}
 				<li>
 					<span class="ov-step-icon" aria-hidden="true"><MessageCircle size={17} /></span>
 					<div class="ov-step-copy"><strong>{t('ชวนทีมเข้ามาใช้', 'Invite your team')}</strong><span>{t('ส่งข้อความทาง LINE หรืออีเมล พาไปที่ “เชื่อม AI ของฉัน”', 'Send a message by LINE or email that opens “Connect my AI”.')}</span></div>

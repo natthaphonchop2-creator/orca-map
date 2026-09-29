@@ -56,7 +56,9 @@
 			<Pencil size={15} aria-hidden="true" />{t(`ทุกอย่างที่โปรแกรมอนุญาต · ${tools.length} อย่าง`, `Everything allowed · ${tools.length}`)}
 		</button>
 	</div>
-	{#if !readNames.length}<p class="narrow-note">{t(`${name} ไม่ได้บอกว่ารายการไหนอ่านอย่างเดียว จึงเลือกแบบอ่านอย่างเดียวไม่ได้`, `${name} doesn't say which actions only read, so read-only can't be chosen.`)}</p>{/if}
+	{#if !readNames.length && tools.length}<p class="narrow-note">{unstated
+			? t(`${name} ไม่ได้บอกว่ารายการไหนอ่านอย่างเดียว จึงเลือกแบบอ่านอย่างเดียวไม่ได้`, `${name} doesn't say which actions only read, so read-only can't be chosen.`)
+			: t(`ทุกอย่างที่ ${name} อนุญาตสร้างหรือแก้ข้อมูลได้ จึงไม่มีแบบอ่านอย่างเดียว`, `Everything ${name} allows can create or change data, so there is no read-only choice.`)}</p>{/if}
 
 	{#each [{ id: 'read', label: t('ดูข้อมูล', 'View data'), hint: t(`AI อ่านได้อย่างเดียว ข้อมูลใน ${name} ไม่เปลี่ยน`, `AI only reads; nothing in ${name} changes.`), items: readTools }, { id: 'change', label: t('สร้าง / แก้ไข / ลบ', 'Create / change / delete'), hint: t('ถ้าพื้นที่นี้ตั้งให้อนุมัติก่อน จะรอคุณกดอนุมัติ', 'Waits for approval when this workspace asks for it.'), items: changeTools }] as group (group.id)}
 		{#if group.items.length}

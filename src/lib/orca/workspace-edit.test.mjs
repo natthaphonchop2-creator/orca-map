@@ -125,7 +125,7 @@ test('saveHubPatch GETs the workspace first, PUTs with its version, and turns a 
 	const missing = { ...service, hub: async () => { throw Object.assign(new Error('gone'), { status: 404 }); } };
 	await assert.rejects(edit.saveHubPatch('hub-one', () => ({}), missing), /gone/);
 	assert.equal(edit.hubConflictMessage(th), 'มีคนแก้พื้นที่นี้พร้อมกัน โหลดใหม่');
-	assert.match(edit.hubRuleMessage('an active Gateway requires a connection, reviewed tools, and members or departments', th), /หยุดใช้ชั่วคราว/);
+	assert.match(edit.hubRuleMessage('an active Gateway requires a connection, reviewed tools, and members or departments', th), /ต้องมีอย่างน้อย 1 โปรแกรม และ 1 คนหรือแผนก/);
 	assert.equal(edit.hubRuleMessage('something else', th), undefined);
 });
 
@@ -225,6 +225,7 @@ test('the one-click plan: everyone active including me, the program\'s allowed t
 	assert.equal(edit.everyonePlan({ ...company, units: [...units, everyone] }, drive).department, everyone);
 	assert.equal(edit.everyoneDepartment([{ ...everyone, archivedAt: 'x' }]), undefined);
 	assert.equal(edit.companyWideName('  '), 'ORCA · ทั้งบริษัท');
+	assert.deepEqual(edit.everyonePlan({ ...company, currentUserID: 'u-outsider' }, drive).memberIDs, ['u-owner', 'u-a', 'u-b'], 'someone who is not an active member is never put in the department');
 });
 
 function everyoneService(overrides = {}) {
@@ -306,6 +307,38 @@ test('a company-wide workspace made before gets the program added, the departmen
 	assert.equal(writes.calls.find((call) => call[0] === 'put')[2].writeMode, 'approval');
 });
 
+test('a retry after a failed one click reuses the "ทุกคน" it already made instead of making a second', async () => {
+	let made;
+	let fail = true;
+	const first = everyoneService({
+		createHub: async () => { if (fail) throw Object.assign(new Error('boom'), { status: 500 }); return { ...hub, id: 'hub-new' }; }
+	});
+	first.service.ondepartment = (unit) => { made = unit; };
+	const plan = edit.everyonePlan(company, drive);
+	await assert.rejects(edit.runEveryone(plan, first.service), /boom/);
+	assert.equal(made?.id, 'dept-new', 'the new department is reported before the later steps');
+	fail = false;
+	const again = everyoneService();
+	await edit.runEveryone({ ...plan, department: made }, again.service);
+	assert.equal(again.calls.some((call) => call[0] === 'unit'), false, 'no second department');
+	assert.deepEqual(again.calls.find((call) => call[0] === 'hub')[1].accessUnitIDs, ['dept-new']);
+});
+
+test('adding the program to a company-wide workspace drops tools the program no longer allows', async () => {
+	const existing = { ...hub, id: 'hub-all', name: 'บริษัท ตัวอย่าง จำกัด · ทั้งบริษัท', sources: [{ connectionID: 'conn-drive', toolNames: ['dropped_tool', 'read_file'] }] };
+	const { calls, service } = everyoneService({ hub: { hub: async () => existing, save: async (input, id) => { calls.push(['put', id, input]); return { ...existing, ...input }; }, status: (error) => error?.status } });
+	await edit.runEveryone(edit.everyonePlan({ ...company, hubs: [existing] }, drive), service);
+	assert.deepEqual(calls.find((call) => call[0] === 'put')[2].sources, [{ connectionID: 'conn-drive', toolNames: ['read_file', 'search_files'] }]);
+});
+
+test('my AI reaches a workspace through a sign-in, a key for every workspace or a key for this one', () => {
+	assert.equal(edit.aiReachesWorkspace({ sessions: [], keys: [] }, 'hub-one'), false);
+	assert.equal(edit.aiReachesWorkspace({ sessions: [{ id: 's' }], keys: [] }, 'hub-one'), true);
+	assert.equal(edit.aiReachesWorkspace({ sessions: [], keys: [{ hubID: '' }] }, 'hub-one'), true);
+	assert.equal(edit.aiReachesWorkspace({ sessions: [], keys: [{ hubID: 'hub-one' }] }, 'hub-one'), true);
+	assert.equal(edit.aiReachesWorkspace({ sessions: [], keys: [{ hubID: 'hub-other' }] }, 'hub-one'), false, 'a key for another workspace');
+});
+
 test('the invite message points to เชื่อม AI ของฉัน in the phone\'s browser, in this company', () => {
 	assert.equal(edit.connectAILink('https://orca.example.test', 'default'), 'https://orca.example.test/app?view=connect-ai&openExternalBrowser=1');
 	const other = edit.connectAILink('https://orca.example.test/', 'org-11111111-2222-4333-8444-555555555555');
@@ -319,6 +352,8 @@ test('the invite message points to เชื่อม AI ของฉัน in t
 	assert.doesNotMatch(message, /MCP|OAuth|คีย์/);
 	assert.match(edit.samplePrompt('FlowAccount', th), /ใบแจ้งหนี้/);
 	assert.match(edit.samplePrompt('Something', en), /Something/);
+	assert.match(edit.samplePrompt('LINE OA', th), /ข้อความสำคัญ/);
+	assert.doesNotMatch(edit.samplePrompt('Pipeline CRM', th), /ข้อความสำคัญ/, 'LINE is a word, not any "line"');
 });
 
 test('the one-click and create addresses stay put, and the old edit forms land on the tabs', async () => {
