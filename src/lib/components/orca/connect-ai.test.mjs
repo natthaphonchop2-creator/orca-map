@@ -304,3 +304,11 @@ test('program sign-ins and the in-app browser notice keep their promises', async
 		assert.doesNotMatch(source, /localStorage\.setItem\((?!.*AI_APP_KEY)/, 'only the chosen app is remembered in the browser');
 	}
 });
+
+test('"AI ที่คุณเชื่อมไว้" uses the one AI app tile, not its own logo colours', async () => {
+	const list = await readFile(new URL('./connect-ai/ConnectedAIList.svelte', import.meta.url), 'utf8');
+	assert.match(list, /import AIAppTile from '\.\.\/AIAppTile\.svelte'/);
+	assert.match(list, /<AIAppTile kind=\{session\.client\} size=\{40\} \/>/);
+	assert.match(list, /<AIAppTile kind="key" size=\{40\} \/>/);
+	assert.doesNotMatch(list, /ToolIcon|#[0-9a-f]{6}\b/i);
+});

@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { Bot, KeyRound, Unplug } from '@lucide/svelte';
+	import { Unplug } from '@lucide/svelte';
 	import { dayLabel, keyScope, sessionLabel, shortDate } from '$lib/orca/connect-ai';
 	import { orcaLocale, t } from '$lib/orca/locale.svelte';
-	import ToolIcon from '$lib/orca/ToolIcon.svelte';
 	import { OrcaService, orcaError, type OrcaHub } from '$lib/services/orca';
 	import { MyAIAppsService, type MyAIKey, type MyAISession } from '$lib/services/orca-ai-apps';
 	import { term } from '$lib/orca/glossary';
+	import AIAppTile from '../AIAppTile.svelte';
 	import ConfirmDialog from '../ui/ConfirmDialog.svelte';
 	import { showToast } from '../ui/toast-store.svelte';
 
@@ -68,7 +68,7 @@
 			{#each sessions as session (session.id)}
 				{@const label = sessionLabel(session, t)}
 				<li>
-					<span class="ca-logo" class:plain={session.client === 'other'}>{#if session.client === 'claude'}<ToolIcon name="claude" size={24} decorative />{:else if session.client === 'chatgpt'}<ToolIcon name="chatgpt" size={24} decorative />{:else}<Bot size={20} aria-hidden="true" />{/if}</span>
+					<AIAppTile kind={session.client} size={40} />
 					<div class="ca-copy">
 						<b>{label}</b>
 						<small>{t(`เชื่อมเมื่อ ${shortDate(session.createdAt, now, lang)}`, `Connected ${shortDate(session.createdAt, now, lang)}`)} · {t(`ต่ออายุล่าสุด ${dayLabel(session.lastRefreshedAt, now, t, lang)}`, `Last renewed ${dayLabel(session.lastRefreshedAt, now, t, lang)}`)}</small>
@@ -81,7 +81,7 @@
 			{#each keys as key (key.id)}
 				{@const label = t(`คีย์ ${key.name}`, `key ${key.name}`)}
 				<li>
-					<span class="ca-logo plain"><KeyRound size={18} aria-hidden="true" /></span>
+					<AIAppTile kind="key" size={40} />
 					<div class="ca-copy">
 						<b>{t('คีย์', 'Key')} · {key.name}</b>
 						<small>{keyScope(key, hubs, t)} · {key.lastUsedAt ? t(`ใช้ล่าสุด ${dayLabel(key.lastUsedAt, now, t, lang)}`, `Last used ${dayLabel(key.lastUsedAt, now, t, lang)}`) : t('ยังไม่เคยใช้', 'Never used')} · {key.expiresAt ? t(`หมดอายุ ${shortDate(key.expiresAt, now, lang)}`, `Expires ${shortDate(key.expiresAt, now, lang)}`) : t('ไม่หมดอายุ', 'No expiry')}</small>
@@ -154,24 +154,6 @@
 	}
 	li:first-child {
 		border-top: 0;
-	}
-	.ca-logo {
-		display: grid;
-		flex: none;
-		place-items: center;
-		width: 40px;
-		height: 40px;
-		border: 1px solid var(--orca-line);
-		border-radius: 10px;
-		background: var(--orca-logo-tile);
-		color: var(--orca-text-2);
-	}
-	.ca-logo.plain {
-		background: var(--orca-secondary);
-	}
-	.ca-logo :global(.orca-tool-icon) {
-		padding: 0 !important;
-		background: transparent !important;
 	}
 	.ca-copy {
 		display: grid;

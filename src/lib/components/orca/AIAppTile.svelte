@@ -2,8 +2,9 @@
 	import { KeyRound, Sparkles } from '@lucide/svelte';
 	import type { AppKind } from '$lib/orca/connected-ai-apps';
 
-	// The small tile before an AI app's name (แอป AI ที่เชื่อมอยู่ and its
-	// confirm dialog): Claude and ChatGPT as a letter in the app's own colour,
+	// The one tile before an AI app's name (แอป AI ที่เชื่อมอยู่, its confirm
+	// dialog, and เชื่อม AI ของฉัน's "AI ที่คุณเชื่อมไว้"): Claude and ChatGPT as a
+	// letter in the app's own colour,
 	// a key or any other app as an icon on the quiet fill. Decorative only: the
 	// name always sits next to it.
 	let { kind, size = 32 }: { kind: AppKind; size?: number } = $props();
