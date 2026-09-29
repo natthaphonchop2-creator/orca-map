@@ -41,7 +41,7 @@ export type TeamTab = (typeof TEAM_TABS)[number];
 /** Settings after the split: บริษัท, บัญชีของฉัน and (with a sign-in source) ขั้นสูง. */
 export const SETTINGS_SECTIONS = ['company', 'account', 'advanced'] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
-/** The tabs of an AI workspace. `settings` is the edit form until U5 edits in place. */
+/** The tabs of an AI workspace, each edited in place (U5). */
 export const HUB_TABS = ['overview', 'programs', 'people', 'settings'] as const;
 
 /** The views a page can show today. */
@@ -256,8 +256,9 @@ export function appNavigation(
 				only();
 				hash = '';
 			}
-		} else if (tab === 'settings' && p.get('step') && p.get('step') !== 'tools') p.delete('step');
-		else if (tab !== 'settings') p.delete('step');
+		} else if (tab === 'settings' && p.get('step') === 'tools') p.set('tab', 'programs');
+		// The tools-only form is gone: its programs are edited on โปรแกรม.
+		p.delete('step');
 		// An old connect tab waits for the workspace list before it is resolved.
 		const waiting = p.get('tab') === 'connect' && !options.hubs;
 		if (!waiting && p.get('tab') && !(HUB_TABS as readonly string[]).includes(p.get('tab')!)) p.delete('tab');

@@ -3,6 +3,7 @@
   import { Check, Copy, Link2, MailPlus, RefreshCw, Send, X } from "@lucide/svelte";
   import { canRenewInvitation, invitationLink, invitationTone, invitedByPlatform, lineShareURL, splitInvitations } from "$lib/orca/invitations";
   import { t } from "$lib/orca/locale.svelte";
+  import { everyoneDepartment } from "$lib/orca/workspace-edit";
   import { OrcaService, displayDate, memberName, orcaError, type OrcaBootstrap, type OrcaInvitation, type OrcaManagerInvitationRole } from "$lib/services/orca";
 
   // Invitation links until ORCA sends mail itself: the manager shares each link
@@ -88,7 +89,9 @@
   function resetForm() {
     email = "";
     role = "employee";
-    unitIDs = [];
+    // The interim "ทุกคน" department: a new person gets the company-wide workspaces.
+    const everyone = everyoneDepartment(departments);
+    unitIDs = everyone ? [everyone.id] : [];
     formError = "";
     copied = "";
   }

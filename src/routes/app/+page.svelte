@@ -4,9 +4,6 @@
   import CompanyGate from "$lib/components/orca/CompanyGate.svelte";
   import { companyDenied, currentCompany, DEFAULT_COMPANY, reloadForAddress } from "$lib/orca/company";
   import { guardPage, reloadForAccount } from "$lib/services/writes";
-  import WorkspaceDetail from "$lib/components/orca/WorkspaceDetail.svelte";
-  import WorkspaceWizard from "$lib/components/orca/WorkspaceWizard.svelte";
-  import GatewayCreated from "$lib/components/orca/GatewayCreated.svelte";
   import notoLicenseURL from "$lib/components/orca/assets/noto-sans-thai-OFL.txt?url";
   import "$lib/components/orca/workspace-base.css";
   import WorkspaceDashboard from "$lib/components/orca/WorkspaceDashboard.svelte";
@@ -22,7 +19,8 @@
   import OversightView from "$lib/components/orca/views/OversightView.svelte";
   import PlatformView from "$lib/components/orca/views/PlatformView.svelte";
   import TeamView from "$lib/components/orca/views/TeamView.svelte";
-  import WorkspaceSettingsView from "$lib/components/orca/views/WorkspaceSettingsView.svelte";
+  import WorkspaceHubView from "$lib/components/orca/views/WorkspaceHubView.svelte";
+  import WorkspaceNewView from "$lib/components/orca/views/WorkspaceNewView.svelte";
   import "$lib/components/orca/orca.css";
   import { initializeLocale, localeHref, t } from "$lib/orca/locale.svelte";
   import { appNavigation, type PlatformSection } from "$lib/orca/navigation";
@@ -57,7 +55,6 @@
   const navigation = $derived(appNavigation(page.url.searchParams, { hash: page.url.hash, role: data, hubs: data?.hubs }));
   const view = $derived(navigation.view);
   const section = $derived(navigation.params.get("section"));
-  const tab = $derived(navigation.params.get("tab") ?? "");
   const currentData = $derived(data ? {...data,
     hubs: data.hubs.filter(item => item.status !== 'archived' && item.status !== 'deleted'),
     connections: data.connections.filter(item => !item.archivedAt && !item.deletedAt),
@@ -79,7 +76,6 @@
     !!libraryKind && page.url.searchParams.get("create") === "1",
   );
   const hub = $derived(data?.hubs.find((item) => item.id === hubID));
-  const editableHub = $derived(currentData?.hubs.find((item) => item.id === hubID));
   async function refresh() {
     const request = ++refreshGeneration;
     refreshing = true;
@@ -158,18 +154,7 @@
         ...data,
         hubs: [...data.hubs.filter((item) => item.id !== saved.id), saved],
       };
-    await goto(localeHref(`/app?view=hub&hub=${encodeURIComponent(saved.id)}&tab=overview&created=1`));
-    await refresh();
-  }
-  async function savedEdit(saved: OrcaHub) {
-    refreshGeneration += 1;
-    if (data)
-      data = {
-        ...data,
-        hubs: [...data.hubs.filter((item) => item.id !== saved.id), saved],
-      };
-    const next = page.url.searchParams.get("step") === "tools" ? "&tab=programs" : "";
-    await goto(localeHref(`/app?view=hub&hub=${encodeURIComponent(saved.id)}${next}`));
+    await goto(localeHref(`/app?view=hub&hub=${encodeURIComponent(saved.id)}&created=1`));
     await refresh();
   }
   $effect(() => {
@@ -234,25 +219,14 @@
           >{t("กลับไปพื้นที่ทำงาน AI", "Back to AI workspaces")}</a
         >
       </div>
-    {:else}{#key `new:${connectionID}`}<WorkspaceWizard
+    {:else}{#key `new:${connectionID}:${page.url.searchParams.get("everyone")}`}<WorkspaceNewView
           data={currentData!}
-          initialConnectionID={connectionID}
+          {connectionID}
+          everyone={page.url.searchParams.get("everyone") === "1"}
           onsaved={savedNew}
-          onreload={refresh}
         />{/key}{/if}
   {:else if view === "hub"}
-    {#if hub && tab === "settings" && data.canManage && editableHub}<WorkspaceSettingsView
-        data={currentData!}
-        hub={editableHub}
-        step={page.url.searchParams.get("step") ?? ""}
-        onsaved={savedEdit}
-        onreload={refresh}
-      />
-    {:else if hub}{#if page.url.searchParams.get('created') === '1' && data.canManage}<GatewayCreated {hub} />{/if}{#key hub.id}<WorkspaceDetail
-          data={managementData!}
-          {hub}
-          onchanged={refresh}
-        />{/key}{:else}<div class="k-empty">
+    {#if hub}<WorkspaceHubView data={managementData!} {hub} onchanged={refresh} />{:else}<div class="k-empty">
         <Info size={34} />
         <h1>{t("ไม่พบพื้นที่ทำงาน AI นี้", "AI workspace not found")}</h1>
         <p>

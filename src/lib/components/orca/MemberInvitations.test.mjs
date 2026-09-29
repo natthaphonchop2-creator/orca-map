@@ -11,6 +11,7 @@ import { effect_root, flush } from "svelte/internal/client";
 const component = await readFile(new URL("./MemberInvitations.svelte", import.meta.url), "utf8");
 const invitePage = await readFile(new URL("../../../routes/invite/[token]/+page.svelte", import.meta.url), "utf8");
 const helpers = await importTypeScript(new URL("../../orca/invitations.ts", import.meta.url));
+const { everyoneDepartment } = await importTypeScript(new URL("../../orca/workspace-edit.ts", import.meta.url));
 const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
   .replace(/^\s*import[^;]+;/gm, "")
   .replace("$bindable(false)", "false")
@@ -19,10 +20,10 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(testProps, dependencies) {
-  const { OrcaService, onMount, tick, untrack, canRenewInvitation, invitationLink, invitationTone, invitedByPlatform, lineShareURL, splitInvitations, t, displayDate, memberName, orcaError, window, navigator } = dependencies;
+  const { OrcaService, onMount, tick, untrack, canRenewInvitation, invitationLink, invitationTone, invitedByPlatform, lineShareURL, splitInvitations, everyoneDepartment, t, displayDate, memberName, orcaError, window, navigator } = dependencies;
   ${script}
   return {
-    load, submit, reissue, revoke, copy, toggleUnit, closed, inviter, roleLabel,
+    load, submit, reissue, revoke, copy, toggleUnit, closed, inviter, roleLabel, resetForm,
     setEmail(value) { email = value; }, setRole(value) { role = value; },
     get items() { return items; }, get groups() { return groups; }, get issued() { return issued; }, get message() { return message; },
     get formError() { return formError; }, get listError() { return listError; }, get notice() { return notice; }, get copied() { return copied; },
@@ -52,6 +53,7 @@ function mount(props, service) {
   const stop = effect_root(() => {
     view = harness({ ...props, onchanged: () => calls.changed++ }, {
       ...helpers,
+      everyoneDepartment,
       OrcaService: {
         invitations: async () => service.list(),
         invite: async (...args) => { calls.invite.push(args); return service.invite(...args); },
@@ -184,4 +186,26 @@ test("the invitation pieces compile without warnings", () => {
   for (const [filename, source] of [["MemberInvitations.svelte", component], ["+page.svelte", invitePage]]) {
     assert.deepEqual(compile(source, { filename, generate: "client" }).warnings.map((warning) => `${warning.code}: ${warning.message}`), [], filename);
   }
+});
+
+test("a new invitation starts with the \"ทุกคน\" department ticked when the company has one (plan Q6)", () => {
+  const everyone = { id: "u-all", name: "ทุกคน", kind: "department" };
+  const withEveryone = mount({ data: { ...data(), units: [...data().units, everyone] } }, { list: async () => [] });
+  try {
+    withEveryone.view.toggleUnit("u-sales");
+    withEveryone.view.resetForm();
+    assert.deepEqual(withEveryone.view.unitIDs, ["u-all"], "pre-ticked, and still removable");
+    withEveryone.view.toggleUnit("u-all");
+    assert.deepEqual(withEveryone.view.unitIDs, []);
+  } finally { withEveryone.stop(); }
+  const archived = mount({ data: { ...data(), units: [...data().units, { ...everyone, archivedAt: "2026-09-01" }] } }, { list: async () => [] });
+  try {
+    archived.view.resetForm();
+    assert.deepEqual(archived.view.unitIDs, [], "an archived ทุกคน is not ticked");
+  } finally { archived.stop(); }
+  const without = mount({ data: data() }, { list: async () => [] });
+  try {
+    without.view.resetForm();
+    assert.deepEqual(without.view.unitIDs, []);
+  } finally { without.stop(); }
 });

@@ -213,7 +213,7 @@ test("view=new&edit=ID edits on the workspace (ตั้งค่า)", () => {
 
 test("view=new&edit=ID&step=tools opens the workspace's โปรแกรม tab", () => {
   redirects("view=new&edit=hub-one&step=tools", "/app?view=hub&hub=hub-one&tab=programs");
-  stays("view=hub&hub=hub-one&tab=settings&step=tools", "hub");
+  redirects("view=hub&hub=hub-one&tab=settings&step=tools", "/app?view=hub&hub=hub-one&tab=programs");
   redirects("view=hub&hub=hub-one&tab=settings&step=other", "/app?view=hub&hub=hub-one&tab=settings");
 });
 
