@@ -1,10 +1,7 @@
 <script lang="ts">
   import { gatewayHasMember } from '$lib/orca/gateway-sources';
   import { beforeNavigate } from "$app/navigation";
-  import {
-    organizationRole,
-    canResetMemberPassword,
-  } from "$lib/orca/member-access";
+  import { organizationRole } from "$lib/orca/member-access";
   import {
     OrcaLibraryService,
     type LibraryDepartment,
@@ -14,9 +11,7 @@
   import MemberRoleEditor from "./MemberRoleEditor.svelte";
   import MemberInvitations from "./MemberInvitations.svelte";
   import "./library.css";
-  import { LOCAL_AUTH_MIN_PASSWORD_LENGTH } from "$lib/constants";
   import { t, localeHref } from "$lib/orca/locale.svelte";
-  import type { LocalAuthUser } from "$lib/services/admin/types";
   import {
     OrcaService,
     orcaError,
@@ -31,14 +26,13 @@
     Crown,
     Ellipsis,
     Info,
-    KeyRound,
     MailPlus,
     RefreshCw,
     Shield,
     UserPlus,
     Users,
   } from "@lucide/svelte";
-  import { onMount, onDestroy, untrack } from "svelte";
+  import { onMount, untrack } from "svelte";
 
   type TeamSection = "members" | "invitations" | "departments";
   let {
@@ -54,17 +48,7 @@
     /** Reports a tab change, so the page can keep it in the address. */
     ontab?: (next: TeamSection) => void;
   } = $props();
-  let accounts = $state<LocalAuthUser[]>([]);
-  let localAvailable = $state(false);
-  let loading = $state(false);
   let saving = $state(false);
-  let open = $state(false);
-  let resetting = $state<LocalAuthUser>();
-  let email = $state("");
-  let password = $state("");
-  let error = $state("");
-  let availabilityError = $state("");
-  let success = $state("");
   let query = $state("");
   let section = $state<TeamSection>(untrack(() => tab ?? "members"));
   let memberStatus = $state("active");
@@ -90,7 +74,8 @@
   );
   const canManageRoles = $derived(data.canManageRoles === true);
   // One person may belong to several companies, so a company manager never
-  // chooses someone's password. Only a platform operator keeps these controls.
+  // chooses someone's password: password accounts are the ORCA team's, under
+  // แพลตฟอร์ม ORCA › บัญชีฉุกเฉิน (platform/BreakGlassAccounts.svelte).
   const operator = $derived(data.platformOperator === true);
   // Suspending or removing someone in the default company changes their
   // account in every company, so there the server allows it only to the
@@ -158,32 +143,10 @@
       if (requested !== section) changeSection(requested);
     });
   });
-  function passwordAllowed(member: OrcaMember) {
-    if (member.status && member.status !== "active") return false;
-    return canResetMemberPassword(
-      data.canManage,
-      currentUser?.role,
-      member.role,
-      member.roleLocked,
-    );
-  }
-
   function canManageMember(member: OrcaMember) {
     return data.canManage && member.id !== data.currentUserID && (organizationRole(currentUser?.role ?? '') === 'owner' || organizationRole(currentUser?.role ?? '') === 'admin' && organizationRole(member.role) === 'employee' && !member.roleLocked);
   }
-  async function memberChanged() { await onchanged(); await refresh(); await refreshDepartments(); }
-  const normalized = (email: string) => email.trim().toLowerCase();
-  const matchingMember = (email: string) =>
-    data.members.find(
-      (member) => normalized(member.email) === normalized(email),
-    );
-  const pending = $derived(
-    accounts.filter(
-      (account) =>
-        !matchingMember(account.email) &&
-        account.email.toLowerCase().includes(query.toLowerCase()),
-    ),
-  );
+  async function memberChanged() { await onchanged(); await refreshDepartments(); }
   const active = (member: OrcaMember) => !member.status || member.status === "active";
   const hubsFor = (member: OrcaMember) => data.hubs.filter((hub) => gatewayHasMember(hub, member.id));
   const departmentsFor = (member: OrcaMember) =>
@@ -199,73 +162,9 @@
       `${memberName(member)} ${member.email}`.toLowerCase().includes(query.toLowerCase()),
     ),
   );
-  async function refresh() {
-    if (!data.canManage || !operator) return;
-    loading = true;
-    availabilityError = "";
-    try {
-      accounts = await OrcaService.localUsers();
-      localAvailable = true;
-    } catch (cause) {
-      localAvailable = false;
-      availabilityError = orcaError(cause);
-    } finally {
-      loading = false;
-    }
-  }
   onMount(() => {
-    void refresh();
     void refreshDepartments();
   });
-  onDestroy(() => {
-    password = "";
-  });
-  function start(account?: LocalAuthUser) {
-    if (account) {
-      const member = matchingMember(account.email);
-      if (
-        member
-          ? !passwordAllowed(member)
-          : organizationRole(currentUser?.role ?? "") !== "owner"
-      )
-        return;
-    }
-    resetting = account;
-    email = account?.email ?? "";
-    password = "";
-    open = true;
-    error = "";
-    success = "";
-  }
-  async function save() {
-    if (saving) return;
-    saving = true;
-    error = "";
-    success = "";
-    try {
-      if (resetting)
-        await OrcaService.resetLocalPassword(resetting.id, password);
-      else await OrcaService.createLocalUser(normalized(email), password);
-      password = "";
-      open = false;
-      success = resetting
-        ? t(
-            "เปลี่ยนรหัสผ่านแล้ว บัญชีนี้ต้องเข้าสู่ระบบใหม่บนทุกอุปกรณ์",
-            "Password updated. This account must sign in again on every device.",
-          )
-        : t(
-            "สร้างบัญชีแล้ว ผู้ใช้ต้องเข้าสู่ระบบครั้งแรกก่อน จึงจะเพิ่มเป็นสมาชิกของพื้นที่ทำงาน AI ได้",
-            "Account created. The user must sign in once before being added to an AI workspace.",
-          );
-      await refresh();
-      await onchanged();
-    } catch (cause) {
-      error = orcaError(cause);
-    } finally {
-      saving = false;
-      password = "";
-    }
-  }
 </script>
 
 <svelte:window
@@ -308,26 +207,13 @@
           <div class="team-menu-panel" role="menu" hidden={!moreOpen}>
             <button
               role="menuitem"
-              disabled={loading || saving}
+              disabled={saving}
               onclick={async () => {
                 moreOpen = false;
-                await refresh();
                 await onchanged();
                 await refreshDepartments();
               }}><RefreshCw size={16} aria-hidden="true" />{t("โหลดข้อมูลใหม่", "Refresh")}</button
-            >{#if operator && localAvailable}<button
-                role="menuitem"
-                onclick={() => {
-                  moreOpen = false;
-                  changeSection("members");
-                  start();
-                }}
-                ><KeyRound size={16} aria-hidden="true" /><span
-                  >{t("สร้างบัญชีด้วยรหัสผ่าน", "Create a password account")}<small
-                    >{t("สำหรับกรณีพิเศษ เห็นเฉพาะเจ้าของแพลตฟอร์ม", "For special cases. Only the platform operator sees this.")}</small
-                  ></span
-                ></button
-              >{/if}
+            >
           </div>
         </div>
         <button
@@ -392,75 +278,6 @@
         {onchanged}
         oncancel={() => (editingRole = undefined)}
       />{/key}{/if}
-  {#if error}<div class="k-banner error" role="alert">
-      <Info size={16} />{error}
-    </div>{/if}
-  {#if success}<div class="k-banner success" role="status">
-      <Check size={16} />{success}
-    </div>{/if}
-  {#if open && operator && localAvailable}<form
-      class="k-panel team-form"
-      onsubmit={(event) => {
-        event.preventDefault();
-        void save();
-      }}
-    >
-      <h2>
-        {resetting
-          ? t("ตั้งรหัสผ่านใหม่", "Set a new password")
-          : t("สร้างบัญชีผู้ใช้", "Create a user account")}
-      </h2>
-      <fieldset disabled={saving}>
-        <div class="k-grid-2 team-form-grid">
-          <div class="k-field">
-            <label for="team-email">{t("อีเมล", "Email")}</label><input
-              id="team-email"
-              type="email"
-              bind:value={email}
-              readonly={Boolean(resetting)}
-              required
-              autocomplete="off"
-            />
-          </div>
-          <div class="k-field">
-            <label for="team-password">{t("รหัสผ่าน", "Password")}</label><input
-              id="team-password"
-              type="password"
-              bind:value={password}
-              minlength={LOCAL_AUTH_MIN_PASSWORD_LENGTH}
-              required
-              autocomplete="new-password"
-            />
-            <p class="k-small k-muted team-form-hint">
-              {t(
-                `อย่างน้อย ${LOCAL_AUTH_MIN_PASSWORD_LENGTH} ตัวอักษร`,
-                `At least ${LOCAL_AUTH_MIN_PASSWORD_LENGTH} characters`,
-              )}
-            </p>
-          </div>
-        </div>
-        <p class="k-small k-muted team-form-note">
-          {t(
-            "กรุณาแจ้งข้อมูลเข้าสู่ระบบแก่ผู้ใช้ผ่านช่องทางที่เหมาะสมด้วยตนเอง แบบฟอร์มนี้ไม่ส่งอีเมลหรือคำเชิญโดยอัตโนมัติ",
-            "Share the sign-in details with the user through an appropriate channel. This form does not send email or invitations.",
-          )}
-        </p>
-        <div class="k-actions team-form-actions">
-          <button class="k-button primary" type="submit" disabled={saving}
-            >{saving
-              ? t("กำลังบันทึก…", "Saving…")
-              : t("บันทึกบัญชี", "Save account")}</button
-          ><button
-            class="k-button"
-            type="button"
-            onclick={() => {
-              open = false;
-              password = "";
-            }}>{t("ยกเลิก", "Cancel")}</button
-          >
-        </div>
-      </fieldset>
-    </form>{/if}
   {#if data.canManage && invitationCount}<div class="team-reminder" role="status">
       <MailPlus size={16} aria-hidden="true" /><span
         >{t(`มีคำเชิญที่ยังไม่ได้ตอบรับ ${invitationCount} รายการ`, `${invitationCount} invitation${invitationCount === 1 ? "" : "s"} not accepted yet`)}</span
@@ -503,9 +320,7 @@
             >{#if data.canManage}<th scope="col" class="team-actions-col"><span class="sr-only">{t("การจัดการสมาชิก", "Member actions")}</span></th>{/if}</tr
           ></thead
         ><tbody
-          >{#each members as member (member.id)}{@const hubs = hubsFor(member)}{@const account =
-              operator && localAvailable ? accounts.find((item) => normalized(item.email) === normalized(member.email)) : undefined}{@const canReset =
-              !!account && passwordAllowed(member)}{@const canChangeRole =
+          >{#each members as member (member.id)}{@const hubs = hubsFor(member)}{@const canChangeRole =
               canManageRoles && typeof member.role === "number" && !member.roleLocked && active(member)}{@const manageable = canChangeStatus && canManageMember(member)}<tr
               ><td class="team-member"
                 ><strong
@@ -526,7 +341,7 @@
                       >{t("เพิ่มเข้าพื้นที่ทำงาน", "Add to a workspace")}</a
                     >{/if}{/if}</td
               >{#if data.canManage}<td class="team-actions-col"
-                  >{#if canChangeRole || active(member) || canReset || manageable}<div class="team-menu team-row-menu">
+                  >{#if canChangeRole || active(member) || manageable}<div class="team-menu team-row-menu">
                     <button
                       class="team-icon-button"
                       aria-haspopup="menu"
@@ -546,13 +361,6 @@
                           }}>{t("เปลี่ยนบทบาท", "Change role")}</button
                         >{/if}{#if active(member)}<a role="menuitem" href={localeHref("/app?view=workspaces")}
                           >{t("เพิ่มเข้าพื้นที่ทำงาน", "Add to a workspace")}</a
-                        >{/if}{#if canReset}<button
-                          role="menuitem"
-                          aria-label={t(`ตั้งรหัสผ่านใหม่ให้ ${member.email}`, `Reset password for ${member.email}`)}
-                          onclick={() => {
-                            menuFor = "";
-                            start(account);
-                          }}>{t("ตั้งรหัสผ่านใหม่", "Reset password")}</button
                         >{/if}{#if manageable}<button
                           role="menuitem"
                           onclick={() => {
@@ -576,7 +384,7 @@
                       name={memberName(member)}
                       version={member.version ?? 0}
                       inactive={member.status === "suspended"}
-                      disabled={saving || !!editingRole || open}
+                      disabled={saving || !!editingRole}
                       onbusy={(value) => (saving = value)}
                       onchanged={memberChanged}
                     />{/if}</td
@@ -592,42 +400,6 @@
           ? t("สมาชิกที่เปิดใช้งานอยู่ทุกคนอยู่ในพื้นที่ทำงาน AI อย่างน้อยหนึ่งแห่ง", "Every active member is in at least one AI workspace.")
           : t("ลองค้นหาด้วยชื่อหรืออีเมลอื่น หรือเลือกตัวกรองอื่น", "Try another name or email, or another filter.")}
       </p>
-    </div>{/if}
-  {#if operator && pending.length}<details class="team-pending">
-      <summary>{t(`รอเข้าสู่ระบบครั้งแรก (${pending.length})`, `Waiting for first sign-in (${pending.length})`)}</summary>
-      <p class="k-small k-muted">
-        {t(
-          "บัญชีรหัสผ่านที่ยังไม่เคยเข้าสู่ระบบ จะเพิ่มเข้าพื้นที่ทำงาน AI ได้หลังจากเจ้าของบัญชีเข้าสู่ระบบครั้งแรก",
-          "Password accounts that haven't signed in yet. They can join an AI workspace after their first sign-in.",
-        )}
-      </p>
-      <ul class="team-pending-list">
-        {#each pending as account (account.id)}<li>
-            <span>{account.email}</span><button
-              class="k-button small"
-              disabled={organizationRole(currentUser?.role ?? "") !== "owner"}
-              onclick={() => start(account)}><KeyRound size={16} aria-hidden="true" />{t("ตั้งรหัสผ่านใหม่", "Reset password")}</button
-            >
-          </li>{/each}
-      </ul>
-    </details>{/if}
-  {#if operator && availabilityError}<div class="k-banner">
-      <Info size={16} />
-      <div>
-        <strong
-          >{t(
-            "ไม่สามารถสร้างบัญชีแบบอีเมลและรหัสผ่านได้ในขณะนี้",
-            "Email and password accounts are unavailable",
-          )}</strong
-        >
-        <p>{availabilityError}</p>
-        <p>
-          {t(
-            "หากองค์กรใช้วิธีเข้าสู่ระบบอื่น สมาชิกจะแสดงในรายชื่อหลังจากเข้าสู่ระบบครั้งแรก",
-            "If your organization uses another sign-in method, members appear after their first sign-in.",
-          )}
-        </p>
-      </div>
     </div>{/if}
   <details class="team-role-help">
     <summary><Info size={15} aria-hidden="true" />{t("บทบาทแต่ละแบบทำอะไรได้", "What each role can do")}</summary>
@@ -731,14 +503,6 @@
     margin-top: 3px;
     color: var(--orca-subtle);
   }
-  .team-menu-panel > button span {
-    display: grid;
-    gap: 1px;
-  }
-  .team-menu-panel small {
-    color: var(--orca-muted);
-    font-size: 12.5px;
-  }
   .team-menu-panel > button.danger {
     color: var(--orca-deny);
   }
@@ -820,22 +584,6 @@
     color: inherit;
     font-weight: 600;
     white-space: nowrap;
-  }
-  /* Add or reset an account */
-  .team-form {
-    margin-bottom: 20px;
-  }
-  .team-form h2 {
-    margin: 0 0 14px;
-  }
-  .team-form-hint {
-    margin: 0;
-  }
-  .team-form-note {
-    margin: 14px 0 0;
-  }
-  .team-form-actions {
-    margin-top: 16px;
   }
   /* Quick filters and search */
   .team-toolbar {
@@ -1019,41 +767,6 @@
   .team-empty p {
     margin: 0;
     font-size: 13.5px;
-  }
-  /* Password accounts waiting for their first sign-in (platform operator) */
-  .team-pending {
-    margin-top: 16px;
-    padding: 12px 16px;
-    border: 1px solid var(--orca-line);
-    border-radius: var(--orca-radius-lg);
-    background: var(--orca-surface);
-  }
-  .team-pending summary {
-    color: var(--orca-nav);
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-  }
-  .team-pending p {
-    margin: 8px 0 0;
-  }
-  .team-pending-list {
-    display: grid;
-    gap: 8px;
-    margin: 12px 0 0;
-    padding: 0;
-    list-style: none;
-  }
-  .team-pending-list li {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px 12px;
-    overflow-wrap: anywhere;
-  }
-  .team-pending-list .k-button {
-    white-space: nowrap;
   }
   /* What each role can do */
   .team-role-help {

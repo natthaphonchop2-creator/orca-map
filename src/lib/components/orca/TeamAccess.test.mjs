@@ -84,9 +84,11 @@ test('company managers who are not platform operators get invitations, never pas
   assert.match(result.html,/Invite someone with a link/,role);
  }
 });
-test('the platform operator keeps break-glass password controls',()=>{
+test('password accounts left ทีม for the platform\'s บัญชีฉุกเฉิน, even for the ORCA team',()=>{
  const result=screen('owner',[employee],{}, {localAvailable:true,operator:true,accounts:[{id:'local-employee',email:employee.email},{id:'local-new',email:'new@example.test'}]});
- assert.match(result.html,/Create a password account/);assert.match(result.html,/Reset password for employee@example.test/);assert.match(result.html,/Waiting for first sign-in/);
+ assert.doesNotMatch(result.html,/Create a password account|Reset password|Set a new password|Waiting for first sign-in|new@example.test/);
+ assert.doesNotMatch(source,/localUsers|createLocalUser|resetLocalPassword|LOCAL_AUTH_MIN_PASSWORD_LENGTH/);
+ assert.match(result.html,/Manage employee@example.test/,'the member menu stays');
 });
 
 test('the header offers one invite button, a small menu, and no sign-in link to copy',()=>{
