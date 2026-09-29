@@ -2,13 +2,13 @@
   import { onDestroy, onMount } from "svelte";
   import { ArrowRight, Check, CircleAlert, Copy, ExternalLink, LoaderCircle, RefreshCw, ShieldCheck, Trash2 } from "@lucide/svelte";
   import CatalogIcon from "$lib/orca/CatalogIcon.svelte";
-  import { catalogSetupHref } from "$lib/orca/catalog";
   import { term } from "$lib/orca/glossary";
   import { localeHref, t } from "$lib/orca/locale.svelte";
   import { platformHref } from "$lib/orca/navigation";
   import { oauthApps, type CustomOAuthApp, type ManagedOAuthApp, type OAuthAppProvider } from "$lib/orca/oauth-apps";
   import { OrcaService, type OrcaBootstrap, type OrcaCandidate, type OrcaSourceSetup } from "$lib/services/orca";
   import PlatformBadge from "./platform/PlatformBadge.svelte";
+  import SourceSetup from "./SourceSetup.svelte";
   import ConfirmDialog from "./ui/ConfirmDialog.svelte";
   import PageHeader from "./ui/PageHeader.svelte";
   import Sheet from "./ui/Sheet.svelte";
@@ -40,8 +40,12 @@
   let busy = $state(false);
   let formError = $state("");
   let copied = $state("");
-  // The setup form opens in a side panel; removing asks in a dialog.
+  // The setup form opens in a side panel; removing asks in a dialog. A program
+  // with its own OAuth app opens its guided setup (SourceSetup) in the same
+  // panel, so the ORCA team never leaves the platform area for it.
   let sheetOpen = $state(false);
+  let checking = $state<{ id: string; name: string; endpointHost?: string }>();
+  let checkBusy = $state(false);
   let removeOpen = $state(false);
   let alive = true;
   let request = 0;
@@ -132,6 +136,7 @@
 
   async function openForm(target: AppTarget) {
     closeForm();
+    checking = undefined;
     removing = undefined;
     notice = "";
     editing = target;
@@ -143,6 +148,25 @@
     } catch {
       if (alive && editing?.key === target.key) formError = t("โหลด Callback URL ไม่สำเร็จ กรุณาปิดแล้วเปิดใหม่", "The callback URL could not be loaded. Close this form and open it again.");
     }
+  }
+
+  /** A program's own app: its guided setup, where the ORCA team saves the app and tries it. */
+  function openCheck(app: { id: string; name: string; endpointHost?: string }) {
+    closeForm();
+    removing = undefined;
+    notice = "";
+    checking = { id: app.id, name: app.name, endpointHost: app.endpointHost };
+    checkBusy = false;
+    sheetOpen = true;
+  }
+
+  function sheetClosed() {
+    const checked = !!checking;
+    closeForm();
+    checking = undefined;
+    checkBusy = false;
+    // Setting a program's app up there changes what the lists show.
+    if (checked) void refresh();
   }
 
   function askRemove(target: AppTarget) {
@@ -216,7 +240,7 @@
 </script>
 
 <PageHeader title={term("programOAuthApps", t)} subtitle={t("แอปที่ให้พนักงานกด อนุญาต แล้วเชื่อมบัญชีโปรแกรมของตัวเอง ตั้งค่าครั้งเดียวต่อผู้ให้บริการ", "Apps that let people connect their own program accounts with one Allow. Set up once per provider.")}>
-  {#snippet eyebrow()}<PlatformBadge />{/snippet}
+  {#snippet eyebrow()}<PlatformBadge everyCompany />{/snippet}
   {#snippet action()}{#if data.canManage}<button type="button" class="k-button" disabled={loading} onclick={refresh}><RefreshCw size={16} class={loading ? "k-spin" : ""} aria-hidden="true" />{t("โหลดใหม่", "Refresh")}</button>{/if}{/snippet}
 </PageHeader>
 
@@ -280,12 +304,12 @@
         {#if apps.custom.length}
           <div class="app-list">
             {#each apps.custom as app (app.id)}
-              <a class="app-row" href={localeHref(catalogSetupHref(app.id))}>
+              <button type="button" class="app-row" aria-haspopup="dialog" onclick={() => openCheck(app)}>
                 <CatalogIcon name={app.name} size={28} />
                 <span class="app-name"><strong>{app.name}</strong>{#if app.endpointHost}<span>{app.endpointHost}</span>{/if}</span>
                 <StatusPill label={t("ต้องตั้งค่าแอป", "Needs an app")} tone="warn" />
                 <span class="row-action">{app.canConfigure ? t("ตั้งค่า", "Set up") : t("ดูวิธีตั้งค่า", "View setup")}<ArrowRight size={14} aria-hidden="true" /></span>
-              </a>
+              </button>
             {/each}
           </div>
         {:else}
@@ -327,10 +351,12 @@
 
 <Sheet
   bind:open={sheetOpen}
-  title={editing ? (editing.replace ? t(`เปลี่ยนแอป ${editing.name}`, `Replace the ${editing.name} app`) : t(`ตั้งค่าแอป ${editing.name}`, `Set up the ${editing.name} app`)) : ""}
-  description={t("ทำตามขั้นตอนที่ผู้ให้บริการ แล้ววาง Client ID และ Client secret", "Follow the steps with the provider, then paste the Client ID and Client secret.")}
-  {busy}
-  onclose={closeForm}
+  title={editing ? (editing.replace ? t(`เปลี่ยนแอป ${editing.name}`, `Replace the ${editing.name} app`) : t(`ตั้งค่าแอป ${editing.name}`, `Set up the ${editing.name} app`)) : checking ? t(`ตั้งค่าแอปของ ${checking.name}`, `Set up ${checking.name}'s app`) : ""}
+  description={checking
+    ? t("วาง Client ID และ Client secret ของแอปที่สร้างไว้ แล้วลองเชื่อมด้วยบัญชีของคุณ", "Paste the app's Client ID and Client secret, then try connecting with your own account.")
+    : t("ทำตามขั้นตอนที่ผู้ให้บริการ แล้ววาง Client ID และ Client secret", "Follow the steps with the provider, then paste the Client ID and Client secret.")}
+  busy={busy || checkBusy}
+  onclose={sheetClosed}
 >
   {#if editing}
     {@const target = editing}
@@ -342,7 +368,7 @@
       {#if target.provider}
         <a class="k-button console-link" href={providerConsole(target.provider)} target="_blank" rel="noopener noreferrer">{target.provider === "google" ? t("เปิด Google Auth Platform", "Open Google Auth Platform") : t("เปิด Microsoft Entra", "Open Microsoft Entra")}<ExternalLink size={14} aria-hidden="true" /></a>
       {:else}
-        <a class="k-button console-link" href={localeHref(catalogSetupHref(target.sourceID))}>{t("ดูวิธีตั้งค่าแอปของโปรแกรมนี้", "View this program's app guide")}<ArrowRight size={14} aria-hidden="true" /></a>
+        <button type="button" class="k-button console-link" onclick={() => openCheck({ id: target.sourceID, name: target.name })}>{t("ดูวิธีตั้งค่าแอปของโปรแกรมนี้", "View this program's app guide")}<ArrowRight size={14} aria-hidden="true" /></button>
       {/if}
       <div class="setup-field">
         <label for={`oauth-callback-${target.key}`}>Callback URL</label>
@@ -373,10 +399,18 @@
       <p class="apps-hint">{t("ORCA เก็บ Client secret เป็นความลับและไม่แสดงค่านี้อีก", "ORCA keeps the client secret secret and never shows it again.")}</p>
       {#if formError}<p class="form-error" role="alert">{formError}</p>{/if}
     </form>
+  {:else if checking}
+    {#key checking.id}
+      <SourceSetup sourceID={checking.id} sourceLabel={checking.name} endpointHost={checking.endpointHost} onstatechange={(state) => (checkBusy = state.busy)} />
+    {/key}
   {/if}
   {#snippet footer()}
-    <button type="button" class="k-button" disabled={busy} onclick={() => (sheetOpen = false)}>{t("ยกเลิก", "Cancel")}</button>
-    <button type="submit" form="oauth-setup-form" class="k-button primary" disabled={busy || !redirectURL}>{#if busy}<LoaderCircle size={16} class="k-spin" />{/if}{editing?.replace ? t("เปลี่ยนแอป", "Replace app") : t("บันทึก", "Save")}</button>
+    {#if checking}
+      <button type="button" class="k-button" disabled={checkBusy} onclick={() => (sheetOpen = false)}>{t("เสร็จแล้ว", "Done")}</button>
+    {:else}
+      <button type="button" class="k-button" disabled={busy} onclick={() => (sheetOpen = false)}>{t("ยกเลิก", "Cancel")}</button>
+      <button type="submit" form="oauth-setup-form" class="k-button primary" disabled={busy || !redirectURL}>{#if busy}<LoaderCircle size={16} class="k-spin" />{/if}{editing?.replace ? t("เปลี่ยนแอป", "Replace app") : t("บันทึก", "Save")}</button>
+    {/if}
   {/snippet}
 </Sheet>
 
@@ -445,7 +479,8 @@
   .app-list { overflow: hidden; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
   .app-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 12px 18px; color: var(--orca-ink); text-decoration: none; }
   .app-row + .app-row { border-top: 1px solid var(--orca-line-soft); }
-  a.app-row:hover { background: var(--orca-hover); }
+  button.app-row { width: 100%; border: 0; border-radius: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+  button.app-row:hover { background: var(--orca-hover); }
   .app-row:focus-visible { outline: 2px solid var(--orca-focus, var(--orca-ink)); outline-offset: -2px; }
   .app-name { min-width: 0; }
   .app-name strong { display: block; font-size: 14.5px; font-weight: 600; line-height: 1.45; }

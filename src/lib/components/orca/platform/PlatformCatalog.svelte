@@ -147,7 +147,7 @@
 
 {#if operator}
 	<PageHeader title={term('programCatalog', t)} subtitle={t('โปรแกรมที่ทุกบริษัทเลือกเชื่อมได้ เพิ่มโปรแกรมใหม่ด้วยลิงก์ MCP', 'The programs every company can connect. Add a new one by its MCP link.')}>
-		{#snippet eyebrow()}<PlatformBadge />{/snippet}
+		{#snippet eyebrow()}<PlatformBadge everyCompany />{/snippet}
 		{#snippet action()}<button type="button" class="k-button primary catalog-add" onclick={openAdd}><Link2 size={16} aria-hidden="true" />{t('เพิ่มด้วยลิงก์ MCP', 'Add by MCP link')}</button>{/snippet}
 	</PageHeader>
 

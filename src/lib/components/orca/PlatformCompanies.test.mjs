@@ -198,7 +198,9 @@ test("the section and its first dialog step render, and the component compiles w
   assert.match(html, /You are not a member of these companies/);
   assert.match(html, /Open a company/);
   // The Google-off warning in the owner link dialog links to the platform's Google section.
-  assert.match(component, /warning === "google"[\s\S]*?href=\{localeHref\(platformHref\("signin"\)\)\}/);
+  assert.match(component, /warning === "google"[\s\S]*?href=\{localeHref\(platformHref\("signin"\)\)\} target="_blank"/);
+  // The owner's link shows only once: following the Google link never closes the dialog.
+  assert.doesNotMatch(component.slice(component.indexOf('warning === "google"'), component.indexOf("{:else}", component.indexOf('warning === "google"'))), /dialog\?\.close\(\)/);
   // Revoking is a modal confirmation, never a pair of buttons in the row.
   assert.match(component, /<ConfirmDialog[\s\S]*?tone="danger"/);
   assert.doesNotMatch(component, /ยืนยันยกเลิก/);

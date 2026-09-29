@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
-  import { Building2, Check, Copy, Link2, MailPlus, Plus, Send, TriangleAlert, X } from "@lucide/svelte";
+  import { Building2, Check, Copy, ExternalLink, Link2, MailPlus, Plus, Send, TriangleAlert, X } from "@lucide/svelte";
   import { parseErrorContent } from "$lib/errors";
   import { invitationLink, lineShareURL } from "$lib/orca/invitations";
   import { localeHref, t } from "$lib/orca/locale.svelte";
@@ -234,7 +234,7 @@
                 </span>
               </div>
             </td>
-            <td class="company-seats"><strong>{company.seats}</strong><small>{t("คน", company.seats === 1 ? "person" : "people")}</small></td>
+            <td class="company-seats"><span class="company-seats-label">{t("ใช้งานได้", "Active:")}</span><strong>{company.seats}</strong><small>{t("คน", company.seats === 1 ? "person" : "people")}</small></td>
             <td class="company-owner">
               <StatusPill label={statusText(status, company.owners)} tone={statusTone(status)} />
               {#each company.ownerInvitations as invitation (invitation.id)}
@@ -292,10 +292,13 @@
               "ยังไม่ได้เปิดการเข้าสู่ระบบด้วย Google เจ้าของบริษัทจะสร้างบัญชีไม่ได้จนกว่าจะเปิด",
               "Google sign-in is off, so the owner can't make an account until it's turned on.",
             )}
-            <a class="dialog-warning-link" href={localeHref(platformHref("signin"))} onclick={() => dialog?.close()}>{t("เปิดการเข้าสู่ระบบด้วย Google", "Turn on Google sign-in")}</a>
+            <!-- A new tab: this dialog shows the owner's link only once, so it must stay open. -->
+            <a class="dialog-warning-link" href={localeHref(platformHref("signin"))} target="_blank" rel="noopener"
+              >{t("เปิดการเข้าสู่ระบบด้วย Google", "Turn on Google sign-in")}<ExternalLink size={13} aria-hidden="true" /><span class="companies-sr">{t(" (เปิดในแท็บใหม่)", " (opens in a new tab)")}</span></a
+            >
           {:else}
             {t(
-              `โดเมน @${emailDomain(issued.result.invitation.email)} ยังไม่อยู่ในโดเมนอีเมลที่ระบบอนุญาต เจ้าของบริษัทจะเข้าสู่ระบบไม่ได้จนกว่าจะเพิ่มโดเมนนี้`,
+              `โดเมน @${emailDomain(issued.result.invitation.email)} ยังไม่อยู่ในโดเมนอีเมลที่ ORCA อนุญาต เจ้าของบริษัทจะเข้าสู่ระบบไม่ได้จนกว่าจะเพิ่มโดเมนนี้`,
               `@${emailDomain(issued.result.invitation.email)} isn't one of the sign-in's allowed email domains, so the owner can't sign in until it's added.`,
             )}
           {/if}
@@ -384,6 +387,7 @@
   .companies-table td.company-seats small { display: inline; margin-left: 4px; }
   .companies-table small { display: block; color: var(--orca-muted); font-size: 13px; }
   .company-seats strong { font-variant-numeric: tabular-nums; }
+  .company-seats-label { display: none; }
   .company-owner { min-width: 240px; }
   .companies-actions-col { width: 1%; text-align: right; white-space: nowrap; }
   .companies-table :global(.k-button) { gap: 6px; white-space: nowrap; }
@@ -408,7 +412,7 @@
   .company-dialog .dialog-note.ok { display: flex; align-items: center; gap: 6px; color: var(--orca-ok); }
   .dialog-warning { display: flex; align-items: flex-start; gap: 8px; margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--orca-warn-line); border-radius: var(--orca-radius); background: var(--orca-warn-bg); color: var(--orca-warn); font-size: 13.5px; line-height: 1.6; }
   .dialog-warning :global(svg) { flex: none; margin-top: 3px; }
-  .dialog-warning-link { display: inline-block; margin-top: 2px; color: var(--orca-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+  .dialog-warning-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; color: var(--orca-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
   .dialog-error { padding: 10px 12px; border-radius: var(--orca-radius); background: var(--orca-deny-bg); color: var(--orca-deny) !important; font-size: 13.5px !important; }
   .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 24px; }
   .dialog-actions :global(.k-button) { min-height: 42px; padding: 0 18px; font-weight: 600; }
@@ -422,6 +426,7 @@
     .companies-table tbody tr:first-child { border-top: 0; }
     .companies-table td { padding: 4px 0; border: 0; }
     .companies-table td.company-seats { padding-left: 46px; }
+    .company-seats-label { display: inline; margin-right: 4px; color: var(--orca-muted); font-size: 13px; }
     .companies-table td.company-owner { padding-left: 46px; }
     .companies-actions-col { padding-left: 46px !important; text-align: left; }
     .dialog-share > :global(*) { flex: 1 1 auto; justify-content: center; }

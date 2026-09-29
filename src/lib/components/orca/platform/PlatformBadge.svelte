@@ -4,11 +4,19 @@
 	import { t } from '$lib/orca/locale.svelte';
 
 	// The small mark on every page of the platform area (PageHeader's eyebrow):
-	// these settings are the ORCA team's and apply to every company.
+	// the page is the ORCA team's, and no customer ever sees it. A page whose
+	// settings every company shares (Google sign-in, OAuth apps, the catalog)
+	// says so too; the companies list, the pilot requests and the main
+	// company's break-glass accounts do not apply to every company.
+	let { everyCompany = false }: { everyCompany?: boolean } = $props();
 </script>
 
 <span class="platform-tag"><Globe size={13} strokeWidth={2.2} aria-hidden="true" />{term('platform', t)}</span>
-<span class="platform-scope">{t('ใช้กับทุกบริษัทบน ORCA ลูกค้าไม่เห็นหน้านี้', 'Applies to every company on ORCA. Customers never see this page.')}</span>
+<span class="platform-scope"
+	>{everyCompany
+		? t('ใช้กับทุกบริษัทบน ORCA ลูกค้าไม่เห็นหน้านี้', 'Applies to every company on ORCA. Customers never see this page.')
+		: t('ลูกค้าไม่เห็นหน้านี้', 'Customers never see this page.')}</span
+>
 
 <style>
 	.platform-tag {

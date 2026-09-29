@@ -29,6 +29,7 @@
   let error = $state("");
   let notice = $state("");
   let confirmOff = $state(false);
+  let advancedOpen = $state(false);
   let copied = $state("");
   let copyTimer: ReturnType<typeof setTimeout> | undefined;
   const owner = $derived(data.platformOperator === true);
@@ -88,6 +89,8 @@
     const refusal = refusedDomains(joining);
     if (refusal) {
       error = refusal;
+      // The domains live in the collapsed "ขั้นสูง" card: show the field to fix.
+      advancedOpen = true;
       return;
     }
     busy = true;
@@ -120,7 +123,10 @@
     }
   }
 
-  /** The switch saves at once, with what is already saved; switching off asks first. */
+  /**
+   * The switch saves at once, with what is already saved (the saved address
+   * too, not one chosen on this page and not saved yet); switching off asks first.
+   */
   async function toggle() {
     if (busy || !owner || !setting) return;
     if (enabled) {
@@ -138,7 +144,7 @@
       const saved = await OrcaService.saveGoogleSignIn({
         clientID: setting.clientID,
         allowedDomains: setting.allowedDomains,
-        redirectURI,
+        redirectURI: setting.redirectURI || suggested,
         enabled: next,
         version: setting.version,
       });
@@ -170,7 +176,7 @@
 
 <div class="google-page">
   <PageHeader title={term("googleSignIn", t)} subtitle={t("ลูกค้าทุกบริษัทเข้า ORCA และรับคำเชิญด้วยบัญชี Google ของตัวเอง ตั้งค่าครั้งเดียวที่นี่", "Every customer signs in and accepts invitations with their own Google account. Set it up once here.")}>
-    {#snippet eyebrow()}<PlatformBadge />{/snippet}
+    {#snippet eyebrow()}<PlatformBadge everyCompany />{/snippet}
   </PageHeader>
 
   {#if error}<div class="google-callout deny" role="alert"><Info size={17} aria-hidden="true" /><span>{error}</span>{#if !setting}<button type="button" class="k-link-button" onclick={load}>{t("ลองอีกครั้ง", "Try again")}</button>{/if}</div>{/if}
@@ -184,7 +190,7 @@
         <span class="google-logo provider-logo" aria-hidden="true"><img src="/orca/tools/google.svg" alt="" width="28" height="28" /></span>
         <div class="google-status-copy">
           <h2 id="google-status-title">{t("ปุ่มเข้าสู่ระบบด้วย Google", "The Sign in with Google button")}</h2>
-          <p>
+          <p id="google-status-line">
             {#if enabled}<b class="ok">{t("ทุกบริษัทใช้ได้ตอนนี้", "Every company can use it now")}</b> · {t("ตั้งค่า Google Cloud ครบแล้ว", "Google Cloud is set up")}
             {:else if clientSaved}<b class="warn">{t("ปิดอยู่", "Off")}</b> · {t("ลูกค้าเข้าสู่ระบบด้วย Google ไม่ได้", "Customers can't sign in with Google")}
             {:else}<b>{t("ยังเปิดไม่ได้", "Can't be turned on yet")}</b> · {t("ตั้งค่า Google Cloud ด้านล่างให้ครบก่อน", "Finish the Google Cloud setup below first")}{/if}
@@ -197,6 +203,7 @@
           role="switch"
           aria-checked={enabled}
           aria-labelledby="google-status-title"
+          aria-describedby="google-status-line"
           disabled={busy || !owner || (!enabled && !clientSaved)}
           title={!enabled && !clientSaved ? t("บันทึก Client ID และ Client secret ก่อน", "Save the client ID and secret first") : undefined}
           onclick={toggle}
@@ -239,6 +246,7 @@
                 {/each}
               </ul>
               {#if targets.length > 1}<p class="google-note"><Info size={15} aria-hidden="true" />{t("อันที่สองใช้ตอนลูกค้าเชื่อม Claude หรือ ChatGPT", "The second is used when customers connect Claude or ChatGPT.")}</p>{/if}
+              <span class="google-sr" role="status">{copied ? t("คัดลอกที่อยู่แล้ว", "Address copied.") : ""}</span>
               {#if movedOrigin}
                 <div class="google-callout warn google-moved" role="status">
                   <TriangleAlert size={17} aria-hidden="true" />
@@ -266,7 +274,11 @@
             <span class="google-step-number" aria-hidden="true">3</span>
             <div class="google-step-body">
               <h3>{#if setting.secretConfigured && !changingSecret}{t("วาง Client secret", "Paste the client secret")}{:else}<label for="google-client-secret">{t("วาง Client secret", "Paste the client secret")}</label>{/if}</h3>
-              <p class="google-step-detail">{t("ORCA เก็บเป็นความลับและไม่แสดงค่าอีก ถ้าหายให้สร้างใหม่ใน Google Cloud แล้วกด", "ORCA keeps it secret and never shows it again. If it's lost, make a new one in Google Cloud and choose")} <span class="google-ui">{t("เปลี่ยน", "Change")}</span></p>
+              {#if setting.secretConfigured}
+                <p class="google-step-detail">{t("ORCA เก็บเป็นความลับและไม่แสดงค่าอีก ถ้าหายให้สร้างใหม่ใน Google Cloud แล้วกด", "ORCA keeps it secret and never shows it again. If it's lost, make a new one in Google Cloud and choose")} <span class="google-ui">{t("เปลี่ยน", "Change")}</span></p>
+              {:else}
+                <p class="google-step-detail">{t("คัดลอกจากหน้า client เดียวกัน ORCA เก็บเป็นความลับและไม่แสดงค่าอีก", "Copy it from the same client page. ORCA keeps it secret and never shows it again.")}</p>
+              {/if}
               {#if setting.secretConfigured && !changingSecret}
                 <span class="google-secret-chip"><Lock size={15} aria-hidden="true" />{t("บันทึกแล้ว", "Saved")}<span class="google-dot" aria-hidden="true">·</span><button type="button" class="google-chip-link" onclick={() => (changingSecret = true)} aria-label={t("เปลี่ยน Client secret", "Change the client secret")}>{t("เปลี่ยน", "Change")}</button></span>
               {:else}
@@ -289,7 +301,7 @@
       </footer>
     </form>
 
-    <details class="google-card google-advanced">
+    <details class="google-card google-advanced" bind:open={advancedOpen}>
       <summary>
         <span class="google-advanced-icon" aria-hidden="true"><Users size={18} /></span>
         <span class="google-advanced-copy">
@@ -303,7 +315,10 @@
         <fieldset disabled={busy || !owner}>
           <label for="google-domains">{t("โดเมนที่เข้าร่วมบริษัทหลักได้เอง (ไม่บังคับ)", "Domains that join the main company by themselves (optional)")}</label>
           <div class="google-input"><input id="google-domains" bind:value={domains} autocomplete="off" spellcheck="false" placeholder="example.co.th" aria-describedby="google-domains-help" /></div>
-          <p class="google-help" id="google-domains-help">{t("คนที่มีบัญชี Google Workspace ของโดเมนเหล่านี้ เข้าบริษัทหลักของ ORCA (บริษัทของทีม ORCA) เป็นพนักงานได้เองโดยไม่ต้องเชิญ ลูกค้าไม่ได้เข้าบริษัทของตัวเองด้วยวิธีนี้ ต้องใช้ลิงก์เชิญเสมอ คั่นหลายโดเมนด้วยจุลภาค ใส่ gmail.com ไม่ได้", "People with a Google Workspace account in these domains join ORCA's main company (the ORCA team's) as employees, without an invitation. Customers never join their own company this way; they always need an invitation link. Separate several with commas. gmail.com can't be added.")}</p>
+          <p class="google-help" id="google-domains-help">
+            {t("คนในโดเมนเหล่านี้เข้าบริษัทของทีม ORCA เป็นพนักงานได้เองโดยไม่ต้องเชิญ", "People in these domains join the ORCA team's company as employees, without an invitation.")}
+            {t("ลูกค้ายังต้องใช้ลิงก์เชิญเสมอ คั่นหลายโดเมนด้วยจุลภาค ใส่ gmail.com ไม่ได้", "Customers always need an invitation link. Separate domains with commas; gmail.com can't be added.")}
+          </p>
           {#if owner}<div class="google-advanced-actions"><button type="submit" class="k-button" disabled={busy}>{t("บันทึกโดเมน", "Save domains")}</button></div>{/if}
         </fieldset>
       </form>
@@ -372,6 +387,7 @@
   .google-copy { flex: none; gap: 6px; font-weight: 600; }
   .google-note { display: flex; align-items: center; gap: 7px; margin: 9px 0 0; color: var(--orca-muted); font-size: 13px; }
   .google-note :global(svg) { flex: none; }
+  .google-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .google-input { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 12px 0 0; border: 1px solid var(--orca-field-line); border-radius: var(--orca-radius); background: var(--orca-field); }
   .google-input:focus-within { border-color: var(--orca-focus); box-shadow: 0 0 0 3px var(--orca-focus-halo); }
   .google-input.unusual { border-color: var(--orca-warn-line); }

@@ -28,7 +28,7 @@ const code = compileModule(
   return {
     load, save, toggle, saveSwitch, copyURI,
     set(values) { if ("clientID" in values) clientID = values.clientID; if ("clientSecret" in values) clientSecret = values.clientSecret; if ("domains" in values) domains = values.domains; if ("enabled" in values) enabled = values.enabled; if ("useSuggested" in values) useSuggested = values.useSuggested; },
-    get state() { return { setting, clientID, clientSecret, domains, enabled, error, notice, owner, redirectURI, movedOrigin, targets, clientSaved, clientFormat, confirmOff, changingSecret, copied }; },
+    get state() { return { setting, clientID, clientSecret, domains, enabled, error, notice, owner, redirectURI, movedOrigin, targets, clientSaved, clientFormat, confirmOff, changingSecret, copied, advancedOpen }; },
   };
 }`,
   { filename: "google-signin-settings-test.svelte.js", generate: "client" },
@@ -134,6 +134,20 @@ test("after a move the operator can adopt this page's address, and it is what ge
   } finally { stop(); }
 });
 
+test("the switch never saves an address picked on the page but not saved yet", async () => {
+  const stored = { ...saved, redirectURI: "https://old-workspace.example/oauth2/callback" };
+  const { view, saves, stop } = mount(true, stored);
+  try {
+    await view.load();
+    flush();
+    view.set({ useSuggested: true });
+    flush();
+    await view.toggle();
+    await view.saveSwitch(false);
+    assert.equal(saves[0].redirectURI, stored.redirectURI, "switching keeps the saved address");
+  } finally { stop(); }
+});
+
 test("the switch: off asks first, then saves only what is already saved; on needs a saved client", async () => {
   const { view, saves, stop } = mount(true, saved);
   try {
@@ -199,6 +213,7 @@ test("Gmail is refused as a joining domain before anything is sent", async () =>
     await view.save();
     assert.equal(saves.length, 0, "nothing reached ORCA");
     assert.match(view.state.error, /gmail\.com ไม่ได้/);
+    assert.equal(view.state.advancedOpen, true, "the collapsed domains open, so the field to fix is in view");
     assert.equal(view.state.domains, "example.co.th, Gmail.com", "what was typed stays to be fixed");
     view.set({ domains: "" });
     await view.save();
@@ -230,10 +245,17 @@ test("the page follows the mockup's order and never shows a secret value", async
   assert.ok(component.indexOf('id="google-client-id"') < component.indexOf('id="google-client-secret"'));
   assert.match(component, /อันที่สองใช้ตอนลูกค้าเชื่อม Claude หรือ ChatGPT/);
   assert.match(component, /ขั้นสูง: ให้คนในโดเมนเข้าร่วมบริษัทหลักอัตโนมัติ/);
-  assert.match(component, /<details class="google-card google-advanced">/, "the domains are collapsed");
+  assert.match(component, /<details class="google-card google-advanced" bind:open=\{advancedOpen\}>/, "the domains are collapsed");
+  assert.match(component, /let advancedOpen = \$state\(false\);/, "and start collapsed");
   // The secret field is a password input bound to the typed value only; the saved one is a chip.
   assert.match(component, /id="google-client-secret" type="password" bind:value=\{clientSecret\}/);
   assert.doesNotMatch(component, /setting\.clientSecret|value=\{setting/);
+  // Step 3 mentions "เปลี่ยน" only when there is a saved secret to change.
+  assert.match(component, /\{#if setting\.secretConfigured\}\s*<p class="google-step-detail">[^\n]*แล้วกด/);
+  assert.match(component, /\{:else\}\s*<p class="google-step-detail">\{t\("คัดลอกจากหน้า client เดียวกัน/);
+  // The switch names its state and why it may be disabled; a copy is announced.
+  assert.match(component, /role="switch"[\s\S]*?aria-describedby="google-status-line"/);
+  assert.match(component, /<span class="google-sr" role="status">\{copied \?/);
   const { Component } = await serverComponent(file, { ...helpers, t: (_th, en) => en, term: (_key, t) => t("เข้าสู่ระบบด้วย Google", "Sign in with Google"), OrcaService: {}, displayDate: (value) => value });
   const html = render(Component, { props: { data: { platformOperator: true } } }).body;
   assert.match(html, /Loading/);

@@ -236,7 +236,9 @@ test('PlatformView mounts one page per section, the break-glass page only its ow
 test('every section uses PageHeader with the platform badge, within the page contract', async () => {
 	for (const key of ['overview', 'companies', 'pilots', 'google', 'oauth', 'catalog', 'breakglass']) {
 		const source = await readFile(files[key], 'utf8');
-		assert.match(source, /<PageHeader[\s\S]*?\{#snippet eyebrow\(\)\}<PlatformBadge \/>\{\/snippet\}/, key);
+		assert.match(source, /<PageHeader[\s\S]*?\{#snippet eyebrow\(\)\}<PlatformBadge( everyCompany)? \/>\{\/snippet\}/, key);
+		// "ใช้กับทุกบริษัทบน ORCA" only where the page's settings are shared by every company.
+		assert.equal(/<PlatformBadge everyCompany \/>/.test(source), ['google', 'oauth', 'catalog'].includes(key), `${key}: badge scope`);
 		const subtitle = source.match(/<PageHeader[\s\S]*?subtitle=\{t\((['"])(.*?)\1/);
 		assert.ok(subtitle, key);
 		assert.ok(contract.subtitleWithinContract(subtitle[2]), `${key}: ${subtitle[2]}`);
@@ -244,7 +246,7 @@ test('every section uses PageHeader with the platform badge, within the page con
 	}
 	for (const title of ['ภาพรวมแพลตฟอร์ม', 'บริษัทลูกค้า', 'คำขอทดลองใช้', 'เข้าสู่ระบบด้วย Google', 'แอป OAuth ของโปรแกรม', 'คลังโปรแกรม', 'บัญชีฉุกเฉิน']) assert.ok(contract.titleWithinContract(title), title);
 	const badge = await readFile(files.badge, 'utf8');
-	assert.match(badge, /ใช้กับทุกบริษัทบน ORCA ลูกค้าไม่เห็นหน้านี้/);
+	assert.match(badge, /everyCompany\s*\?\s*t\('ใช้กับทุกบริษัทบน ORCA ลูกค้าไม่เห็นหน้านี้'[\s\S]*?: t\('ลูกค้าไม่เห็นหน้านี้'/);
 	assert.doesNotMatch(badge, /#fff|#151823/i, 'labels on ink use --orca-on-ink');
 });
 
@@ -471,4 +473,50 @@ test('คำขอทดลองใช้ saves a changed status only, and its 
 	} finally { stop(); }
 	const source = await readFile(files.pilots, 'utf8');
 	assert.match(source, /\{#if pendingStatus\[item\.id\] && pendingStatus\[item\.id\] !== item\.status\}<button\s+class="k-button primary"/);
+});
+
+// ---------------------------------------------------------------------------
+// แอป OAuth ของโปรแกรม
+// ---------------------------------------------------------------------------
+
+test('แอป OAuth ของโปรแกรม sets up a program’s own app in its side panel, never in the company area', async () => {
+	const { oauthApps } = await importTypeScript(new URL('../../orca/oauth-apps.ts', import.meta.url));
+	const harness = await scriptHarness(files.oauth, ['OrcaService', 't', 'onMount', 'onDestroy', 'oauthApps'], 'refresh, openCheck, openForm, sheetClosed, get state() { return { checking, editing, sheetOpen, loaded }; }');
+	let loads = 0;
+	let view;
+	const stop = effect_root(() => {
+		view = harness(
+			{ data: { canManage: true, platformOperator: true } },
+			{
+				OrcaService: {
+					candidates: async () => { loads += 1; return [{ id: 'facebook', name: 'Facebook Pages API', setupStatus: 'admin_setup_required', endpointHost: 'graph.facebook.example' }]; },
+					sourceSetup: async () => ({ oauthClientCanConfigure: true, oauthRedirectURL: 'https://orca.example/oauth/callback' })
+				},
+				t: (th) => th,
+				onMount: () => {},
+				onDestroy: () => {},
+				oauthApps
+			}
+		);
+	});
+	try {
+		await view.refresh();
+		assert.equal(loads, 1);
+		view.openCheck({ id: 'facebook', name: 'Facebook Pages API', endpointHost: 'graph.facebook.example' });
+		assert.deepEqual([view.state.sheetOpen, view.state.checking?.id, view.state.editing], [true, 'facebook', undefined]);
+		// The provider form and the program's setup never share the panel.
+		await view.openForm({ key: 'microsoft', sourceID: 'outlook', name: 'Microsoft', provider: 'microsoft', replace: false, scopes: [] });
+		assert.deepEqual([view.state.checking, view.state.editing?.key], [undefined, 'microsoft']);
+		view.openCheck({ id: 'facebook', name: 'Facebook Pages API' });
+		assert.equal(view.state.editing, undefined);
+		view.sheetClosed();
+		assert.equal(view.state.checking, undefined);
+		assert.equal(loads, 2, 'closing a program’s setup reloads what the lists show');
+	} finally { stop(); }
+	for (const key of ['oauth', 'catalog', 'google', 'companies', 'overview', 'breakglass', 'pilots']) {
+		const source = await readFile(files[key], 'utf8');
+		assert.doesNotMatch(source, /catalogSetupHref|view=add-program|view=servers/, `${key} keeps the ORCA team in the platform area`);
+	}
+	const oauth = await readFile(files.oauth, 'utf8');
+	assert.match(oauth, /\{:else if checking\}[\s\S]*?<SourceSetup sourceID=\{checking\.id\}/);
 });

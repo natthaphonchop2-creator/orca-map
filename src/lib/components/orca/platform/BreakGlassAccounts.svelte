@@ -158,9 +158,9 @@
 									</span>
 								</div>
 							</td>
-							<td class="breakglass-role">{row.member ? memberRole(row.member.role) : '—'}</td>
+							<td class="breakglass-role" class:none={!row.member}>{row.member ? memberRole(row.member.role) : '—'}</td>
 							<td class="breakglass-state"><StatusPill label={stateLabel(row.state)} tone={stateTone(row.state)} /></td>
-							<td class="breakglass-created">{displayDate(row.account.created)}</td>
+							<td class="breakglass-created"><span class="breakglass-card-label">{t('สร้างเมื่อ', 'Created')}</span>{displayDate(row.account.created)}</td>
 							<td class="breakglass-actions">
 								{#if row.canReset}<button type="button" class="k-button small" onclick={() => start(row)} aria-label={t(`ตั้งรหัสผ่านใหม่ให้ ${row.account.email}`, `Reset password for ${row.account.email}`)}>{t('ตั้งรหัสผ่านใหม่', 'Reset password')}</button>{/if}
 							</td>
@@ -400,6 +400,9 @@
 		font-size: 13.5px;
 	}
 	/* Under 720px each account is a card instead of a table row. */
+	.breakglass-card-label {
+		display: none;
+	}
 	@media (max-width: 720px) {
 		.breakglass-table thead {
 			display: none;
@@ -428,8 +431,14 @@
 		.breakglass-actions {
 			text-align: left;
 		}
-		.breakglass-actions:empty {
+		.breakglass-actions:empty,
+		.breakglass-role.none {
 			display: none;
+		}
+		.breakglass-card-label {
+			display: inline;
+			margin-right: 4px;
+			color: var(--orca-muted);
 		}
 	}
 </style>
