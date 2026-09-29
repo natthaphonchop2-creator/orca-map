@@ -9,7 +9,7 @@ const source = stripTypeScriptTypes(
 const navigation = await import(
   "data:text/javascript;base64," + Buffer.from(source).toString("base64")
 );
-const { appNavigation, activeNavigationView, safeReturnPath, platformHref, RETIRED_VIEWS, RETIRED_SETTINGS_SECTIONS, APP_VIEWS } = navigation;
+const { appNavigation, activeNavigationView, safeReturnPath, platformHref, RETIRED_VIEWS, RETIRED_SETTINGS_SECTIONS, APP_VIEWS, TEAM_INVITE_HREF } = navigation;
 
 const owner = { canManage: true, platformOperator: false, canReviewPilotRequests: false };
 const employee = { canManage: false, platformOperator: false, canReviewPilotRequests: false };
@@ -264,6 +264,10 @@ test("ทีม tabs live in the address; employees see members only", () => {
   redirects("view=members&tab=members", "/app?view=members");
   redirects("view=members&tab=other", "/app?view=members");
   redirects("view=members&tab=departments", "/app?view=members", { role: employee });
+  // Home's "ส่งลิงก์เชิญ": the invite dialog opens for managers; employees never invite.
+  assert.equal(TEAM_INVITE_HREF, "/app?view=members&tab=invitations&invite=1");
+  stays("view=members&tab=invitations&invite=1", "members", { role: owner });
+  redirects("view=members&tab=invitations&invite=1", "/app?view=members", { role: employee });
 });
 
 test("Settings: บริษัท and ขั้นสูง are for Owners and Admins", () => {

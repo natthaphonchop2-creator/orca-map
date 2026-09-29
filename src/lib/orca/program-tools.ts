@@ -161,6 +161,18 @@ export function saveProblem(input: { name: string; selected: readonly string[] }
 }
 
 /**
+ * A program save the server refused, in plain Thai when it is one of its own
+ * rules; undefined leaves the general message (orcaError). B3: the server
+ * refuses a save with nothing ticked, or not reviewed.
+ */
+export function programSaveMessage(message: string, t: (th: string, en: string) => string): string | undefined {
+	const text = message.toLowerCase();
+	if (text.includes('review at least one selected tool')) return t('เลือกสิ่งที่ AI ทำได้อย่างน้อย 1 อย่าง', 'Choose at least one thing AI can do.');
+	if (text.includes('the scope note is too long')) return t('หมายเหตุยาวเกินไป ย่อให้สั้นลงแล้วบันทึกอีกครั้ง', 'The note is too long. Shorten it and save again.');
+	return undefined;
+}
+
+/**
  * The connection save. Always `reviewedTools: true` (the click on "อนุญาต N
  * อย่างนี้" is the review), plus `reviewedReadOnly` when every ticked tool only
  * reads. The note is optional: sent as typed, or "" (B3).

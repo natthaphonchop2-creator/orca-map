@@ -45,6 +45,23 @@ test('Home\'s "เชื่อม AI ของฉัน" step reads the pinned b
 	assert.equal(home.activeAISession, undefined);
 });
 
+test('the unused-apps alert counts what ตรวจสอบ\'s ไม่ได้ใช้เกิน 30 วัน chip counts', () => {
+	const days = (n) => new Date(NOW - n * 86_400_000).toISOString();
+	const inventory = {
+		sessions: [
+			{ id: 's1', app: 'Claude', userID: 'a', createdAt: days(90), lastRefreshedAt: days(31), expiresAt: days(-10) },
+			{ id: 's2', app: 'ChatGPT', userID: 'b', createdAt: days(90), lastRefreshedAt: days(2), expiresAt: days(-10) }
+		],
+		keys: [
+			{ id: 1, name: 'n8n', userID: 'a', hubID: '', createdAt: days(40) },
+			{ id: 2, name: 'script', userID: 'b', hubID: 'h', createdAt: days(60), lastUsedAt: days(1) }
+		]
+	};
+	assert.equal(home.staleAIApps(inventory, NOW), 2, 'a sign-in not renewed for 31 days and a key never used in 40');
+	assert.equal(home.staleAIApps(undefined, NOW), 0);
+	assert.equal(home.staleAIApps({ sessions: [], keys: [] }, NOW), 0);
+});
+
 test('the first question counts only the viewer\'s own tool calls', () => {
 	assert.equal(home.askedAI([call('someone-else')], 'me'), false);
 	assert.equal(home.askedAI([call('me', { action: 'hub.update' })], 'me'), false, 'a settings change is not a question');

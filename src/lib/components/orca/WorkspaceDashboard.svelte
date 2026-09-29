@@ -21,6 +21,7 @@
 		isToolCall,
 		ownerChecklist,
 		readHomeFlag,
+		staleAIApps,
 		usableWorkspaces,
 		workspacesLink,
 		writeHomeFlag,
@@ -30,6 +31,7 @@
 		type ProgramAccount
 	} from '$lib/orca/home-setup';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
+	import { TEAM_INVITE_HREF } from '$lib/orca/navigation';
 	import { personalAccountReader, personalSetup, personalSources } from '$lib/orca/personal-connections';
 	import { OrcaService, type OrcaAuditEvent, type OrcaBootstrap, type OrcaConnection } from '$lib/services/orca';
 	import { OrcaLibraryService } from '$lib/services/orca-library';
@@ -57,6 +59,8 @@
 	let invitesSent = $state(false);
 	let knowledgePublished = $state(false);
 	let accountStates = $state<Record<string, AccountState>>({});
+	/** Managers: AI apps unused for 30 days (ตรวจสอบ); 0 until read, or when it cannot be. */
+	let staleApps = $state(0);
 
 	// ---- Per-viewer memory (browser storage, a convenience only) ----
 	const storage = () => (typeof window === 'undefined' ? undefined : window.localStorage);
@@ -93,7 +97,7 @@
 	const mode = $derived(homeMode(list, noWorkspace, loaded));
 	const invite = $derived({ done: invitesSent || activeMembers(data.members).length > 1, skipped: flags['skip-invite'] });
 	const knowledge = $derived({ done: knowledgePublished, skipped: flags['skip-knowledge'] });
-	const attention = $derived(attentionCounts(data).total);
+	const attention = $derived(attentionCounts(data).total + staleApps);
 	const requestText = $derived(
 		accessRequestText(
 			{ name: me?.displayName ?? '', email: me?.email ?? '', company, link: typeof window === 'undefined' ? '' : workspacesLink(window.location.origin, currentCompany()) },
@@ -140,6 +144,14 @@
 		} catch {
 			/* Optional: a failed read leaves the invite step open. */
 		}
+		// "มี N แอป AI ที่ไม่ได้ใช้เกิน 30 วัน" → ตรวจสอบ, filtered (proposal §3.6).
+		void OrcaService.secrets()
+			.then((inventory) => {
+				if (alive) staleApps = staleAIApps(inventory, Date.now());
+			})
+			.catch(() => {
+				/* Optional: no alert rather than a wrong one. */
+			});
 		const hubs = usableWorkspaces(data).slice(0, 3);
 		const libraries = await Promise.allSettled(hubs.map((hub) => OrcaLibraryService.load(hub.id)));
 		if (alive)
@@ -234,14 +246,14 @@
 				<h2 id="home-done-title">{t('ตั้งค่าเสร็จแล้ว', 'Setup is done')}</h2>
 				<p>
 					{manager ? t('ทีมของคุณถามข้อมูลบริษัทผ่าน AI ได้แล้ว', 'Your team can ask AI about company data') : t('คุณถามข้อมูลบริษัทผ่าน AI ได้แล้ว', 'You can ask AI about company data')}
-					{#if manager && !invite.done && !invite.skipped}· <a href={localeHref('/app?view=members&tab=invitations')}>{t('ชวนทีม', 'Invite your team')}</a>{/if}
+					{#if manager && !invite.done && !invite.skipped}· <a href={localeHref(TEAM_INVITE_HREF)}>{t('ชวนทีม', 'Invite your team')}</a>{/if}
 					{#if manager && !knowledge.done && !knowledge.skipped}· <a href={localeHref('/app?view=knowledge&kind=knowledge&create=1')}>{t('เพิ่มความรู้แรก', 'Add your first knowledge')}</a>{/if}
 				</p>
 			</div>
 			<button type="button" class="k-button quiet small" onclick={() => setFlag('setup-dismissed')} aria-label={t('ซ่อน ตั้งค่าเสร็จแล้ว', 'Hide "Setup is done"')}>{t('ซ่อน', 'Hide')}</button>
 		</section>
 	{/if}
-	<HomeStatus {data} {events} {eventsError} onretry={loadActivity} {iconName} />
+	<HomeStatus {data} {events} {eventsError} onretry={loadActivity} {iconName} {staleApps} />
 {/if}
 
 <style>

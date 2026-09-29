@@ -6,8 +6,9 @@ import { connectionReady, workspaceToolingReady } from './activation';
 import { gatewayConnections, gatewayHasMember } from './gateway-sources';
 import { lineExternalURL } from './in-app-browser';
 import { toolChangesData } from './program-tools';
+import { secretRows } from './secrets';
 import type { AIConnectionState } from './ai-connection';
-import type { OrcaAuditEvent, OrcaBootstrap, OrcaConnection, OrcaHub, OrcaMember } from '../services/orca';
+import type { OrcaAuditEvent, OrcaBootstrap, OrcaConnection, OrcaHub, OrcaMember, OrcaSecrets } from '../services/orca';
 
 type Translate = (th: string, en: string) => string;
 
@@ -103,6 +104,16 @@ export function teamProgram(data: Pick<OrcaBootstrap, 'hubs' | 'connections'>): 
 	const ready = data.connections.filter(connectionReady).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 	const used = new Set(data.hubs.filter(live).flatMap((hub) => gatewayConnections(hub, data.connections).map((item) => item.id)));
 	return ready.find((connection) => !used.has(connection.id)) ?? ready[0];
+}
+
+/**
+ * "มี N แอป AI ที่ไม่ได้ใช้เกิน 30 วัน" on Home: the same count as ตรวจสอบ's
+ * ไม่ได้ใช้เกิน 30 วัน chip (secrets.ts), which the alert opens (?filter=stale).
+ */
+export function staleAIApps(inventory: OrcaSecrets | undefined | null, now: number): number {
+	if (!inventory) return 0;
+	const rows = secretRows(inventory, [], [], now, () => false);
+	return [...rows.sessions, ...rows.keys].filter((row) => row.stale).length;
 }
 
 /** What Home's status view flags for a manager: programs to review, unusable workspaces, paused programs. */

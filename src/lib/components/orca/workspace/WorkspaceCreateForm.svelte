@@ -7,9 +7,11 @@
 		FORM_FIELDS,
 		allowedTools,
 		audienceCount,
+		finishProgramHref,
 		formChangesData,
 		formSummaryParts,
 		newHubInput,
+		requestedProgram,
 		saveFormDraft,
 		takeFormDraft,
 		workspaceFormErrors,
@@ -64,10 +66,13 @@
 			memberIDs: data.members.some((member) => member.id === data.currentUserID) ? [data.currentUserID] : [],
 			accessUnitIDs: []
 		};
-		const requested = data.connections.find((item) => item.id === initialConnectionID);
-		if (requested && connectionReady(requested) && !form.programs[requested.id]) form.programs = { ...form.programs, [requested.id]: allowedNames(requested.id) };
+		const requested = requestedProgram(data.connections, initialConnectionID);
+		if (requested.state === 'ready' && !form.programs[requested.connection.id])
+			form.programs = { ...form.programs, [requested.connection.id]: allowedNames(requested.connection.id) };
 		return form;
 	});
+	// ?connection= that could not be turned on says why, instead of silently not ticking it.
+	const requested = untrack(() => requestedProgram(data.connections, initialConnectionID));
 	let name = $state(start.name);
 	let description = $state(start.description);
 	let instructions = $state(start.instructions);
@@ -203,6 +208,18 @@
 		</FormSection>
 
 		<FormSection id="ws-programs-title" title={t('โปรแกรมที่ใช้ได้', 'Programs')} hint={t('AI ในพื้นที่นี้ใช้ได้เฉพาะโปรแกรมที่เปิดไว้', 'AI here uses only the programs turned on.')}>
+			{#if requested.state === 'unready'}
+				<p class="ws-notice" role="status">
+					<Info size={15} aria-hidden="true" />
+					<span>{t(`${requested.connection.name} ยังเลือกสิ่งที่ AI ทำได้ไม่เสร็จ จึงยังเปิดในพื้นที่นี้ไม่ได้`, `${requested.connection.name} isn't finished yet, so it can't be turned on here. Choose what AI can do first.`)}
+						<a href={localeHref(finishProgramHref(requested.connection.id))} onclick={keepDraft}>{t('ตั้งค่าโปรแกรมต่อ', 'Finish the program')}</a></span>
+				</p>
+			{:else if requested.state === 'missing'}
+				<p class="ws-notice" role="status">
+					<Info size={15} aria-hidden="true" />
+					<span>{t('ไม่พบโปรแกรมที่ขอให้เปิด อาจถูกลบหรือจัดเก็บไปแล้ว เลือกจากรายการด้านล่างแทน', "The program you came with wasn't found. It may have been removed. Choose from the list below.")}</span>
+				</p>
+			{/if}
 			<div class="ws-programs" id={FORM_FIELDS.programs} tabindex="-1" role="group" aria-labelledby="ws-programs-title" aria-describedby={errors[FORM_FIELDS.programs] ? `${FORM_FIELDS.programs}-error` : undefined}>
 				{#each readyPrograms as connection (connection.id)}
 					<ProgramToggleCard
@@ -424,6 +441,31 @@
 	.ws-info :global(svg) {
 		flex: none;
 		color: var(--orca-subtle);
+	}
+	.ws-notice {
+		display: flex;
+		align-items: flex-start;
+		gap: 8px;
+		margin: 0 0 12px;
+		padding: 10px 12px;
+		border: 1px solid var(--orca-warn-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-warn-bg);
+		color: var(--orca-ink);
+		font-size: 14px;
+		line-height: 1.55;
+	}
+	.ws-notice :global(svg) {
+		flex: none;
+		margin-top: 3px;
+		color: var(--orca-warn);
+	}
+	.ws-notice a {
+		margin-left: 4px;
+		color: var(--orca-ink);
+		font-weight: 600;
+		text-decoration: underline;
+		text-underline-offset: 2px;
 	}
 	.ws-disclosure {
 		display: flex;

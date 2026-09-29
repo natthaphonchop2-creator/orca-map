@@ -15,7 +15,8 @@
 		data: OrcaBootstrap;
 		connectionID?: string;
 		everyone?: boolean;
-		onsaved: (hub: OrcaHub) => Promise<void>;
+		/** `added`: the program the one click added to a company-wide workspace that already existed. */
+		onsaved: (hub: OrcaHub, added?: string) => Promise<void>;
 	} = $props();
 </script>
 

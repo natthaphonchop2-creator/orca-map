@@ -155,6 +155,53 @@ test('the short form turns on ?connection=, starts with "คุณ" chosen and a
 	assert.doesNotMatch(html, /orca-form-errors/);
 	html = htmlOf(Form, { props: { data: company(), initialConnectionID: 'conn-flow', onsaved: async () => {} } }).body;
 	assert.doesNotMatch(html, /write-note/, 'a program that can change data makes the choice count');
+	assert.doesNotMatch(html, /ws-notice/, 'a ready program is simply turned on');
+	// Back from เพิ่มโปรแกรม with a program that is not ready: say so, never a silent miss.
+	html = htmlOf(Form, { props: { data: company(), initialConnectionID: 'conn-notion', onsaved: async () => {} } }).body;
+	assert.match(html, /class="ws-notice" role="status"[\s\S]*Notion ยังเลือกสิ่งที่ AI ทำได้ไม่เสร็จ จึงยังเปิดในพื้นที่นี้ไม่ได้/);
+	assert.match(html, /href="\/app\?view=servers&amp;connection=conn-notion&amp;tab=tools"[^>]*>ตั้งค่าโปรแกรมต่อ/);
+	assert.doesNotMatch(html, /ใช้ Notion ในพื้นที่นี้/);
+	html = htmlOf(Form, { props: { data: company(), initialConnectionID: 'conn-gone', onsaved: async () => {} } }).body;
+	assert.match(html, /ไม่พบโปรแกรมที่ขอให้เปิด/);
+});
+
+test('from เพิ่มโปรแกรม step 4: the โปรแกรม tab turns the new program on for บันทึก, or says why it cannot', async () => {
+	const SaveBar = await component('./workspace/SaveBar.svelte');
+	const Programs = await component('./workspace/WorkspaceProgramsTab.svelte', { ProgramToggleCard, SaveBar });
+	let html = htmlOf(Programs, { props: { data: company(), hub, canEdit: true, onchanged: async () => {}, addConnectionID: 'conn-drive' } }).body;
+	assert.match(html, /aria-checked="true" aria-label="ใช้ Google Drive ในพื้นที่นี้"|aria-label="ใช้ Google Drive ในพื้นที่นี้"[^>]*aria-checked="true"/);
+	assert.match(html, /เปิด Google Drive ไว้ให้แล้ว กด บันทึก เพื่อเพิ่มลงพื้นที่นี้/);
+	// Already on: nothing to add, nothing pending.
+	html = htmlOf(Programs, { props: { data: company(), hub, canEdit: true, onchanged: async () => {}, addConnectionID: 'conn-flow' } }).body;
+	assert.doesNotMatch(html, /pg-notice/);
+	html = htmlOf(Programs, { props: { data: company(), hub, canEdit: true, onchanged: async () => {}, addConnectionID: 'conn-notion' } }).body;
+	assert.match(html, /Notion ยังเลือกสิ่งที่ AI ทำได้ไม่เสร็จ[\s\S]*tab=tools/);
+	// Readers never get a pending change.
+	html = htmlOf(Programs, { props: { data: employee, hub, canEdit: false, onchanged: async () => {}, addConnectionID: 'conn-drive' } }).body;
+	assert.doesNotMatch(html, /pg-notice|Google Drive/);
+});
+
+test('after a save the toast says สร้างแล้ว or เพิ่มแล้ว once: the flag leaves the address', async () => {
+	assert.equal(edit.savedHubHref('hub 1'), '/app?view=hub&hub=hub%201&created=1');
+	assert.equal(edit.savedHubHref('hub-1', 'conn flow'), '/app?view=hub&hub=hub-1&added=conn%20flow');
+	const active = { status: 'active', userSourceID: '' };
+	assert.match(edit.savedToast(active, { created: true }, th), /^สร้างแล้ว/);
+	assert.match(edit.savedToast({ ...active, status: 'draft' }, { created: true }, th), /ฉบับร่าง/);
+	assert.match(edit.savedToast({ ...active, userSourceID: 'sso' }, { created: true }, th), /ส่งลิงก์ของพื้นที่นี้/);
+	assert.equal(edit.savedToast(active, { created: false, added: 'Google Drive' }, th), 'เพิ่ม Google Drive ในพื้นที่นี้แล้ว');
+	assert.doesNotMatch(edit.savedToast(active, { created: true, added: '' }, th), /สร้าง/, 'added wins: nothing was created');
+	assert.equal(edit.savedToast(active, { created: false }, th), '');
+	assert.equal(edit.withoutSavedParams(new URL('https://orca.example.test/app?view=hub&hub=h&created=1&org=o#x')), '/app?view=hub&hub=h&org=o#x');
+	assert.equal(edit.withoutSavedParams(new URL('https://orca.example.test/app?view=hub&hub=h&added=c')), '/app?view=hub&hub=h');
+	assert.equal(edit.withoutSavedParams(new URL('https://orca.example.test/app?view=hub&hub=h')), undefined);
+	const source = await readFile(file('./WorkspaceDetail.svelte'), 'utf8');
+	assert.match(source, /import \{ replaceState \} from '\$app\/navigation'/);
+	assert.match(source, /if \(clean\) replaceState\(clean, page\.state\)/);
+	const oneClick = await readFile(file('./workspace/EveryoneOneClick.svelte'), 'utf8');
+	assert.match(oneClick, /const added = plan\.existing \? plan\.connection\.id : undefined;/);
+	assert.match(oneClick, /await onsaved\(hub, added\)/);
+	const route = await readFile(file('../../../routes/app/+page.svelte'), 'utf8');
+	assert.match(route, /goto\(localeHref\(savedHubHref\(saved\.id, added\)\)\)/);
 });
 
 test('ภาพรวม offers the invite message after creation and one banner for connecting AI', async () => {

@@ -4,7 +4,9 @@
 	import { connectionReady, workspaceToolingReady } from '$lib/orca/activation';
 	import { gatewayConnections, gatewayMemberIDs, gatewayToolCount } from '$lib/orca/gateway-sources';
 	import { term } from '$lib/orca/glossary';
+	import { connectedAppsHref } from '$lib/orca/connected-ai-apps';
 	import { activeMembers, attentionCounts } from '$lib/orca/home-setup';
+	import { STALE_DAYS } from '$lib/orca/secrets';
 	import { localeHref, orcaLocale, t } from '$lib/orca/locale.svelte';
 	import { toolPresentation } from '$lib/orca/tool-presentation';
 	import { displayDate, memberName, type OrcaAuditEvent, type OrcaBootstrap, type OrcaConnection, type OrcaHub } from '$lib/services/orca';
@@ -17,9 +19,12 @@
 		events,
 		eventsError = false,
 		onretry,
-		iconName = (connection: OrcaConnection) => connection.name
+		iconName = (connection: OrcaConnection) => connection.name,
+		staleApps = 0
 	}: {
 		data: OrcaBootstrap;
+		/** AI apps and keys unused for 30 days (managers; ตรวจสอบ's stale filter). */
+		staleApps?: number;
 		/** The latest tool calls (newest first); undefined while loading. */
 		events?: OrcaAuditEvent[];
 		eventsError?: boolean;
@@ -193,7 +198,14 @@
 							<ArrowRight size={15} aria-hidden="true" />
 						</a>
 					{/if}
-					{#if review + blockedSpaces + paused === 0}
+					{#if staleApps > 0}
+						<a class="home-alert quiet" href={localeHref(connectedAppsHref('stale'))}>
+							<CircleAlert size={17} aria-hidden="true" />
+							<span><strong>{t(`มี ${staleApps} แอป AI ที่ไม่ได้ใช้เกิน ${STALE_DAYS} วัน`, `${staleApps} AI apps unused for ${STALE_DAYS}+ days`)}</strong><small>{t('ตัดการเชื่อมต่อถ้าไม่ได้ใช้แล้ว', 'Disconnect the ones no longer used')}</small></span>
+							<ArrowRight size={15} aria-hidden="true" />
+						</a>
+					{/if}
+					{#if review + blockedSpaces + paused + staleApps === 0}
 						<p class="home-clear"><CircleCheck size={17} aria-hidden="true" />{t('ไม่มีเรื่องที่ต้องดูแล', 'Nothing needs attention')}</p>
 					{/if}
 				</div>

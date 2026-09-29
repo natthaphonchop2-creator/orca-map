@@ -18,6 +18,7 @@
 		type OwnerStepID
 	} from '$lib/orca/home-setup';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
+	import { TEAM_INVITE_HREF } from '$lib/orca/navigation';
 	import type { OrcaBootstrap, OrcaConnection } from '$lib/services/orca';
 	import StatusPill from '../ui/StatusPill.svelte';
 	import PromptList from './PromptList.svelte';
@@ -239,7 +240,7 @@
 					<p>{t('แต่ละคนเข้าสู่ระบบด้วย Google ของตัวเอง', 'Each person signs in with their own Google account')}</p>
 				</div>
 				<div class="home-option-actions">
-					<a class="k-button" href={localeHref('/app?view=members&tab=invitations')}>{t('ส่งลิงก์เชิญ', 'Send an invite link')}</a>
+					<a class="k-button" href={localeHref(TEAM_INVITE_HREF)}>{t('ส่งลิงก์เชิญ', 'Send an invite link')}</a>
 				</div>
 			</div>
 			<div class="home-option">

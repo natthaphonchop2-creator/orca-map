@@ -31,6 +31,7 @@
     type OrcaHub,
   } from "$lib/services/orca";
   import { checkAIConnectionOnce } from "$lib/services/orca-ai-apps";
+  import { savedHubHref } from "$lib/orca/workspace-edit";
   import { Folder, Info, LoaderCircle } from "@lucide/svelte";
   import { onMount, untrack } from "svelte";
   import type { PageProps } from "./$types";
@@ -149,14 +150,15 @@
     }
     if (target) void goto(target, { replaceState: true, keepFocus: true });
   });
-  async function savedNew(saved: OrcaHub) {
+  /** After the create form or the one click; `added` names a program added to a workspace that already existed. */
+  async function savedNew(saved: OrcaHub, added?: string) {
     refreshGeneration += 1;
     if (data)
       data = {
         ...data,
         hubs: [...data.hubs.filter((item) => item.id !== saved.id), saved],
       };
-    await goto(localeHref(`/app?view=hub&hub=${encodeURIComponent(saved.id)}&created=1`));
+    await goto(localeHref(savedHubHref(saved.id, added)));
     await refresh();
   }
   $effect(() => {

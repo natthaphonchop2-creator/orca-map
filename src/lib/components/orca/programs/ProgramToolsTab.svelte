@@ -3,7 +3,7 @@
 	import { t } from '$lib/orca/locale.svelte';
 	import { presetFor, programSaveInput, saveProblem, savedSelection, type AccessPreset } from '$lib/orca/program-tools';
 	import { orcaError, type OrcaConnection } from '$lib/services/orca';
-	import { ProgramService, type ProgramTool } from '$lib/services/orca-programs';
+	import { ProgramService, programSaveError, type ProgramTool } from '$lib/services/orca-programs';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import { showToast } from '../ui/toast-store.svelte';
 	import ProgramToolsEditor from './ProgramToolsEditor.svelte';
@@ -73,7 +73,7 @@
 			showToast(t(`บันทึกแล้ว · AI ทำได้ ${selected.length} อย่างใน ${programName}`, `Saved · AI can do ${selected.length} things in ${programName}`));
 			await onchanged();
 		} catch (cause) {
-			if (alive) error = orcaError(cause);
+			if (alive) error = programSaveError(cause);
 		} finally {
 			if (alive) saving = false;
 		}

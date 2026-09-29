@@ -592,3 +592,64 @@ export function samplePrompt(program: string, t: Translate): string {
 export function aiReachesWorkspace(apps: { sessions: readonly unknown[]; keys: readonly { hubID?: string }[] }, hubID: string): boolean {
 	return apps.sessions.length > 0 || apps.keys.some((key) => !key.hubID || key.hubID === hubID);
 }
+
+// ---------------------------------------------------------------------------
+// Arriving with a program (?connection= on the form, &add= on โปรแกรม)
+// ---------------------------------------------------------------------------
+
+/**
+ * The program an address asks to turn on: `ready` to tick, `unready` (it still
+ * needs สิ่งที่ AI ทำได้, or is paused) or `missing` (removed, or not this
+ * company's), so the page says why instead of silently not ticking it.
+ */
+export function requestedProgram(
+	connections: readonly OrcaConnection[],
+	id: string
+): { state: 'none' } | { state: 'missing' } | { state: 'ready' | 'unready'; connection: OrcaConnection } {
+	if (!id) return { state: 'none' };
+	const connection = connections.find((item) => item.id === id && !item.archivedAt && !item.deletedAt);
+	if (!connection) return { state: 'missing' };
+	return { state: connectionReady(connection) ? 'ready' : 'unready', connection };
+}
+
+/** Where to finish a program that is not ready: its สิ่งที่ AI ทำได้ tab. */
+export function finishProgramHref(connectionID: string): string {
+	return `/app?view=servers&connection=${encodeURIComponent(connectionID)}&tab=tools`;
+}
+
+// ---------------------------------------------------------------------------
+// After a save: the toast, shown once
+// ---------------------------------------------------------------------------
+
+/** The address flags a save leaves for the workspace page: `created=1`, or `added=<program id>`. */
+export const SAVED_PARAMS = ['created', 'added'] as const;
+
+/** The workspace page after the create form or the one click; `added` names a program added to a workspace that already existed. */
+export function savedHubHref(hubID: string, added?: string): string {
+	const id = encodeURIComponent(hubID);
+	return added ? `/app?view=hub&hub=${id}&added=${encodeURIComponent(added)}` : `/app?view=hub&hub=${id}&created=1`;
+}
+
+/** The toast for that page: "สร้างแล้ว" for a new workspace, "เพิ่มแล้ว" when a program joined one. */
+export function savedToast(
+	hub: Pick<OrcaHub, 'status' | 'userSourceID'>,
+	saved: { created: boolean; added?: string },
+	t: Translate
+): string {
+	if (saved.added !== undefined)
+		return saved.added
+			? t(`เพิ่ม ${saved.added} ในพื้นที่นี้แล้ว`, `${saved.added} added to this workspace`)
+			: t('เพิ่มโปรแกรมในพื้นที่นี้แล้ว', 'Program added to this workspace');
+	if (!saved.created) return '';
+	if (hub.status !== 'active') return t('บันทึกเป็นฉบับร่างแล้ว — เปิดใช้งานเมื่อพร้อม', 'Saved as a draft. Activate it when ready.');
+	if (hub.userSourceID) return t('บันทึกแล้ว — ส่งลิงก์ของพื้นที่นี้ให้ทีม', "Saved. Send your team this workspace's link.");
+	return t('สร้างแล้ว — Claude/ChatGPT ที่เชื่อม ORCA ไว้จะเห็นพื้นที่นี้เอง', 'Created. Claude or ChatGPT connected to ORCA will see this workspace by itself.');
+}
+
+/** The same address without the save flags, so a reload does not show the toast again; undefined when there are none. */
+export function withoutSavedParams(url: URL): string | undefined {
+	if (!SAVED_PARAMS.some((key) => url.searchParams.has(key))) return undefined;
+	const next = new URL(url.href);
+	for (const key of SAVED_PARAMS) next.searchParams.delete(key);
+	return next.pathname + next.search + next.hash;
+}

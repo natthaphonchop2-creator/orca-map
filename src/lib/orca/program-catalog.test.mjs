@@ -97,7 +97,8 @@ test('step 4: back to the create form, everyone when there is no workspace, othe
 	assert.deepEqual(finishAction({ connectionID: 'c 1', returnTo: 'new', hubs }), { kind: 'return', href: '/app?view=new&connection=c%201' });
 	assert.deepEqual(finishAction({ connectionID: 'c1', hubs: [] }), { kind: 'everyone', href: '/app?view=new&everyone=1&connection=c1' });
 	assert.deepEqual(finishAction({ connectionID: 'c1', hubs: [hubs[1]] }).kind, 'everyone', 'archived workspaces do not count');
-	assert.deepEqual(finishAction({ connectionID: 'c1', hubs }), { kind: 'workspace', hubs: [{ id: 'h1', name: 'Sales', href: '/app?view=hub&hub=h1&tab=programs' }] });
+	// The workspace's โปรแกรม tab, with the new program turned on for บันทึก.
+	assert.deepEqual(finishAction({ connectionID: 'c 1', hubs }), { kind: 'workspace', hubs: [{ id: 'h1', name: 'Sales', href: '/app?view=hub&hub=h1&tab=programs&add=c%201' }] });
 	assert.deepEqual([1, 5, 6, 20, 21, 50, 51].map(teamSizeFor), ['1-5', '1-5', '6-20', '6-20', '21-50', '21-50', '51+']);
 });
 

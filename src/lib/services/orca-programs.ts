@@ -1,9 +1,12 @@
 // Programs (U4): เพิ่มโปรแกรม and โปรแกรมที่เชื่อม. The calls and types the new
 // add-program flow, the programs list and program detail need on top of
 // OrcaService. Nothing here grants access: the server checks every call.
+import { parseErrorContent } from '$lib/errors';
 import { orcaPath } from '$lib/orca/company';
+import { t } from '$lib/orca/locale.svelte';
+import { programSaveMessage } from '$lib/orca/program-tools';
 import { doPost } from './http';
-import { OrcaService, type ConnectionInput, type OrcaCandidate, type OrcaConnection, type OrcaTool } from './orca';
+import { OrcaService, orcaError, type ConnectionInput, type OrcaCandidate, type OrcaConnection, type OrcaTool } from './orca';
 
 /**
  * A tool as the server returns it from discovery or a saved connection. The
@@ -46,3 +49,9 @@ export const ProgramService = {
 	/** Creates a connection, or saves one when `id` is given (with its `version`). */
 	save: (input: ProgramSaveInput, id?: string) => OrcaService.connection(input, id) as Promise<ProgramConnection>
 };
+
+/** A refused program save in plain words: the server's own rules in Thai, else the general message. */
+export function programSaveError(cause: unknown): string {
+	const parsed = parseErrorContent(cause);
+	return (parsed.status === 400 || parsed.status === 422 ? programSaveMessage(parsed.message, t) : undefined) ?? orcaError(cause);
+}

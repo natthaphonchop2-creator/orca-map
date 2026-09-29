@@ -1,8 +1,9 @@
 <script lang="ts">
+	import { replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { gatewayMemberIDs, gatewaySources } from '$lib/orca/gateway-sources';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
-	import { saveHubPatch } from '$lib/orca/workspace-edit';
+	import { saveHubPatch, savedToast, withoutSavedParams } from '$lib/orca/workspace-edit';
 	import type { OrcaBootstrap, OrcaHub } from '$lib/services/orca';
 	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-workspaces';
 	import { ArrowUpRight, Info, LoaderCircle, Play } from '@lucide/svelte';
@@ -31,6 +32,8 @@
 	]);
 	const activeTab = $derived(tabs.some((tab) => tab.id === requested) ? requested : 'overview');
 	const created = $derived(page.url.searchParams.get('created') === '1');
+	// &add=<program>: from เพิ่มโปรแกรม's "เพิ่มลงพื้นที่ทำงาน…", turned on in โปรแกรม, waiting for บันทึก.
+	const addConnectionID = $derived(page.url.searchParams.get('add') ?? '');
 	const status = $derived<{ label: string; tone: StatusTone }>(
 		hub.status === 'active'
 			? { label: t('เปิดใช้งาน', 'Active'), tone: 'ok' }
@@ -47,14 +50,17 @@
 		return localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}${tab === 'overview' ? '' : `&tab=${tab}`}`);
 	}
 	onMount(() => {
-		if (created && data.canManage)
-			showToast(
-				hub.status !== 'active'
-					? t('บันทึกเป็นฉบับร่างแล้ว — เปิดใช้งานเมื่อพร้อม', 'Saved as a draft. Activate it when ready.')
-					: hub.userSourceID
-						? t('บันทึกแล้ว — ส่งลิงก์ของพื้นที่นี้ให้ทีม', "Saved. Send your team this workspace's link.")
-						: t('สร้างแล้ว — Claude/ChatGPT ที่เชื่อม ORCA ไว้จะเห็นพื้นที่นี้เอง', 'Created. Claude or ChatGPT connected to ORCA will see this workspace by itself.')
-			);
+		const addedID = page.url.searchParams.get('added');
+		const added = addedID === null ? undefined : (data.connections.find((item) => item.id === addedID)?.name ?? '');
+		const message = savedToast(hub, { created, added }, t);
+		if (message && data.canManage) showToast(message);
+		// Shown once: a reload of this page must not say it again.
+		const clean = withoutSavedParams(page.url);
+		try {
+			if (clean) replaceState(clean, page.state);
+		} catch {
+			// Before the router starts (never after the company data loads): the flag stays.
+		}
 	});
 	async function activate() {
 		if (activating || !canEdit) return;
@@ -104,7 +110,7 @@
 </nav>
 
 {#key `${hub.id}:${hub.version}`}
-	{#if activeTab === 'programs'}<WorkspaceProgramsTab {data} {hub} {canEdit} {onchanged} />
+	{#if activeTab === 'programs'}<WorkspaceProgramsTab {data} {hub} {canEdit} {onchanged} {addConnectionID} />
 	{:else if activeTab === 'people'}<WorkspacePeopleTab {data} {hub} {canEdit} {onchanged} />
 	{:else if activeTab === 'settings'}<WorkspaceSettingsView {data} {hub} {onchanged} />
 	{:else}<WorkspaceOverviewTab {data} {hub} {created} {tabHref} />{/if}

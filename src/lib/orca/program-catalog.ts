@@ -203,7 +203,8 @@ export function finishAction(input: { connectionID: string; returnTo?: string | 
 	if (!hubs.length) return { kind: 'everyone', href: `/app?view=new&everyone=1&connection=${id}` };
 	return {
 		kind: 'workspace',
-		hubs: hubs.map((hub) => ({ id: hub.id, name: hub.name, href: `/app?view=hub&hub=${encodeURIComponent(hub.id)}&tab=programs` }))
+		// The workspace's โปรแกรม tab with this program turned on, waiting for บันทึก.
+		hubs: hubs.map((hub) => ({ id: hub.id, name: hub.name, href: `/app?view=hub&hub=${encodeURIComponent(hub.id)}&tab=programs&add=${id}` }))
 	};
 }
 
@@ -318,5 +319,47 @@ export function clearDraft(storage: DraftStorage | undefined, key: string): void
 		storage?.removeItem(key);
 	} catch {
 		// Nothing to forget.
+	}
+}
+
+// ---------------------------------------------------------------------------
+// The program this tab saved: Back from step 4 and a reload at step 3 update it
+// instead of adding a second copy (sessionStorage, per company)
+// ---------------------------------------------------------------------------
+
+/** One saved program remembered per company in this tab. */
+export function savedProgramKey(company: string): string {
+	return `orca.addProgram.saved.${company || 'default'}`;
+}
+
+export function rememberSavedProgram(storage: DraftStorage | undefined, key: string, sourceID: string, connectionID: string, now = Date.now()): void {
+	try {
+		storage?.setItem(key, JSON.stringify({ v: 1, sourceID, connectionID, at: now }));
+	} catch {
+		// Without storage only the open page remembers the save.
+	}
+}
+
+/**
+ * The live program this tab already saved from `sourceID`, if any: saving
+ * step 3 again changes it. Anything stale, broken, archived or for another
+ * program is ignored, and step 1 forgets it (a new choice is a new program).
+ */
+export function savedProgramFor<T extends Pick<OrcaConnection, 'id' | 'mcpID' | 'archivedAt' | 'deletedAt'>>(
+	storage: DraftStorage | undefined,
+	key: string,
+	sourceID: string,
+	connections: readonly T[],
+	now = Date.now()
+): T | undefined {
+	try {
+		const raw = storage?.getItem(key);
+		if (!raw || !sourceID) return undefined;
+		const memo = JSON.parse(raw) as { v?: unknown; sourceID?: unknown; connectionID?: unknown; at?: unknown };
+		if (memo?.v !== 1 || memo.sourceID !== sourceID || typeof memo.connectionID !== 'string' || typeof memo.at !== 'number') return undefined;
+		if (now - memo.at > DRAFT_TTL_MS || memo.at > now + 60_000) return undefined;
+		return connections.find((item) => item.id === memo.connectionID && item.mcpID === sourceID && !item.archivedAt && !item.deletedAt);
+	} catch {
+		return undefined;
 	}
 }

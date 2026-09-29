@@ -13,9 +13,12 @@ const gateway = await importTypeScript(new URL('../../orca/gateway-sources.ts', 
 const glossary = await importTypeScript(new URL('../../orca/glossary.ts', import.meta.url));
 const inApp = await importTypeScript(new URL('../../orca/in-app-browser.ts', import.meta.url));
 const copy = await importTypeScript(new URL('./ui/copy.ts', import.meta.url));
+const navigation = await importTypeScript(new URL('../../orca/navigation.ts', import.meta.url));
+const connectedApps = await importTypeScript(new URL('../../orca/connected-ai-apps.ts', import.meta.url));
+const secrets = await importTypeScript(new URL('../../orca/secrets.ts', import.meta.url));
 
 const th = (thai) => thai;
-const base = { ...home, ...activation, ...gateway, ...inApp, ...copy, term: glossary.term, t: th, localeHref: (path) => path, orcaLocale: { value: 'th' } };
+const base = { ...home, ...activation, ...gateway, ...inApp, ...copy, TEAM_INVITE_HREF: navigation.TEAM_INVITE_HREF, connectedAppsHref: connectedApps.connectedAppsHref, STALE_DAYS: secrets.STALE_DAYS, term: glossary.term, t: th, localeHref: (path) => path, orcaLocale: { value: 'th' } };
 const component = async (path, deps) => {
 	const { warnings, Component } = await serverComponent(new URL(path, import.meta.url), deps);
 	assert.deepEqual(warnings, [], path);
@@ -60,7 +63,8 @@ test('a new company: step 1 is next and opens the add-program flow', () => {
 	// The one name for connect-ai (critique 16), never the old ones.
 	assert.doesNotMatch(html, /เชื่อม Claude หรือ ChatGPT ของคุณ|เชื่อม AI กับ ORCA/);
 	assert.match(text(html), /ไม่บังคับ/);
-	assert.match(html, /href="\/app\?view=members&amp;tab=invitations"/);
+	// "ส่งลิงก์เชิญ" opens ทีม's invite dialog, where "ทุกคน" is pre-ticked.
+	assert.match(html, /href="\/app\?view=members&amp;tab=invitations&amp;invite=1"[^>]*>ส่งลิงก์เชิญ/);
 	assert.match(html, /href="\/app\?view=knowledge&amp;kind=knowledge&amp;create=1"/);
 	assert.match(html, /aria-label="ข้าม ชวนทีม"/);
 });
@@ -183,6 +187,12 @@ test('the status view follows the role: managers see the company and its alerts,
 	assert.match(plain, /โปรแกรมรอเลือกสิ่งที่ AI ทำได้ 1 โปรแกรม/);
 	assert.match(html, /<th scope="col"[^>]*>คน<\/th>/);
 	assert.match(html, /href="\/app\?view=servers&amp;connection=conn-flow"/);
+
+	assert.doesNotMatch(html, /view=secrets/, 'no unused-apps alert until ตรวจสอบ reports one');
+	// AI apps unused for 30 days: the alert opens ตรวจสอบ on its own filter.
+	html = render(HomeStatus, { props: { data: company({ members, connections: [flow], hubs: [workspace] }), events, staleApps: 3 } }).body;
+	assert.match(html, /class="home-alert quiet[^"]*" href="\/app\?view=secrets&amp;filter=stale"[\s\S]*?มี 3 แอป AI ที่ไม่ได้ใช้เกิน 30 วัน/);
+	assert.doesNotMatch(text(html), /ไม่มีเรื่องที่ต้องดูแล/);
 
 	html = render(HomeStatus, { props: { data: company({ canManage: false, connections: [flow], hubs: [workspace] }), events } }).body;
 	plain = text(html);

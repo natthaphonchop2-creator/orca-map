@@ -18,7 +18,7 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 	.replace(/^\s*import[\s\S]*?from\s+'[^']+';/gm, '')
 	.replace('$props()', '$state(testProps)');
 const names = [
-	'catalogSource', 'currentCompany', 'localeHref', 't', 'orcaError', 'ProgramService', 'onDestroy', 'onMount', 'untrack',
+	'catalogSource', 'currentCompany', 'localeHref', 't', 'orcaError', 'programSaveError', 'ProgramService', 'onDestroy', 'onMount', 'untrack',
 	...Object.keys(catalogHelpers), ...Object.keys(tools)
 ];
 const require = createRequire(import.meta.url);
@@ -70,6 +70,7 @@ async function setup(context, { props = {}, service = {}, storage = memoryStorag
 			{
 				...catalogHelpers, ...tools, catalogSource, untrack,
 				currentCompany: () => 'default', localeHref: (href) => href, t: (th) => th, orcaError: (cause) => cause.message,
+				programSaveError: (cause) => tools.programSaveMessage(cause.message, (th) => th) ?? cause.message,
 				onMount: (fn) => mounts.push(fn), onDestroy: (fn) => destroys.push(fn),
 				ProgramService: {
 					candidates: async () => candidates,
@@ -111,7 +112,8 @@ test('"อนุญาต N อย่างนี้" sends reviewedTools:true, 
 	assert.deepEqual(writes, [{ input: { name: 'FlowAccount (2)', description: '', mcpID: 'flow', toolNames: ['list', 'get'], scopeNote: '', reviewedTools: true, reviewedReadOnly: true, enabled: true }, id: undefined }]);
 	assert.equal(refreshes(), 1);
 	assert.equal(navigations.at(-1), '/app?view=add-program&source=flow&step=done&connection=saved-1');
-	assert.equal(storage.store.size, 0, 'the draft is cleared after saving');
+	assert.equal(storage.store.has('orca.addProgram.default'), false, 'the draft is cleared after saving');
+	assert.deepEqual([...storage.store.keys()], ['orca.addProgram.saved.default'], 'only which program was saved stays');
 	// Change tools make it a normal (not read-only) review; saving again changes the same program.
 	view.set({ preset: 'write', selected: ['list', 'email'], note: '  ฝ่ายบัญชี ' });
 	await view.save();
@@ -121,6 +123,59 @@ test('"อนุญาต N อย่างนี้" sends reviewedTools:true, 
 	assert.equal(writes[1].input.reviewedTools, true);
 	assert.equal(writes[1].input.reviewedReadOnly, false);
 	assert.equal(writes[1].input.scopeNote, 'ฝ่ายบัญชี');
+});
+
+test('Back from step 4 and a reload at step 3 update the program already saved; step 1 starts a new one', async (context) => {
+	const storage = memoryStorage();
+	const first = await setup(context, { props: { step: 'tools' }, storage });
+	await first.view.discover('flow');
+	flush();
+	await first.view.save();
+	assert.equal(first.writes[0].id, undefined, 'the first save creates the program');
+	assert.ok(storage.store.get('orca.addProgram.saved.default'), 'this tab remembers what it saved');
+	// The reload: the page's own memory is gone, the company data now has the program.
+	const savedProgram = { id: 'saved-1', name: 'FlowAccount (2)', description: '', mcpID: 'flow', enabled: true, version: 1 };
+	const data = { connections: [{ id: 'old', name: 'FlowAccount', mcpID: 'x' }, savedProgram], hubs: [], members: [], platformOperator: false };
+	const reloaded = await setup(context, { props: { step: 'tools', data }, storage });
+	await reloaded.view.discover('flow');
+	flush();
+	await reloaded.view.save();
+	assert.equal(reloaded.writes.length, 1);
+	assert.equal(reloaded.writes[0].id, 'saved-1', 'an update, not a second copy');
+	assert.equal(reloaded.writes[0].input.version, 1);
+	// An archived program, or another program's memory, is never updated.
+	const archived = { ...data, connections: [{ ...savedProgram, archivedAt: '2026-09-29T00:00:00Z' }] };
+	const afterArchive = await setup(context, { props: { step: 'tools', data: archived }, storage });
+	await afterArchive.view.discover('flow');
+	flush();
+	await afterArchive.view.save();
+	assert.equal(afterArchive.writes[0].id, undefined);
+	// Step 1 forgets it: choosing again is a new program.
+	const again = await setup(context, { props: { step: 'choose', data }, storage });
+	flush();
+	assert.equal(storage.store.has('orca.addProgram.saved.default'), false);
+	assert.equal(again.view.state.saved, undefined);
+	const fresh = await setup(context, { props: { step: 'tools', data }, storage });
+	await fresh.view.discover('flow');
+	flush();
+	await fresh.view.save();
+	assert.equal(fresh.writes[0].id, undefined);
+});
+
+test('the server\'s B3 refusal reads in Thai', async (context) => {
+	assert.equal(tools.programSaveMessage('review at least one selected tool', (th) => th), 'เลือกสิ่งที่ AI ทำได้อย่างน้อย 1 อย่าง');
+	assert.equal(tools.programSaveMessage('Review at least one selected tool', (_th, en) => en), 'Choose at least one thing AI can do.');
+	assert.match(tools.programSaveMessage('the scope note is too long', (th) => th), /หมายเหตุยาวเกินไป/);
+	assert.equal(tools.programSaveMessage('something else', (th) => th), undefined);
+	const { view } = await setup(context, { props: { step: 'tools' }, service: { save: async () => { throw new Error('review at least one selected tool'); } } });
+	await view.discover('flow');
+	flush();
+	await view.save();
+	assert.equal(view.state.saveError, 'เลือกสิ่งที่ AI ทำได้อย่างน้อย 1 อย่าง');
+	const service = await readFile(new URL('../../services/orca-programs.ts', import.meta.url), 'utf8');
+	assert.match(service, /programSaveMessage\(parsed\.message, t\)/);
+	for (const name of ['./programs/AddProgramFlow.svelte', './programs/ProgramToolsTab.svelte'])
+		assert.match(await readFile(new URL(name, import.meta.url), 'utf8'), /= programSaveError\(cause\)/, name);
 });
 
 test('ticked tools survive a reload through the draft; a broken draft falls back to the read-only start', async (context) => {

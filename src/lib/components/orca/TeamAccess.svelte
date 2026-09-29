@@ -41,6 +41,7 @@
     onchanged,
     tab,
     ontab,
+    invite = false,
   }: {
     data: OrcaBootstrap;
     onchanged: () => Promise<void>;
@@ -48,6 +49,8 @@
     tab?: TeamSection;
     /** Reports a tab change, so the page can keep it in the address. */
     ontab?: (next: TeamSection) => void;
+    /** Open the invite dialog at once (&invite=1, from Home); managers only. */
+    invite?: boolean;
   } = $props();
   let saving = $state(false);
   let query = $state("");
@@ -58,7 +61,7 @@
   let departmentDirty = $state(false);
   let navigationBlocked = $state(false);
   let editingRole = $state<OrcaMember>();
-  let inviting = $state(false);
+  let inviting = $state(untrack(() => invite && data.canManage));
   // Open invitations, reported by MemberInvitations for the tab and reminder.
   let invitationCount = $state(0);
   // One small menu at a time: the page's "more" menu or one member row's.

@@ -21,7 +21,8 @@
 	}: {
 		data: OrcaBootstrap;
 		connectionID: string;
-		onsaved: (hub: OrcaHub) => Promise<void>;
+		/** `added`: this program joined a company-wide workspace that already existed ("เพิ่มแล้ว", not "สร้างแล้ว"). */
+		onsaved: (hub: OrcaHub, added?: string) => Promise<void>;
 	} = $props();
 	const connection = $derived(data.connections.find((item) => item.id === connectionID));
 	const ready = $derived(connectionReady(connection));
@@ -46,6 +47,7 @@
 		if (!plan || busy) return;
 		error = '';
 		let hub: OrcaHub | undefined;
+		const added = plan.existing ? plan.connection.id : undefined;
 		try {
 			const current = $state.snapshot(plan) as NonNullable<typeof plan>;
 			const department = current.department ?? ($state.snapshot(madeDepartment) as OrcaUnit | undefined);
@@ -63,7 +65,7 @@
 		}
 		if (hub) {
 			try {
-				await onsaved(hub);
+				await onsaved(hub, added);
 			} catch {
 				error = t('ให้ทุกคนใช้แล้ว แต่เปิดหน้าพื้นที่ทำงานไม่สำเร็จ ดูได้ที่รายการพื้นที่ทำงาน AI', 'Done, but its page did not open. Find it under AI workspaces.');
 			}

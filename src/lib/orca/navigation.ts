@@ -38,6 +38,8 @@ export const OVERSIGHT_VIEWS = ['approvals', 'executions', 'audit', 'secrets'] a
 /** ทีม: the tabs of view=members. */
 export const TEAM_TABS = ['members', 'invitations', 'departments'] as const;
 export type TeamTab = (typeof TEAM_TABS)[number];
+/** ทีม › คำเชิญ with the invite dialog open (&invite=1); it pre-ticks "ทุกคน" when the company has it. */
+export const TEAM_INVITE_HREF = '/app?view=members&tab=invitations&invite=1';
 /** Settings after the split: บริษัท, บัญชีของฉัน and (with a sign-in source) ขั้นสูง. */
 export const SETTINGS_SECTIONS = ['company', 'account', 'advanced'] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
@@ -275,6 +277,8 @@ export function appNavigation(
 		const tab = p.get('tab');
 		if (tab && (!(TEAM_TABS as readonly string[]).includes(tab) || (manager === false && tab !== 'members'))) p.delete('tab');
 		if (p.get('tab') === 'members') p.delete('tab');
+		// Only Owners and Admins invite.
+		if (manager === false) p.delete('invite');
 	}
 
 	// 8. Settings: บริษัท and ขั้นสูง are for Owners and Admins.

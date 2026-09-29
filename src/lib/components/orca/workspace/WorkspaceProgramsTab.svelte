@@ -3,10 +3,11 @@
 	import { gatewaySources } from '$lib/orca/gateway-sources';
 	import { localeHref, orcaLocale, t } from '$lib/orca/locale.svelte';
 	import { toolPresentation } from '$lib/orca/tool-presentation';
-	import { HubConflictError, allowedTools, programsPatch, readOnlyToolNames, saveHubPatch } from '$lib/orca/workspace-edit';
+	import { HubConflictError, allowedTools, finishProgramHref, programsPatch, readOnlyToolNames, requestedProgram, saveHubPatch } from '$lib/orca/workspace-edit';
 	import type { OrcaBootstrap, OrcaHub } from '$lib/services/orca';
 	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-workspaces';
-	import { ChevronDown, Plus } from '@lucide/svelte';
+	import { ChevronDown, Info, Plus } from '@lucide/svelte';
+	import { untrack } from 'svelte';
 	import { showToast } from '../ui/toast-store.svelte';
 	import ProgramToggleCard from './ProgramToggleCard.svelte';
 	import SaveBar from './SaveBar.svelte';
@@ -19,15 +20,23 @@
 		data,
 		hub,
 		canEdit,
-		onchanged
+		onchanged,
+		addConnectionID = ''
 	}: {
 		data: OrcaBootstrap;
 		hub: OrcaHub;
 		canEdit: boolean;
 		onchanged: () => Promise<void>;
+		/** &add=: a program just connected (เพิ่มโปรแกรม step 4), turned on here and waiting for บันทึก. */
+		addConnectionID?: string;
 	} = $props();
+	const adding = untrack(() => (canEdit ? requestedProgram(data.connections, addConnectionID) : { state: 'none' as const }));
+	const addingName = adding.state === 'ready' || adding.state === 'unready' ? adding.connection.name : '';
+	const addingOn = untrack(() => adding.state === 'ready' && !gatewaySources(hub).some((source) => source.connectionID === adding.connection.id));
 	/** connectionID → tools, or null to turn it off; only what was touched. */
-	let changes = $state<Record<string, string[] | null>>({});
+	let changes = $state<Record<string, string[] | null>>(
+		untrack(() => (adding.state === 'ready' && addingOn ? { [adding.connection.id]: allowedTools(adding.connection).map((tool) => tool.name) } : {}))
+	);
 	let busy = $state(false);
 	let error = $state('');
 	let conflict = $state(false);
@@ -100,6 +109,11 @@
 			<p>{canEdit ? t('AI ในพื้นที่นี้ใช้ได้เฉพาะโปรแกรมที่เปิดไว้ กด ปรับ เพื่อเลือกสิ่งที่ AI ทำได้', 'AI here uses only the programs turned on. Choose Adjust to pick what AI can do.') : t('AI ในพื้นที่นี้ใช้ได้เฉพาะโปรแกรมเหล่านี้', 'AI here uses only these programs.')}</p>
 		</div>
 	</header>
+	{#if adding.state === 'unready'}
+		<p class="pg-notice" role="status"><Info size={15} aria-hidden="true" /><span>{t(`${addingName} ยังเลือกสิ่งที่ AI ทำได้ไม่เสร็จ จึงยังเปิดในพื้นที่นี้ไม่ได้`, `${addingName} isn't finished yet, so it can't be turned on here.`)} <a href={localeHref(finishProgramHref(addConnectionID))}>{t('ตั้งค่าโปรแกรมต่อ', 'Finish the program')}</a></span></p>
+	{:else if addingOn && dirty}
+		<p class="pg-notice ok" role="status"><Info size={15} aria-hidden="true" /><span>{t(`เปิด ${addingName} ไว้ให้แล้ว กด บันทึก เพื่อเพิ่มลงพื้นที่นี้`, `${addingName} is turned on. Choose Save to add it here.`)}</span></p>
+	{/if}
 	{#if shown.length || canEdit}
 		<div class="pg-grid">
 			{#each shown as connection (connection.id)}
@@ -217,6 +231,37 @@
 	.pg-add span:last-child {
 		color: var(--orca-muted);
 		font-size: 12.5px;
+	}
+	.pg-notice {
+		display: flex;
+		align-items: flex-start;
+		gap: 8px;
+		margin: 0 0 16px;
+		padding: 10px 12px;
+		border: 1px solid var(--orca-warn-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-warn-bg);
+		color: var(--orca-ink);
+		font-size: 14px;
+		line-height: 1.55;
+	}
+	.pg-notice.ok {
+		border-color: var(--orca-line);
+		background: var(--orca-surface-2);
+	}
+	.pg-notice :global(svg) {
+		flex: none;
+		margin-top: 3px;
+		color: var(--orca-warn);
+	}
+	.pg-notice.ok :global(svg) {
+		color: var(--orca-text-2);
+	}
+	.pg-notice a {
+		color: var(--orca-ink);
+		font-weight: 600;
+		text-decoration: underline;
+		text-underline-offset: 2px;
 	}
 	.pg-empty,
 	.pg-missing {

@@ -12,6 +12,9 @@
 		programDisplayName,
 		programStepHref,
 		readDraft,
+		rememberSavedProgram,
+		savedProgramFor,
+		savedProgramKey,
 		uniqueProgramName,
 		writeDraft,
 		type ProgramStep
@@ -27,7 +30,7 @@
 		type AccessPreset
 	} from '$lib/orca/program-tools';
 	import { orcaError, type OrcaBootstrap, type OrcaCandidate, type OrcaConnection } from '$lib/services/orca';
-	import { ProgramService, type ProgramTool } from '$lib/services/orca-programs';
+	import { ProgramService, programSaveError, type ProgramTool } from '$lib/services/orca-programs';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import PageHeader from '../ui/PageHeader.svelte';
 	import Stepper from '../ui/Stepper.svelte';
@@ -110,6 +113,7 @@
 		}
 	};
 	const key = $derived(draftKey(currentCompany()));
+	const savedKey = $derived(savedProgramKey(currentCompany()));
 	const done = $derived(
 		connectionID ? (data.connections.find((item) => item.id === connectionID) ?? (saved?.id === connectionID ? saved : undefined)) : undefined
 	);
@@ -222,6 +226,16 @@
 		});
 	});
 
+	// Step 1 starts a new program: the one saved before is no longer the one to update.
+	$effect(() => {
+		if (step !== 'choose') return;
+		const memo = savedKey;
+		untrack(() => {
+			clearDraft(storage(), memo);
+			saved = undefined;
+		});
+	});
+
 	// Ticked tools, the preset, name and note survive a reload or the OAuth popup.
 	$effect(() => {
 		if (step !== 'tools' || toolsFor !== sourceID || !sourceID) return;
@@ -244,17 +258,20 @@
 		saving = true;
 		saveError = '';
 		try {
-			// Saving again after going back (the browser's Back from step 4) changes the same program, never adds a second one.
-			const again = saved && saved.mcpID === sourceID ? saved : undefined;
+			// Saving again after going back (the browser's Back from step 4, even
+			// after a reload) changes the same program, never adds a second one.
+			const again =
+				savedProgramFor(storage(), savedKey, sourceID, data.connections) ?? (saved && saved.mcpID === sourceID ? saved : undefined);
 			const result = await ProgramService.save(programSaveInput({ name, note, mcpID: sourceID, selected, tools, existing: again }), again?.id);
 			if (!alive) return;
 			clearDraft(storage(), key);
+			rememberSavedProgram(storage(), savedKey, sourceID, result.id);
 			saved = result;
 			await onchanged();
 			if (mode === 'sheet') await oncompleted?.(result);
 			else await go('done', { connection: result.id });
 		} catch (cause) {
-			if (alive) saveError = orcaError(cause);
+			if (alive) saveError = programSaveError(cause);
 		} finally {
 			if (alive) saving = false;
 		}
@@ -297,7 +314,7 @@
 
 <div class="ap" class:sheet={mode === 'sheet'}>
 	<div class="ap-top">
-		<!-- Once saved (step 4) the steps are a record, not links: going back to step 3 after a reload would add the program twice. -->
+		<!-- Once saved (step 4) the steps are a record, not links. (Going back with the browser still updates the same program: savedProgramFor.) -->
 		<Stepper {steps} current={step} hrefFor={mode === 'page' && step !== 'done' ? (id) => href(id as ProgramStep) : undefined} label={t('ขั้นตอนเชื่อมโปรแกรม', 'Connect a program: steps')} />
 		{#if mode === 'page' && step !== 'done'}
 			<a class="k-button quiet ap-cancel" href={localeHref(programCancelHref(returnTo))} onclick={() => clearDraft(storage(), key)}><X size={16} aria-hidden="true" />{t('ยกเลิก', 'Cancel')}</a>
