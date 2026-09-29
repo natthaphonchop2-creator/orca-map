@@ -634,8 +634,8 @@
       if (isCurrent(request)) {
         clientFormOpen = true;
         error = t(
-          'บันทึกแอปไม่สำเร็จ กรุณาตรวจสอบสิทธิ์ผู้ดูแลระบบและโหลดสถานะล่าสุด แล้วลองอีกครั้ง',
-          'The app could not be saved. Check your administrator access, reload the status, and try again.'
+          'บันทึกแอปไม่สำเร็จ ตรวจว่าคุณอยู่ในทีม ORCA แล้วโหลดสถานะล่าสุดและลองอีกครั้ง',
+          'The app could not be saved. Check that you are in the ORCA team, reload the status, and try again.'
         );
       }
     } finally {
@@ -868,7 +868,7 @@
           >
           <p>
             {providerReviewRequired
-              ? t('ผู้ดูแลระบบของ ORCA ต้องยืนยันข้อกำหนดการเชื่อมต่อกับผู้ให้บริการก่อน','An ORCA administrator must first confirm the provider’s connection requirements.')
+              ? t('ทีม ORCA ต้องยืนยันข้อกำหนดการเชื่อมต่อกับผู้ให้บริการก่อน','The ORCA team must first confirm the provider’s connection requirements.')
               : canConfigureClient
               ? t(
                   'ตั้งค่าแอปของ ORCA หนึ่งครั้ง เพื่อให้สมาชิกเชื่อมบัญชีของตนได้',

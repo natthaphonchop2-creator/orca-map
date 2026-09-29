@@ -1,11 +1,17 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
-  import { Building2, Check, Copy, Link2, MailPlus, Plus, Send, TriangleAlert, X } from "@lucide/svelte";
+  import { Building2, Check, Copy, ExternalLink, Link2, MailPlus, Plus, Send, TriangleAlert, X } from "@lucide/svelte";
   import { parseErrorContent } from "$lib/errors";
   import { invitationLink, lineShareURL } from "$lib/orca/invitations";
-  import { t } from "$lib/orca/locale.svelte";
+  import { localeHref, t } from "$lib/orca/locale.svelte";
+  import { platformHref } from "$lib/orca/navigation";
   import { canInviteOwner, emailDomain, ownerStatus, platformRefusal, signInWarnings, type OwnerStatus } from "$lib/orca/platform-companies";
   import { OrcaService, displayDate, orcaError, type OrcaOwnerInvitationLink, type OrcaPlatformCompany } from "$lib/services/orca";
+  import { externalBrowserLink } from "$lib/services/orca-u2";
+  import PlatformBadge from "./platform/PlatformBadge.svelte";
+  import ConfirmDialog from "./ui/ConfirmDialog.svelte";
+  import PageHeader from "./ui/PageHeader.svelte";
+  import StatusPill, { type StatusTone } from "./ui/StatusPill.svelte";
 
   // The platform operator's customer companies (C4 §14e). The operator opens a
   // company and sends its owner a link; the owner then invites everyone else.
@@ -29,6 +35,8 @@
   let copied = $state<"" | "link" | "message">("");
   let revoking = $state("");
   let actionID = $state("");
+  // Whether Google sign-in is on: owners can't make an account without it.
+  let googleOn = $state<boolean>();
   let request = 0;
 
   const statusText = (status: OwnerStatus, owners: number) =>
@@ -38,12 +46,19 @@
       expired: t("ลิงก์เชิญหมดอายุ", "Invitation link expired"),
       none: t("ยังไม่มีเจ้าของ", "No owner yet"),
     })[status];
-  const statusTone = (status: OwnerStatus) => ({ owned: "ok", waiting: "waiting", expired: "bad", none: "muted" })[status];
+  const statusTone = (status: OwnerStatus): StatusTone => (({ owned: "ok", waiting: "warn", expired: "deny", none: "neutral" }) as const)[status];
+  // The invitation a revoke dialog is about, with its company.
+  const revokingTarget = $derived(
+    revoking
+      ? items.flatMap((company) => company.ownerInvitations.map((invitation) => ({ company, invitation }))).find((item) => item.invitation.id === revoking)
+      : undefined,
+  );
+  const customers = $derived(items.filter((company) => company.id !== "default"));
   const message = $derived(
     issued && target
       ? t(
-          `คุณได้รับเชิญเป็นเจ้าของ ${target.displayName} บน ORCA เปิดลิงก์นี้แล้วเข้าสู่ระบบด้วย Google โดยใช้อีเมล ${issued.result.invitation.email} (ใช้ได้ถึง ${displayDate(issued.result.invitation.expiresAt)})\n${issued.link}`,
-          `You're invited to be the owner of ${target.displayName} on ORCA. Open this link and sign in with Google using ${issued.result.invitation.email} (valid until ${displayDate(issued.result.invitation.expiresAt)}):\n${issued.link}`,
+          `คุณได้รับเชิญเป็นเจ้าของ ${target.displayName} บน ORCA เปิดลิงก์นี้แล้วเข้าสู่ระบบด้วย Google โดยใช้อีเมล ${issued.result.invitation.email} (ใช้ได้ถึง ${displayDate(issued.result.invitation.expiresAt)})\n${externalBrowserLink(issued.link)}`,
+          `You're invited to be the owner of ${target.displayName} on ORCA. Open this link and sign in with Google using ${issued.result.invitation.email} (valid until ${displayDate(issued.result.invitation.expiresAt)}):\n${externalBrowserLink(issued.link)}`,
         )
       : "",
   );
@@ -77,7 +92,17 @@
       if (current === request) listError = explain(cause);
     }
   }
-  onMount(() => void load());
+  async function loadGoogle() {
+    try {
+      googleOn = (await OrcaService.googleSignIn()).enabled;
+    } catch {
+      googleOn = undefined;
+    }
+  }
+  onMount(() => {
+    void load();
+    void loadGoogle();
+  });
 
   async function show(next: "open" | "invite", company?: OrcaPlatformCompany) {
     step = next;
@@ -147,6 +172,7 @@
     } catch (cause) {
       // Reload first, since loading clears the list's error.
       const text = explain(cause);
+      revoking = "";
       await load();
       listError = text;
     } finally {
@@ -164,75 +190,87 @@
   }
 </script>
 
-<section class="platform-companies" aria-labelledby="platform-companies-title">
-  <div class="platform-head">
-    <div>
-      <h2 id="platform-companies-title"><Building2 size={18} aria-hidden="true" />{t("บริษัทลูกค้า", "Customer companies")}</h2>
-      <p>
-        {t(
-          "เปิดบริษัทให้ลูกค้า แล้วส่งลิงก์ให้เจ้าของบริษัท เมื่อเจ้าของตอบรับ เขาจะเชิญและจัดการคนในบริษัทเอง คุณไม่ได้เป็นสมาชิกของบริษัทเหล่านี้",
-          "Open a company for a customer, then send its owner a link. Once the owner accepts, they invite and manage their own people. You are not a member of these companies.",
-        )}
-      </p>
-    </div>
-    <button type="button" class="k-button primary" onclick={() => show("open")}><Plus size={16} aria-hidden="true" />{t("เปิดบริษัทใหม่", "Open a company")}</button>
-  </div>
-  {#if listError}<div class="k-banner error" role="alert">{listError}</div>{/if}
-  {#if !loaded && !listError}
-    <p class="companies-loading">{t("กำลังโหลดรายชื่อบริษัท…", "Loading companies…")}</p>
-  {:else if loaded}
-    <div class="companies-table-wrap">
-      <table class="k-table companies-table">
-        <thead>
-          <tr>
-            <th scope="col">{t("บริษัท", "Company")}</th>
-            <th scope="col">{t("ที่นั่ง", "Seats")}</th>
-            <th scope="col">{t("เจ้าของ", "Owner")}</th>
-            <th scope="col" class="companies-actions-col">{t("การจัดการ", "Actions")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each items as company (company.id)}
-            {@const status = ownerStatus(company)}
-            <tr>
-              <td class="company-name">
-                <strong>{company.displayName}</strong>
-                <p class="k-small k-muted">
-                  {company.id === "default" ? t("บริษัทของทีม ORCA", "The ORCA team's company") : t(`เปิดเมื่อ ${displayDate(company.createdAt)}`, `Opened ${displayDate(company.createdAt)}`)}
-                </p>
-              </td>
-              <td class="company-seats"><strong>{company.seats}</strong><p class="k-small k-muted">{t("คนที่ใช้งานได้", "people who can use it")}</p></td>
-              <td>
-                <span class="owner-status tone-{statusTone(status)}">{statusText(status, company.owners)}</span>
-                {#each company.ownerInvitations as invitation (invitation.id)}
-                  <div class="owner-invitation">
-                    <span class="owner-invitation-email">{invitation.email}</span>
-                    <span class="k-small k-muted">{invitation.status === "expired" ? t(`หมดอายุ ${displayDate(invitation.expiresAt)}`, `Expired ${displayDate(invitation.expiresAt)}`) : t(`ใช้ได้ถึง ${displayDate(invitation.expiresAt)}`, `Valid until ${displayDate(invitation.expiresAt)}`)}</span>
-                    {#if revoking === invitation.id}
-                      <span class="owner-invitation-actions">
-                        <button type="button" class="k-button small danger" disabled={!!actionID} onclick={() => revoke(company, invitation.id)}>{t("ยืนยันยกเลิก", "Confirm revoke")}</button>
-                        <button type="button" class="k-button small" disabled={!!actionID} onclick={() => (revoking = "")}>{t("ไม่ยกเลิก", "Keep")}</button>
-                      </span>
-                    {:else}
-                      <button type="button" class="k-button small" disabled={!!actionID} onclick={() => (revoking = invitation.id)} aria-label={t(`ยกเลิกคำเชิญของ ${invitation.email}`, `Revoke the invitation for ${invitation.email}`)}
-                        ><X size={14} aria-hidden="true" />{t("ยกเลิก", "Revoke")}</button
-                      >
-                    {/if}
-                  </div>
-                {/each}
-              </td>
-              <td class="companies-actions-col">
-                {#if canInviteOwner(company)}<button type="button" class="k-button small" onclick={() => show("invite", company)}
-                    ><MailPlus size={14} aria-hidden="true" />{status === "none" ? t("เชิญเจ้าของ", "Invite the owner") : t("ส่งลิงก์ใหม่", "Send a new link")}</button
-                  >{/if}
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
+<PageHeader
+  title={t("บริษัทลูกค้า", "Customer companies")}
+  subtitle={t("เปิดบริษัทให้ลูกค้า แล้วส่งลิงก์ให้เจ้าของดูแลเอง คุณไม่ได้เป็นสมาชิกของบริษัทเหล่านี้", "Open a company and send its owner a link. You are not a member of these companies.")}
+>
+  {#snippet eyebrow()}<PlatformBadge />{/snippet}
+  {#snippet action()}<button type="button" class="k-button primary companies-open" onclick={() => show("open")}><Plus size={16} aria-hidden="true" />{t("เปิดบริษัทใหม่", "Open a company")}</button>{/snippet}
+</PageHeader>
+
+<div class="companies-bar">
+  {#if googleOn !== undefined}
+    <StatusPill label={googleOn ? t("Google: เปิดอยู่", "Google: on") : t("Google: ปิดอยู่", "Google: off")} tone={googleOn ? "ok" : "warn"} dot />
+    {#if !googleOn}<a class="companies-bar-link" href={localeHref(platformHref("signin"))}>{t("เปิดการเข้าสู่ระบบด้วย Google", "Turn on Google sign-in")}</a>{/if}
   {/if}
-</section>
+  {#if loaded}<span class="companies-bar-count">{t(`${customers.length} บริษัทลูกค้า`, `${customers.length} customer ${customers.length === 1 ? "company" : "companies"}`)}</span>{/if}
+</div>
+
+{#if listError}<div class="companies-error" role="alert"><TriangleAlert size={17} aria-hidden="true" /><span>{listError}</span></div>{/if}
+{#if !loaded && !listError}
+  <p class="companies-loading">{t("กำลังโหลดรายชื่อบริษัท…", "Loading companies…")}</p>
+{:else if loaded}
+  <section class="companies-list" aria-labelledby="platform-companies-title">
+    <h2 id="platform-companies-title" class="companies-sr">{t("บริษัทลูกค้า", "Customer companies")}</h2>
+    <table class="companies-table">
+      <thead>
+        <tr>
+          <th scope="col">{t("บริษัท", "Company")}</th>
+          <th scope="col">{t("คนที่ใช้งานได้", "People")}</th>
+          <th scope="col">{t("เจ้าของ", "Owner")}</th>
+          <th scope="col" class="companies-actions-col"><span class="companies-sr">{t("การจัดการ", "Actions")}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {#each items as company (company.id)}
+          {@const status = ownerStatus(company)}
+          <tr>
+            <td>
+              <div class="company-name">
+                <span class="company-mark" aria-hidden="true"><Building2 size={17} /></span>
+                <span>
+                  <strong>{company.displayName}</strong>
+                  <small>{company.id === "default" ? t("บริษัทของทีม ORCA", "The ORCA team's company") : t(`เปิดเมื่อ ${displayDate(company.createdAt)}`, `Opened ${displayDate(company.createdAt)}`)}</small>
+                </span>
+              </div>
+            </td>
+            <td class="company-seats"><span class="company-seats-label">{t("ใช้งานได้", "Active:")}</span><strong>{company.seats}</strong><small>{t("คน", company.seats === 1 ? "person" : "people")}</small></td>
+            <td class="company-owner">
+              <StatusPill label={statusText(status, company.owners)} tone={statusTone(status)} />
+              {#each company.ownerInvitations as invitation (invitation.id)}
+                <div class="owner-invitation">
+                  <span class="owner-invitation-email">{invitation.email}</span>
+                  <small>{invitation.status === "expired" ? t(`หมดอายุ ${displayDate(invitation.expiresAt)}`, `Expired ${displayDate(invitation.expiresAt)}`) : t(`ใช้ได้ถึง ${displayDate(invitation.expiresAt)}`, `Valid until ${displayDate(invitation.expiresAt)}`)}</small>
+                  <button type="button" class="k-button quiet small" disabled={!!actionID} onclick={() => (revoking = invitation.id)} aria-label={t(`ยกเลิกคำเชิญของ ${invitation.email}`, `Revoke the invitation for ${invitation.email}`)}
+                    ><X size={14} aria-hidden="true" />{t("ยกเลิก", "Revoke")}</button
+                  >
+                </div>
+              {/each}
+            </td>
+            <td class="companies-actions-col">
+              {#if canInviteOwner(company)}<button type="button" class="k-button small" onclick={() => show("invite", company)}
+                  ><MailPlus size={14} aria-hidden="true" />{status === "none" ? t("เชิญเจ้าของ", "Invite the owner") : t("ส่งลิงก์ใหม่", "Send a new link")}</button
+                >{/if}
+            </td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  </section>
+{/if}
+
+<ConfirmDialog
+  open={!!revokingTarget}
+  title={t("ยกเลิกคำเชิญนี้ไหม", "Revoke this invitation?")}
+  message={revokingTarget ? t(`ลิงก์ที่ส่งให้ ${revokingTarget.invitation.email} จะใช้ไม่ได้ทันที เชิญใหม่ได้ภายหลัง`, `The link sent to ${revokingTarget.invitation.email} stops working at once. You can invite again later.`) : ""}
+  confirmLabel={t("ยกเลิกคำเชิญ", "Revoke invitation")}
+  cancelLabel={t("ไม่ยกเลิก", "Keep")}
+  tone="danger"
+  icon={X}
+  busy={!!actionID}
+  oncancel={() => (revoking = "")}
+  onconfirm={() => revokingTarget && revoke(revokingTarget.company, revokingTarget.invitation.id)}
+/>
 
 <dialog bind:this={dialog} class="company-dialog" aria-labelledby="company-dialog-title" oncancel={(event) => { if (busy) event.preventDefault(); }}>
   {#if step === "issued" && issued && target}
@@ -254,9 +292,13 @@
               "ยังไม่ได้เปิดการเข้าสู่ระบบด้วย Google เจ้าของบริษัทจะสร้างบัญชีไม่ได้จนกว่าจะเปิด",
               "Google sign-in is off, so the owner can't make an account until it's turned on.",
             )}
+            <!-- A new tab: this dialog shows the owner's link only once, so it must stay open. -->
+            <a class="dialog-warning-link" href={localeHref(platformHref("signin"))} target="_blank" rel="noopener"
+              >{t("เปิดการเข้าสู่ระบบด้วย Google", "Turn on Google sign-in")}<ExternalLink size={13} aria-hidden="true" /><span class="companies-sr">{t(" (เปิดในแท็บใหม่)", " (opens in a new tab)")}</span></a
+            >
           {:else}
             {t(
-              `โดเมน @${emailDomain(issued.result.invitation.email)} ยังไม่อยู่ในโดเมนอีเมลที่ระบบอนุญาต เจ้าของบริษัทจะเข้าสู่ระบบไม่ได้จนกว่าจะเพิ่มโดเมนนี้`,
+              `โดเมน @${emailDomain(issued.result.invitation.email)} ยังไม่อยู่ในโดเมนอีเมลที่ ORCA อนุญาต เจ้าของบริษัทจะเข้าสู่ระบบไม่ได้จนกว่าจะเพิ่มโดเมนนี้`,
               `@${emailDomain(issued.result.invitation.email)} isn't one of the sign-in's allowed email domains, so the owner can't sign in until it's added.`,
             )}
           {/if}
@@ -274,7 +316,7 @@
       >
       <a class="k-button line-share" href={lineShareURL(message)} target="_blank" rel="noopener noreferrer"><Send size={16} aria-hidden="true" />{t("ส่งทาง LINE", "Send by LINE")}</a>
     </div>
-    <p class="dialog-note">{t(`ใช้ได้ถึง ${displayDate(issued.result.invitation.expiresAt)} · บทบาท เจ้าของ`, `Valid until ${displayDate(issued.result.invitation.expiresAt)} · Owner`)}</p>
+    <p class="dialog-note">{t(`ใช้ได้ถึง ${displayDate(issued.result.invitation.expiresAt)} · บทบาท เจ้าของบริษัท`, `Valid until ${displayDate(issued.result.invitation.expiresAt)} · Company owner`)}</p>
     {#if formError}<p class="dialog-error" role="alert">{formError}</p>{/if}
     <div class="dialog-actions">
       <button type="button" class="k-button primary" onclick={() => dialog?.close()}>{t("เสร็จสิ้น", "Done")}</button>
@@ -324,61 +366,69 @@
 </dialog>
 
 <style>
-  /* The settings panel's look; its own styles are scoped to the settings page. */
-  .platform-companies { overflow: hidden; margin-bottom: 16px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
-  .platform-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 16px 18px; }
-  .platform-head > div { flex: 1 1 320px; min-width: 0; }
-  .platform-head h2 { display: flex; align-items: center; gap: 8px; margin: 0; }
-  .platform-head h2 :global(svg) { flex: none; color: var(--orca-subtle); }
-  .platform-head p { margin: 2px 0 0; color: var(--orca-muted); font-size: 13px; line-height: 1.6; }
-  .platform-head :global(.k-button) { white-space: nowrap; }
-  .platform-companies > :global(.k-banner) { margin: 0 18px 12px; }
-  .companies-loading { margin: 0; padding: 14px 18px 18px; color: var(--orca-muted); font-size: 14px; }
-  .companies-table-wrap { overflow-x: auto; border-top: 1px solid var(--orca-line); }
-  .companies-table th { white-space: nowrap; }
-  .companies-table td { vertical-align: top; }
-  .company-name { min-width: 180px; }
-  .company-name strong, .company-seats strong { display: block; font-weight: 600; overflow-wrap: anywhere; }
-  .companies-table td p { margin: 1px 0 0; }
-  .companies-actions-col { width: 1%; white-space: nowrap; text-align: right; }
-  .companies-table :global(.k-button) { white-space: nowrap; }
-  .owner-status { display: inline-flex; padding: 2px 8px; border-radius: var(--orca-radius-sm); font-size: 12.5px; font-weight: 500; white-space: nowrap; }
-  .owner-status.tone-ok { background: var(--orca-ok-bg); color: var(--orca-ok); }
-  .owner-status.tone-waiting { background: var(--orca-warn-bg); color: var(--orca-warn); }
-  .owner-status.tone-bad { background: var(--orca-deny-bg); color: var(--orca-deny); }
-  .owner-status.tone-muted { background: var(--orca-secondary); color: var(--orca-nav); }
-  .owner-invitation { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 8px; font-size: 13.5px; }
+  .companies-open { min-height: 42px; padding: 0 18px; font-weight: 600; }
+  .companies-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: -4px 0 14px; font-size: 13.5px; }
+  .companies-bar-link { color: var(--orca-ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--orca-line-strong); text-underline-offset: 3px; }
+  .companies-bar-count { margin-left: auto; color: var(--orca-muted); }
+  .companies-error { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 14px; padding: 12px 16px; border: 1px solid var(--orca-deny-line); border-radius: var(--orca-radius-lg); background: var(--orca-deny-bg); color: var(--orca-deny); font-size: 14px; }
+  .companies-error :global(svg) { flex: none; margin-top: 2px; }
+  .companies-loading { margin: 0; padding: 18px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); color: var(--orca-muted); font-size: 14px; }
+  .companies-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .companies-list { overflow: hidden; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); box-shadow: 0 1px 2px color-mix(in srgb, var(--orca-ink) 5%, transparent); }
+  .companies-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .companies-table th { padding: 11px 18px; border-bottom: 1px solid var(--orca-line); background: var(--orca-surface-2); color: var(--orca-muted); font-size: 12.5px; font-weight: 600; text-align: left; white-space: nowrap; }
+  .companies-table td { padding: 14px 18px; border-top: 1px solid var(--orca-line-soft); vertical-align: top; }
+  .companies-table tbody tr:first-child td { border-top: 0; }
+  .company-name { display: flex; align-items: flex-start; gap: 12px; min-width: 220px; }
+  .company-mark { display: grid; flex: none; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--orca-secondary); color: var(--orca-text-2); }
+  .company-name strong { display: block; font-weight: 600; overflow-wrap: anywhere; }
+  .company-seats { white-space: nowrap; }
+  .company-seats strong { font-weight: 600; }
+  .companies-table td.company-seats small { display: inline; margin-left: 4px; }
+  .companies-table small { display: block; color: var(--orca-muted); font-size: 13px; }
+  .company-seats strong { font-variant-numeric: tabular-nums; }
+  .company-seats-label { display: none; }
+  .company-owner { min-width: 240px; }
+  .companies-actions-col { width: 1%; text-align: right; white-space: nowrap; }
+  .companies-table :global(.k-button) { gap: 6px; white-space: nowrap; }
+  .owner-invitation { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; margin-top: 8px; font-size: 13.5px; }
   .owner-invitation-email { font-weight: 500; overflow-wrap: anywhere; }
-  .owner-invitation-actions { display: inline-flex; gap: 6px; }
-  .company-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 24px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); color: var(--orca-ink); box-shadow: var(--orca-popover-shadow); }
-  .company-dialog::backdrop { background: color-mix(in srgb, var(--orca-ink) 45%, transparent); }
-  .company-dialog h2 { margin: 16px 0 4px; font-size: 18px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
-  .company-dialog p { margin: 8px 0; color: var(--orca-muted); font-size: 14px; line-height: 1.7; }
+  .owner-invitation small { display: inline; }
+  .owner-invitation :global(.k-button) { min-height: 28px; padding: 0 8px; }
+
+  .company-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 28px 28px 24px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-xl); background: var(--orca-surface); color: var(--orca-ink); box-shadow: var(--orca-dialog-shadow); }
+  .company-dialog::backdrop { background: var(--orca-scrim, rgba(21, 24, 35, 0.45)); }
+  .company-dialog h2 { margin: 18px 0 4px; font-size: 19px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+  .company-dialog p { margin: 8px 0; color: var(--orca-muted); font-size: 14.5px; line-height: 1.6; }
   .company-dialog fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
-  .dialog-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--orca-radius); background: var(--orca-secondary); color: var(--orca-nav); }
+  .dialog-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; background: var(--orca-secondary); color: var(--orca-text-2); }
   .dialog-icon.ok { background: var(--orca-ok-bg); color: var(--orca-ok); }
-  .dialog-label { display: block; margin: 16px 0 6px; color: var(--orca-ink); font-size: 13.5px; font-weight: 600; }
-  .dialog-input, .dialog-link { width: 100%; min-height: 38px; padding: 8px 11px; border: 1px solid var(--orca-field-line, var(--orca-line-strong)); border-radius: var(--orca-radius); background: var(--orca-surface); color: var(--orca-ink); font: inherit; font-size: 14px; }
-  .dialog-link { background: var(--orca-surface-2); font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 12.5px; }
+  .dialog-label { display: block; margin: 16px 0 6px; color: var(--orca-ink); font-size: 14px; font-weight: 600; }
+  .dialog-input, .dialog-link { width: 100%; min-height: 42px; padding: 9px 12px; border: 1px solid var(--orca-field-line); border-radius: var(--orca-radius); background: var(--orca-field); color: var(--orca-ink); font: inherit; font-size: 14px; }
+  .dialog-link { font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
   .dialog-share { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .line-share { text-decoration: none; }
   .company-dialog .dialog-note { font-size: 13px; }
   .company-dialog .dialog-note.ok { display: flex; align-items: center; gap: 6px; color: var(--orca-ok); }
-  .dialog-warning { display: flex; align-items: flex-start; gap: 8px; margin: 10px 0 0; padding: 10px 12px; border-radius: var(--orca-radius); background: var(--orca-warn-bg); color: var(--orca-warn); font-size: 13px; line-height: 1.6; }
-  .dialog-warning :global(svg) { flex: none; margin-top: 2px; }
-  .dialog-error { padding: 10px 12px; border-radius: var(--orca-radius); background: var(--orca-deny-bg); color: var(--orca-deny) !important; font-size: 13px !important; }
-  .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 22px; }
-  @media (max-width: 600px) {
+  .dialog-warning { display: flex; align-items: flex-start; gap: 8px; margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--orca-warn-line); border-radius: var(--orca-radius); background: var(--orca-warn-bg); color: var(--orca-warn); font-size: 13.5px; line-height: 1.6; }
+  .dialog-warning :global(svg) { flex: none; margin-top: 3px; }
+  .dialog-warning-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; color: var(--orca-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+  .dialog-error { padding: 10px 12px; border-radius: var(--orca-radius); background: var(--orca-deny-bg); color: var(--orca-deny) !important; font-size: 13.5px !important; }
+  .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+  .dialog-actions :global(.k-button) { min-height: 42px; padding: 0 18px; font-weight: 600; }
+
+  /* Under 720px each company is a card instead of a table row. */
+  @media (max-width: 720px) {
+    .companies-bar-count { margin-left: 0; }
+    .companies-table thead { display: none; }
+    .companies-table, .companies-table tbody, .companies-table tr, .companies-table td { display: block; width: auto; min-width: 0; }
+    .companies-table tr { padding: 14px 16px; border-top: 1px solid var(--orca-line-soft); }
+    .companies-table tbody tr:first-child { border-top: 0; }
+    .companies-table td { padding: 4px 0; border: 0; }
+    .companies-table td.company-seats { padding-left: 46px; }
+    .company-seats-label { display: inline; margin-right: 4px; color: var(--orca-muted); font-size: 13px; }
+    .companies-table td.company-owner { padding-left: 46px; }
+    .companies-actions-col { padding-left: 46px !important; text-align: left; }
     .dialog-share > :global(*) { flex: 1 1 auto; justify-content: center; }
-    /* One card per company instead of a table that scrolls sideways; the
-       panel's class outranks the workspace's own table cell rules. */
-    .platform-companies .companies-table thead { display: none; }
-    .platform-companies .companies-table, .platform-companies .companies-table tbody, .platform-companies .companies-table tr, .platform-companies .companies-table td { display: block; width: auto; min-width: 0; }
-    .platform-companies .companies-table tr { padding: 12px 18px; border-bottom: 1px solid var(--orca-line); }
-    .platform-companies .companies-table tr:last-child { border-bottom: 0; }
-    .platform-companies .companies-table td { padding: 4px 0; border: 0; }
-    .platform-companies .companies-table td.company-seats { display: flex; align-items: baseline; gap: 6px; }
-    .platform-companies .companies-table td.company-seats p { margin: 0; }
-    .platform-companies .companies-actions-col { text-align: left; }
   }
 </style>
