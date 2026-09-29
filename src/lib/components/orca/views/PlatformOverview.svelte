@@ -32,12 +32,19 @@
 	const loading = $derived((!companies && !companiesError) || (canReviewPilotRequests && !pilots && !pilotsError) || (!google && !googleError));
 
 	// A failed reload drops the numbers it had: the tiles never show old
-	// numbers beside "โหลดไม่สำเร็จ" (Codex release review 60).
+	// numbers beside "โหลดไม่สำเร็จ" (Codex release review 60). Only the
+	// newest load's answer counts: an older one that lands later (the usage
+	// retry, then the overview's own retry) is dropped (Codex release review 61).
+	let usageLoad = 0;
 	async function loadUsage() {
+		const current = ++usageLoad;
 		usageError = '';
 		await PlatformUsageService.usage().then(
-			(result) => (usage = result),
+			(result) => {
+				if (current === usageLoad) usage = result;
+			},
 			(cause) => {
+				if (current !== usageLoad) return;
 				usage = undefined;
 				usageError = orcaError(cause);
 			}

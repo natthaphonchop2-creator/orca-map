@@ -171,7 +171,9 @@ test('the section uses the workspace tokens only, compiles clean, and turns rows
 // ภาพรวมแพลตฟอร์ม: its own call, its own error
 // ---------------------------------------------------------------------------
 
-test('a usage failure leaves the overview\'s other numbers alone, a retry reloads only the usage, and a failed reload drops the old numbers', async () => {
+// PlatformOverview's script, run with its services replaced: its load, its
+// usage load and the state its tiles read.
+async function overviewHarness() {
 	const script = stripTypeScriptTypes((await readFile(files.overview, 'utf8')).match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
 		.replace(/^\s*import[\s\S]*?;$/gm, '')
 		.replace('$props()', '$state(testProps)');
@@ -185,33 +187,42 @@ test('a usage failure leaves the overview\'s other numbers alone, a retry reload
 				}).js.code.replaceAll('svelte/internal/client', internal)
 			).toString('base64')
 	);
+	return (orcaService, usageService) =>
+		harness(
+			{ canReviewPilotRequests: false },
+			{
+				onMount: () => {},
+				term: (key) => key,
+				t: th,
+				localeHref: (path) => path,
+				platformHref: (section) => `/app?view=platform&section=${section}`,
+				OrcaService: {
+					googleSignIn: async () => ({ enabled: true, clientID: 'x.apps.googleusercontent.com', secretConfigured: true }),
+					candidates: async () => [],
+					listPilotRequests: async () => ({ items: [] }),
+					...orcaService
+				},
+				orcaError: (cause) => cause.message,
+				catalogSummary: platform.catalogSummary,
+				googleClientSaved: platform.googleClientSaved,
+				platformCounts: platform.platformCounts,
+				PlatformUsageService: usageService
+			}
+		);
+}
+const overviewCompanies = [{ id: 'default', displayName: 'ORCA', createdAt: '', seats: 3, owners: 1, ownerInvitations: [] }, { id: B, displayName: 'B', createdAt: '', seats: 5, owners: 1, ownerInvitations: [] }];
+
+test('a usage failure leaves the overview\'s other numbers alone, a retry reloads only the usage, and a failed reload drops the old numbers', async () => {
 	let usageCalls = 0;
 	let companyCalls = 0;
 	let fail = true;
-	const view = harness(
-		{ canReviewPilotRequests: false },
+	const view = (await overviewHarness())(
+		{ platformCompanies: async () => (companyCalls++, overviewCompanies) },
 		{
-			onMount: () => {},
-			term: (key) => key,
-			t: th,
-			localeHref: (path) => path,
-			platformHref: (section) => `/app?view=platform&section=${section}`,
-			OrcaService: {
-				platformCompanies: async () => (companyCalls++, [{ id: 'default', displayName: 'ORCA', createdAt: '', seats: 3, owners: 1, ownerInvitations: [] }, { id: B, displayName: 'B', createdAt: '', seats: 5, owners: 1, ownerInvitations: [] }]),
-				googleSignIn: async () => ({ enabled: true, clientID: 'x.apps.googleusercontent.com', secretConfigured: true }),
-				candidates: async () => [],
-				listPilotRequests: async () => ({ items: [] })
-			},
-			orcaError: (cause) => cause.message,
-			catalogSummary: platform.catalogSummary,
-			googleClientSaved: platform.googleClientSaved,
-			platformCounts: platform.platformCounts,
-			PlatformUsageService: {
-				usage: async () => {
-					usageCalls++;
-					if (fail) throw new Error('usage failed');
-					return usageModule.platformUsage(answer);
-				}
+			usage: async () => {
+				usageCalls++;
+				if (fail) throw new Error('usage failed');
+				return usageModule.platformUsage(answer);
 			}
 		}
 	);
@@ -229,6 +240,38 @@ test('a usage failure leaves the overview\'s other numbers alone, a retry reload
 	assert.deepEqual(view.state.tiles.map((tile) => [tile.value, tile.detail]).slice(0, 2), [['1', 'มีเจ้าของแล้ว 1'], ['5', 'รวมทุกบริษัทลูกค้า']]);
 	const source = await readFile(files.overview, 'utf8');
 	assert.match(source, /<PlatformUsage \{usage\} error=\{usageError\} onretry=\{loadUsage\} \/>/);
+});
+
+test('only the newest usage load counts: an older answer that lands later changes nothing', async () => {
+	// The usage retry starts load A; the overview's own retry starts load B
+	// before A answers. Whatever order they land in, the tiles show B's answer.
+	const pending = [];
+	const view = (await overviewHarness())(
+		{ platformCompanies: async () => overviewCompanies },
+		{ usage: () => new Promise((resolve, reject) => pending.push({ resolve, reject })) }
+	);
+	const settle = async (index, fails) => {
+		if (fails) pending[index].reject(new Error('usage failed'));
+		else pending[index].resolve(usageModule.platformUsage(answer));
+		await new Promise((done) => setTimeout(done, 0));
+	};
+
+	// B fails, then A succeeds: B's failure stays, A's numbers never appear.
+	const a = view.loadUsage();
+	const b = view.load();
+	await settle(1, true);
+	await settle(0, false);
+	await Promise.all([a, b]);
+	assert.deepEqual([view.state.usageError, view.state.usage], ['usage failed', undefined]);
+
+	// D succeeds, then C fails: D's numbers stay, C's failure never appears.
+	const c = view.loadUsage();
+	const d = view.loadUsage();
+	await settle(3, false);
+	await settle(2, true);
+	await Promise.all([c, d]);
+	assert.deepEqual([view.state.usageError, view.state.usage.toolCalls.last7Days], ['', 1210]);
+	assert.equal(pending.length, 4);
 });
 
 // ---------------------------------------------------------------------------
