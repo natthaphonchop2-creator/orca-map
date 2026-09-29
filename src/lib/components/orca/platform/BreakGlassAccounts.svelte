@@ -4,8 +4,7 @@
 	import { LOCAL_AUTH_MIN_PASSWORD_LENGTH } from '$lib/constants';
 	import { term } from '$lib/orca/glossary';
 	import { t } from '$lib/orca/locale.svelte';
-	import type { LocalAuthUser } from '$lib/services/admin/types';
-	import { OrcaService, displayDate, memberName, memberRole, orcaError, type OrcaBootstrap } from '$lib/services/orca';
+	import { OrcaService, displayDate, memberName, memberRole, orcaError, type OrcaBootstrap, type OrcaBreakGlassLogin } from '$lib/services/orca';
 	import { passwordAccounts, type PasswordAccountRow, type PasswordAccountState } from '$lib/services/orca-platform';
 	import PageHeader from '../ui/PageHeader.svelte';
 	import Sheet from '../ui/Sheet.svelte';
@@ -17,9 +16,11 @@
 	// team's own company, for when Google sign-in can't be used. Only the ORCA
 	// team sees or changes them (the page, and the server); a customer company
 	// never chooses anyone's password, since one person may be in several.
+	// The server lists exactly these accounts, each with its account's role and
+	// status in the ORCA team's company (backend B6); the page shows them as sent.
 	let { data, onchanged }: { data: OrcaBootstrap; onchanged: () => Promise<void> } = $props();
 	const allowed = $derived(data.canManage && data.platformOperator === true);
-	let accounts = $state<LocalAuthUser[]>([]);
+	let accounts = $state<OrcaBreakGlassLogin[]>([]);
 	let loaded = $state(false);
 	let available = $state(false);
 	let availabilityError = $state('');
@@ -30,20 +31,23 @@
 	let password = $state('');
 	let saving = $state(false);
 	let formError = $state('');
-	const currentUser = $derived(data.members.find((member) => member.id === data.currentUserID));
-	const rows = $derived(passwordAccounts(accounts, data.members, { canManage: data.canManage, role: currentUser?.role }));
+	const rows = $derived(passwordAccounts(accounts, data.members, data.currentUserID));
 	/** Resetting your own password signs this page out too. */
-	const resettingSelf = $derived(!!resetting && resetting.member?.id === data.currentUserID);
+	const resettingSelf = $derived(!!resetting?.self);
 
 	const stateLabel = (state: PasswordAccountState) =>
 		({
-			member: t('ใช้งานอยู่', 'Active'),
-			waiting: t('รอเข้าสู่ระบบครั้งแรก', 'Waiting for first sign-in'),
+			active: t('ใช้งานอยู่', 'Active'),
+			// No account yet: before the first sign-in, or after the account was deleted.
+			waiting: t('รอเข้าสู่ระบบ', 'Waiting for sign-in'),
 			suspended: t('ถูกระงับ', 'Suspended'),
 			removed: t('นำออกแล้ว', 'Removed')
 		})[state];
 	const stateTone = (state: PasswordAccountState): StatusTone =>
-		(({ member: 'ok', waiting: 'warn', suspended: 'deny', removed: 'neutral' }) as const)[state];
+		(({ active: 'ok', waiting: 'warn', suspended: 'deny', removed: 'neutral' }) as const)[state];
+	/** Who chose the password now in use. */
+	const originLabel = (origin: OrcaBreakGlassLogin['passwordOrigin']) =>
+		origin === 'admin' ? t('ทีม ORCA ตั้งให้', 'Set by the ORCA team') : origin === 'self' ? t('เจ้าของบัญชีตั้งเอง', 'Chosen by its owner') : '';
 
 	async function refresh() {
 		if (!allowed) return;
@@ -144,6 +148,7 @@
 						<th scope="col">{t('บัญชี', 'Account')}</th>
 						<th scope="col">{t('บทบาท', 'Role')}</th>
 						<th scope="col">{t('สถานะ', 'Status')}</th>
+						<th scope="col">{t('รหัสผ่าน', 'Password')}</th>
 						<th scope="col">{t('สร้างเมื่อ', 'Created')}</th>
 						<th scope="col" class="breakglass-actions"><span class="breakglass-sr">{t('การจัดการ', 'Actions')}</span></th>
 					</tr>
@@ -155,13 +160,14 @@
 								<div class="breakglass-account">
 									<span class="breakglass-mark" aria-hidden="true"><KeyRound size={16} /></span>
 									<span>
-										<strong>{row.account.email}{#if row.member?.id === data.currentUserID}<span class="breakglass-you">{t(' (คุณ)', ' (you)')}</span>{/if}</strong>
-										{#if row.member && memberName(row.member) !== row.member.email}<small>{memberName(row.member)}</small>{/if}
+										<strong>{row.account.email}{#if row.self}<span class="breakglass-you">{t(' (คุณ)', ' (you)')}</span>{/if}</strong>
+										{#if row.member && memberName(row.member) !== row.account.email}<small>{memberName(row.member)}</small>{/if}
 									</span>
 								</div>
 							</td>
-							<td class="breakglass-role" class:none={!row.member}>{row.member ? memberRole(row.member.role) : '—'}</td>
+							<td class="breakglass-role" class:none={!row.account.role}>{row.account.role ? memberRole(row.account.role) : '—'}</td>
 							<td class="breakglass-state"><StatusPill label={stateLabel(row.state)} tone={stateTone(row.state)} /></td>
+							<td class="breakglass-origin" class:none={!originLabel(row.account.passwordOrigin)}><span class="breakglass-card-label">{t('รหัสผ่าน', 'Password')}</span>{originLabel(row.account.passwordOrigin) || '—'}</td>
 							<td class="breakglass-created"><span class="breakglass-card-label">{t('สร้างเมื่อ', 'Created')}</span>{displayDate(row.account.created)}</td>
 							<td class="breakglass-actions">
 								{#if row.canReset}<button type="button" class="k-button small" onclick={() => start(row)} aria-label={t(`ตั้งรหัสผ่านใหม่ให้ ${row.account.email}`, `Reset password for ${row.account.email}`)}>{t('ตั้งรหัสผ่านใหม่', 'Reset password')}</button>{/if}
@@ -181,7 +187,9 @@
 		description={resetting
 			? resettingSelf
 				? t('นี่คือบัญชีของคุณ หลังบันทึก คุณต้องเข้าสู่ระบบใหม่บนทุกอุปกรณ์ รวมถึงหน้านี้', 'This is your own account. After saving, you must sign in again on every device, this page included.')
-				: t('บัญชีนี้ต้องเข้าสู่ระบบใหม่บนทุกอุปกรณ์', 'This account must sign in again on every device.')
+				: resetting.state === 'waiting'
+					? t('บัญชีนี้ยังไม่ได้เข้าสู่ระบบ ใช้รหัสผ่านใหม่นี้ตอนเข้าสู่ระบบ', "This account hasn't signed in yet. It signs in with this new password.")
+					: t('บัญชีนี้ต้องเข้าสู่ระบบใหม่บนทุกอุปกรณ์', 'This account must sign in again on every device.')
 			: t('บัญชีนี้เข้าบริษัทของทีม ORCA หลังเข้าสู่ระบบครั้งแรก', "This account joins the ORCA team's company after its first sign-in.")}
 		busy={saving}
 		onclose={closed}
@@ -341,6 +349,7 @@
 		color: var(--orca-text-2);
 	}
 	.breakglass-role,
+	.breakglass-origin,
 	.breakglass-created {
 		color: var(--orca-text-2);
 		white-space: nowrap;
@@ -442,7 +451,8 @@
 			text-align: left;
 		}
 		.breakglass-actions:empty,
-		.breakglass-role.none {
+		.breakglass-role.none,
+		.breakglass-origin.none {
 			display: none;
 		}
 		.breakglass-card-label {

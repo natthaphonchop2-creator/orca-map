@@ -1,7 +1,6 @@
-import type { LocalAuthUser, MCPCatalogEntryServerManifest } from './admin/types';
-import type { OrcaCandidate, OrcaGoogleSignIn, OrcaMember, OrcaPlatformCompany, PilotRequest, PilotStatus } from './orca';
+import type { MCPCatalogEntryServerManifest } from './admin/types';
+import type { OrcaBreakGlassLogin, OrcaCandidate, OrcaGoogleSignIn, OrcaMember, OrcaPlatformCompany, PilotRequest, PilotStatus } from './orca';
 import { googleRedirectURI } from '../orca/google-signin';
-import { canResetMemberPassword, organizationRole } from '../orca/member-access';
 import { ownerStatus } from '../orca/platform-companies';
 
 // The ORCA team's platform area (workspace UX W1, U2): what its pages work out
@@ -193,44 +192,40 @@ export function searchCatalog<T extends Pick<OrcaCandidate, 'name' | 'descriptio
 }
 
 // ---------------------------------------------------------------------------
-// บัญชีฉุกเฉิน: password accounts, beside the company's members.
+// บัญชีฉุกเฉิน: the password logins the server lists (backend B6).
 // ---------------------------------------------------------------------------
 
-export type PasswordAccountState = 'member' | 'suspended' | 'removed' | 'waiting';
+export type PasswordAccountState = 'active' | 'waiting' | 'suspended' | 'removed';
 export type PasswordAccountRow = {
-	account: LocalAuthUser;
+	account: OrcaBreakGlassLogin;
+	/** The default company's member with the row's userID, for their name. */
 	member?: OrcaMember;
 	state: PasswordAccountState;
-	/** Mirrors the server's rule; the server decides. */
+	/** The signed-in person's own login. */
+	self: boolean;
+	/** A reset is offered on an active or waiting login; the server decides. */
 	canReset: boolean;
 };
 
-const normalizedEmail = (value: string) => value.trim().toLowerCase();
-
 /**
- * Each password account with the member it signs in as (by email). One that
- * never signed in waits for its first sign-in; only an owner resets its
- * password. A member's password follows the member rules: active, and an
- * admin only for employees.
+ * One row per login, exactly as GET /local-auth/users lists them (oldest
+ * first). The server already keeps only the ORCA team's company's password
+ * logins that no customer company has, and says each one's account there:
+ * no userID means it has none yet, so it waits for a sign-in. A suspended or
+ * removed account keeps its row, without a reset: it can't open the company
+ * whatever its password.
  */
-export function passwordAccounts(
-	accounts: readonly LocalAuthUser[],
-	members: readonly OrcaMember[],
-	actor: { canManage: boolean; role?: string | number }
-): PasswordAccountRow[] {
-	const rows = accounts.map((account): PasswordAccountRow => {
-		const member = members.find((item) => normalizedEmail(item.email) === normalizedEmail(account.email));
-		if (!member) return { account, state: 'waiting', canReset: actor.canManage && organizationRole(actor.role ?? '') === 'owner' };
-		const state: PasswordAccountState = member.status === 'suspended' ? 'suspended' : member.status === 'removed' ? 'removed' : 'member';
+export function passwordAccounts(accounts: readonly OrcaBreakGlassLogin[], members: readonly OrcaMember[], currentUserID: string): PasswordAccountRow[] {
+	return accounts.map((account) => {
+		const state: PasswordAccountState = !account.userID ? 'waiting' : account.status === 'suspended' ? 'suspended' : account.status === 'removed' ? 'removed' : 'active';
 		return {
 			account,
-			member,
+			member: account.userID ? members.find((member) => member.id === account.userID) : undefined,
 			state,
-			canReset: state === 'member' && canResetMemberPassword(actor.canManage, actor.role, member.role, member.roleLocked)
+			self: !!account.userID && account.userID === currentUserID,
+			canReset: state === 'active' || state === 'waiting'
 		};
 	});
-	const order: Record<PasswordAccountState, number> = { member: 0, waiting: 1, suspended: 2, removed: 3 };
-	return rows.sort((a, b) => order[a.state] - order[b.state] || a.account.email.localeCompare(b.account.email));
 }
 
 // ---------------------------------------------------------------------------

@@ -132,11 +132,34 @@ export interface OrcaBootstrap {
   canChangeMemberStatus?: boolean;
   /** A live ORCA platform operator; only they may manage Local passwords, as break-glass. */
   platformOperator?: boolean;
+  /**
+   * The signed-in account is the pinned platform operator, whichever company
+   * is open and whatever its role there (backend B7). It only labels: the
+   * platform switch follows it, while the platform's own pages keep
+   * `platformOperator` from the default company's bootstrap. An older server
+   * doesn't send it.
+   */
+  platformOperatorAccount?: boolean;
   members: OrcaMember[];
   units: OrcaUnit[];
   connections: OrcaConnection[];
   hubs: OrcaHub[];
   unifiedConnectURL?: string;
+}
+
+/**
+ * One row of GET /local-auth/users (backend B6): a password login of the ORCA
+ * team's company that no customer company has, oldest first. Never a password
+ * or hash. `userID`, `role` and `status` describe its account in the default
+ * company, and are absent while the login has no live account (before its
+ * first sign-in, or after its account was deleted).
+ */
+export interface OrcaBreakGlassLogin extends LocalAuthUser {
+  /** Who chose the password: "admin" (someone else) or "self" (the person). */
+  passwordOrigin?: "admin" | "self";
+  userID?: string;
+  role?: "owner" | "admin" | "employee";
+  status?: "active" | "suspended" | "removed";
 }
 
 export interface OrcaCandidate {
@@ -503,7 +526,7 @@ export const OrcaService = {
       { role, expectedRole },
       options,
     ) as Promise<OrcaMember>,
-  localUsers: () => list<LocalAuthUser>("/local-auth/users"),
+  localUsers: () => list<OrcaBreakGlassLogin>("/local-auth/users"),
   authProviders: () => list<AuthProvider>("/auth-providers"),
   createLocalUser: (email: string, password: string) =>
     doPost(

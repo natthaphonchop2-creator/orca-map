@@ -2,7 +2,7 @@
   import { companyHref, companySwitch, currentCompany, DEFAULT_COMPANY, rememberCompany, type OrcaCompanyChoice } from "$lib/orca/company";
   import { localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
   import { writesInFlight } from "$lib/services/writes";
-  import { activeNavigationView, platformHref, type PlatformSection } from "$lib/orca/navigation";
+  import { activeNavigationView, platformHref, showsPlatformSwitch, type PlatformSection } from "$lib/orca/navigation";
   import { aiConnectionLine, type AIConnectionStatus } from "$lib/orca/ai-connection";
   import { aiConnection } from "$lib/orca/ai-connection.svelte";
   import { term } from "$lib/orca/glossary";
@@ -117,7 +117,11 @@
   // requests once a workspace holds writes), and the platform area for the
   // ORCA team. Every role gets the pinned "เชื่อม AI ของฉัน" button.
   const canManage = $derived(!!data?.canManage);
+  // The platform's pages need the default company's operator flag (the
+  // platform area always loads that company); the switch to them shows in
+  // every company the operator opens.
   const operator = $derived(data?.platformOperator === true);
+  const platformSwitch = $derived(showsPlatformSwitch(data));
   const platformMode = $derived(view === "platform" && operator);
   const requestsApproval = $derived(!!data?.hubs.some((hub) => hub.writeMode === "approval" && hub.status !== "archived" && hub.status !== "deleted"));
   type NavigationItem = { id: string; label: string; href: string; icon: typeof House; count?: number };
@@ -315,8 +319,8 @@
     </div>
   {/if}
 
-  {#if operator}
-    <!-- The ORCA team works in two places: their own company and the platform. -->
+  {#if platformSwitch}
+    <!-- The ORCA team works in two places: the company open now and the platform. -->
     <nav class="workspace-mode" aria-label={t("เลือกพื้นที่", "Choose an area")}>
       <a
         href={localeHref("/app")}

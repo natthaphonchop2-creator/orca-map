@@ -23,7 +23,7 @@ const data = {
 async function renderShell(props) {
 	const { warnings, Component } = await serverComponent(shell, {
 		...company, localeHref: (path) => path, t: (_th, en) => en, orcaLocale: { value: 'en' },
-		activeNavigationView: navigation.activeNavigationView, platformHref: navigation.platformHref, term, aiConnectionLine,
+		activeNavigationView: navigation.activeNavigationView, platformHref: navigation.platformHref, showsPlatformSwitch: navigation.showsPlatformSwitch, term, aiConnectionLine,
 		aiConnection: { state: 'none' }, memberName: (member) => member.displayName, memberRole: () => 'Member',
 		writesInFlight: () => 0, onMount: () => {},
 	});
@@ -107,6 +107,53 @@ test('the ORCA team switches between their company and the platform, whose items
 	// A customer who opens the platform address still sees their company menu.
 	({ html } = await renderShell({ data: owner, companies: [companies[0]], account: '7', view: 'platform' }));
 	assert.doesNotMatch(html, /Customer companies|Break-glass|workspace-mode/);
+});
+
+test('the platform switch follows the account-level operator flag in every company; customers never see it', async () => {
+	const aside = (html) => html.slice(html.indexOf('<aside'), html.indexOf('</aside>'));
+	company.setPageCompany(B, companies);
+	try {
+		// The operator opens Company B, where they are an employee: B's bootstrap
+		// says platformOperator false (not a manager there) and platformOperatorAccount true.
+		const inB = { ...data, platformOperator: false, platformOperatorAccount: true };
+		let { warnings, html } = await renderShell({ data: inB, companies, account: '7' });
+		assert.deepEqual(warnings, []);
+		assert.match(aside(html), /class="workspace-mode"/);
+		assert.match(aside(html), /aria-current="page"[^>]*>(?:(?!<\/a>)[\s\S])*Company<\/span>/, 'Company B stays chosen');
+		// The platform always opens the default company, as a new page.
+		assert.match(aside(html), /href="\/app\?org=default&amp;view=platform&amp;section=overview" data-sveltekit-reload/);
+		assert.equal(html.match(/view=platform&amp;section=overview/g)?.length, 2, 'the sidebar and the phone drawer');
+		assert.deepEqual(sidebarLinks(html).map((item) => item.label), ['Home', 'AI workspaces', 'Knowledge', 'Settings', 'Help'], "B's own menu for an employee");
+		// The flag alone never shows the platform's pages: they need the default company's flag.
+		({ html } = await renderShell({ data: inB, companies, account: '7', view: 'platform', section: 'breakglass' }));
+		assert.doesNotMatch(html, /Customer companies|Break-glass|Platform overview/);
+		assert.match(aside(html), /workspace-pin/);
+		// As an admin of Company B, the same switch beside B's manager menu.
+		({ html } = await renderShell({ data: { ...owner, organization: { displayName: 'Company B' }, platformOperator: false, platformOperatorAccount: true }, companies, account: '7' }));
+		assert.match(aside(html), /class="workspace-mode"/);
+		assert.deepEqual(sidebarLinks(html).map((item) => item.label).slice(0, 6), ['Home', 'Programs', 'AI workspaces', 'Knowledge', 'Team', 'Oversight']);
+	} finally {
+		company.setPageCompany('default', []);
+	}
+	// Customers: an owner, an admin or an employee of their own company, never the pinned operator.
+	for (const customer of [
+		owner,
+		{ ...owner, platformOperator: false, platformOperatorAccount: false },
+		{ ...data, platformOperator: false, platformOperatorAccount: false },
+		{ ...owner, platformOperatorAccount: 'yes' },
+		{ ...owner, platformOperatorAccount: 1 }
+	]) {
+		for (const view of ['dashboard', 'platform']) {
+			const { html } = await renderShell({ data: customer, companies: [companies[0]], account: '7', view });
+			assert.doesNotMatch(html, /workspace-mode|view=platform|ORCA platform|Customer companies|Break-glass/, `${JSON.stringify(customer.platformOperatorAccount)} ${view}`);
+		}
+	}
+	// An older server without the account flag: the operator's own company still shows it.
+	const { html } = await renderShell({ data: { ...owner, platformOperator: true }, companies: [companies[0]], account: '7' });
+	assert.match(aside(html), /class="workspace-mode"/);
+	assert.equal(navigation.showsPlatformSwitch(undefined), false);
+	assert.equal(navigation.showsPlatformSwitch({ platformOperator: false, platformOperatorAccount: true }), true);
+	assert.equal(navigation.showsPlatformSwitch({ platformOperator: false }), false);
 });
 
 test('the pin says which AI is connected once B1 reports it', async () => {

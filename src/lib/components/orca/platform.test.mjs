@@ -130,30 +130,41 @@ test('an MCP link is https without a password, query or fragment; the entry neve
 	assert.deepEqual(bearer.remoteConfig.headers.map((header) => [header.key, header.value, header.sensitive, header.required]), [['Authorization', '', true, true]]);
 });
 
-test('password accounts pair with members, and reset follows the member rules', () => {
+test('password accounts are listed exactly as the server sends them, labelled by its fields', () => {
 	const members = [
-		{ id: 'o', email: 'Owner@Example.com', role: 'owner', status: 'active' },
-		{ id: 'e', email: 'emp@example.com', role: 'employee', status: 'active' },
-		{ id: 'a', email: 'admin@example.com', role: 'admin', status: 'active' },
-		{ id: 'l', email: 'locked@example.com', role: 'employee', roleLocked: true, status: 'active' },
-		{ id: 's', email: 'suspended@example.com', role: 'employee', status: 'suspended' },
-		{ id: 'r', email: 'removed@example.com', role: 'employee', status: 'removed' }
+		{ id: '1', email: 'ops@example.com', displayName: 'วิภา ตัวอย่าง', role: 'owner', status: 'active' },
+		{ id: '4', email: 'emp@example.com', role: 'employee', status: 'active' }
 	];
-	const accounts = ['owner@example.com', 'emp@example.com', 'admin@example.com', 'locked@example.com', 'suspended@example.com', 'removed@example.com', 'new@example.com'].map((email, index) => ({ id: `local-${index}`, email, created: '' }));
-	const owner = Object.fromEntries(u2.passwordAccounts(accounts, members, { canManage: true, role: 'owner' }).map((row) => [row.account.email, [row.state, row.canReset]]));
-	assert.deepEqual(owner, {
-		'owner@example.com': ['member', true],
-		'emp@example.com': ['member', true],
-		'admin@example.com': ['member', true],
-		'locked@example.com': ['member', false],
-		'suspended@example.com': ['suspended', false],
-		'removed@example.com': ['removed', false],
-		'new@example.com': ['waiting', true]
-	});
-	const admin = Object.fromEntries(u2.passwordAccounts(accounts, members, { canManage: true, role: 'admin' }).map((row) => [row.account.email, row.canReset]));
-	assert.deepEqual([admin['emp@example.com'], admin['owner@example.com'], admin['admin@example.com'], admin['new@example.com']], [true, false, false, false], 'an admin resets employees only, and never a new account');
-	assert.ok(u2.passwordAccounts(accounts, members, { canManage: false, role: 'owner' }).every((row) => !row.canReset));
-	assert.deepEqual(u2.passwordAccounts(accounts, members, { canManage: true, role: 'owner' }).map((row) => row.state), ['member', 'member', 'member', 'member', 'waiting', 'suspended', 'removed'], 'active first');
+	// GET /local-auth/users (backend B6), oldest first: the server already left out
+	// Google-only logins and anyone a customer company has.
+	const accounts = [
+		{ id: '12', created: '2026-09-01T00:00:00Z', email: 'ops@example.com', passwordOrigin: 'admin', userID: '1', role: 'owner', status: 'active' },
+		{ id: '15', created: '2026-09-02T00:00:00Z', email: 'self@example.com', passwordOrigin: 'self', userID: '9', role: 'admin', status: 'active' },
+		{ id: '13', created: '2026-09-03T00:00:00Z', email: 'waiting@example.com', passwordOrigin: 'admin' },
+		{ id: '16', created: '2026-09-04T00:00:00Z', email: 'susp@example.com', passwordOrigin: 'admin', userID: '6', role: 'employee', status: 'suspended' },
+		{ id: '17', created: '2026-09-05T00:00:00Z', email: 'gone@example.com', passwordOrigin: 'self', userID: '7', role: 'employee', status: 'removed' },
+		// A member's email no longer decides anything: the row's own userID does.
+		{ id: '18', created: '2026-09-06T00:00:00Z', email: 'EMP@example.com', passwordOrigin: 'admin', userID: '4', role: 'employee', status: 'active' }
+	];
+	const rows = u2.passwordAccounts(accounts, members, '1');
+	assert.deepEqual(rows.map((row) => row.account.id), ['12', '15', '13', '16', '17', '18'], 'every row, in the server\'s order');
+	assert.equal(rows[0].account, accounts[0], 'the row is the server\'s, as sent');
+	assert.deepEqual(rows.map((row) => [row.state, row.canReset, row.self]), [
+		['active', true, true],
+		['active', true, false],
+		['waiting', true, false],
+		['suspended', false, false],
+		['removed', false, false],
+		['active', true, false]
+	]);
+	assert.equal(rows[0].member?.displayName, 'วิภา ตัวอย่าง');
+	assert.equal(rows[1].member, undefined, 'a member the bootstrap does not list only has no name');
+	assert.equal(rows[5].member?.id, '4');
+	assert.deepEqual(u2.passwordAccounts([], members, '1'), []);
+	// "(you)" needs the account's ID: a waiting login is nobody's yet, and no ID is never "you".
+	assert.equal(u2.passwordAccounts([{ id: '13', created: '', email: 'ops@example.com' }], members, '1')[0].self, false);
+	assert.equal(u2.passwordAccounts([accounts[0]], members, '')[0].self, false);
+	assert.equal(u2.passwordAccounts([{ ...accounts[0], userID: '' }], members, '')[0].self, false);
 });
 
 test('a LINE message link opens in the phone browser', () => {
@@ -269,7 +280,7 @@ test('the platform pages use tokens, not hard-coded label colours, and compile w
 const breakGlassHarness = await scriptHarness(
 	files.breakglass,
 	['OrcaService', 'orcaError', 't', 'onMount', 'onDestroy', 'LOCAL_AUTH_MIN_PASSWORD_LENGTH', 'passwordAccounts', 'showToast', 'term', 'displayDate', 'memberName', 'memberRole'],
-	'refresh, start, save, get state() { return { allowed, accounts, loaded, available, availabilityError, sheetOpen, resetting, email, password, formError, rows }; }, set(values) { if ("email" in values) email = values.email; if ("password" in values) password = values.password; }'
+	'refresh, start, save, stateLabel, originLabel, get state() { return { allowed, accounts, loaded, available, availabilityError, sheetOpen, resetting, resettingSelf, email, password, formError, rows }; }, set(values) { if ("email" in values) email = values.email; if ("password" in values) password = values.password; }'
 );
 
 function breakGlass(data, service = {}) {
@@ -301,14 +312,15 @@ const people = [
 	{ id: 'me', email: 'me@example.com', role: 'owner', status: 'active' },
 	{ id: 'emp', email: 'emp@example.com', role: 'employee', status: 'active' }
 ];
+const login = (id, email, extra = {}) => ({ id, email, created: '', passwordOrigin: 'admin', ...extra });
 
 test('บัญชีฉุกเฉิน loads, creates and resets password accounts for the ORCA team only', async () => {
-	const { view, calls, stop } = breakGlass({ canManage: true, platformOperator: true, currentUserID: 'me', members: people }, { accounts: [{ id: 'l1', email: 'emp@example.com', created: '' }, { id: 'l2', email: 'new@example.com', created: '' }] });
+	const { view, calls, stop } = breakGlass({ canManage: true, platformOperator: true, currentUserID: 'me', members: people }, { accounts: [login('l1', 'emp@example.com', { userID: 'emp', role: 'employee', status: 'active' }), login('l2', 'new@example.com')] });
 	try {
 		await view.refresh();
 		flush();
 		assert.equal(view.state.available, true);
-		assert.deepEqual(view.state.rows.map((row) => [row.account.email, row.state, row.canReset]), [['emp@example.com', 'member', true], ['new@example.com', 'waiting', true]]);
+		assert.deepEqual(view.state.rows.map((row) => [row.account.email, row.state, row.canReset]), [['emp@example.com', 'active', true], ['new@example.com', 'waiting', true]]);
 		view.start();
 		view.set({ email: ' New.Person@Example.com ', password: 'short' });
 		await view.save();
@@ -334,7 +346,7 @@ test('บัญชีฉุกเฉิน does nothing for anyone else, and nev
 		{ canManage: true, platformOperator: false, currentUserID: 'me', members: people },
 		{ canManage: false, platformOperator: true, currentUserID: 'me', members: people }
 	]) {
-		const { view, calls, stop } = breakGlass(data, { accounts: [{ id: 'l1', email: 'emp@example.com', created: '' }] });
+		const { view, calls, stop } = breakGlass(data, { accounts: [login('l1', 'emp@example.com', { userID: 'emp', role: 'employee', status: 'active' })] });
 		try {
 			await view.refresh();
 			assert.equal(calls.list, 0, 'the list is never asked for');
@@ -344,14 +356,43 @@ test('บัญชีฉุกเฉิน does nothing for anyone else, and nev
 			assert.deepEqual([calls.create, calls.reset, view.state.sheetOpen], [[], [], false]);
 		} finally { stop(); }
 	}
-	const admin = breakGlass({ canManage: true, platformOperator: true, currentUserID: 'adm', members: [{ id: 'adm', email: 'adm@example.com', role: 'admin', status: 'active' }, ...people] }, { accounts: [{ id: 'l0', email: 'me@example.com', created: '' }] });
+	// A suspended or removed account keeps its row, and is never reset from it.
+	const team = breakGlass({ canManage: true, platformOperator: true, currentUserID: 'me', members: people }, {
+		accounts: [login('l5', 'susp@example.com', { userID: 's', role: 'employee', status: 'suspended' }), login('l6', 'gone@example.com', { userID: 'r', role: 'employee', status: 'removed', passwordOrigin: 'self' })]
+	});
 	try {
-		await admin.view.refresh();
+		await team.view.refresh();
 		flush();
-		assert.equal(admin.view.state.rows[0].canReset, false, "an admin never resets an owner's password");
-		admin.view.start(admin.view.state.rows[0]);
-		assert.equal(admin.view.state.sheetOpen, false);
-	} finally { admin.stop(); }
+		assert.deepEqual(team.view.state.rows.map((row) => [row.state, row.canReset]), [['suspended', false], ['removed', false]]);
+		for (const row of team.view.state.rows) {
+			team.view.start(row);
+			assert.equal(team.view.state.sheetOpen, false);
+		}
+		assert.deepEqual(team.calls.reset, []);
+	} finally { team.stop(); }
+});
+
+test('บัญชีฉุกเฉิน marks your own account, and names each row by the server\'s fields', async () => {
+	const { view, stop } = breakGlass({ canManage: true, platformOperator: true, currentUserID: 'me', members: people }, {
+		accounts: [login('l1', 'me@example.com', { userID: 'me', role: 'owner', status: 'active' }), login('l2', 'emp@example.com', { userID: 'emp', role: 'employee', status: 'active', passwordOrigin: 'self' }), login('l3', 'new@example.com')]
+	});
+	try {
+		await view.refresh();
+		flush();
+		assert.deepEqual(view.state.rows.map((row) => row.self), [true, false, false]);
+		view.start(view.state.rows[0]);
+		flush();
+		assert.equal(view.state.resettingSelf, true, 'the sheet warns before you sign yourself out');
+		view.start(view.state.rows[1]);
+		flush();
+		assert.equal(view.state.resettingSelf, false);
+		assert.deepEqual(['active', 'waiting', 'suspended', 'removed'].map(view.stateLabel), ['ใช้งานอยู่', 'รอเข้าสู่ระบบ', 'ถูกระงับ', 'นำออกแล้ว']);
+		assert.deepEqual(['admin', 'self', undefined].map(view.originLabel), ['ทีม ORCA ตั้งให้', 'เจ้าของบัญชีตั้งเอง', '']);
+	} finally { stop(); }
+	const source = await readFile(files.breakglass, 'utf8');
+	assert.match(source, /\{#if row\.self\}<span class="breakglass-you">\{t\(' \(คุณ\)', ' \(you\)'\)\}/);
+	assert.match(source, /row\.account\.role \? memberRole\(row\.account\.role\) : '—'/, 'the role is the server\'s, not a guess from the member list');
+	assert.doesNotMatch(source, /normalizedEmail|\.email\.toLowerCase|canResetMemberPassword|\.sort\(/, 'no client-side matching, re-sorting or role rules left');
 });
 
 test('บัญชีฉุกเฉิน renders nothing for a customer and its header for the ORCA team', async () => {

@@ -331,6 +331,18 @@ export function platformHref(section: PlatformSection = 'overview') {
 	return `/app?org=default&view=platform&section=${section}`;
 }
 
+/**
+ * The sidebar's บริษัท | แพลตฟอร์ม ORCA switch: for the platform operator in
+ * every company they open (B7's account-level flag), whatever their role
+ * there. It only offers the link. The platform's pages still check
+ * `platformOperator` from the default company's bootstrap, which the platform
+ * area always loads. An older server without the flag: the operator's own
+ * company, as before.
+ */
+export function showsPlatformSwitch(data: { platformOperator?: boolean; platformOperatorAccount?: boolean } | undefined): boolean {
+	return data?.platformOperatorAccount === true || data?.platformOperator === true;
+}
+
 /** Programs added by an MCP link: the platform's program catalog (the ORCA team only). */
 export function addByLinkHref() {
 	return platformHref('catalog');
