@@ -24,8 +24,9 @@
 		id,
 		text = $bindable(''),
 		parameters = $bindable([]),
-		disabled = false
-	}: { id: string; text?: string; parameters?: LibraryParameter[]; disabled?: boolean } = $props();
+		disabled = false,
+		invalid = false
+	}: { id: string; text?: string; parameters?: LibraryParameter[]; disabled?: boolean; invalid?: boolean } = $props();
 	let area: HTMLTextAreaElement | undefined = $state();
 	let labelInput: HTMLInputElement | undefined = $state();
 	let dialogOpen = $state(false);
@@ -90,7 +91,7 @@
 			<Plus size={15} aria-hidden="true" />{t('แทรกช่องให้กรอก', 'Insert a field')}
 		</button>
 	</div>
-	<div class="tb-stack">
+	<div class="tb-stack" class:invalid>
 		<div class="tb-mirror" aria-hidden="true">{#each runs as run, index (index)}{#if run.field}<mark class:unknown={!run.known}>{run.text}</mark>{:else}{run.text}{/if}{/each}{'​\n'}</div>
 		<textarea
 			{id}
@@ -98,13 +99,15 @@
 			bind:value={text}
 			{disabled}
 			required
+			aria-invalid={invalid ? 'true' : undefined}
+			aria-describedby={`${id}-hint`}
 			maxlength={LIBRARY_CONTENT_MAX}
 			spellcheck="false"
 			placeholder={t('เช่น สรุปยอดขายของ {{ช่วงวันที่}} แยกตามลูกค้า แล้วบอก 3 เรื่องที่ควรตามต่อ', 'e.g. Summarize sales for {{date range}} by customer, then list 3 follow-ups')}
 		></textarea>
 	</div>
 	<div class="ta-f">
-		<span>{t('ช่องที่ไฮไลต์ คือสิ่งที่คนใช้ต้องกรอกทุกครั้ง', 'Highlighted fields are filled in each time')}</span>
+		<span id={`${id}-hint`}>{t('ช่องที่ไฮไลต์ คือสิ่งที่คนใช้ต้องกรอกทุกครั้ง', 'Highlighted fields are filled in each time')}</span>
 		<span>{t(`${text.length.toLocaleString('en-US')} / 40,000 ตัวอักษร`, `${text.length.toLocaleString('en-US')} / 40,000 characters`)}</span>
 	</div>
 	{#if parameters.length}
@@ -182,6 +185,9 @@
 	.tb-stack:focus-within {
 		border-color: var(--orca-focus);
 		box-shadow: 0 0 0 3px var(--orca-focus-halo);
+	}
+	.tb-stack.invalid {
+		border-color: var(--orca-deny);
 	}
 	.tb-mirror,
 	.tb-stack textarea {

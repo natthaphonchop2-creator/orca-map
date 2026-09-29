@@ -85,6 +85,8 @@
 	const shown = $derived(expanded ? rows : rows.slice(0, LIBRARY_PAGE));
 	const hidden = $derived(rows.length - shown.length);
 	const someoneElse = $derived(shown.some((item) => !item.canEdit));
+	// Counts only once the library answered: a failed load shows no zeros.
+	const counted = $derived(loaded && !(error && !items.length));
 	const ask = $derived(askItem(items, undefined, kind));
 	const workspaceMemberIDs = $derived(members.map((member) => member.id));
 	const filters = $derived<{ id: LibraryFilter; label: string }[]>([
@@ -133,7 +135,7 @@
 		</PageHeader>
 		<div class="kn-ctx">
 			{#if choices.length > 1}<ScopeChip {hub} {choices} onchoose={onchoose} />{/if}
-			{#if loaded}
+			{#if counted}
 				<p class="kn-strip">
 					<span><i class="dt ok" aria-hidden="true"></i>{t('AI ใช้ได้', 'AI can use')} <b>{counts.published}</b></span>
 					<i class="sep" aria-hidden="true"></i>
@@ -156,10 +158,10 @@
 			<div class="kn-bar">
 				<div class="seg" role="group" aria-label={t('ประเภท', 'Type')}>
 					<button type="button" aria-pressed={kind === 'knowledge'} class:on={kind === 'knowledge'} onclick={() => (kind = 'knowledge')}>
-						<BookOpen size={16} aria-hidden="true" />{t('ความรู้', 'Knowledge')}{#if loaded}<span class="c">{knowledgeCount}</span>{/if}
+						<BookOpen size={16} aria-hidden="true" />{t('ความรู้', 'Knowledge')}{#if counted}<span class="c">{knowledgeCount}</span>{/if}
 					</button>
 					<button type="button" aria-pressed={kind === 'template'} class:on={kind === 'template'} onclick={() => (kind = 'template')}>
-						<Zap size={16} aria-hidden="true" />{term('readyPrompt', t)}{#if loaded}<span class="c">{templateCount}</span>{/if}
+						<Zap size={16} aria-hidden="true" />{term('readyPrompt', t)}{#if counted}<span class="c">{templateCount}</span>{/if}
 					</button>
 				</div>
 				<label class="search">
@@ -247,7 +249,7 @@
 			{/if}
 		</div>
 
-		<KnowledgeRail item={ask} {connected} {app} />
+		<KnowledgeRail item={ask} ask={counted} {connected} {app} />
 	</div>
 </div>
 

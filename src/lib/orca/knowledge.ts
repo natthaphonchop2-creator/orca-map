@@ -405,6 +405,56 @@ export function accessRequestMessage(person: string, company: string, t: Transla
 	);
 }
 
+// ── Refusals in plain Thai ──────────────────────────────────────────
+// The server explains a refused save or preview in English
+// (orca_library.go, khumInvalid). The page says what to do instead.
+
+const PROBLEMS: readonly (readonly [RegExp, string, string])[] = [
+	[/library item limit reached/, 'พื้นที่ทำงานนี้มีครบ 1,000 เรื่องแล้ว จัดเก็บเรื่องที่ไม่ใช้ก่อน แล้วลองอีกครั้ง', 'This workspace has 1,000 items. Archive some you no longer use, then try again.'],
+	[/library member must be an active person/, 'บางคนที่เลือกไว้ถูกระงับหรือออกจากบริษัทแล้ว เอาออกแล้วลองอีกครั้ง', 'Someone you chose was suspended or left the company. Remove them and try again.'],
+	[/library member must belong to the workspace/, 'บางคนที่เลือกไว้ไม่ได้อยู่ในพื้นที่ทำงานนี้แล้ว เอาออกแล้วลองอีกครั้ง', 'Someone you chose is no longer in this workspace. Remove them and try again.'],
+	[/library department does not exist/, 'บางแผนกที่เลือกไว้ถูกจัดเก็บหรือลบแล้ว เอาออกแล้วลองอีกครั้ง', 'A department you chose was archived or removed. Remove it and try again.'],
+	[/referenced knowledge exceeds response limit/, 'เรื่องที่ AI อ่านประกอบยาวรวมกันเกินที่ส่งให้ AI ได้ เลือกให้น้อยลง', 'The articles AI reads with it are too long together. Choose fewer.'],
+	[/undeclared parameter/, 'ในข้อความมีช่องที่ยังไม่ได้เพิ่ม กด แทรกช่องให้กรอก หรือลบออกจากข้อความ', 'The text has a field that was never added. Insert it as a field, or delete it.'],
+	[/duplicate template parameter|too many template parameters/, 'ช่องให้กรอกต้องมีชื่อไม่ซ้ำกัน และมีได้ไม่เกิน 20 ช่อง', 'Fields need different names, and there can be at most 20.'],
+	[/invalid library title/, 'ชื่อเรื่องต้องมี และยาวไม่เกิน 160 ตัวอักษร', 'A title is needed, up to 160 characters.'],
+	[/invalid library content/, 'เนื้อหาต้องมี และยาวไม่เกิน 40,000 ตัวอักษร', 'Content is needed, up to 40,000 characters.'],
+	[/invalid library summary/, 'คำอธิบายสั้นยาวเกินไป', 'The short description is too long.'],
+	[/required template input is missing/, 'กรอกช่องที่ต้องกรอกให้ครบก่อน', 'Fill in every required field first.'],
+	[/template input|rendered template exceeds/, 'ข้อความที่กรอกยาวเกินไป ลองให้สั้นลง', 'What you filled in is too long. Try shorter text.']
+];
+
+/**
+ * A refused library call in plain words, or undefined to fall back on the
+ * shared messages (sign-in, permission, a conflicting save).
+ */
+export function libraryProblem(error: { status: number; message: string }, t: Translate): string | undefined {
+	if (error.status === 400) {
+		const known = PROBLEMS.find(([pattern]) => pattern.test(error.message));
+		return known
+			? t(known[1], known[2])
+			: t('บันทึกไม่ได้ เพราะข้อมูลบางส่วนไม่ถูกต้อง ตรวจแล้วลองอีกครั้ง', 'This could not be saved: something in it is not valid. Check it and try again.');
+	}
+	if (error.status >= 500) return t('ORCA ทำรายการนี้ไม่สำเร็จ ลองอีกครั้ง', 'ORCA could not do this. Try again.');
+	return undefined;
+}
+
+/** A save the server refused because a person, a department or an article changed since the page loaded. */
+export function libraryStale(error: { status: number; message: string }): boolean {
+	return error.status === 403 || error.status === 404 || (error.status === 400 && /library member must|library department does not/.test(error.message));
+}
+
+/** The first required field left empty, for the preview form (checked here so the message is in Thai). */
+export function missingInput(parameters: readonly LibraryParameter[], inputs: Record<string, string>): LibraryParameter | undefined {
+	return parameters.find((parameter) => parameter.required && !(inputs[parameter.name] ?? '').trim());
+}
+
+/** Supporting articles a prompt names that the viewer can no longer read as published. */
+export function brokenReferences(template: Pick<LibraryItem, 'kind' | 'knowledgeIDs'>, items: readonly LibraryItem[]): string[] {
+	if (template.kind !== 'template') return [];
+	return template.knowledgeIDs.filter((id) => !items.some((item) => item.id === id && item.kind === 'knowledge' && item.status === 'published'));
+}
+
 // ── Adding the viewer to a workspace ────────────────────────────────
 
 /**

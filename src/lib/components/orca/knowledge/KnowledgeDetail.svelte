@@ -1,8 +1,17 @@
 <script lang="ts">
-	import { Archive, ArrowLeft, Briefcase, Eye, FileText, Pencil, User } from '@lucide/svelte';
-	import { getHttpStatusCode } from '$lib/errors';
+	import { tick } from 'svelte';
+	import { Archive, ArrowLeft, Briefcase, Eye, FileText, Pencil, TriangleAlert, User } from '@lucide/svelte';
+	import { getHttpStatusCode, parseErrorContent } from '$lib/errors';
 	import { term } from '$lib/orca/glossary';
-	import { audiencePeople, contentForEditing, relativeTime, tokenRuns } from '$lib/orca/knowledge';
+	import {
+		audiencePeople,
+		brokenReferences,
+		contentForEditing,
+		libraryProblem,
+		missingInput,
+		relativeTime,
+		tokenRuns
+	} from '$lib/orca/knowledge';
 	import { t } from '$lib/orca/locale.svelte';
 	import { orcaError, type OrcaHub, type OrcaMember } from '$lib/services/orca';
 	import { OrcaLibraryService, type LibraryDepartment, type LibraryItem, type RenderedTemplate } from '$lib/services/orca-library';
@@ -26,7 +35,8 @@
 		onback,
 		onedit,
 		onarchived,
-		ondenied
+		ondenied,
+		onrecheck = async () => 'unknown' as const
 	}: {
 		hub: OrcaHub;
 		item: LibraryItem;
@@ -41,6 +51,8 @@
 		onedit: () => void;
 		onarchived: (item: LibraryItem) => void;
 		ondenied: () => void;
+		/** After a refused preview: whether the library still opens (then its lists are fresh). */
+		onrecheck?: () => Promise<'open' | 'denied' | 'unknown'>;
 	} = $props();
 	let archiveOpen = $state(false);
 	let archiving = $state(false);
@@ -49,10 +61,14 @@
 	let rendered = $state<RenderedTemplate>();
 	let rendering = $state(false);
 	let renderError = $state('');
+	let emptyField = $state('');
 	const people = $derived([...audiencePeople(item, departments)]);
 	const ordered = $derived([item.ownerID, ...people.filter((id) => id !== item.ownerID)]);
 	const runs = $derived(item.kind === 'template' ? tokenRuns(contentForEditing(item.content, item.parameters), item.parameters) : []);
 	const canPreview = $derived(item.kind === 'template' && item.status !== 'archived');
+	// Articles the prompt names that are no longer published (or readable): the
+	// server then refuses it to anyone who cannot read them, the author included.
+	const broken = $derived(item.canEdit ? brokenReferences(item, items) : []);
 
 	function personName(id: string) {
 		if (id === currentUserID) return t('คุณ', 'You');
@@ -97,7 +113,7 @@
 				ondenied();
 				return;
 			}
-			archiveError = orcaError(cause);
+			archiveError = libraryProblem(parseErrorContent(cause), t) ?? orcaError(cause);
 		} finally {
 			archiving = false;
 		}
@@ -106,6 +122,16 @@
 		event.preventDefault();
 		if (rendering) return;
 		const id = item.id;
+		// Required fields are checked here, so the message is plain Thai.
+		const missing = missingInput(item.parameters, inputs);
+		emptyField = missing?.name ?? '';
+		if (missing) {
+			rendered = undefined;
+			renderError = t(`กรอก “${missing.label || missing.name}” ก่อน`, `Fill in “${missing.label || missing.name}” first`);
+			await tick();
+			document.getElementById(`kd-input-${missing.name}`)?.focus();
+			return;
+		}
 		rendering = true;
 		renderError = '';
 		rendered = undefined;
@@ -113,7 +139,20 @@
 			const result = await OrcaLibraryService.render(hub.id, id, inputs);
 			if (item.id === id) rendered = result;
 		} catch (cause) {
-			if (item.id === id) renderError = orcaError(cause);
+			if (item.id !== id) return;
+			const problem = parseErrorContent(cause);
+			if (problem.status === 403 || problem.status === 404) {
+				// An article it reads changed, or my access did (then the page leaves).
+				if ((await onrecheck()) === 'denied') {
+					ondenied();
+					return;
+				}
+				renderError = item.knowledgeIDs.length
+					? t('ดูตัวอย่างไม่ได้ เพราะเรื่องที่ AI อ่านประกอบบางเรื่องเลิกเผยแพร่แล้ว หรือคุณอ่านไม่ได้แล้ว', 'No preview: an article AI reads with it is no longer published, or you can no longer read it.')
+					: orcaError(cause);
+				return;
+			}
+			renderError = libraryProblem(problem, t) ?? orcaError(cause);
 		} finally {
 			rendering = false;
 		}
@@ -159,9 +198,20 @@
 			{#if item.kind === 'template' && item.knowledgeIDs.length}
 				<section class="kd-card">
 					<h2>{t('เรื่องที่ AI อ่านประกอบ', 'Articles AI reads with it')}</h2>
+					{#if broken.length}
+						<p class="kd-warn">
+							<TriangleAlert size={15} aria-hidden="true" />
+							<span>
+								{t(
+									`${broken.length} เรื่องเลิกเผยแพร่แล้ว หรือคุณอ่านไม่ได้แล้ว ใครอ่านเรื่องนั้นไม่ได้จะใช้คำสั่งนี้ไม่ได้ กด แก้ไข แล้วเอาออก`,
+									`${broken.length} of them are no longer published or readable to you. Anyone who can’t read one can’t use this prompt. Edit it and remove them.`
+								)}
+							</span>
+						</p>
+					{/if}
 					<ul class="kd-refs">
 						{#each item.knowledgeIDs as id (id)}
-							<li><FileText size={15} aria-hidden="true" />{items.find((entry) => entry.id === id)?.title ?? t('เรื่องที่ไม่พร้อมใช้แล้ว', 'An article no longer available')}</li>
+							<li class:broken={broken.includes(id)}><FileText size={15} aria-hidden="true" />{items.find((entry) => entry.id === id)?.title ?? t('เรื่องที่ไม่พร้อมใช้แล้ว', 'An article no longer available')}{#if broken.includes(id)}<small>{t('ใช้ไม่ได้แล้ว', 'Not usable')}</small>{/if}</li>
 						{/each}
 					</ul>
 				</section>
@@ -171,7 +221,7 @@
 				<section class="kd-card">
 					<h2>{t('ลองดูว่า AI จะได้รับอะไร', 'Preview what AI receives')}</h2>
 					<p class="kd-hint">{item.status === 'draft' ? t('ลองได้แม้ยังเป็นฉบับร่าง เห็นแค่คุณ', 'Works on drafts too. Only you see it.') : t('กรอกช่องแล้วดูข้อความที่ ORCA ส่งให้ AI', 'Fill in the fields and see what ORCA sends to AI')}</p>
-					<form class="kd-preview" onsubmit={preview}>
+					<form class="kd-preview" novalidate onsubmit={preview}>
 						{#each item.parameters as field (field.name)}
 							<div class="kd-field">
 								<label for={`kd-input-${field.name}`}>{field.label || field.name}{#if !field.required}<small>{t('ไม่บังคับ', 'Optional')}</small>{/if}</label>
@@ -179,18 +229,24 @@
 									id={`kd-input-${field.name}`}
 									value={inputs[field.name] ?? ''}
 									required={field.required}
+									aria-invalid={emptyField === field.name ? 'true' : undefined}
+									aria-describedby={emptyField === field.name ? 'kd-render-error' : undefined}
 									maxlength="4000"
 									disabled={rendering}
 									oninput={(event) => {
 										inputs = { ...inputs, [field.name]: event.currentTarget.value };
 										rendered = undefined;
+										if (emptyField === field.name) {
+											emptyField = '';
+											renderError = '';
+										}
 									}}
 								/>
 							</div>
 						{/each}
 						<button type="submit" class={item.canEdit ? 'k-button' : 'k-button primary'} disabled={rendering}><Eye size={16} aria-hidden="true" />{rendering ? t('กำลังเตรียม…', 'Preparing…') : t('ดูตัวอย่าง', 'Preview')}</button>
 					</form>
-					{#if renderError}<p class="kd-error" role="alert">{renderError}</p>{/if}
+					{#if renderError}<p class="kd-error" id="kd-render-error" role="alert">{renderError}</p>{/if}
 					{#if rendered}
 						<div class="kd-rendered" aria-live="polite">
 							<div class="prose">{rendered.content}</div>
@@ -212,13 +268,14 @@
 				{#if !item.canEdit}
 					<p class="kd-hint">{t('ผู้เขียนเป็นคนเลือกว่าใครใช้ได้', 'Its author chooses who can use it')}</p>
 				{:else}
-					<div class="live" class:off={item.status !== 'published'}>
+					<div class="live" class:off={item.status !== 'published' || hub.status !== 'active'}>
 						<div class="avs" aria-hidden="true">
 							{#each ordered.slice(0, 4) as id (id)}<span class:me={id === currentUserID}>{initial(id)}</span>{/each}
 							{#if ordered.length > 4}<span class="more-n">+{ordered.length - 4}</span>{/if}
 						</div>
 						<p>
-							{#if item.status === 'published'}{t('AI ของ', 'The AI of')} <b>{t(`${people.length} คน`, `${people.length} people`)}</b>{t('ใช้ได้ตอนนี้', ' can use it now')}
+							{#if item.status === 'published' && hub.status !== 'active'}{t(`AI ของ ${people.length} คนจะใช้ได้เมื่อเปิดใช้งานพื้นที่ทำงานนี้`, `${people.length} people’s AI can use it once this workspace is active`)}
+							{:else if item.status === 'published'}{t('AI ของ', 'The AI of')} <b>{t(`${people.length} คน`, `${people.length} people`)}</b>{t('ใช้ได้ตอนนี้', ' can use it now')}
 							{:else if item.status === 'draft'}{t(`ฉบับร่าง เห็นแค่คุณ เผยแพร่แล้ว AI ของ ${people.length} คนจะใช้ได้`, `A draft only you see. Once published, ${people.length} people’s AI can use it`)}
 							{:else}{t('จัดเก็บแล้ว AI ไม่ใช้เรื่องนี้', 'Archived. AI does not use it')}{/if}
 						</p>
@@ -383,6 +440,18 @@
 		color: var(--orca-muted);
 		font-size: 12.5px;
 	}
+	.kd-refs li.broken {
+		color: var(--orca-muted);
+	}
+	.kd-refs small {
+		padding: 1px 8px;
+		border: 1px solid var(--orca-warn-line);
+		border-radius: 999px;
+		background: var(--orca-warn-bg);
+		color: var(--orca-warn);
+		font-size: 12px;
+		font-weight: 600;
+	}
 	.kd-hint {
 		margin: -4px 0 12px;
 		color: var(--orca-muted);
@@ -425,6 +494,27 @@
 		margin: 12px 0 0;
 		color: var(--orca-deny);
 		font-size: 13.5px;
+	}
+	.kd-field input[aria-invalid='true'] {
+		border-color: var(--orca-deny);
+	}
+	.kd-warn {
+		display: flex;
+		align-items: flex-start;
+		gap: 8px;
+		margin: -4px 0 12px;
+		padding: 10px 12px;
+		border: 1px solid var(--orca-warn-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-warn-bg);
+		color: var(--orca-ink);
+		font-size: 13.5px;
+		line-height: 1.55;
+	}
+	.kd-warn :global(svg) {
+		flex: none;
+		margin-top: 3px;
+		color: var(--orca-warn);
 	}
 	.kd-rendered {
 		display: grid;

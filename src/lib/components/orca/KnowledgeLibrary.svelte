@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { beforeNavigate, goto } from '$app/navigation';
-	import { getHttpStatusCode } from '$lib/errors';
+	import { getHttpStatusCode, parseErrorContent } from '$lib/errors';
 	import { connectionReady } from '$lib/orca/activation';
 	import { aiConnection } from '$lib/orca/ai-connection.svelte';
 	import { currentCompany } from '$lib/orca/company';
 	import { term } from '$lib/orca/glossary';
-	import { accessRequestMessage, libraryScope, type LibraryFilter } from '$lib/orca/knowledge';
+	import { accessRequestMessage, libraryProblem, libraryScope, type LibraryFilter } from '$lib/orca/knowledge';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { memberName, orcaError, statusLabels, type OrcaBootstrap, type OrcaMember } from '$lib/services/orca';
 	import {
@@ -147,7 +147,32 @@
 			}
 			// Either way the page stops saying "loading" and shows the error.
 			loadedHub = id;
-			error = denied ? orcaError(cause) : t('โหลดคลังความรู้ไม่สำเร็จ ลองโหลดใหม่อีกครั้ง', 'Knowledge could not be loaded. Try again.');
+			error = denied
+				? t('เปิดคลังความรู้ของพื้นที่ทำงานนี้ไม่ได้แล้ว คุณอาจไม่ได้อยู่ในพื้นที่นี้แล้ว หรือพื้นที่นี้ถูกจัดเก็บ', 'This workspace’s knowledge no longer opens for you: you may have left it, or it was archived.')
+				: t('โหลดคลังความรู้ไม่สำเร็จ ลองโหลดใหม่อีกครั้ง', 'Knowledge could not be loaded. Try again.');
+		}
+	}
+	/**
+	 * After a refused save or preview: does the library still open for me?
+	 * 'open' (its items, people and departments are fresh now), 'denied'
+	 * (access changed, or the open item is gone) or 'unknown' (no answer).
+	 */
+	async function recheck(): Promise<'open' | 'denied' | 'unknown'> {
+		const id = hub?.id ?? '';
+		if (!id) return 'denied';
+		const request = ++requestNumber;
+		try {
+			const result = await OrcaLibraryService.load(id);
+			if (request !== requestNumber || hub?.id !== id) return 'unknown';
+			const open = screenID(screen);
+			if (open && !result.items.some((item) => item.id === open)) return 'denied';
+			items = result.items;
+			members = result.members;
+			departments = result.departments;
+			now = Date.now();
+			return 'open';
+		} catch (cause) {
+			return [403, 404].includes(getHttpStatusCode(cause) ?? 0) ? 'denied' : 'unknown';
 		}
 	}
 	function show(next: Screen) {
@@ -236,16 +261,17 @@
 			showToast(t(`เพิ่มคุณในพื้นที่ทำงาน ${saved.name} แล้ว`, `You were added to ${saved.name}`));
 		} catch (cause) {
 			const code = getHttpStatusCode(cause);
-			joinProblem = code === 409 ? 'conflict' : code === 400 ? 'invalid' : '';
-			joinError =
-				code === 409
-					? t('มีคนแก้พื้นที่นี้พร้อมกัน โหลดใหม่แล้วลองอีกครั้ง', 'Someone changed this workspace at the same time. Reload and try again.')
-					: code === 400
-						? t('เพิ่มไม่ได้ เพราะพื้นที่ทำงานนี้ต้องแก้การตั้งค่าก่อน', 'Can’t add you: this workspace’s settings need fixing first.')
-						: orcaError(cause);
+			joinProblem = code === 409 || code === 404 ? 'conflict' : code === 400 ? 'invalid' : '';
+			joinError = joinMessage(code, cause);
 		} finally {
 			joining = false;
 		}
+	}
+	function joinMessage(code: number | undefined, cause: unknown) {
+		if (code === 409) return t('มีคนแก้พื้นที่นี้พร้อมกัน โหลดใหม่แล้วลองอีกครั้ง', 'Someone changed this workspace at the same time. Reload and try again.');
+		if (code === 404) return t('ไม่พบพื้นที่ทำงานนี้แล้ว โหลดใหม่แล้วลองอีกครั้ง', 'This workspace is gone. Reload and try again.');
+		if (code === 400) return t('เพิ่มไม่ได้ เพราะพื้นที่ทำงานนี้ต้องแก้การตั้งค่าก่อน', 'Can’t add you: this workspace’s settings need fixing first.');
+		return libraryProblem(parseErrorContent(cause), t) ?? orcaError(cause);
 	}
 	async function reloadAfterConflict() {
 		joinError = '';
@@ -346,6 +372,7 @@
 					show(selected ? { name: 'detail', id: selected.id } : { name: 'list' });
 				}}
 				ondenied={denied}
+				onrecheck={recheck}
 				ondirty={(value) => (dirty = value)}
 			/>
 		{/key}
@@ -365,6 +392,7 @@
 				onedit={() => show({ name: 'editor', kind: selected!.kind, id: selected!.id })}
 				onarchived={archived}
 				ondenied={denied}
+				onrecheck={recheck}
 			/>
 		{/key}
 	{:else}

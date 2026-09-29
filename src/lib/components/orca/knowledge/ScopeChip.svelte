@@ -34,7 +34,14 @@
 	}}
 />
 
-<div class="kn-scope-wrap" bind:this={root}>
+<div
+	class="kn-scope-wrap"
+	bind:this={root}
+	onfocusout={(event) => {
+		// Tabbing out of the list closes it, as Esc and a click outside do.
+		if (open && !root?.contains(event.relatedTarget as Node | null)) open = false;
+	}}
+>
 	<button
 		type="button"
 		class="kn-scope"

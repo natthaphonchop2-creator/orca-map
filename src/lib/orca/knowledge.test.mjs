@@ -179,6 +179,40 @@ test('try it in AI, and the employee\'s generic access request', () => {
 	assert.doesNotMatch(message, /MCP|OAuth/);
 });
 
+test('refusals read in plain Thai, and the ones that mean the lists changed', () => {
+	const invalid = (message) => ({ status: 400, message: `invalid ORCA workspace input: ${message}` });
+	assert.equal(k.libraryProblem(invalid('library member must belong to the workspace'), th), 'บางคนที่เลือกไว้ไม่ได้อยู่ในพื้นที่ทำงานนี้แล้ว เอาออกแล้วลองอีกครั้ง');
+	assert.match(k.libraryProblem(invalid('workspace library item limit reached'), th), /1,000 เรื่อง/);
+	assert.equal(k.libraryProblem(invalid('a required template input is missing'), th), 'กรอกช่องที่ต้องกรอกให้ครบก่อน');
+	assert.match(k.libraryProblem(invalid('template inputs exceed size limit'), th), /ยาวเกินไป/);
+	assert.match(k.libraryProblem(invalid('template contains an undeclared parameter'), th), /แทรกช่องให้กรอก/);
+	assert.match(k.libraryProblem(invalid('something the page has never seen'), th), /ข้อมูลบางส่วนไม่ถูกต้อง/, 'an unknown refusal is Thai too');
+	for (const message of ['library department does not exist', 'referenced knowledge exceeds response limit', 'invalid library title', 'invalid library content', 'rendered template exceeds size limit', 'nothing known'])
+		assert.doesNotMatch(k.libraryProblem(invalid(message), th), /[a-z]{3,}/, `no English left: ${message}`);
+	assert.equal(k.libraryProblem({ status: 503, message: 'ORCA could not complete the request; retry or contact the administrator' }, th), 'ORCA ทำรายการนี้ไม่สำเร็จ ลองอีกครั้ง');
+	assert.match(k.libraryProblem(invalid('invalid library summary'), en), /short description/, 'English in English');
+	for (const status of [401, 403, 404, 409, 412, 429]) assert.equal(k.libraryProblem({ status, message: 'x' }, th), undefined, `${status} keeps the shared message`);
+	// Which refusals are checked against a fresh library before saying anything.
+	assert.ok(k.libraryStale({ status: 403, message: 'this account cannot access the workspace' }));
+	assert.ok(k.libraryStale({ status: 404, message: 'item not found' }));
+	assert.ok(k.libraryStale(invalid('library member must be an active person')));
+	assert.ok(k.libraryStale(invalid('library department does not exist')));
+	assert.ok(!k.libraryStale(invalid('invalid library title')));
+	assert.ok(!k.libraryStale(invalid('invalid or duplicate library members')));
+	assert.ok(!k.libraryStale({ status: 409, message: 'this item changed; reload before saving again' }));
+});
+
+test('the preview checks required fields itself; a prompt knows which of its articles no longer work', () => {
+	const parameters = [{ name: 'a', label: 'ก', required: false }, { name: 'b', label: 'ข', required: true }, { name: 'c', label: 'ค', required: true }];
+	assert.equal(k.missingInput(parameters, {}).name, 'b', 'the first required field');
+	assert.equal(k.missingInput(parameters, { b: '   ', c: 'x' }).name, 'b', 'blank is empty, as on the server');
+	assert.equal(k.missingInput(parameters, { b: 'x', c: 'y' }), undefined, 'optional fields may stay empty');
+	const items = [item('pub'), item('draft', { status: 'draft' }), item('old', { status: 'archived' }), item('prompt', { kind: 'template' })];
+	assert.deepEqual(k.brokenReferences({ kind: 'template', knowledgeIDs: ['pub', 'draft', 'old', 'gone', 'prompt'] }, items), ['draft', 'old', 'gone', 'prompt']);
+	assert.deepEqual(k.brokenReferences({ kind: 'template', knowledgeIDs: ['pub'] }, items), []);
+	assert.deepEqual(k.brokenReferences({ kind: 'knowledge', knowledgeIDs: ['gone'] }, items), [], 'articles have no references');
+});
+
 test('"add me" sends the whole fresh workspace back with its version and the viewer added', () => {
 	const fresh = hub('h', {
 		memberIDs: ['a'], accessUnitIDs: ['sales'], unitIDs: ['label'], instructions: 'ตอบภาษาไทย', writeMode: 'approval',

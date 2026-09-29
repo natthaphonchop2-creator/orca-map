@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
 	import { ArrowLeft, ChevronRight, Info, TriangleAlert } from '@lucide/svelte';
-	import { getHttpStatusCode } from '$lib/errors';
+	import { getHttpStatusCode, parseErrorContent } from '$lib/errors';
 	import {
 		LIBRARY_CONTENT_MAX,
 		LIBRARY_SUMMARY_MAX,
@@ -11,6 +11,8 @@
 		audiencePeople,
 		contentForEditing,
 		contentForSaving,
+		libraryProblem,
+		libraryStale,
 		mismatchMessage,
 		relativeTime,
 		templateMismatches,
@@ -50,6 +52,7 @@
 		onsaved,
 		onclose,
 		ondenied,
+		onrecheck = async () => 'denied' as const,
 		ondirty
 	}: {
 		hub: OrcaHub;
@@ -66,10 +69,14 @@
 		onsaved: (item: LibraryItem, people: number) => void;
 		onclose: () => void;
 		ondenied: () => void;
+		/** After a refused save: whether the library still opens (then its lists are fresh). */
+		onrecheck?: () => Promise<'open' | 'denied' | 'unknown'>;
 		ondirty: (dirty: boolean) => void;
 	} = $props();
 
 	const me = untrack(() => currentUserID);
+	// The item being edited, fixed for this editor even if the list reloads.
+	const itemID = untrack(() => existing?.id);
 	const memberIDs = $derived(members.map((member) => member.id));
 	const everyone = $derived(workspaceEveryone(hub, departments, memberIDs, me));
 	const available = $derived(items.filter((item) => item.kind === 'knowledge' && item.status === 'published'));
@@ -194,29 +201,60 @@
 		};
 		saving = true;
 		try {
-			const saved = await OrcaLibraryService.save(hub.id, input, existing?.id);
+			const saved = await OrcaLibraryService.save(hub.id, input, itemID);
 			baseline = snapshot;
 			onsaved(saved, people);
 		} catch (cause) {
-			const code = getHttpStatusCode(cause);
-			if (code === 403 || code === 404) {
-				ondenied();
+			const problem = parseErrorContent(cause);
+			if (libraryStale(problem)) {
+				// A person, a department or an article changed since the page
+				// loaded, or my access did. Only lost access leaves the editor;
+				// otherwise the text stays and the lists are fresh again.
+				const access = await onrecheck();
+				if (access === 'denied') {
+					ondenied();
+					return;
+				}
+				if (access === 'open') dropUnknown();
+				error = refusal(problem, access, cause);
 				return;
 			}
-			conflict = code === 409;
+			conflict = problem.status === 409;
 			error = conflict
 				? t('มีคนแก้เรื่องนี้พร้อมกัน (อาจเป็นคุณในอีกแท็บ) ข้อความที่คุณพิมพ์ยังอยู่', 'Someone saved this at the same time (maybe you, in another tab). Your text is kept.')
-				: orcaError(cause);
+				: (libraryProblem(problem, t) ?? orcaError(cause));
 		} finally {
 			saving = false;
 		}
 	}
+	/** What a refused save says, once the lists were checked again. */
+	function refusal(problem: { status: number; message: string }, access: 'open' | 'unknown', cause: unknown) {
+		if (problem.status === 400 && access === 'open')
+			return t(
+				'บางคนหรือแผนกที่เลือกไว้ไม่อยู่ในพื้นที่ทำงานนี้แล้ว เอาออกจากรายชื่อให้แล้ว ตรวจ “ใครใช้ได้บ้าง” แล้วบันทึกอีกครั้ง',
+				'Some people or departments you chose are no longer in this workspace. They were taken off the list: check “Who can use it” and save again.'
+			);
+		if (problem.status === 400) return libraryProblem(problem, t) ?? orcaError(cause);
+		if (kind === 'template' && knowledgeIDs.length)
+			return t(
+				'บันทึกไม่ได้ เพราะเรื่องที่ AI อ่านประกอบบางเรื่องเลิกเผยแพร่แล้ว หรือคุณอ่านไม่ได้แล้ว เอาออกแล้วลองอีกครั้ง',
+				'Not saved: an article AI reads with it is no longer published, or you can no longer read it. Remove it and try again.'
+			);
+		return orcaError(cause);
+	}
+	/** Drops people and departments the fresh lists no longer have (the server would refuse them). */
+	function dropUnknown() {
+		const known = new Set(members.map((member) => member.id));
+		const knownUnits = new Set(departments.map((department) => department.unitID));
+		chosenMembers = chosenMembers.filter((id) => known.has(id));
+		unitIDs = unitIDs.filter((id) => knownUnits.has(id));
+	}
 	async function reviewLatest() {
-		if (!existing || loadingLatest) return;
+		if (!itemID || loadingLatest) return;
 		loadingLatest = true;
 		try {
 			const result = await OrcaLibraryService.load(hub.id);
-			latest = result.items.find((item) => item.id === existing.id && item.canEdit);
+			latest = result.items.find((item) => item.id === itemID && item.canEdit);
 			if (!latest) {
 				ondenied();
 				return;
@@ -316,7 +354,7 @@
 				</div>
 			{:else}
 				<div class="field kn-grow">
-					<TemplateBody id="kn-content" bind:text={content} bind:parameters disabled={saving} />
+					<TemplateBody id="kn-content" bind:text={content} bind:parameters disabled={saving} invalid={!!fieldErrors['kn-content']} />
 				</div>
 				<div class="field" id="kn-articles" tabindex="-1">
 					<ArticlePicker id="kn-articles-search" articles={available} bind:selected={knowledgeIDs} disabled={saving} />

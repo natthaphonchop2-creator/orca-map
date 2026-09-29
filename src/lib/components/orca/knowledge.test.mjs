@@ -106,6 +106,51 @@ test('an empty library starts from three common guides; the rows page after seve
 	assert.match(many.html, /ดูอีก 3 เรื่อง/);
 });
 
+test('a failed load shows no zero counts and no "ลองถาม AI"', async () => {
+	const { html, rails } = await list({ items: [], error: 'โหลดคลังความรู้ไม่สำเร็จ ลองโหลดใหม่อีกครั้ง' });
+	assert.match(html, /role="alert"/);
+	assert.doesNotMatch(html, /class="kn-strip/, 'no "AI ใช้ได้ 0 · ฉบับร่าง 0" over an error');
+	assert.doesNotMatch(html, /class="c[^"]*">0</, 'no zero on the tabs');
+	assert.equal(rails[0].ask, false);
+	assert.doesNotMatch(html, /เริ่มจากคู่มือที่ทีมถามบ่อย/, 'no starters over an error');
+	const loaded = await list({ items: [item('a')] });
+	assert.match(loaded.html, /class="kn-strip/);
+	assert.equal(loaded.rails[0].ask, true);
+});
+
+async function detail(props) {
+	const rails = [];
+	const { warnings, Component } = await serverComponent(new URL('./knowledge/KnowledgeDetail.svelte', import.meta.url), {
+		...k, term, t: th, tick: async () => {}, StatusPill, ConfirmDialog: noop,
+		orcaError: () => '', OrcaLibraryService: {}, getHttpStatusCode: noop, parseErrorContent: noop,
+		KnowledgeRail: (_renderer, input) => rails.push(input)
+	});
+	assert.deepEqual(warnings, []);
+	const html = render(Component, { props: { hub: hub('sales'), items: [], members, departments, currentUserID: 'me', now: Date.parse('2026-09-28T10:00:00Z'), onback: noop, onedit: noop, onarchived: noop, ondenied: noop, ...props } }).body;
+	return { html, rails };
+}
+
+test('the detail: its author sees who can use it and which supporting articles stopped working', async () => {
+	const prompt = item('t', {
+		kind: 'template', title: 'ตอบลูกค้า', content: 'ตอบ {{field_1}}', parameters: [{ name: 'field_1', label: 'ชื่อลูกค้า', required: true }],
+		knowledgeIDs: ['a', 'old'], unitIDs: ['dept'], memberIDs: ['x']
+	});
+	const items = [item('a', { title: 'นโยบายคืนสินค้า' }), item('old', { title: 'เงื่อนไขเดิม', status: 'archived' }), prompt];
+	const mine = await detail({ item: prompt, items });
+	assert.match(mine.html, /1 เรื่องเลิกเผยแพร่แล้ว หรือคุณอ่านไม่ได้แล้ว/);
+	assert.equal(mine.html.match(/ใช้ไม่ได้แล้ว/g)?.length, 1, 'only the archived article is tagged');
+	assert.match(mine.html, /<mark[^>]*>ชื่อลูกค้า<\/mark>/, 'fields show by their Thai label');
+	assert.doesNotMatch(mine.html.replace(/<[^>]*>/g, ''), /field_1/, 'no variable name in the visible text');
+	assert.match(mine.html, /<form class="kd-preview[^"]*" novalidate/, 'required fields are checked in Thai, not by the browser');
+	assert.match(mine.html, /AI ของ <b>3 คน<\/b>ใช้ได้ตอนนี้/);
+	assert.match(mine.html, />แก้ไข</);
+	const paused = await detail({ item: prompt, items, hub: hub('sales', { status: 'paused' }) });
+	assert.match(paused.html, /AI ของ 3 คนจะใช้ได้เมื่อเปิดใช้งานพื้นที่ทำงานนี้/, 'no "now" while the workspace is off');
+	const theirs = await detail({ item: { ...prompt, ownerID: 'y', canEdit: false, unitIDs: [], memberIDs: [] }, items });
+	assert.doesNotMatch(theirs.html, /เลิกเผยแพร่แล้ว|>แก้ไข<|>จัดเก็บ</, 'no author tools for someone else\'s prompt');
+	assert.match(theirs.html, /ผู้เขียนเป็นคนเลือกว่าใครใช้ได้/, 'no audience the server did not send (critique 8)');
+});
+
 async function page(data, props = {}) {
 	const { warnings, Component } = await serverComponent(new URL('./KnowledgeLibrary.svelte', import.meta.url), {
 		...k, term, t: th, localeHref: (value) => value, PageHeader, untrack: (fn) => fn(),
