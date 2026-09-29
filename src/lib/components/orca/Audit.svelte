@@ -7,11 +7,10 @@
     ChevronLeft,
     ChevronRight,
     ClipboardList,
-    Clock3,
-    FilterX,
-    Info,
+    ListFilter,
     RefreshCw,
     Search,
+    SearchX,
     X,
   } from "@lucide/svelte";
   import AuditDetails from "$lib/components/orca/AuditDetails.svelte";
@@ -27,7 +26,9 @@
     type AuditSort,
     type AuditTimeRange,
   } from "$lib/orca/audit-filters";
-  import { t, localeHref } from "$lib/orca/locale.svelte";
+  import { term } from "$lib/orca/glossary";
+  import { t, localeHref, orcaLocale } from "$lib/orca/locale.svelte";
+  import { toolPresentation } from "$lib/orca/tool-presentation";
   import {
     OrcaService,
     displayDate,
@@ -36,6 +37,13 @@
     type OrcaAuditEvent,
     type OrcaBootstrap,
   } from "$lib/services/orca";
+  import EmptyState from "./ui/EmptyState.svelte";
+  import PageHeader from "./ui/PageHeader.svelte";
+  import StatusPill, { type StatusTone } from "./ui/StatusPill.svelte";
+
+  // ตรวจสอบ › ประวัติการใช้งาน (what AI apps did) and ประวัติการตั้งค่า (what
+  // Owners and Admins changed). The workspace filter keeps its place in the
+  // address (&hub=); the other filters work on the records already loaded.
   let {
     data,
     hubID = "",
@@ -63,13 +71,21 @@
   let pageNumber = $state(1),
     pageSize = $state(25),
     loadedAt = $state<number>();
+  let moreFilters = $state(false);
   let selected = $state<OrcaAuditEvent>();
   let detailDialog: HTMLDialogElement;
   let requestNumber = 0,
     previousFilters = "";
   let previousMode: AuditMode | undefined;
   // Tool use is ประวัติการใช้งาน; changes by Owners and Admins are ประวัติการตั้งค่า.
-  const title = $derived(mode === "administration" ? t("ประวัติการตั้งค่า", "Settings history") : t("ประวัติการใช้งาน", "Activity"));
+  const title = $derived(mode === "administration" ? term("settingsHistory", t) : term("usageHistory", t));
+  const subtitle = $derived(
+    mode === "administration"
+      ? t("ดูว่าเจ้าของบริษัทและผู้ดูแลเปลี่ยนการตั้งค่าอะไร เมื่อไร", "See what owners and admins changed, and when.")
+      : data.canManage
+        ? t("ดูว่าใครให้ AI ทำอะไรกับโปรแกรมไหน และสำเร็จหรือไม่", "See who had AI do what in which program, and whether it worked.")
+        : t("ดูว่า AI ของคุณทำอะไรไปบ้าง และสำเร็จหรือไม่", "See what your AI did, and whether it worked."),
+  );
   const labels: Record<string, string> = $derived({
     admitted: t("รับคำขอแล้ว", "Received"),
     success: t("สำเร็จ", "Succeeded"),
@@ -78,55 +94,51 @@
     timeout: t("หมดเวลา", "Timed out"),
     unknown: t("ไม่ทราบผล", "Unknown"),
   });
+  const outcomeTone = (value: string): StatusTone =>
+    value === "success" ? "ok" : value === "error" || value === "denied" || value === "timeout" ? "deny" : "neutral";
   const actionLabels: Record<string, string> = $derived({
     "member.role.update": t("เปลี่ยนบทบาทสมาชิก", "Member role changed"),
-    "organization.update": t("แก้ไขข้อมูลองค์กร", "Organization details updated"),
+    "organization.update": t("แก้ไขข้อมูลบริษัท", "Company details updated"),
     "unit.create": t("สร้างแผนก", "Department created"),
     "unit.update": t("แก้ไขแผนก", "Department updated"),
-    "connection.create": t("เพิ่มระบบที่เชื่อมต่อ", "Connected system added"),
-    "connection.update": t("แก้ไขระบบที่เชื่อมต่อ", "Connected system updated"),
-    "connection.archive": t("จัดเก็บระบบที่เชื่อมต่อ", "Connected system archived"),
-    "connection.restore": t("กู้คืนระบบที่เชื่อมต่อ", "Connected system restored"),
-    "connection.delete": t("ลบระบบที่เชื่อมต่อ", "Connected system deleted"),
+    "connection.create": t("เชื่อมโปรแกรมใหม่", "Program connected"),
+    "connection.update": t("แก้ไขโปรแกรมที่เชื่อม", "Program updated"),
+    "connection.archive": t("จัดเก็บโปรแกรมที่เชื่อม", "Program archived"),
+    "connection.restore": t("กู้คืนโปรแกรมที่เชื่อม", "Program restored"),
+    "connection.delete": t("ลบโปรแกรมที่เชื่อม", "Program deleted"),
     "hub.create": t("สร้างพื้นที่ทำงาน AI", "AI workspace created"),
     "hub.update": t("แก้ไขพื้นที่ทำงาน AI", "AI workspace updated"),
     "hub.archive": t("จัดเก็บพื้นที่ทำงาน AI", "AI workspace archived"),
     "hub.restore": t("กู้คืนพื้นที่ทำงาน AI", "AI workspace restored"),
     "hub.delete": t("ลบพื้นที่ทำงาน AI", "AI workspace deleted"),
-    "key.create": t("สร้างคีย์ API", "API key created"),
-    "key.revoke": t("เพิกถอนคีย์ API", "API key revoked"),
+    "key.create": t("สร้างคีย์", "Key created"),
+    "key.revoke": t("ตัดการเชื่อมต่อคีย์", "Key disconnected"),
     "member.suspend": t("ระงับสมาชิก", "Member suspended"),
-    "member.restore": t("กู้คืนสมาชิก", "Member restored"),
+    "member.restore": t("เปิดใช้สมาชิกอีกครั้ง", "Member restored"),
     "member.remove": t("นำสมาชิกออก", "Member removed"),
     "department.archive": t("จัดเก็บแผนก", "Department archived"),
     "department.restore": t("กู้คืนแผนก", "Department restored"),
     "department.delete": t("ลบแผนก", "Department deleted"),
-    "user_source.create": t("เพิ่มผู้ให้บริการเข้าสู่ระบบ", "Sign-in source added"),
-    "user_source.update": t("แก้ไขผู้ให้บริการเข้าสู่ระบบ", "Sign-in source updated"),
-    "user_source.delete": t("ลบผู้ให้บริการเข้าสู่ระบบ", "Sign-in source deleted"),
-    "oauth_app.configure": t("ตั้งค่าแอปเชื่อมบัญชี", "OAuth app set up"),
-    "oauth_app.replace": t("เปลี่ยนแอปเชื่อมบัญชี", "OAuth app replaced"),
-    "oauth_app.remove": t("นำแอปเชื่อมบัญชีออก", "OAuth app removed"),
-    "oauth_session.revoke": t("ให้แอป AI ออกจากระบบ", "AI app signed out"),
-    "approval.request": t("ขออนุมัติงานที่แก้ไขข้อมูล", "Approval requested"),
-    "approval.approve": t("อนุมัติงานที่แก้ไขข้อมูล", "Action approved"),
-    "approval.reject": t("ปฏิเสธงานที่แก้ไขข้อมูล", "Action rejected"),
-    "access.inspect": t(
-      "ตรวจสอบสิทธิ์การเข้าถึงผ่านแอป AI",
-      "Access checked from an AI app",
-    ),
-    "tools.call": t("เรียกใช้เครื่องมือ", "Tool used"),
-    "tools/call": t("เรียกใช้เครื่องมือ", "Tool used"),
-    "library.call": t("เรียกใช้คลังความรู้", "Knowledge used"),
+    "user_source.create": t("เพิ่ม SSO ของบริษัท", "Company SSO added"),
+    "user_source.update": t("แก้ไข SSO ของบริษัท", "Company SSO updated"),
+    "user_source.delete": t("ลบ SSO ของบริษัท", "Company SSO deleted"),
+    "oauth_app.configure": t("ตั้งค่าการเข้าสู่ระบบของโปรแกรม", "Program sign-in set up"),
+    "oauth_app.replace": t("เปลี่ยนการเข้าสู่ระบบของโปรแกรม", "Program sign-in replaced"),
+    "oauth_app.remove": t("นำการเข้าสู่ระบบของโปรแกรมออก", "Program sign-in removed"),
+    "oauth_session.revoke": t("ตัดการเชื่อมต่อแอป AI", "AI app disconnected"),
+    "approval.request": t("ขออนุมัติงานที่แก้ข้อมูล", "Approval requested"),
+    "approval.approve": t("อนุมัติงานที่แก้ข้อมูล", "Change approved"),
+    "approval.reject": t("ปฏิเสธงานที่แก้ข้อมูล", "Change rejected"),
+    "access.inspect": t("แอป AI ตรวจสิทธิ์ของตัวเอง", "An AI app checked its access"),
+    "tools.call": t("AI ใช้โปรแกรม", "AI used a program"),
+    "tools/call": t("AI ใช้โปรแกรม", "AI used a program"),
+    "library.call": t("AI เปิดคลังความรู้", "AI used knowledge"),
     "mcp.request": t("คำขอจากแอป AI", "AI app request"),
     "library.create": t("เพิ่มรายการในคลังความรู้", "Knowledge item added"),
     "library.update": t("แก้ไขรายการในคลังความรู้", "Knowledge item updated"),
     "library.archive": t("จัดเก็บรายการในคลังความรู้", "Knowledge item archived"),
-    "department.members": t(
-      "แก้ไขสมาชิกของแผนก",
-      "Department members updated",
-    ),
-    "template.preview": t("ดูตัวอย่างแม่แบบ", "Template previewed"),
+    "department.members": t("แก้ไขสมาชิกของแผนก", "Department members updated"),
+    "template.preview": t("ดูตัวอย่างคำสั่งสำเร็จรูป", "Ready-made prompt previewed"),
     "invitation.create": t("สร้างคำเชิญ", "Invitation created"),
     "invitation.reissue": t("สร้างลิงก์เชิญใหม่", "Invitation link renewed"),
     "invitation.revoke": t("ยกเลิกคำเชิญ", "Invitation revoked"),
@@ -179,6 +191,12 @@
       timeRange !== "all",
     ),
   );
+  // The filters behind "ตัวกรองเพิ่มเติม": person, program, and what AI did or the change.
+  const moreFilterCount = $derived([userID, connectionID, mode === "executions" ? toolName : action].filter(Boolean).length);
+  // Members only ever see their own records, so the person column and filter are for managers.
+  const showPeople = $derived(data.canManage);
+  // A filter in use stays in sight.
+  const moreOpen = $derived(moreFilters || moreFilterCount > 0);
   const filterSignature = $derived(
     JSON.stringify({
       query,
@@ -209,20 +227,27 @@
     timeRange = "all";
     pageNumber = 1;
   }
+  /** What the AI did, in words: the program's own label for the tool when it is known. */
+  function toolLabel(name: string, fromConnection?: string) {
+    const tool = data.connections.find((connection) => connection.id === fromConnection)?.tools.find((entry) => entry.name === name)
+      ?? data.connections.flatMap((connection) => connection.tools).find((entry) => entry.name === name)
+      ?? { name };
+    return toolPresentation(tool, orcaLocale.value === "en" ? "en" : "th").label;
+  }
   function eventLabel(event: OrcaAuditEvent) {
     return mode === "executions"
-      ? event.toolName ||
+      ? (event.toolName ? toolLabel(event.toolName, event.connectionID) : "") ||
           actionLabels[event.action ?? event.method ?? ""] ||
           event.action ||
           event.method ||
-          t("ไม่มีการบันทึกชื่อเครื่องมือ", "Tool not recorded")
+          t("ไม่ได้บันทึกว่า AI ทำอะไร", "Not recorded")
       : actionLabels[event.action ?? ""] ||
           event.action ||
           event.method ||
-          t("ไม่มีการบันทึกกิจกรรม", "Action not recorded");
+          t("ไม่ได้บันทึกว่าเปลี่ยนอะไร", "Not recorded");
   }
   // Presentation only: records that no longer resolve keep their ID, shown under a readable label.
-  // Managers see every system and workspace, so an unresolved ID there means the record was deleted.
+  // Managers see every program and workspace, so an unresolved ID there means the record was deleted.
   type EntityDisplay = { label?: string; id?: string };
   const signInSourceIDs = $derived(
     new Set(
@@ -238,9 +263,9 @@
     if (!id) return { label: "—" };
     if (names.connections[id]) return { label: names.connections[id] };
     if (signInSourceIDs.has(id))
-      return { label: t("การเข้าสู่ระบบองค์กร", "Sign-in source"), id };
+      return { label: term("companySSO", t), id };
     return data.canManage
-      ? { label: t("ระบบที่ถูกลบแล้ว", "Deleted system"), id }
+      ? { label: t("โปรแกรมที่ถูกลบแล้ว", "Deleted program"), id }
       : { id };
   }
   function hubDisplay(id?: string): EntityDisplay {
@@ -251,6 +276,9 @@
       : { id };
   }
   function resourceDisplay(event: OrcaAuditEvent): EntityDisplay {
+    // The company's own details: name the company, never a code or "—".
+    if ((event.action ?? "").startsWith("organization."))
+      return { label: data.organization?.displayName || t("ข้อมูลบริษัท", "Company details") };
     const id = event.resourceID;
     if (id) {
       const known =
@@ -260,7 +288,7 @@
         data.units.find((unit) => unit.id === id)?.name;
       if (known) return { label: known };
       if (isSignInSourceEvent(event))
-        return { label: t("การเข้าสู่ระบบองค์กร", "Sign-in source"), id };
+        return { label: term("companySSO", t), id };
       if (id === event.connectionID || (event.action ?? "").startsWith("connection."))
         return connectionDisplay(id);
       if (id === event.hubID || (event.action ?? "").startsWith("hub."))
@@ -275,7 +303,7 @@
     if (event.hubID) return hubDisplay(event.hubID);
     return { label: "—" };
   }
-  // Known systems by name; every system that no longer resolves shares one
+  // Known programs by name; every program that no longer resolves shares one
   // option, so the filter never lists raw IDs.
   const connectionOptions = $derived.by(() => {
     const known = connections
@@ -284,7 +312,7 @@
         value: id,
         label:
           names.connections[id] ||
-          t("การเข้าสู่ระบบองค์กร", "Sign-in source"),
+          term("companySSO", t),
       }))
       .sort((a, b) => a.label.localeCompare(b.label));
     const gone = connections.filter(
@@ -295,11 +323,14 @@
           ...known,
           {
             value: DELETED_CONNECTIONS,
-            label: `${data.canManage ? t("ระบบที่ถูกลบแล้ว", "Deleted systems") : t("ระบบอื่น", "Other systems")} (${gone})`,
+            label: `${data.canManage ? t("โปรแกรมที่ถูกลบแล้ว", "Deleted programs") : t("โปรแกรมอื่น", "Other programs")} (${gone})`,
           },
         ]
       : known;
   });
+  const toolOptions = $derived(
+    tools.map((name) => ({ value: name, label: toolLabel(name) })).sort((a, b) => a.label.localeCompare(b.label)),
+  );
   async function refresh(id: string) {
     const current = ++requestNumber;
     loading = true;
@@ -350,10 +381,11 @@
   onDestroy(() => {
     requestNumber += 1;
   });
+  const hubQuery = $derived(selectedHubID ? `&hub=${encodeURIComponent(selectedHubID)}` : "");
 </script>
 
 {#snippet entity(item: EntityDisplay, secondary: boolean)}
-  {#if secondary}<span class="secondary-cell entity-line"
+  {#if secondary}<span class="secondary-cell"
       >{#if item.label}<span title={item.id}>{item.label}</span>{:else if item.id}<span
           class="audit-id"
           title={item.id}>{item.id}</span
@@ -363,453 +395,289 @@
 {/snippet}
 
 <section class="observability" aria-labelledby="audit-title">
-  <header class="audit-heading">
-    <div>
-      <h1 id="audit-title">{title}</h1>
-      <p class="subtitle">
-        {mode === "executions"
-          ? data.canManage
-            ? t(
-                "ตรวจสอบการใช้งานเครื่องมือ ผู้ใช้งาน และผลลัพธ์ของแต่ละรายการ",
-                "Review tool use, who used each tool and the result of each request.",
-              )
-            : t(
-                "ตรวจสอบการใช้งานเครื่องมือของคุณและผลลัพธ์ที่บันทึกไว้",
-                "Review your tool use and the recorded results.",
-              )
-          : t(
-              "ตรวจสอบการเปลี่ยนแปลงการตั้งค่า สิทธิ์การเข้าถึง และข้อมูลขององค์กรโดยผู้ดูแล",
-              "Review changes that administrators made to settings, access and organization data.",
-            )}
-      </p>
-    </div>
-    <button
-      type="button"
-      class="k-button"
-      disabled={loading}
-      onclick={() => refresh(selectedHubID)}
-      ><RefreshCw size={16} class={loading ? "k-spin" : ""} />{t(
-        "โหลดข้อมูลใหม่",
-        "Refresh",
-      )}</button
-    >
-  </header>
-  {#if showModeTabs}<nav class="audit-tabs" aria-label={t("ประเภทประวัติการใช้งาน", "Activity type")}>
-    <a
-      class:active={mode === "executions"}
-      aria-current={mode === "executions" ? "page" : undefined}
-      href={localeHref(
-        `/app?view=executions${selectedHubID ? `&hub=${encodeURIComponent(selectedHubID)}` : ""}`,
-      )}>{t("การใช้งานเครื่องมือ", "Tool use")}</a
-    ><a
-      class:active={mode === "administration"}
-      aria-current={mode === "administration" ? "page" : undefined}
-      href={localeHref(
-        `/app?view=audit${selectedHubID ? `&hub=${encodeURIComponent(selectedHubID)}` : ""}`,
-      )}>{t("การเปลี่ยนแปลงโดยผู้ดูแล", "Admin changes")}</a
-    >
-  </nav>{/if}
+  {#if showModeTabs}<nav class="audit-tabs" aria-label={t("ประเภทประวัติ", "History type")}>
+      <a
+        class:active={mode === "executions"}
+        aria-current={mode === "executions" ? "page" : undefined}
+        href={localeHref(`/app?view=executions${hubQuery}`)}>{term("usageHistory", t)}</a
+      ><a
+        class:active={mode === "administration"}
+        aria-current={mode === "administration" ? "page" : undefined}
+        href={localeHref(`/app?view=audit${hubQuery}`)}>{term("settingsHistory", t)}</a
+      >
+    </nav>{/if}
+  <PageHeader id="audit-title" {title} {subtitle} />
+
   <div class="audit-toolbar">
-    <div class="filters">
-      <div class="search-field">
-        <Search size={16} aria-hidden="true" /><input
-          type="search"
-          bind:value={query}
-          aria-label={t("ค้นหาในประวัติที่โหลดแล้ว", "Search loaded records")}
-          placeholder={mode === "executions"
-            ? t(
-                "ค้นหาชื่อเครื่องมือ ผู้ใช้งาน หรือรหัสอ้างอิง",
-                "Search by tool, user or reference ID",
-              )
-            : t(
-                "ค้นหากิจกรรม ผู้ดำเนินการ หรือรหัสรายการ",
-                "Search by action, user or item ID",
-              )}
-        />
-      </div>
-      <label
-        ><span>{t("พื้นที่ทำงาน AI", "AI workspace")}</span><select bind:value={selectedHubID}
-          ><option value=""
-            >{t("ทุกพื้นที่ทำงานที่คุณมีสิทธิ์ดู", "All workspaces you can access")}</option
-          >{#each data.hubs as hub (hub.id)}<option value={hub.id}
-              >{hub.name}</option
-            >{/each}</select
-        ></label
+    <label class="search-field">
+      <Search size={16} aria-hidden="true" /><input
+        type="search"
+        bind:value={query}
+        aria-label={t("ค้นหาในประวัติ", "Search the history")}
+        placeholder={mode === "executions"
+          ? showPeople ? t("ค้นหาสิ่งที่ AI ทำ ชื่อคน หรือรหัสอ้างอิง", "Search by what AI did, person or reference") : t("ค้นหาสิ่งที่ AI ทำ หรือรหัสอ้างอิง", "Search by what AI did or reference")
+          : showPeople ? t("ค้นหาสิ่งที่เปลี่ยน หรือชื่อคน", "Search by change or person") : t("ค้นหาสิ่งที่เปลี่ยน", "Search by change")}
+      />
+    </label>
+    <label class="audit-field"
+      ><span>{term("workspaces", t)}</span><select bind:value={selectedHubID}
+        ><option value="">{t("ทุกพื้นที่ทำงาน", "All workspaces")}</option
+        >{#each data.hubs as hub (hub.id)}<option value={hub.id}>{hub.name}</option>{/each}</select
+      ></label
+    >
+    <label class="audit-field"
+      ><span>{t("ผลลัพธ์", "Result")}</span><select bind:value={outcome}
+        ><option value="">{t("ทุกผลลัพธ์", "All results")}</option
+        >{#each outcomes as value}<option {value}>{labels[value] || value}</option>{/each}</select
+      ></label
+    >
+    <label class="audit-field"
+      ><span>{t("ช่วงเวลา", "Time")}</span><select bind:value={timeRange}
+        ><option value="all">{t("ทุกช่วงเวลา", "All time")}</option><option value="24h"
+          >{t("24 ชั่วโมงล่าสุด", "Last 24 hours")}</option
+        ><option value="7d">{t("7 วันล่าสุด", "Last 7 days")}</option><option value="30d"
+          >{t("30 วันล่าสุด", "Last 30 days")}</option
+        ></select
+      ></label
+    >
+    <div class="audit-toolbar-actions">
+      <button
+        type="button"
+        class="k-button audit-more-toggle"
+        class:open={moreOpen}
+        aria-expanded={moreOpen}
+        aria-controls="audit-more-filters"
+        onclick={() => (moreFilters = !moreOpen)}
+        ><ListFilter size={16} aria-hidden="true" />{t("ตัวกรองเพิ่มเติม", "More filters")}{#if moreFilterCount}<span class="audit-more-count">{moreFilterCount}</span>{/if}</button
       >
-      <label
-        ><span>{t("ผลลัพธ์", "Result")}</span><select bind:value={outcome}
-          ><option value="">{t("ทุกผลลัพธ์", "All results")}</option
-          >{#each outcomes as value}<option {value}
-              >{labels[value] || value}</option
-            >{/each}</select
-        ></label
+      <button
+        type="button"
+        class="k-button audit-refresh"
+        disabled={loading}
+        onclick={() => refresh(selectedHubID)}
+        aria-label={t("โหลดใหม่", "Reload")}
+        title={t("โหลดใหม่", "Reload")}><RefreshCw size={16} class={loading ? "k-spin" : ""} aria-hidden="true" /></button
       >
-      <label
-        ><span>{t("ช่วงเวลา", "Time range")}</span><select bind:value={timeRange}
-          ><option value="all">{t("ทุกช่วงเวลา", "All time")}</option
-          ><option value="24h">{t("24 ชั่วโมงล่าสุด", "Last 24 hours")}</option
-          ><option value="7d">{t("7 วันล่าสุด", "Last 7 days")}</option><option
-            value="30d">{t("30 วันล่าสุด", "Last 30 days")}</option
-          ></select
-        ></label
-      >
-    </div>
-    <div class="secondary-filters">
-      <label
-        ><span>{t("ผู้ใช้งาน", "User")}</span><select bind:value={userID}
-          ><option value=""
-            >{t("ผู้ใช้งานทั้งหมด", "All users")}</option
-          >{#each users as id}<option value={id}>{names.users[id] || id}</option
-            >{/each}</select
-        ></label
-      ><label
-        ><span>{t("ระบบ", "System")}</span><select
-          bind:value={connectionID}
-          ><option value="">{t("ทุกระบบ", "All systems")}</option
-          >{#each connectionOptions as option (option.value)}<option
-              value={option.value}>{option.label}</option
-            >{/each}</select
-        ></label
-      >{#if mode === "executions"}<label
-          ><span>{t("เครื่องมือ", "Tool")}</span><select bind:value={toolName}
-            ><option value="">{t("ทุกเครื่องมือ", "All tools")}</option
-            >{#each tools as name}<option value={name}>{name}</option
-              >{/each}</select
-          ></label
-        >{:else}<label
-          ><span>{t("กิจกรรม", "Action")}</span><select bind:value={action}
-            ><option value="">{t("ทุกกิจกรรม", "All actions")}</option
-            >{#each actions as value}<option {value}
-                >{actionLabels[value] || value}</option
-              >{/each}</select
-          ></label
-        >{/if}
     </div>
   </div>
-  <div class="audit-meta">
-    <div class="loaded-summary" role="status">
-      <span
-        >{loading
-          ? t("กำลังโหลดรายการ…", "Loading records…")
-          : `${visibleEvents.length} ${t("รายการที่ตรงเงื่อนไข จากทั้งหมด", "matching records out of")} ${modeEvents.length} ${t("รายการในหมวดนี้", "in this tab")}`}</span
-      >{#if loadedAt && !loading}<span
-          ><Clock3 size={14} aria-hidden="true" />{t("โหลดข้อมูลล่าสุดเมื่อ", "Last loaded")}
-          {displayDate(new Date(loadedAt).toISOString())}</span
+  {#if moreOpen}<div class="audit-more" id="audit-more-filters">
+      {#if showPeople}<label class="audit-field"
+          ><span>{t("คน", "Person")}</span><select bind:value={userID}
+            ><option value="">{t("ทุกคน", "Everyone")}</option
+            >{#each users as id}<option value={id}>{names.users[id] || id}</option>{/each}</select
+          ></label
+        >{/if}<label class="audit-field"
+        ><span>{term("program", t)}</span><select bind:value={connectionID}
+          ><option value="">{t("ทุกโปรแกรม", "All programs")}</option
+          >{#each connectionOptions as option (option.value)}<option value={option.value}>{option.label}</option>{/each}</select
+        ></label
+      >{#if mode === "executions"}<label class="audit-field"
+          ><span>{term("whatAICanDo", t)}</span><select bind:value={toolName}
+            ><option value="">{t("ทุกอย่าง", "Everything")}</option
+            >{#each toolOptions as option (option.value)}<option value={option.value}>{option.label}</option>{/each}</select
+          ></label
+        >{:else}<label class="audit-field"
+          ><span>{t("สิ่งที่เปลี่ยน", "Change")}</span><select bind:value={action}
+            ><option value="">{t("ทุกอย่าง", "Everything")}</option
+            >{#each actions as value}<option {value}>{actionLabels[value] || value}</option>{/each}</select
+          ></label
         >{/if}
-    </div>
-    {#if activeFilters}<button
-        type="button"
-        class="k-button small quiet clear-button"
-        onclick={clearFilters}
-        ><FilterX size={16} aria-hidden="true" />{t("ล้างตัวกรอง", "Clear filters")}</button
+    </div>{/if}
+
+  <div class="audit-meta">
+    <p class="loaded-summary" role="status">
+      {#if loading}{t("กำลังโหลด…", "Loading…")}{:else}{t(
+          `${visibleEvents.length} จาก ${modeEvents.length} รายการ`,
+          `${visibleEvents.length} of ${modeEvents.length} records`,
+        )}{#if loadedAt}<span>· {t("โหลดเมื่อ", "Loaded")} {displayDate(new Date(loadedAt).toISOString())}</span>{/if}{/if}
+    </p>
+    {#if activeFilters}<button type="button" class="k-button quiet small" onclick={clearFilters}
+        ><X size={15} aria-hidden="true" />{t("ล้างตัวกรอง", "Clear filters")}</button
       >{/if}
   </div>
-  {#if error}<div class="audit-error" role="alert">
-      <Info size={18} />
-      <div>
-        <h2>{t("โหลดประวัติการใช้งานไม่สำเร็จ", "Could not load activity records")}</h2>
-        <p>{error}</p>
-        <button type="button" class="k-button small" onclick={() => refresh(selectedHubID)}
-          >{t("ลองอีกครั้ง", "Try again")}</button
-        >
-      </div>
+
+  {#if error}<div class="k-banner error audit-error" role="alert">
+      <p><strong>{t("โหลดประวัติไม่สำเร็จ", "The history could not be loaded.")}</strong> {error}</p>
+      <button type="button" class="k-button small" onclick={() => refresh(selectedHubID)}>{t("ลองอีกครั้ง", "Try again")}</button>
     </div>
-  {:else if loading}<div class="audit-empty" role="status">
-      <RefreshCw size={24} class="k-spin" />
-      <p>
-        {t(
-          "กำลังโหลดประวัติการใช้งานที่คุณมีสิทธิ์ดู…",
-          "Loading the records you can access…",
-        )}
-      </p>
+  {:else if loading}<div class="audit-loading" role="status">
+      <RefreshCw size={20} class="k-spin" aria-hidden="true" />{t("กำลังโหลดประวัติ…", "Loading the history…")}
     </div>
-  {:else if !visibleEvents.length}<div class="audit-empty">
-      <ClipboardList size={28} />
-      <h2>
-        {activeFilters
-          ? t("ไม่พบรายการที่ตรงเงื่อนไข", "No matching records")
-          : mode === "executions"
-            ? t("ยังไม่มีประวัติการใช้งานเครื่องมือ", "No tool use recorded yet")
-            : t("ยังไม่มีการเปลี่ยนแปลงโดยผู้ดูแล", "No admin changes recorded yet")}
-      </h2>
-      <p>
-        {activeFilters
-          ? t(
-              "เปลี่ยนคำค้นหาหรือล้างตัวกรองเพื่อดูรายการอื่น",
-              "Change the search or clear the filters to see other records.",
-            )
-          : t(
-              "รายการจะแสดงที่นี่เมื่อมีการใช้งานผ่าน ORCA ตามสิทธิ์ของคุณ",
-              "Records appear here when activity occurs in ORCA, according to your access.",
-            )}
-      </p>
-      {#if activeFilters}<button
-          type="button"
-          class="k-button small"
-          onclick={clearFilters}>{t("ล้างตัวกรอง", "Clear filters")}</button
-        >{/if}
-    </div>
+  {:else if !visibleEvents.length}
+    {#if activeFilters}<EmptyState
+        icon={SearchX}
+        message={t("ไม่พบรายการที่ตรงกับตัวกรอง", "Nothing matches these filters.")}
+        actionLabel={t("ล้างตัวกรอง", "Clear filters")}
+        onaction={clearFilters}
+      />{:else}<EmptyState
+        icon={ClipboardList}
+        message={mode === "executions"
+          ? t("ยังไม่มีประวัติการใช้งาน รายการจะขึ้นเมื่อ AI เริ่มทำงาน", "No activity yet. It appears once AI starts working.")
+          : t("ยังไม่มีการเปลี่ยนการตั้งค่า", "No settings changes yet.")}
+      />{/if}
   {:else}<div class="audit-panel">
-      <div class="audit-table-wrap">
-        <table class="audit-table">
-          <thead
-            ><tr
-              ><th scope="col">{t("ผลลัพธ์", "Result")}</th><th scope="col"
-                >{mode === "executions"
-                  ? t("เครื่องมือ", "Tool")
-                  : t("กิจกรรม", "Action")}</th
-              ><th scope="col"
-                >{mode === "executions"
-                  ? t("ระบบ / พื้นที่ทำงาน", "System / workspace")
-                  : t("รายการที่เกี่ยวข้อง", "Related item")}</th
-              ><th scope="col">{t("ผู้ใช้งาน", "User")}</th>{#if mode === "executions"}<th scope="col" class="duration"
-                  >{t("ระยะเวลา", "Duration")}</th
-                >{/if}<th
-                scope="col"
-                aria-sort={sort === "newest" ? "descending" : "ascending"}
+      <table class="audit-table">
+        <thead
+          ><tr
+            ><th scope="col">{t("ผลลัพธ์", "Result")}</th><th scope="col"
+              >{mode === "executions" ? t("สิ่งที่ AI ทำ", "What AI did") : t("สิ่งที่เปลี่ยน", "Change")}</th
+            ><th scope="col"
+              >{mode === "executions" ? t("โปรแกรม / พื้นที่ทำงาน", "Program / workspace") : t("รายการที่เกี่ยวข้อง", "Related item")}</th
+            >{#if showPeople}<th scope="col">{t("คน", "Person")}</th>{/if}{#if mode === "executions"}<th scope="col" class="duration"
+                >{t("ใช้เวลา", "Duration")}</th
+              >{/if}<th scope="col" aria-sort={sort === "newest" ? "descending" : "ascending"}
+              ><button type="button" class="sort-button" onclick={() => (sort = sort === "newest" ? "oldest" : "newest")}
+                >{t("วันเวลา", "Time")}{#if sort === "newest"}<ArrowDown size={14} aria-hidden="true" />{:else}<ArrowUp
+                    size={14}
+                    aria-hidden="true"
+                  />{/if}</button
+              ></th
+            ><th scope="col" class="open-col"><span class="sr-only">{t("รายละเอียด", "Details")}</span></th></tr
+          ></thead
+        ><tbody
+          >{#each pagination.items as event (event.id)}{@const detail = auditDetailValues(event)}{@const related =
+              resourceDisplay(event)}{@const workspace = hubDisplay(event.hubID)}<tr
+              ><td class="outcome-cell"
+                ><StatusPill label={labels[event.outcome] || event.outcome || "—"} tone={outcomeTone(event.outcome)} /></td
+              ><td class="event-cell"
+                ><button type="button" class="event-name audit-open" onclick={() => openDetails(event)}>{eventLabel(event)}</button
+                ></td
+              ><td class="context-cell"
+                >{#if mode === "executions"}{@render entity(connectionDisplay(event.connectionID), false)}{@render entity(
+                    hubDisplay(event.hubID),
+                    true,
+                  )}{:else}{@render entity(related, false)}{#if event.hubID && (related.label !== workspace.label || related.id !== workspace.id)}{@render entity(
+                      workspace,
+                      true,
+                    )}{/if}{/if}</td
+              >{#if showPeople}<td class="person-cell"
+                  ><span class="primary-cell">{names.users[event.userID] || event.userID || t("ORCA (อัตโนมัติ)", "ORCA (automated)")}</span></td
+                >{/if}{#if mode === "executions"}<td class="duration" data-label={t("ใช้เวลา ", "Duration ")}
+                  >{detail.durationMs !== undefined ? auditDuration(detail.durationMs) : "—"}</td
+                >{/if}<td class="timestamp">{displayDate(event.createdAt)}</td
+              ><td class="open-col"
                 ><button
                   type="button"
-                  class="sort-button"
-                  onclick={() => (sort = sort === "newest" ? "oldest" : "newest")}
-                  >{t(
-                    "วันเวลา (เวลาไทย)",
-                    "Time (Bangkok)",
-                  )}{#if sort === "newest"}<ArrowDown size={14} />{:else}<ArrowUp
-                      size={14}
-                    />{/if}</button
-                ></th
-              ><th scope="col" class="open-col"><span class="sr-only">{t("รายละเอียด", "Details")}</span></th
+                  class="detail-button"
+                  aria-label={`${t("ดูรายละเอียด", "View details")}: ${eventLabel(event)}`}
+                  title={t("ดูรายละเอียด", "View details")}
+                  onclick={() => openDetails(event)}><ChevronRight size={16} aria-hidden="true" /></button
+                ></td
               ></tr
-            ></thead
-          ><tbody
-            >{#each pagination.items as event (event.id)}{@const detail =
-                auditDetailValues(event)}{@const related = resourceDisplay(event)}{@const workspace =
-                hubDisplay(event.hubID)}<tr
-                ><td
-                  ><span
-                    class="outcome"
-                    class:success={event.outcome === "success"}
-                    class:failed={event.outcome === "error" ||
-                      event.outcome === "denied" ||
-                      event.outcome === "timeout"}
-                    >{labels[event.outcome] ||
-                      event.outcome ||
-                      "—"}</span
-                  ></td
-                ><td class="event-cell"
-                  ><button
-                    type="button"
-                    class="event-name"
-                    onclick={() => openDetails(event)}>{eventLabel(event)}</button
-                  ><span class="event-code"
-                    >{mode === "executions"
-                      ? event.id
-                      : event.action || event.method || "—"}</span
-                  ></td
-                ><td class="context-cell"
-                  >{#if mode === "executions"}{@render entity(connectionDisplay(event.connectionID), false)}{@render entity(hubDisplay(event.hubID), true)}{:else}{@render entity(related, false)}{#if event.hubID && (related.label !== workspace.label || related.id !== workspace.id)}{@render entity(workspace, true)}{/if}{/if}</td
-                ><td
-                  ><span class="primary-cell"
-                    >{names.users[event.userID] ||
-                      event.userID ||
-                      t("ORCA (อัตโนมัติ)", "ORCA (automated)")}</span
-                  >{#if names.users[event.userID]}<span class="secondary-cell"
-                      >{t("รหัส", "ID")}: {event.userID}</span
-                    >{/if}</td
-                >{#if mode === "executions"}<td class="duration"
-                    >{detail.durationMs !== undefined
-                      ? auditDuration(detail.durationMs)
-                      : "—"}</td
-                  >{/if}<td class="timestamp">{displayDate(event.createdAt)}</td
-                ><td class="open-col"
-                  ><button
-                    type="button"
-                    class="detail-button"
-                    aria-label={`${t("ดูรายละเอียด", "View details")}: ${eventLabel(event)}`}
-                    title={t("ดูรายละเอียด", "View details")}
-                    onclick={() => openDetails(event)}
-                    ><ChevronRight size={16} /></button
-                  ></td
-                ></tr
-              >{/each}</tbody
-          >
-        </table>
-      </div>
-      <footer class="pagination">
-        <span
-          >{pagination.start}–{pagination.end}
-          {t("จาก", "of")}
-          {pagination.total}</span
+            >{/each}</tbody
         >
+      </table>
+      <footer class="pagination">
+        <span>{pagination.start}–{pagination.end} {t("จาก", "of")} {pagination.total}</span>
         <div>
           <label
             >{t("แถวต่อหน้า", "Rows per page")}<select bind:value={pageSize}
-              ><option value={25}>25</option><option value={50}>50</option><option
-                value={100}>100</option
-              ></select
+              ><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option></select
             ></label
           ><button
             type="button"
             disabled={pagination.page <= 1}
             onclick={() => (pageNumber = pagination.page - 1)}
             aria-label={t("หน้าก่อนหน้า", "Previous page")}
-            title={t("หน้าก่อนหน้า", "Previous page")}
-            ><ChevronLeft size={16} /></button
+            title={t("หน้าก่อนหน้า", "Previous page")}><ChevronLeft size={16} aria-hidden="true" /></button
           ><span class="page-status">{pagination.page} / {pagination.pages}</span><button
             type="button"
             disabled={pagination.page >= pagination.pages}
             onclick={() => (pageNumber = pagination.page + 1)}
             aria-label={t("หน้าถัดไป", "Next page")}
-            title={t("หน้าถัดไป", "Next page")}
-            ><ChevronRight size={16} /></button
+            title={t("หน้าถัดไป", "Next page")}><ChevronRight size={16} aria-hidden="true" /></button
           >
         </div>
       </footer>
     </div>{/if}
   <p class="retention-note">
     {t(
-      "แสดงรายการล่าสุดไม่เกิน 200 รายการ ตามสิทธิ์ของคุณและพื้นที่ทำงานที่เลือก ตัวกรองและจำนวนรายการคำนวณจากข้อมูลชุดนี้เท่านั้น",
-      "Shows up to the 200 most recent records for your access and the selected workspace. Filters and counts apply only to this loaded set.",
+      "แสดง 200 รายการล่าสุดที่คุณมีสิทธิ์ดู ตัวกรองและตัวเลขนับจากรายการชุดนี้",
+      "Shows the 200 most recent records you may see. Filters and counts use only these.",
     )}
   </p>
 </section>
 
-<dialog
-  bind:this={detailDialog}
-  class="audit-drawer"
-  aria-labelledby="audit-detail-title"
-  onclose={() => (selected = undefined)}
->
+<dialog bind:this={detailDialog} class="audit-drawer" aria-labelledby="audit-detail-title" onclose={() => (selected = undefined)}>
   {#if selected}<header class="drawer-heading">
       <div>
         <h2 id="audit-detail-title">{eventLabel(selected)}</h2>
-        <p>
-          {mode === "executions"
-            ? t("รายละเอียดการใช้งานเครื่องมือ", "Tool use details")
-            : t("รายละเอียดการเปลี่ยนแปลง", "Change details")}
-        </p>
+        <p>{mode === "executions" ? t("รายละเอียดสิ่งที่ AI ทำ", "What AI did") : t("รายละเอียดการเปลี่ยนแปลง", "Change details")}</p>
       </div>
       <button
         type="button"
         class="drawer-close"
         onclick={() => detailDialog.close()}
         aria-label={t("ปิดรายละเอียด", "Close details")}
-        title={t("ปิดรายละเอียด", "Close details")}><X size={16} /></button
+        title={t("ปิดรายละเอียด", "Close details")}><X size={16} aria-hidden="true" /></button
       >
     </header>
     <div class="drawer-body">
       <div class="drawer-status">
-        <span
-          class="outcome"
-          class:success={selected.outcome === "success"}
-          class:failed={selected.outcome === "error" ||
-            selected.outcome === "denied"}
-          >{labels[selected.outcome] ||
-            selected.outcome}</span
-        ><span>{displayDate(selected.createdAt)}</span>
+        <StatusPill label={labels[selected.outcome] || selected.outcome} tone={outcomeTone(selected.outcome)} /><span
+          >{displayDate(selected.createdAt)}</span
+        >
       </div>
       {#if selected.outcome === "admitted"}<p class="admission-note">
-          {t(
-            "ORCA ได้รับคำขอแล้ว แต่ยังไม่มีการบันทึกผลการดำเนินการในประวัตินี้",
-            "ORCA received the request, but no result has been recorded for it yet.",
-          )}
+          {t("ORCA รับคำขอแล้ว แต่ยังไม่มีผลบันทึกไว้", "ORCA received the request, but no result is recorded yet.")}
         </p>{/if}
       <dl class="identity-details">
         <div>
-          <dt>{t("ผู้ดำเนินการ", "Performed by")}</dt>
-          <dd>
-            {names.users[selected.userID] ||
-              selected.userID ||
-              t("ORCA (อัตโนมัติ)", "ORCA (automated)")}{#if selected.userID}<small
-                >{t("รหัส", "ID")}: {selected.userID}</small
-              >{/if}
-          </dd>
-        </div>
-        <div>
-          <dt>{t("รหัสกิจกรรมที่บันทึก", "Recorded action code")}</dt>
-          <dd><code>{selected.action || selected.method || "—"}</code></dd>
+          <dt>{t("ทำโดย", "Done by")}</dt>
+          <dd>{names.users[selected.userID] || selected.userID || t("ORCA (อัตโนมัติ)", "ORCA (automated)")}</dd>
         </div>
         {#if selected.hubID}{@const workspace = hubDisplay(selected.hubID)}<div>
             <dt>{t("พื้นที่ทำงาน AI", "AI workspace")}</dt>
             <dd>
-              <a
-                href={localeHref(
-                  `/app?view=hub&hub=${encodeURIComponent(selected.hubID)}`,
-                )}
-                >{workspace.label || selected.hubID}<ArrowUpRight
-                  size={14}
-                /></a
+              <a href={localeHref(`/app?view=hub&hub=${encodeURIComponent(selected.hubID)}`)}
+                >{workspace.label || selected.hubID}<ArrowUpRight size={14} aria-hidden="true" /></a
               >{#if workspace.id && workspace.label}<small class="audit-id">{workspace.id}</small>{/if}
             </dd>
           </div>{/if}{#if selected.connectionID}{@const system = connectionDisplay(selected.connectionID)}<div>
-            <dt>
-              {isSignInSourceEvent(selected)
-                ? t("การเข้าสู่ระบบองค์กร", "Sign-in source")
-                : t("ระบบที่เชื่อมต่อ", "Connected system")}
-            </dt>
+            <dt>{isSignInSourceEvent(selected) ? term("companySSO", t) : term("program", t)}</dt>
             <dd>
-              <a
-                href={localeHref(
-                  `/app?view=servers&connection=${encodeURIComponent(selected.connectionID)}`,
-                )}
-                >{isSignInSourceEvent(selected)
-                  ? selected.connectionID
-                  : system.label || selected.connectionID}<ArrowUpRight size={14} /></a
-              >{#if !isSignInSourceEvent(selected) && system.id && system.label}<small class="audit-id"
-                  >{system.id}</small
-                >{/if}
+              <a href={localeHref(`/app?view=servers&connection=${encodeURIComponent(selected.connectionID)}`)}
+                >{isSignInSourceEvent(selected) ? selected.connectionID : system.label || selected.connectionID}<ArrowUpRight
+                  size={14}
+                  aria-hidden="true"
+                /></a
+              >{#if !isSignInSourceEvent(selected) && system.id && system.label}<small class="audit-id">{system.id}</small>{/if}
             </dd>
           </div>{/if}
       </dl>
-      <AuditDetails event={selected} expanded />
+      <AuditDetails
+        event={selected}
+        codes={[
+          { label: t("รหัสผู้ใช้", "Person ID"), value: selected.userID },
+          { label: t("ชื่อที่โปรแกรมใช้", "Program's name for it"), value: selected.toolName ?? "" },
+          { label: t("รหัสกิจกรรม", "Action code"), value: selected.action || selected.method || "" },
+        ]}
+      />
       <p class="payload-note">
         {t(
-          "ประวัตินี้เก็บเฉพาะข้อมูลอ้างอิง ไม่เก็บข้อมูลที่ส่งให้เครื่องมือ เนื้อหาผลลัพธ์ หรือคีย์ API",
-          "This record contains reference data only. Tool inputs, response contents and API keys are not stored.",
+          "ORCA เก็บแค่ข้อมูลอ้างอิง ไม่เก็บข้อมูลที่ AI ส่งหรือได้รับ และไม่เก็บคีย์",
+          "ORCA keeps reference data only: never what AI sent or received, and never keys.",
         )}
       </p>
     </div>{/if}
 </dialog>
 
 <style>
+  /* The page follows its own width, not the window's: the sidebar takes a share. */
   .observability {
     min-width: 0;
     color: var(--orca-ink);
-  }
-  .audit-heading {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px 24px;
-    margin-bottom: 20px;
-  }
-  .audit-heading > div {
-    flex: 1 1 360px;
-    min-width: 0;
-  }
-  .audit-heading h1 {
-    margin: 0;
-  }
-  .subtitle {
-    max-width: 72ch;
-    margin: 4px 0 0;
-    color: var(--orca-muted);
-    font-size: 14px;
-    line-height: 1.65;
-  }
-  .audit-heading :global(.k-button) {
-    flex: none;
+    container: audit / inline-size;
   }
   button:disabled {
     cursor: not-allowed;
     opacity: 0.5;
   }
-  /* Underline tabs */
+  /* A member's own switch between the two histories (managers use ตรวจสอบ's tab bar). */
   .audit-tabs {
     display: flex;
-    gap: 20px;
-    margin-bottom: 20px;
+    gap: 28px;
+    margin: 0 0 28px;
     overflow-x: auto;
     box-shadow: inset 0 -1px 0 var(--orca-line);
     scrollbar-width: none;
@@ -817,11 +685,10 @@
   .audit-tabs a {
     display: inline-flex;
     align-items: center;
-    min-height: 44px;
-    padding: 0 2px;
+    min-height: 46px;
     border-bottom: 2px solid transparent;
     color: var(--orca-muted);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 500;
     text-decoration: none;
     white-space: nowrap;
@@ -831,79 +698,108 @@
     text-decoration: none;
   }
   .audit-tabs a.active {
-    border-bottom-color: var(--orca-ink);
+    border-bottom-color: var(--orca-tab-indicator, var(--orca-ink));
     color: var(--orca-ink);
     font-weight: 600;
   }
-  /* Toolbar: the search is wider; the filters share equal columns. */
-  .audit-toolbar {
+  /* Toolbar: search, the three main filters, then more filters and reload. */
+  .audit-toolbar,
+  .audit-more {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(0, 1fr)) auto;
     align-items: end;
     gap: 12px;
   }
-  .filters,
-  .secondary-filters {
-    display: contents;
+  .audit-more {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 12px;
+    padding: 14px;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius-lg);
+    background: var(--orca-surface-2);
   }
-  .search-field {
-    grid-column: span 2;
-  }
-  label {
+  .audit-field {
     display: grid;
     gap: 6px;
     min-width: 0;
     color: var(--orca-muted);
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 12.5px;
+    font-weight: 600;
   }
-  input,
-  select {
+  .audit-field select,
+  .pagination select {
+    width: 100%;
     min-width: 0;
+    height: 38px;
+    padding: 0 28px 0 11px;
+    border: 1px solid var(--orca-field-line);
+    border-radius: var(--orca-radius);
+    background-color: var(--orca-field);
     color: var(--orca-ink);
     font: inherit;
-  }
-  .audit-toolbar select {
-    width: 100%;
-    height: 36px;
-    padding: 0 28px 0 11px;
-    border: 1px solid var(--orca-field-line, var(--orca-line-strong));
-    border-radius: var(--orca-radius);
-    background-color: var(--orca-surface);
-    color: var(--orca-ink);
     font-size: 14px;
     font-weight: 400;
   }
   .search-field {
     display: flex;
     align-items: center;
-    gap: 8px;
-    height: 36px;
-    padding: 0 11px;
-    border: 1px solid var(--orca-field-line, var(--orca-line-strong));
+    gap: 9px;
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--orca-field-line);
     border-radius: var(--orca-radius);
-    background: var(--orca-surface);
+    background: var(--orca-field);
     color: var(--orca-subtle);
   }
   .search-field input {
     width: 100%;
+    min-width: 0;
     padding: 0;
     border: 0;
     outline: none;
     background: transparent;
+    color: var(--orca-ink);
+    font: inherit;
     font-size: 14px;
   }
   .search-field input::placeholder {
     color: var(--orca-subtle);
   }
   .search-field:focus-within,
-  .audit-toolbar select:focus-visible {
-    border-color: var(--orca-focus, var(--orca-ink));
+  .audit-field select:focus-visible,
+  .pagination select:focus-visible {
+    border-color: var(--orca-focus);
     outline: none;
-    box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1));
+    box-shadow: 0 0 0 3px var(--orca-focus-halo);
   }
-  .search-field input:focus-visible {
-    outline: none;
+  .audit-toolbar-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .audit-toolbar-actions :global(.k-button) {
+    min-height: 38px;
+    color: var(--orca-text-2) !important;
+  }
+  .audit-toolbar-actions .audit-refresh {
+    width: 38px;
+    padding: 0;
+    justify-content: center;
+  }
+  .audit-more-toggle.open {
+    border-color: var(--orca-line-strong);
+    background: var(--orca-secondary);
+  }
+  .audit-more-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--orca-ink);
+    color: var(--orca-on-ink);
+    font-size: 11px;
+    font-weight: 700;
   }
   .audit-meta {
     display: flex;
@@ -917,27 +813,41 @@
   .loaded-summary {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 16px;
+    gap: 4px 8px;
+    margin: 0;
     color: var(--orca-muted);
     font-size: 13px;
   }
-  .loaded-summary > span:last-child {
-    display: inline-flex;
+  .audit-error {
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
+    justify-content: space-between;
+    gap: 10px 16px;
   }
-  /* Table panel */
+  .audit-error p {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .audit-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 48px 20px;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius-lg);
+    background: var(--orca-surface);
+    color: var(--orca-muted);
+    font-size: 14px;
+  }
+  /* The table */
   .audit-panel {
     min-width: 0;
     overflow: hidden;
     border: 1px solid var(--orca-line);
     border-radius: var(--orca-radius-lg);
     background: var(--orca-surface);
-  }
-  .audit-table-wrap {
-    position: relative;
-    overflow-x: auto;
   }
   .audit-table {
     width: 100%;
@@ -946,28 +856,28 @@
     font-size: 14px;
   }
   th {
-    height: 40px;
-    padding: 8px 14px;
+    height: 42px;
+    padding: 10px 16px;
     border-bottom: 1px solid var(--orca-line);
-    background: var(--orca-surface-2);
-    color: var(--orca-nav);
-    font-size: 13px;
-    font-weight: 500;
+    background: var(--orca-surface);
+    color: var(--orca-subtle);
+    font-size: 12.5px;
+    font-weight: 600;
     text-align: start;
     white-space: nowrap;
   }
   td {
-    max-width: 280px;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
-    color: var(--orca-ink);
+    max-width: 300px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--orca-line-soft);
+    color: var(--orca-text-2);
     vertical-align: middle;
   }
   tbody tr:last-child td {
     border-bottom: 0;
   }
   tbody tr:hover td {
-    background: var(--orca-surface-2);
+    background: var(--orca-hover);
   }
   .sort-button {
     display: inline-flex;
@@ -990,8 +900,9 @@
     border: 0;
     background: transparent;
     color: var(--orca-ink);
-    font-size: 14px;
-    font-weight: 500;
+    font: inherit;
+    font-size: 14.5px;
+    font-weight: 600;
     text-align: start;
     cursor: pointer;
     overflow-wrap: break-word;
@@ -1000,7 +911,6 @@
     text-decoration: underline;
     text-underline-offset: 3px;
   }
-  .event-code,
   .audit-id {
     display: block;
     max-width: 260px;
@@ -1014,21 +924,8 @@
   }
   .primary-cell {
     display: block;
+    color: var(--orca-ink);
     overflow-wrap: break-word;
-  }
-  .secondary-cell.entity-line {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    min-width: 0;
-  }
-  .entity-line > span:first-child {
-    flex: none;
-  }
-  .entity-line .audit-id {
-    flex: 1 1 auto;
-    min-width: 0;
-    margin-top: 0;
   }
   .secondary-cell {
     display: block;
@@ -1043,26 +940,6 @@
     font-size: 13px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
-  }
-  .outcome {
-    display: inline-flex;
-    align-items: center;
-    padding: 1px 8px;
-    border-radius: var(--orca-radius-sm);
-    background: var(--orca-secondary);
-    color: var(--orca-nav);
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 1.6;
-    white-space: nowrap;
-  }
-  .outcome.success {
-    background: var(--orca-ok-bg);
-    color: var(--orca-ok);
-  }
-  .outcome.failed {
-    background: var(--orca-deny-bg);
-    color: var(--orca-deny);
   }
   .open-col {
     width: 1%;
@@ -1091,7 +968,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px 16px;
-    padding: 10px 14px;
+    padding: 10px 16px;
     border-top: 1px solid var(--orca-line);
     color: var(--orca-muted);
     font-size: 13px;
@@ -1106,16 +983,12 @@
     align-items: center;
     gap: 8px;
     margin-right: 8px;
-    font-weight: 400;
     white-space: nowrap;
   }
   .pagination select {
     width: 72px;
     height: 32px;
     padding: 0 8px;
-    border: 1px solid var(--orca-field-line, var(--orca-line-strong));
-    border-radius: var(--orca-radius);
-    background-color: var(--orca-surface);
     font-size: 13px;
   }
   .pagination button {
@@ -1140,69 +1013,12 @@
     font-variant-numeric: tabular-nums;
   }
   .retention-note {
-    max-width: 900px;
     margin: 12px 0 0;
     color: var(--orca-muted);
-    font-size: 12.5px;
-    line-height: 1.65;
+    font-size: 13px;
+    line-height: 1.6;
   }
-  .audit-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 240px;
-    padding: 48px 24px;
-    border: 1px solid var(--orca-line);
-    border-radius: var(--orca-radius-lg);
-    background: var(--orca-surface);
-    color: var(--orca-subtle);
-    text-align: center;
-  }
-  .audit-empty h2 {
-    margin: 4px 0 0;
-    color: var(--orca-ink);
-    font-size: 15px;
-    font-weight: 600;
-  }
-  .audit-empty p {
-    max-width: 460px;
-    margin: 0;
-    color: var(--orca-muted);
-    font-size: 13.5px;
-    line-height: 1.65;
-  }
-  .audit-empty :global(.k-button) {
-    margin-top: 8px;
-  }
-  .audit-error {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 14px 16px;
-    border: 1px solid color-mix(in srgb, var(--orca-deny) 25%, transparent);
-    border-radius: var(--orca-radius-lg);
-    background: var(--orca-deny-bg);
-    color: var(--orca-deny);
-  }
-  .audit-error > :global(svg) {
-    flex: none;
-    margin-top: 2px;
-  }
-  .audit-error h2 {
-    margin: 0;
-    color: var(--orca-ink);
-    font-size: 14.5px;
-    font-weight: 600;
-  }
-  .audit-error p {
-    margin: 4px 0 10px;
-    color: var(--orca-ink);
-    font-size: 13.5px;
-    overflow-wrap: anywhere;
-  }
-  /* Detail drawer */
+  /* The detail drawer */
   .audit-drawer {
     position: fixed;
     inset: 0 0 0 auto;
@@ -1218,20 +1034,20 @@
     color: var(--orca-ink);
   }
   .audit-drawer::backdrop {
-    background: rgba(21, 24, 35, 0.35);
+    background: var(--orca-scrim, rgba(21, 24, 35, 0.45));
   }
   .drawer-heading {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
-    padding: 18px 20px 16px 24px;
+    padding: 20px 20px 16px 24px;
     border-bottom: 1px solid var(--orca-line);
   }
   .drawer-heading h2 {
     margin: 0;
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 17px;
+    font-weight: 700;
     line-height: 1.45;
     overflow-wrap: anywhere;
   }
@@ -1271,14 +1087,14 @@
   .identity-details {
     display: grid;
     margin: 14px 0 0;
-    border-top: 1px solid var(--orca-line-soft, #eff0f2);
+    border-top: 1px solid var(--orca-line-soft);
   }
   .identity-details > div {
     display: grid;
     grid-template-columns: 150px minmax(0, 1fr);
     gap: 4px 16px;
     padding: 10px 0;
-    border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
+    border-bottom: 1px solid var(--orca-line-soft);
   }
   dt {
     color: var(--orca-muted);
@@ -1302,10 +1118,6 @@
     white-space: normal;
     overflow-wrap: anywhere;
   }
-  dd code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12.5px;
-  }
   dd a {
     display: inline-flex;
     align-items: center;
@@ -1325,12 +1137,12 @@
   .admission-note {
     margin: 16px 0 0;
     color: var(--orca-muted);
-    font-size: 12.5px;
-    line-height: 1.65;
+    font-size: 13px;
+    line-height: 1.6;
   }
   .admission-note {
     padding: 10px 12px;
-    border: 1px solid color-mix(in srgb, var(--orca-warn) 24%, transparent);
+    border: 1px solid var(--orca-warn-line);
     border-radius: var(--orca-radius);
     background: var(--orca-warn-bg);
     color: var(--orca-warn);
@@ -1346,20 +1158,94 @@
     white-space: nowrap;
     border: 0;
   }
-  @media (max-width: 1100px) {
+  @container audit (max-width: 1000px) {
     .audit-toolbar {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
     }
     .search-field {
       grid-column: 1 / -1;
     }
   }
-  @media (max-width: 760px) {
-    .audit-heading > div {
-      flex-basis: 100%;
+  @container audit (max-width: 640px) {
+    .audit-toolbar {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-    .audit-table {
-      min-width: 760px;
+    .audit-toolbar-actions {
+      grid-column: 1 / -1;
+    }
+    .audit-toolbar-actions .audit-more-toggle {
+      flex: 1;
+      justify-content: center;
+    }
+    .audit-more {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  /* Cards under 900px of page: each record stacks, the result and time on top. */
+  @container audit (max-width: 900px) {
+    .audit-panel {
+      overflow: visible;
+      border: 0;
+      background: transparent;
+    }
+    .audit-table,
+    .audit-table tbody {
+      display: block;
+    }
+    .audit-table thead {
+      display: none;
+    }
+    .audit-table tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 6px 12px;
+      margin-bottom: 10px;
+      padding: 14px 16px;
+      border: 1px solid var(--orca-line);
+      border-radius: var(--orca-radius-lg);
+      background: var(--orca-surface);
+    }
+    .audit-table td {
+      display: block;
+      max-width: none;
+      padding: 0;
+      border: 0;
+    }
+    tbody tr:hover td {
+      background: transparent;
+    }
+    .outcome-cell {
+      grid-column: 1;
+      grid-row: 1;
+    }
+    .timestamp {
+      grid-column: 2;
+      grid-row: 1;
+      align-self: center;
+      text-align: end;
+    }
+    .event-cell,
+    .context-cell,
+    .person-cell {
+      grid-column: 1 / -1;
+    }
+    .audit-table td.duration {
+      grid-column: 1 / -1;
+    }
+    .audit-table td.duration::before {
+      content: attr(data-label);
+    }
+    .open-col {
+      display: none !important;
+    }
+    .person-cell .primary-cell,
+    .context-cell .primary-cell {
+      color: var(--orca-text-2);
+      font-size: 13.5px;
+    }
+    .pagination {
+      padding: 4px 0 0;
+      border: 0;
     }
     .pagination > div {
       margin-left: auto;

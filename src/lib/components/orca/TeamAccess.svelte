@@ -12,6 +12,7 @@
   import MemberInvitations from "./MemberInvitations.svelte";
   import "./library.css";
   import { t, localeHref } from "$lib/orca/locale.svelte";
+  import { connectedAppsHref } from "$lib/orca/connected-ai-apps";
   import {
     OrcaService,
     orcaError,
@@ -361,6 +362,8 @@
                           }}>{t("เปลี่ยนบทบาท", "Change role")}</button
                         >{/if}{#if active(member)}<a role="menuitem" href={localeHref("/app?view=workspaces")}
                           >{t("เพิ่มเข้าพื้นที่ทำงาน", "Add to a workspace")}</a
+                        ><a role="menuitem" href={localeHref(connectedAppsHref("all", member.id))}
+                          >{t("ดูแอป AI ที่เชื่อมอยู่", "See connected AI apps")}</a
                         >{/if}{#if manageable}<button
                           role="menuitem"
                           onclick={() => {
