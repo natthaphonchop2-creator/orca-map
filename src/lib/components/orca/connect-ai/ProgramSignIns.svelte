@@ -5,6 +5,7 @@
 	import { workspaceToolingReady } from '$lib/orca/activation';
 	import { catalogSourceDisplayName } from '$lib/orca/catalog';
 	import { sourceAccountState } from '$lib/orca/connection-presentation';
+	import { namesText } from '$lib/orca/connect-ai';
 	import { gatewayHasMember } from '$lib/orca/gateway-sources';
 	import { t } from '$lib/orca/locale.svelte';
 	import { personalAccountReader, personalSetup, personalSources, type PersonalSetup, type PersonalSource } from '$lib/orca/personal-connections';
@@ -66,14 +67,19 @@
 		if (account.setup?.oauthClientRequired && !account.setup.oauthClientConfigured) return 'client-needed';
 		return sourceAccountState(account.setup);
 	}
-	type Row = { source: PersonalSource; name: string; state: string };
+	type Row = { source: PersonalSource; name: string; state: string; workspaces: string };
 	const rows = $derived<Row[]>(
 		sources.map((source) => {
 			const setup = own[source.sourceID]?.setup;
 			return {
 				source,
 				state: accountState(source),
-				name: catalogSourceDisplayName({ name: setup?.name || source.connections[0].name, endpointHost: setup?.endpointHost, managedProvider: setup?.managedProvider })
+				name: catalogSourceDisplayName({ name: setup?.name || source.connections[0].name, endpointHost: setup?.endpointHost, managedProvider: setup?.managedProvider }),
+				// The workspaces that wait for this sign-in, as in "…ของฝ่ายบัญชีได้".
+				workspaces: namesText(
+					source.hubs.filter((hub) => hub.status === 'active' && workspaceToolingReady(hub, source.connections)).map((hub) => hub.name),
+					t
+				)
 			};
 		})
 	);
@@ -93,7 +99,9 @@
 				<span class="ca-logo"><CatalogIcon name={row.name} size={28} /></span>
 				<div class="ca-copy">
 					<h2>{t(`อีก 1 ขั้น: ลงชื่อเข้าใช้ ${row.name} ของคุณ`, `One more step: sign in to your ${row.name}`)}</h2>
-					<p>{t(`AI จะดึงข้อมูล ${row.name} ให้คุณได้ เมื่อลงชื่อเข้าใช้ด้วยบัญชีของตัวเอง`, `AI can reach ${row.name} for you once you sign in with your own account.`)}</p>
+					<p>{row.workspaces
+						? t(`AI จะดึงข้อมูล ${row.name} ของ${row.workspaces}ได้ เมื่อคุณลงชื่อเข้าใช้ด้วยบัญชีตัวเอง`, `AI can reach ${row.name} for ${row.workspaces} once you sign in with your own account.`)
+						: t(`AI จะดึงข้อมูล ${row.name} ให้คุณได้ เมื่อคุณลงชื่อเข้าใช้ด้วยบัญชีตัวเอง`, `AI can reach ${row.name} for you once you sign in with your own account.`)}</p>
 					<p class="ca-own">{t(`ไม่มีบัญชีของตัวเอง? ขอให้ผู้ดูแลเพิ่มผู้ใช้ใน ${row.name} อย่าใช้บัญชีร่วมกับคนอื่น`, `No account of your own? Ask your admin to add a ${row.name} user for you. Don't share someone else's.`)}</p>
 				</div>
 				<button type="button" class="k-button ca-go" onclick={() => open(row)}>{t(`ลงชื่อเข้าใช้ ${row.name}`, `Sign in to ${row.name}`)}</button>

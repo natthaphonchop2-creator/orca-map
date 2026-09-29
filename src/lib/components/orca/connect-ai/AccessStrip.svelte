@@ -3,7 +3,7 @@
 	import { ArrowRight, Check, Copy, Info, UserPlus } from '@lucide/svelte';
 	import { parseErrorContent } from '$lib/errors';
 	import { keepCompany } from '$lib/orca/company';
-	import { accessRequestText, hubInputWithMember, withExternalBrowser, type ConnectAccess } from '$lib/orca/connect-ai';
+	import { accessFix, accessRequestText, hubInputWithMember, namesText, withExternalBrowser, type ConnectAccess } from '$lib/orca/connect-ai';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { OrcaService, orcaError, type OrcaBootstrap } from '$lib/services/orca';
 	import { MyAIAppsService } from '$lib/services/orca-u3';
@@ -16,6 +16,12 @@
 	// copies a request for their admin (generic: they cannot see who the admins are).
 	let { data, access, onchanged }: { data: OrcaBootstrap; access: ConnectAccess; onchanged?: () => void | Promise<void> } = $props();
 	const uid = $props.id();
+	const fix = $derived(accessFix(data, access));
+	const ownNames = $derived(namesText(access.ownSignIn.map((hub) => hub.name), t));
+	// One workspace: its overview, where its own link is; several: the list.
+	const ownHref = $derived(
+		access.ownSignIn.length === 1 ? localeHref(`/app?view=hub&hub=${encodeURIComponent(access.ownSignIn[0].id)}&tab=overview`) : localeHref('/app?view=workspaces')
+	);
 	const shown = $derived(access.usable.slice(0, access.usable.length > 4 ? 3 : 4));
 	const more = $derived(access.usable.length - shown.length);
 	let chosen = $state('');
@@ -82,16 +88,32 @@
 		</p>
 		<a class="ca-link" href={localeHref('/app?view=workspaces')}>{t('ดูพื้นที่ทำงาน', 'See workspaces')}<ArrowRight size={15} aria-hidden="true" /></a>
 	</div>
+{:else if fix === 'own-sign-in'}
+	<div class="ca-access own">
+		<span class="ca-icon" aria-hidden="true"><Info size={15} /></span>
+		<div class="ca-text">
+			<b class="ca-title">{t('พื้นที่ทำงานของคุณต้องเชื่อมด้วยลิงก์ของพื้นที่นั้น', 'Your workspaces connect with their own link')}</b>
+			<span>{t(
+				`${ownNames} ใช้การเข้าสู่ระบบของบริษัทแยกต่างหาก ลิงก์ ORCA ของบริษัทจึงยังไม่มีข้อมูลให้ AI ของคุณ`,
+				`${ownNames} ${access.ownSignIn.length === 1 ? 'uses its' : 'use their'} own company sign-in, so your company's ORCA link has no data for your AI yet.`
+			)}</span>
+			<div class="ca-actions"><a class="k-button" href={ownHref}>{access.ownSignIn.length === 1 ? t(`ดูลิงก์ของ ${access.ownSignIn[0].name}`, `See ${access.ownSignIn[0].name}'s link`) : t('ดูพื้นที่ทำงาน', 'See workspaces')}<ArrowRight size={15} aria-hidden="true" /></a></div>
+		</div>
+	</div>
 {:else}
 	<div class="ca-access none">
 		<span class="ca-icon" aria-hidden="true"><Info size={15} /></span>
 		<div class="ca-text">
 			{#if data.canManage}
 				<b class="ca-title">{t('ยังไม่มีข้อมูลให้ AI ของคุณใช้', 'There is no data for your AI yet')}</b>
-				<span>{access.joinable.length
+				<span>{fix === 'join'
 					? t('คุณยังไม่ได้อยู่ในพื้นที่ทำงาน AI ที่พร้อมใช้ เพิ่มตัวเองเข้าไป แล้วทำขั้นตอนด้านล่างต่อ', 'You are not in a ready AI workspace yet. Add yourself, then follow the steps below.')
-					: t('สร้างพื้นที่ทำงาน AI แรก แล้วเลือกคนที่ใช้ได้ จากนั้นกลับมาทำขั้นตอนด้านล่าง', 'Create your first AI workspace and choose who can use it, then come back to the steps below.')}</span>
-				{#if access.joinable.length}
+					: fix === 'fix-workspace'
+						? t('ยังไม่มีพื้นที่ทำงาน AI ที่พร้อมใช้ เปิดพื้นที่ทำงานเพื่อดูว่าต้องทำอะไรต่อ แล้วกลับมาทำขั้นตอนด้านล่าง', 'No AI workspace is ready yet. Open your workspaces to see what is left, then come back to the steps below.')
+						: fix === 'add-program'
+							? t('เริ่มจากเชื่อมโปรแกรมแรก เช่น FlowAccount แล้วให้ทีมใช้ จากนั้นกลับมาทำขั้นตอนด้านล่าง', 'Start by connecting your first program, such as FlowAccount, and share it with your team. Then come back to the steps below.')
+							: t('สร้างพื้นที่ทำงาน AI แรก แล้วเลือกคนที่ใช้ได้ จากนั้นกลับมาทำขั้นตอนด้านล่าง', 'Create your first AI workspace and choose who can use it, then come back to the steps below.')}</span>
+				{#if fix === 'join'}
 					<div class="ca-actions">
 						{#if access.joinable.length > 1}
 							<label class="ca-visually-hidden" for="ca-join-{uid}">{t('พื้นที่ทำงานที่จะเข้าร่วม', 'Workspace to join')}</label>
@@ -106,6 +128,10 @@
 					{#if error}
 						<p class="ca-error" role="alert">{error}{#if stale}<button type="button" class="k-link-button" onclick={() => onchanged?.()}>{t('โหลดใหม่', 'Reload')}</button>{:else if target}<a href={localeHref(`/app?view=hub&hub=${encodeURIComponent(target.id)}&tab=overview`)}>{t('เปิดพื้นที่ทำงาน', 'Open the workspace')}</a>{/if}</p>
 					{/if}
+				{:else if fix === 'fix-workspace'}
+					<div class="ca-actions"><a class="k-button primary" href={localeHref('/app?view=workspaces')}>{t('เปิดพื้นที่ทำงาน AI', 'Open AI workspaces')}</a></div>
+				{:else if fix === 'add-program'}
+					<div class="ca-actions"><a class="k-button primary" href={localeHref('/app?view=add-program')}>{t('เชื่อมโปรแกรมแรก', 'Connect your first program')}</a></div>
 				{:else}
 					<div class="ca-actions"><a class="k-button primary" href={localeHref('/app?view=new')}>{t('สร้างพื้นที่ทำงานแรก', 'Create the first workspace')}</a></div>
 				{/if}
@@ -122,14 +148,14 @@
 		</div>
 	</div>
 {/if}
-{#if access.ownSignIn.length}
+{#if access.ownSignIn.length && fix !== 'own-sign-in'}
 	<p class="ca-own">
 		<Info size={15} aria-hidden="true" />
 		<span>{t(
-			`${access.usable.length ? 'อีก ' : ''}${access.ownSignIn.length} พื้นที่ทำงาน (${access.ownSignIn.map((hub) => hub.name).join(', ')}) ใช้การเข้าสู่ระบบของบริษัทแยกต่างหาก ต้องเชื่อมด้วยลิงก์ของพื้นที่นั้น`,
-			`${access.ownSignIn.length} ${access.usable.length ? 'more ' : ''}workspace${access.ownSignIn.length === 1 ? '' : 's'} (${access.ownSignIn.map((hub) => hub.name).join(', ')}) use${access.ownSignIn.length === 1 ? 's' : ''} its own company sign-in. Connect ${access.ownSignIn.length === 1 ? 'it' : 'them'} with ${access.ownSignIn.length === 1 ? 'its' : 'their'} own link.`
+			`${access.usable.length ? 'อีก ' : ''}${access.ownSignIn.length} พื้นที่ทำงาน (${ownNames}) ใช้การเข้าสู่ระบบของบริษัทแยกต่างหาก ต้องเชื่อมด้วยลิงก์ของพื้นที่นั้น`,
+			`${access.ownSignIn.length} ${access.usable.length ? 'more ' : ''}workspace${access.ownSignIn.length === 1 ? '' : 's'} (${ownNames}) use${access.ownSignIn.length === 1 ? 's' : ''} ${access.ownSignIn.length === 1 ? 'its' : 'their'} own company sign-in. Connect ${access.ownSignIn.length === 1 ? 'it' : 'them'} with ${access.ownSignIn.length === 1 ? 'its' : 'their'} own link.`
 		)}</span>
-		<a href={localeHref(`/app?view=hub&hub=${encodeURIComponent(access.ownSignIn[0].id)}&tab=overview`)}>{t('ดูลิงก์', 'See the link')}</a>
+		<a href={ownHref}>{t('ดูลิงก์', 'See the link')}</a>
 	</p>
 {/if}
 
@@ -167,6 +193,15 @@
 	.none .ca-icon {
 		background: var(--orca-warn);
 	}
+	.ca-access.own {
+		align-items: flex-start;
+		padding: 16px 18px 18px 16px;
+		background: var(--orca-surface-2);
+	}
+	.own .ca-icon {
+		background: var(--orca-secondary);
+		color: var(--orca-text-2);
+	}
 	.ca-text {
 		flex: 1;
 		min-width: 0;
@@ -177,11 +212,11 @@
 	.ca-text b {
 		font-weight: 600;
 	}
-	.none .ca-text {
+	:is(.none, .own) .ca-text {
 		display: grid;
 		gap: 4px;
 	}
-	.none .ca-text > span {
+	:is(.none, .own) .ca-text > span {
 		color: var(--orca-text-2);
 		font-size: 14px;
 	}

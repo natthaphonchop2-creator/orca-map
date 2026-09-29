@@ -51,7 +51,7 @@
 			else if (legacy) await OrcaService.revokeOrcaKey(chosen.item.id);
 			else await MyAIAppsService.revokeKey(chosen.item.id);
 			confirmOpen = false;
-			showToast(t(`ตัดการเชื่อมต่อ ${chosen.label} แล้ว`, `${chosen.label} disconnected`));
+			showToast(t(`ตัดการเชื่อมต่อ ${chosen.label} แล้ว`, `Disconnected ${chosen.label}`));
 			await onchanged();
 		} catch (cause) {
 			error = orcaError(cause);
@@ -101,7 +101,7 @@
 	message={target?.kind === 'key'
 		? t('แอปหรือสคริปต์ที่ใช้คีย์นี้จะใช้ข้อมูลบริษัทไม่ได้ทันที', 'Apps or scripts using this key lose access to company data at once.')
 		: target
-			? t(`${target.label} จะใช้ข้อมูลบริษัทผ่าน ORCA ไม่ได้ทันที ถ้าต้องการใช้อีก ให้เชื่อมใหม่ตามขั้นตอนด้านบน`, `${target.label} loses access to company data through ORCA at once. To use it again, connect it with the steps above.`)
+			? t(`${target.label} จะใช้ข้อมูลบริษัทผ่าน ORCA ไม่ได้ทันที ถ้าต้องการใช้อีก ให้เชื่อมใหม่ตามขั้นตอนในหน้านี้`, `${target.label} loses access to company data through ORCA at once. To use it again, connect it with the steps on this page.`)
 			: ''}
 	confirmLabel={busy ? t('กำลังตัดการเชื่อมต่อ…', 'Disconnecting…') : term('disconnect', t)}
 	tone="danger"

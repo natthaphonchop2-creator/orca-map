@@ -4,7 +4,7 @@ import type { HubInput, OrcaBootstrap, OrcaHub } from '../services/orca';
 import type { MyAIApps, MyAIKey, MyAISession } from '../services/orca-u3';
 import type { AIConnectionStatus } from './ai-connection';
 import type { AIApp, ClientNames, GatewayClient } from './client-config';
-import { workspaceToolingReady } from './activation';
+import { connectionReady, workspaceToolingReady } from './activation';
 import { AI_APPS, clientNames, gatewayClientCommands, gatewayClientConfig, gatewayInstallLink } from './client-config';
 import { gatewayClientInstructions } from './client-instructions';
 import { gatewayConnections, gatewayHasMember } from './gateway-sources';
@@ -34,6 +34,33 @@ export function connectAccess(data: Pick<OrcaBootstrap, 'hubs' | 'connections' |
 		ownSignIn: mine.filter((hub) => !!hub.userSourceID),
 		joinable: data.canManage && me ? ready.filter((hub) => !hub.userSourceID && !gatewayHasMember(hub, me)) : []
 	};
+}
+
+/**
+ * With no workspace the company link reaches, the one thing that fixes it:
+ * - join: a manager adds themselves to a ready workspace
+ * - own-sign-in: their workspaces use their own sign-in, so their own link
+ * - fix-workspace: a manager's workspaces exist but none is ready yet
+ * - add-program: a manager has no program ready to put in a workspace
+ * - create-workspace: a manager has programs but no workspace
+ * - request: an employee asks a company admin (generic, critique 8)
+ */
+export type AccessFix = 'join' | 'own-sign-in' | 'fix-workspace' | 'add-program' | 'create-workspace' | 'request';
+export function accessFix(data: Pick<OrcaBootstrap, 'hubs' | 'connections' | 'canManage'>, access: ConnectAccess): AccessFix | null {
+	if (access.usable.length) return null;
+	if (data.canManage && access.joinable.length) return 'join';
+	if (access.ownSignIn.length) return 'own-sign-in';
+	if (!data.canManage) return 'request';
+	if (data.hubs.some((hub) => hub.status !== 'archived' && hub.status !== 'deleted')) return 'fix-workspace';
+	if (!data.connections.some(connectionReady)) return 'add-program';
+	return 'create-workspace';
+}
+
+/** "ฝ่ายบัญชี", "ฝ่ายบัญชี และ ฝ่ายขาย", "ฝ่ายบัญชี, ฝ่ายขาย และอีก 2" */
+export function namesText(names: string[], t: Translate): string {
+	const list = names.map((name) => name.trim()).filter(Boolean);
+	if (list.length <= 2) return list.join(t(' และ ', ' and '));
+	return t(`${list.slice(0, 2).join(', ')} และอีก ${list.length - 2}`, `${list.slice(0, 2).join(', ')} and ${list.length - 2} more`);
 }
 
 /** Program names in the workspaces this person can use, for the example prompts. */
@@ -120,16 +147,19 @@ export function liveKeys(apps: MyAIApps | undefined, now: number): MyAIKey[] {
 	return (apps?.keys ?? []).filter((key) => later(key.expiresAt, now)).sort(newestFirst);
 }
 
+/** Claude Code names itself "Claude Code"; the server hints it as "claude" like claude.ai. */
+const CLAUDE_CODE = /claude[\s_-]*code/i;
+
 /** A sign-in's app as people know it. */
 export function sessionLabel(session: Pick<MyAISession, 'app' | 'client'>, t: Translate): string {
 	const name = session.app.trim();
-	if (session.client === 'claude') return /claude[\s_-]*code/i.test(name) ? 'Claude Code' : 'Claude';
+	if (session.client === 'claude') return CLAUDE_CODE.test(name) ? 'Claude Code' : 'Claude';
 	if (session.client === 'chatgpt') return 'ChatGPT';
 	return name || t('แอป AI', 'AI app');
 }
 
 const DEV_NAMES: Partial<Record<AIApp, RegExp>> = {
-	'claude-code': /claude/i,
+	'claude-code': CLAUDE_CODE,
 	codex: /codex/i,
 	cursor: /cursor/i,
 	vscode: /vs\s*code|visual studio code|vscode/i,
@@ -138,14 +168,14 @@ const DEV_NAMES: Partial<Record<AIApp, RegExp>> = {
 
 /**
  * Whether a sign-in is the app chosen on this page. Chat apps go by the
- * server's hint. Developer tools name themselves, so a new sign-in since the
- * page opened (`since`) from an unknown app also counts for them.
+ * server's hint, but a Claude Code sign-in (hinted "claude" by its name) is not
+ * claude.ai. Developer tools name themselves, so a new sign-in since the page
+ * opened (`since`) from an unknown app also counts for them.
  */
 export function sessionMatchesApp(session: MyAISession, app: AIApp, since = Infinity): boolean {
-	if (app === 'claude' || app === 'chatgpt') return session.client === app;
-	const pattern = DEV_NAMES[app];
-	if (pattern?.test(session.app)) return true;
-	if (app === 'claude-code') return session.client === 'claude' && /code/i.test(session.app);
+	if (app === 'claude') return session.client === 'claude' && !CLAUDE_CODE.test(session.app);
+	if (app === 'chatgpt') return session.client === 'chatgpt';
+	if (DEV_NAMES[app]?.test(session.app)) return true;
 	return session.client === 'other' && (app === 'other' || (Date.parse(session.createdAt) || 0) >= since);
 }
 

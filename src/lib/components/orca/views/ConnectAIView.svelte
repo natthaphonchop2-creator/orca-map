@@ -83,8 +83,10 @@
 	let appsState = $state<'loading' | 'ready' | 'unavailable' | 'error'>('loading');
 	let legacyKeys = $state<MyAIKey[]>([]);
 	let checkedAt = $state(Date.now());
-	const openedAt = Date.now();
-	const session = $derived(connectedSession(apps, app, checkedAt, openedAt));
+	// A developer tool's new sign-in counts from a little before the page opened,
+	// so a server clock a few minutes behind this device does not hide it.
+	const newSince = Date.now() - 5 * 60_000;
+	const session = $derived(connectedSession(apps, app, checkedAt, newSince));
 	const waiting = $derived(ready && linkOK && appsState !== 'unavailable' && !session);
 	let generation = 0;
 	let destroyed = false;

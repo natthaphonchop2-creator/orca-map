@@ -38,6 +38,27 @@ test('access counts ready workspaces the company link reaches, and those with th
 	assert.deepEqual(ai.connectAccess({ ...data, currentUserID: '' }), { usable: [], ownSignIn: [], joinable: [] });
 });
 
+test('with no reachable workspace, one fix: join, own link, finish a workspace, first program, first workspace or ask', () => {
+	const flow = connection('flow', 'FlowAccount');
+	const base = { currentUserID: 'me', canManage: true, connections: [flow] };
+	const fix = (data) => ai.accessFix(data, ai.connectAccess(data));
+	assert.equal(fix({ ...base, hubs: [hub('a')] }), null, 'nothing to fix');
+	assert.equal(fix({ ...base, hubs: [hub('a', { memberIDs: ['x'] })] }), 'join');
+	assert.equal(fix({ ...base, hubs: [hub('a', { memberIDs: ['x'] }), hub('sso', { userSourceID: 'us-1' })] }), 'join', 'joining beats the other link');
+	assert.equal(fix({ ...base, hubs: [hub('sso', { userSourceID: 'us-1' })] }), 'own-sign-in');
+	assert.equal(fix({ ...base, canManage: false, hubs: [hub('sso', { userSourceID: 'us-1' })] }), 'own-sign-in', 'an employee with access is never told they have none');
+	assert.equal(fix({ ...base, canManage: false, hubs: [] }), 'request');
+	assert.equal(fix({ ...base, canManage: false, hubs: [hub('a', { memberIDs: ['x'] })] }), 'request', 'employees are never offered "add me"');
+	assert.equal(fix({ ...base, hubs: [hub('draft', { status: 'draft' })] }), 'fix-workspace', 'not "create the first" when one exists');
+	assert.equal(fix({ ...base, hubs: [hub('old', { status: 'archived' })], connections: [] }), 'add-program');
+	assert.equal(fix({ ...base, hubs: [], connections: [{ ...flow, enabled: false }] }), 'add-program', 'a program that is not ready does not count');
+	assert.equal(fix({ ...base, hubs: [] }), 'create-workspace');
+	assert.equal(ai.namesText(['ฝ่ายบัญชี'], th), 'ฝ่ายบัญชี');
+	assert.equal(ai.namesText(['ฝ่ายบัญชี', ' ฝ่ายขาย '], th), 'ฝ่ายบัญชี และ ฝ่ายขาย');
+	assert.equal(ai.namesText(['A', 'B', 'C', 'D'], en), 'A, B and 2 more');
+	assert.equal(ai.namesText([], th), '');
+});
+
 test('program names for the example prompts come from the usable workspaces, once each', () => {
 	const connections = [connection('flow', 'FlowAccount'), connection('drive', 'Google Drive')];
 	const hubs = [hub('a'), hub('b', { sources: [{ connectionID: 'drive', toolNames: ['read'] }, { connectionID: 'flow', toolNames: ['read'] }] })];
@@ -70,10 +91,15 @@ test('step 5 is connected by a live sign-in of the chosen app', () => {
 		],
 		keys: []
 	};
-	assert.equal(ai.connectedSession(apps, 'claude', NOW)?.id, 'cc', 'the newest live Claude sign-in; the expired one is ignored');
+	assert.equal(ai.connectedSession(apps, 'claude', NOW)?.id, 'old', 'the newest live claude.ai sign-in; the expired one and Claude Code are not it');
 	assert.equal(ai.connectedSession(apps, 'chatgpt', NOW)?.id, 'gpt');
 	assert.equal(ai.connectedSession(apps, 'codex', NOW)?.id, 'codex');
 	assert.equal(ai.connectedSession(apps, 'claude-code', NOW)?.id, 'cc');
+	const webOnly = { sessions: [session('web', 'claude', 'Claude', 1)], keys: [] };
+	assert.equal(ai.connectedSession(webOnly, 'claude-code', NOW, NOW - 60 * 60_000), undefined, 'a claude.ai sign-in is not Claude Code');
+	const codeOnly = { sessions: [session('code', 'claude', 'claude-code', 1)], keys: [] };
+	assert.equal(ai.connectedSession(codeOnly, 'claude', NOW), undefined, 'a Claude Code sign-in never shows "เชื่อม Claude แล้ว"');
+	assert.equal(ai.connectedSession(codeOnly, 'claude-code', NOW)?.id, 'code');
 	assert.equal(ai.connectedSession(apps, 'cursor', NOW), undefined, 'an unknown older app is not Cursor');
 	assert.equal(ai.connectedSession(apps, 'cursor', NOW, NOW - 5 * 60_000)?.id, 'mystery', 'a new unknown sign-in since the page opened counts for a developer tool');
 	assert.equal(ai.connectedSession(apps, 'other', NOW)?.id, 'mystery', 'the newest sign-in of an app ORCA does not know');

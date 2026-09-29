@@ -156,6 +156,24 @@ test('none, manager: add yourself to a ready workspace, or create the first one'
 	const first = await strip({ data: empty, access: ai.connectAccess(empty) });
 	assert.match(first.html, /href="\/app\?view=new"[^>]*>Create the first workspace/);
 	assert.equal(first.html.match(/k-button primary/g)?.length, 1, 'one primary action');
+	const brandNew = data({ hubs: [], connections: [] });
+	assert.match((await strip({ data: brandNew, access: ai.connectAccess(brandNew) })).html, /href="\/app\?view=add-program"[^>]*>Connect your first program/, 'a new company starts with its first program');
+	const drafts = data({ hubs: [hub('d', 'Draft', ['me'], { status: 'draft' })] });
+	const unfinished = (await strip({ data: drafts, access: ai.connectAccess(drafts) })).html;
+	assert.match(unfinished, /No AI workspace is ready yet[\s\S]*href="\/app\?view=workspaces"[^>]*>Open AI workspaces/);
+	assert.doesNotMatch(unfinished, /first workspace/, 'never "first" when one exists');
+});
+
+test('only workspaces with their own sign-in: point to their link, never "no access"', async () => {
+	for (const canManage of [false, true]) {
+		const value = data({ canManage, hubs: [hub('acc', 'Accounts', ['me'], { userSourceID: 'us-1' })] });
+		const { warnings, html } = await strip({ data: value, access: ai.connectAccess(value) });
+		assert.deepEqual(warnings, []);
+		assert.match(html, /Your workspaces connect with their own link[\s\S]*Accounts uses its own company sign-in/);
+		assert.match(html, /href="\/app\?view=hub&amp;hub=acc&amp;tab=overview"[^>]*>See Accounts's link/);
+		assert.doesNotMatch(html, /You do not have access|Copy the request|Create the first|Add me/, canManage ? 'manager' : 'employee');
+		assert.equal(html.match(/uses its own company sign-in/g)?.length, 1, 'said once, not again in the note');
+	}
 });
 
 test('none, employee: a generic request to copy, whose link leaves the LINE browser', async () => {
