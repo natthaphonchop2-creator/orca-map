@@ -49,7 +49,8 @@ test('the sign-in and invite pages carry the notice and keep their own flows', a
 	const login = await readFile(new URL('../../routes/login/+page.svelte', import.meta.url), 'utf8');
 	const invite = await readFile(new URL('../../routes/invite/[token]/+page.svelte', import.meta.url), 'utf8');
 	assert.match(login, /import InAppBrowserNotice from "\$lib\/components\/orca\/InAppBrowserNotice\.svelte";/);
-	assert.match(login, /<InAppBrowserNotice \/>\n\s*\{#if data\.unavailable\}/, 'above the sign-in methods');
+	// In AI mode (§14h) it says to start again from the AI app in Chrome or Safari.
+	assert.match(login, /<InAppBrowserNotice aiSignIn=\{data\.ai\} \/>\n\s*\{#if data\.unavailable\}/, 'above the sign-in methods');
 	// On the invite page the notice comes before the page's own h2, so it is an h2 too.
 	assert.match(invite, /\{#if phase !== "joined"\}<InAppBrowserNotice level=\{2\} \/>\{\/if\}/);
 	// The flows below are untouched: Google, the password form, accepting.

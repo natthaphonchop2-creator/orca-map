@@ -15,7 +15,8 @@
   } from "$lib/orca/locale.svelte";
   import type { PageProps } from "./$types";
   import { googleSignInReason, googleStartHref, type GoogleSignInReason } from "$lib/orca/google-signin";
-  import { ArrowLeft, ArrowRight, BookOpen, Plug, ShieldCheck } from "@lucide/svelte";
+  import { AI_HANDOFF_FALLBACK, AI_HANDOFF_PAGE } from "$lib/orca/ai-handoff";
+  import { ArrowLeft, ArrowRight, BookOpen, Bot, Plug, ShieldCheck } from "@lucide/svelte";
   import { onMount } from "svelte";
 
   let { data }: PageProps = $props();
@@ -33,7 +34,10 @@
   const errorParam = $derived(page.url.searchParams.get("error"));
   const googleReason = $derived(googleSignInReason(errorParam));
   const error = $derived(errorParam !== null && !googleReason);
-  const googleHref = $derived(localProvider ? googleStartHref(page.url.origin, localeHref(data.rd), localProvider) : "");
+  // Where a sign-in returns. For an AI app (§14h) it is the fixed hand-off
+  // address, never passed through localeHref: its lang would change it.
+  const returnTo = $derived(data.ai ? data.rd : localeHref(data.rd));
+  const googleHref = $derived(localProvider ? googleStartHref(page.url.origin, returnTo, localProvider) : "");
   function googleMessage(reason: GoogleSignInReason) {
     return {
       off: t("ตอนนี้ยังเข้าสู่ระบบด้วย Google ไม่ได้ ใช้อีเมลและรหัสผ่านถ้ามี หรือแจ้งทีม ORCA", "Google sign-in isn't on right now. Use an email and password if you have one, or tell the ORCA team."),
@@ -55,7 +59,7 @@
   }
   function signIn(namespace: string | undefined, id: string) {
     const destination = new URL("/oauth2/start", window.location.origin);
-    destination.searchParams.set("rd", localeHref(data.rd));
+    destination.searchParams.set("rd", returnTo);
     destination.searchParams.set(
       "obot-auth-provider",
       `${namespace ?? "default"}/${id}`,
@@ -98,6 +102,7 @@
       </ul>
     </section>
     <section class="o-auth-form">
+      {#if data.ai}<p class="o-login-ai-note"><Bot size={15} aria-hidden="true" />{t("เข้าสู่ระบบ เพื่อให้แอป AI ของคุณเชื่อมกับ ORCA", "Sign in so your AI app can connect to ORCA")}</p>{/if}
       <h2>{t("เข้าสู่ระบบ ORCA", "Sign in to ORCA")}</h2>
       <p>
         {t(
@@ -114,7 +119,7 @@
         )}
       </p>
       <!-- Inside LINE or Facebook, Google refuses to sign in: open the page in a real browser first. -->
-      <InAppBrowserNotice />
+      <InAppBrowserNotice aiSignIn={data.ai} />
       {#if data.unavailable}<div class="o-alert" role="alert">
           {t(
             "โหลดวิธีเข้าสู่ระบบไม่สำเร็จ โหลดหน้านี้อีกครั้ง",
@@ -125,7 +130,7 @@
       {#if data.signedIn}
         <p>
           {t("คุณยังเข้าสู่ระบบด้วยบัญชีเดิมอยู่", "You are still signed in with your current account.")}
-          <a class="o-link" href={localeHref(data.rd)}>{t("กลับไปหน้าเดิม", "Go back")}</a>
+          <a class="o-link" href={data.ai ? AI_HANDOFF_PAGE : localeHref(data.rd)}>{t("กลับไปหน้าเดิม", "Go back")}</a>
         </p>
       {/if}
       {#if localProvider && data.google}
@@ -144,7 +149,7 @@
                 "Sign-in failed. Check your email and password, then try again.",
               )}
             </div>{/if}
-          <input type="hidden" name="rd" value={localeHref(data.rd)} />
+          <input type="hidden" name="rd" value={returnTo} />
           <label class="o-field" for="local-auth-email"
             >{t("อีเมล", "Email")}<input
               id="local-auth-email"
@@ -209,6 +214,10 @@
           )}
         </p>
       {/if}
+      {#if data.ai}<p class="o-login-ai-fallback">
+          {t("มีปัญหาในการเข้าสู่ระบบ?", "Trouble signing in?")}
+          <a href={AI_HANDOFF_FALLBACK} data-sveltekit-reload>{t("ใช้หน้าเข้าสู่ระบบสำรอง", "Use the backup sign-in page")}</a>
+        </p>{/if}
       <p class="o-login-new">
         {t("บริษัทยังไม่มี ORCA?", "Company not on ORCA yet?")}
         <a href={site("start")}>{t("คุยกับทีม ORCA", "Talk to the ORCA team")}<ArrowRight size={14} aria-hidden="true" /></a>
