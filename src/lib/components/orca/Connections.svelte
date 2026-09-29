@@ -445,7 +445,7 @@
 		</h1>
 		{#if !formOpen && data.canManage}<a
 				class="k-button primary"
-				href={localeHref('/app?view=servers&add=source')}><Plus size={16} aria-hidden="true" /> {t('เพิ่มระบบ', 'Add a system')}</a
+				href={localeHref('/app?view=add-program')}><Plus size={16} aria-hidden="true" /> {t('เพิ่มระบบ', 'Add a system')}</a
 			>{/if}
 	</div>
 	<p class="k-subtitle">
@@ -629,7 +629,7 @@
 			<p>{t('โหลดรายการเครื่องมือล่าสุดก่อนยืนยันสิทธิ์ หากบัญชียังไม่พร้อม ให้เชื่อมบัญชีในแท็บ “บัญชี” แล้วกลับมาตรวจสอบเครื่องมือ', 'Load the current tools before approving access. If the account needs attention, open the Account tab, then return to review the tools.')}</p>
 			<div class="k-actions">
 				<button class="k-button" disabled={busy} onclick={() => discover()}>{t('โหลดเครื่องมืออีกครั้ง', 'Retry loading tools')}</button>
-				<a class="k-button quiet" href={localeHref(`/app?view=servers&connection=${encodeURIComponent(initialConnectionID)}&tab=account`)}>{t('จัดการบัญชี', 'Manage account')}</a>
+				<a class="k-button quiet" href={localeHref(`/app?view=servers&connection=${encodeURIComponent(initialConnectionID)}&tab=overview`)}>{t('จัดการบัญชี', 'Manage account')}</a>
 			</div>
 		</div></div>
 	{/if}
@@ -930,7 +930,7 @@
 			</p>
 			{#if data.canManage && !query}<a
 					class="k-button primary"
-					href={localeHref('/app?view=servers&add=source')}>{t('เพิ่มระบบแรก', 'Add your first system')}</a
+					href={localeHref('/app?view=add-program')}>{t('เพิ่มระบบแรก', 'Add your first system')}</a
 				>{/if}
 		</div>{/each}
 {/if}

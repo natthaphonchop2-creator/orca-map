@@ -2,7 +2,6 @@
   import { onDestroy, onMount } from "svelte";
   import { Check, Copy, KeyRound, LoaderCircle, Plus, Power, PowerOff, RefreshCw, ShieldCheck, Trash2, X } from "@lucide/svelte";
   import { t } from "$lib/orca/locale.svelte";
-  import GoogleSignInSettings from "./GoogleSignInSettings.svelte";
   import { memberName, orcaError, type OrcaBootstrap } from "$lib/services/orca";
   import {
     OrcaUserSourcesService,
@@ -11,6 +10,8 @@
     type OrcaUserSourceBinding,
   } from "$lib/services/orca-user-sources";
 
+  // A company's own sign-in sources for AI apps (Settings › ขั้นสูง). Google
+  // sign-in is the platform's and lives in the platform area, never here.
   let { data }: { data: OrcaBootstrap } = $props();
   let items = $state<OrcaUserSource[]>([]);
   let callbackURL = $state("");
@@ -172,9 +173,12 @@
   }
 </script>
 
-<section class="user-sources" aria-label={t("การเข้าสู่ระบบองค์กร", "Sign-in sources")}>
+<section class="user-sources" aria-labelledby="user-sources-title">
   <header class="source-heading">
-    <h1>{t("การเข้าสู่ระบบองค์กร", "Sign-in sources")}</h1>
+    <div>
+      <h2 id="user-sources-title" class="source-title">{t("SSO ของบริษัทสำหรับแอป AI", "Company SSO for AI apps")}</h2>
+      <p class="source-subtitle">{t("ให้พนักงานเข้าสู่ระบบแอป AI ด้วยบัญชีของบริษัท ใช้กับพื้นที่ทำงานที่เลือกเท่านั้น", "Let people sign in to AI apps with the company's accounts, for the workspaces you choose.")}</p>
+    </div>
     {#if data.canManage && editing === undefined}
       <div class="source-actions">
         <button class="k-button source-square" disabled={busy || loading} onclick={refresh} aria-label={t("โหลดข้อมูลใหม่", "Refresh")} title={t("โหลดข้อมูลใหม่", "Refresh")}><RefreshCw size={16} class={loading ? "k-spin" : ""} /></button>
@@ -185,8 +189,6 @@
   {#if !data.canManage}
     <div class="source-empty"><ShieldCheck size={28} /><h2>{t("หน้านี้สำหรับผู้ดูแลระบบเท่านั้น", "This page is available to Admins only")}</h2></div>
   {:else}
-    <GoogleSignInSettings {data} />
-    <h2 class="source-section-title">{t("ผู้ให้บริการเข้าสู่ระบบสำหรับแอป AI", "Sign-in sources for AI apps")}</h2>
     {#if error}<div class="k-banner error" role="alert">{error}</div>{/if}
     {#if notice}<div class="source-notice" role="status"><Check size={16} />{notice}</div>{/if}
     {#if editing !== undefined}
@@ -234,8 +236,8 @@
 <style>
   .user-sources { display: grid; gap: 16px; min-width: 0; }
   .source-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px; margin-bottom: 4px; }
-  .source-heading h1 { margin: 0; }
-  .source-section-title { margin: 12px 0 0; font-size: 16px; font-weight: 600; }
+  .source-title { margin: 0; font-size: 17px; font-weight: 600; }
+  .source-subtitle { margin: 2px 0 0; color: var(--orca-muted); font-size: 13.5px; line-height: 1.6; }
   .editor-heading, .mapping-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .editor-heading h2, .mapping-heading h3 { margin: 0; }
   .source-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

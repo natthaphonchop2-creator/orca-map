@@ -1,8 +1,11 @@
 <script lang="ts">
-  import { companyHref, companySwitch, currentCompany, rememberCompany, type OrcaCompanyChoice } from "$lib/orca/company";
+  import { companyHref, companySwitch, currentCompany, DEFAULT_COMPANY, rememberCompany, type OrcaCompanyChoice } from "$lib/orca/company";
   import { localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
   import { writesInFlight } from "$lib/services/writes";
-  import { activeNavigationView } from "$lib/orca/navigation";
+  import { activeNavigationView, platformHref, type PlatformSection } from "$lib/orca/navigation";
+  import { aiConnectionLine, type AIConnectionStatus } from "$lib/orca/ai-connection";
+  import { aiConnection } from "$lib/orca/ai-connection.svelte";
+  import { term } from "$lib/orca/glossary";
   import {
     memberName,
     memberRole,
@@ -11,32 +14,33 @@
   import Brand from "./Brand.svelte";
   import LocaleSwitch from "./LocaleSwitch.svelte";
   import ThemeSwitch from "./ThemeSwitch.svelte";
+  import Toast from "./ui/Toast.svelte";
   import "./app-workspace.css";
   import "./orca-system.css";
   import {
-    Activity,
-    BookOpen,
+    Book,
     Boxes,
     Building2,
+    ChartNoAxesColumn,
     Check,
     ChevronDown,
     ChevronsLeft,
     ChevronsRight,
     CircleHelp,
+    Globe,
+    Grid2x2Plus,
     House,
     Inbox,
     KeyRound,
-    KeySquare,
-    LayoutGrid,
-    LockKeyhole,
+    LogIn,
     LogOut,
     Menu,
-    Plug,
     RefreshCw,
     Settings,
+    Shield,
     ShieldCheck,
     Sparkles,
-    UserCheck,
+    UserRound,
     Users,
     X,
   } from "@lucide/svelte";
@@ -45,20 +49,26 @@
   let {
     data,
     view,
+    section = null,
     refreshing,
     pendingApprovals = 0,
     companies = [],
     account = "",
+    aiStatus,
     onrefresh,
     children,
   }: {
     data?: OrcaBootstrap;
     view: string;
+    /** The platform section, when view is "platform". */
+    section?: string | null;
     refreshing: boolean;
     pendingApprovals?: number;
     /** The person's companies; the switcher shows when there are several. */
     companies?: OrcaCompanyChoice[];
     account?: string;
+    /** The pinned button's state line; the shared store by default (B1 feeds it). */
+    aiStatus?: AIConnectionStatus;
     onrefresh: () => void;
     children: Snippet;
   } = $props();
@@ -103,77 +113,60 @@
   const accountName = $derived(
     currentUser ? memberName(currentUser) : t("บัญชีของคุณ", "Your account"),
   );
-  // The menu follows ORCA's three pillars: connect systems, company knowledge, and
-  // team access with an audit trail. Planned pages stay reachable by URL but are not
-  // advertised here, and members only see what they can use.
+  // Six flat items for Owners and Admins, the three a member uses (plus their
+  // requests once a workspace holds writes), and the platform area for the
+  // ORCA team. Every role gets the pinned "เชื่อม AI ของฉัน" button.
   const canManage = $derived(!!data?.canManage);
-  // Members only see their requests once one of their workspaces holds writes.
+  const operator = $derived(data?.platformOperator === true);
+  const platformMode = $derived(view === "platform" && operator);
   const requestsApproval = $derived(!!data?.hubs.some((hub) => hub.writeMode === "approval" && hub.status !== "archived" && hub.status !== "deleted"));
   type NavigationItem = { id: string; label: string; href: string; icon: typeof House; count?: number };
-  const navigationGroups = $derived<{ id: string; label: string; items: NavigationItem[] }[]>([
-    {
-      id: "main", label: "",
-      items: [{ id: "dashboard", label: t("หน้าหลัก", "Home"), href: "/app", icon: House }],
-    },
-    {
-      id: "connect", label: t("เชื่อมต่อ", "Connect"),
-      items: [
-        ...(canManage
-          ? [
-              { id: "servers", label: t("ระบบที่เชื่อมต่อ", "Connected systems"), href: "/app?view=servers", icon: Plug },
-              { id: "catalog", label: t("เพิ่มระบบใหม่", "Add a system"), href: "/app?view=catalog", icon: LayoutGrid },
-            ]
-          : [{ id: "accounts", label: t("บัญชีที่เชื่อมไว้", "My accounts"), href: "/app?view=accounts", icon: KeyRound }]),
-        { id: "workspaces", label: t("พื้นที่ทำงาน AI", "AI workspaces"), href: "/app?view=workspaces", icon: Boxes },
-        ...(!canManage && requestsApproval
-          ? [{ id: "approvals", label: t("คำขออนุมัติของฉัน", "My requests"), href: "/app?view=approvals", icon: Inbox }]
-          : []),
-        { id: "knowledge", label: t("คลังความรู้", "Knowledge"), href: "/app?view=knowledge", icon: BookOpen },
-      ],
-    },
-    ...(canManage
-      ? [{
-          id: "team", label: t("ทีมและการควบคุม", "Team & control"),
-          items: [
-            { id: "approvals", label: t("กล่องอนุมัติ", "Approvals"), href: "/app?view=approvals", icon: Inbox, count: pendingApprovals },
-            { id: "members", label: t("สมาชิกและแผนก", "Members & departments"), href: "/app?view=members", icon: Users },
-            { id: "connected-users", label: t("ผู้ใช้ที่เชื่อมบัญชี", "Connected users"), href: "/app?view=connected-users", icon: UserCheck },
-            { id: "executions", label: t("ประวัติการใช้งาน", "Activity"), href: "/app?view=executions", icon: Activity },
+  const platformItem = (id: PlatformSection, key: Parameters<typeof term>[0], icon: typeof House): NavigationItem => ({ id: `platform:${id}`, label: term(key, t), href: platformHref(id), icon });
+  const navigationItems = $derived<NavigationItem[]>(
+    platformMode
+      ? [
+          platformItem("overview", "platformOverview", ChartNoAxesColumn),
+          platformItem("companies", "customerCompanies", Building2),
+          ...(data?.canReviewPilotRequests ? [platformItem("pilots", "pilotRequests", Inbox)] : []),
+          platformItem("signin", "googleSignIn", LogIn),
+          platformItem("oauth-apps", "programOAuthApps", KeyRound),
+          platformItem("catalog", "programCatalog", Grid2x2Plus),
+          platformItem("breakglass", "breakGlass", Shield),
+        ]
+      : canManage
+        ? [
+            { id: "dashboard", label: term("home", t), href: "/app", icon: House },
+            { id: "servers", label: term("programs", t), href: "/app?view=servers", icon: Grid2x2Plus },
+            { id: "workspaces", label: term("workspaces", t), href: "/app?view=workspaces", icon: Boxes },
+            { id: "knowledge", label: term("knowledge", t), href: "/app?view=knowledge", icon: Book },
+            { id: "members", label: term("team", t), href: "/app?view=members", icon: Users },
+            { id: "oversight", label: term("oversight", t), href: "/app?view=approvals", icon: ShieldCheck, count: pendingApprovals },
+          ]
+        : [
+            { id: "dashboard", label: term("home", t), href: "/app", icon: House },
+            { id: "workspaces", label: term("workspaces", t), href: "/app?view=workspaces", icon: Boxes },
+            { id: "knowledge", label: term("knowledge", t), href: "/app?view=knowledge", icon: Book },
+            ...(requestsApproval ? [{ id: "oversight", label: term("myRequests", t), href: "/app?view=approvals", icon: Inbox }] : []),
           ],
-        }]
-      : []),
-    {
-      id: "setup", label: t("ตั้งค่าระบบ", "Setup"),
-      items: [
-        { id: "api-keys", label: t("เชื่อม AI กับ ORCA", "Connect AI to ORCA"), href: "/app?view=api-keys", icon: Sparkles },
-        ...(canManage
-          ? [
-              { id: "connected-apps", label: t("แอปเชื่อมบัญชี (OAuth)", "OAuth apps"), href: "/app?view=connected-apps", icon: KeySquare },
-              { id: "secrets", label: t("ข้อมูลลับ", "Secrets"), href: "/app?view=secrets", icon: LockKeyhole },
-              { id: "organization", label: t("ข้อมูลองค์กร", "Organization"), href: "/app?view=organization", icon: Building2 },
-              { id: "user-sources", label: t("การเข้าสู่ระบบองค์กร", "Sign-in sources"), href: "/app?view=user-sources", icon: ShieldCheck },
-            ]
-          : []),
-      ],
-    },
-  ]);
+  );
   const utilityNavigation = $derived([
-    { id: "settings", label: t("ตั้งค่า", "Settings"), href: "/app?view=settings", icon: Settings },
-    { id: "help", label: t("ช่วยเหลือ", "Help"), href: "/app?view=help", icon: CircleHelp },
+    { id: "settings", label: term("settings", t), href: "/app?view=settings", icon: Settings },
+    { id: "help", label: term("help", t), href: "/app?view=help", icon: CircleHelp },
   ]);
-  const activeView = $derived(activeNavigationView(view));
+  const activeView = $derived(activeNavigationView(view, section));
+  const aiLine = $derived(aiConnectionLine(aiStatus ?? aiConnection, t));
+  const aiConnected = $derived((aiStatus ?? aiConnection)?.state === "connected");
+  // The platform always opens the default company; from another company that is a new page.
+  const platformReload = $derived(company !== DEFAULT_COMPANY);
   const currentPage = $derived(
     view === "new"
-      ? t("สร้างพื้นที่ทำงาน AI", "New AI workspace")
-      : view === "accounts"
-        ? t("บัญชีที่เชื่อมไว้", "My accounts")
-        : [
-            ...navigationGroups.flatMap((group) => group.items),
-            ...utilityNavigation,
-          ].find((item) => item.id === activeView)?.label ||
-          (view === "catalog"
-            ? t("เพิ่มระบบใหม่", "Add a system")
-            : t("หน้าหลัก", "Home")),
+      ? term("newWorkspace", t)
+      : view === "add-program"
+        ? term("addProgram", t)
+        : activeView === "connect-ai"
+          ? term("connectMyAI", t)
+          : [...navigationItems, ...utilityNavigation].find((item) => item.id === activeView)?.label ||
+            (activeView === "oversight" ? term("oversight", t) : term("home", t)),
   );
   const accountInitial = $derived(
     (accountName.trim()[0] || "O").toLocaleUpperCase(),
@@ -253,11 +246,11 @@
     <a
       href={localeHref(companyHref(choice.id))}
       data-sveltekit-reload
-      aria-current={choice.id === company ? "true" : undefined}
+      aria-current={choice.id === company && !platformMode ? "true" : undefined}
       onclick={(event) => switchCompany(event, choice.id)}
     >
       <Building2 size={16} strokeWidth={1.7} aria-hidden="true" /><span>{choice.displayName}</span>
-      {#if choice.id === company}<Check size={15} aria-hidden="true" />{/if}
+      {#if choice.id === company && !platformMode}<Check size={15} aria-hidden="true" />{/if}
     </a>
   {/each}
   {#if switchWaiting}<p class="workspace-company-wait" role="status">{t("กำลังบันทึกอยู่ รอสักครู่แล้วลองอีกครั้ง", "Still saving. Try again in a moment.")}</p>{/if}
@@ -292,37 +285,78 @@
     {/if}
   </div>
 
+  {#if operator}
+    <!-- The ORCA team works in two places: their own company and the platform. -->
+    <nav class="workspace-mode" aria-label={t("เลือกพื้นที่", "Choose an area")}>
+      <a
+        href={localeHref("/app")}
+        class:chosen={!platformMode}
+        aria-current={!platformMode ? "page" : undefined}
+        title={compact ? term("companyMode", t) : undefined}
+        onclick={closeDrawer}
+        ><Building2 size={15} aria-hidden="true" /><span class="workspace-mode-label">{term("companyMode", t)}</span></a
+      >
+      {#if platformReload}<a
+          href={localeHref(platformHref("overview"))}
+          data-sveltekit-reload
+          class:chosen={platformMode}
+          aria-current={platformMode ? "page" : undefined}
+          title={compact ? term("platform", t) : undefined}
+          ><Globe size={15} aria-hidden="true" /><span class="workspace-mode-label">{term("platform", t)}</span></a
+        >{:else}<a
+          href={localeHref(platformHref("overview"))}
+          class:chosen={platformMode}
+          aria-current={platformMode ? "page" : undefined}
+          title={compact ? term("platform", t) : undefined}
+          onclick={closeDrawer}
+          ><Globe size={15} aria-hidden="true" /><span class="workspace-mode-label">{term("platform", t)}</span></a
+        >{/if}
+    </nav>
+  {/if}
+
   <div
     class="workspace-sidebar-scroll"
     id={mobile ? undefined : "workspace-desktop-navigation"}
   >
-    <nav class="workspace-nav" aria-label={t("เมนูหลัก", "Main navigation")}>
-      {#each navigationGroups as group (group.id)}
-        <div class="workspace-nav-group">
-          {#if group.label}
-            <p class="workspace-nav-heading">{group.label}</p>
-          {/if}
-          {#each group.items as item (item.id)}
-            <a
-              href={localeHref(item.href)}
-              onclick={closeDrawer}
-              class:active={activeView === item.id}
-              aria-current={activeView === item.id ? "page" : undefined}
-              aria-label={item.count ? t(`${item.label} รอ ${item.count} รายการ`, `${item.label}, ${item.count} waiting`) : item.label}
-              title={item.label}
-            >
-              <item.icon size={18} strokeWidth={1.7} aria-hidden="true" />
-              <span class="workspace-nav-label">{item.label}</span>
-              {#if item.count}<span class="workspace-nav-count" aria-hidden="true">{item.count > 99 ? "99+" : item.count}</span>{/if}
-            </a>
-          {/each}
-        </div>
-      {/each}
+    <nav class="workspace-nav" aria-label={platformMode ? term("platform", t) : t("เมนูหลัก", "Main navigation")}>
+      <div class="workspace-nav-group">
+        {#each navigationItems as item (item.id)}
+          <a
+            href={localeHref(item.href)}
+            onclick={closeDrawer}
+            class:active={activeView === item.id}
+            aria-current={activeView === item.id ? "page" : undefined}
+            aria-label={item.count ? t(`${item.label} รออนุมัติ ${item.count} รายการ`, `${item.label}, ${item.count} waiting`) : item.label}
+            title={item.label}
+          >
+            <item.icon size={18} strokeWidth={1.7} aria-hidden="true" />
+            <span class="workspace-nav-label">{item.label}</span>
+            {#if item.count}<span class="workspace-nav-count" aria-hidden="true">{item.count > 99 ? "99+" : item.count}</span>{/if}
+          </a>
+        {/each}
+      </div>
     </nav>
   </div>
   <div class="workspace-sidebar-bottom">
+    {#if !platformMode}
+      <a
+        class="workspace-pin"
+        class:active={activeView === "connect-ai"}
+        href={localeHref("/app?view=connect-ai")}
+        onclick={closeDrawer}
+        aria-current={activeView === "connect-ai" ? "page" : undefined}
+        aria-label={`${term("connectMyAI", t)} · ${aiLine}`}
+        title={compact ? `${term("connectMyAI", t)} · ${aiLine}` : undefined}
+      >
+        <Sparkles size={18} strokeWidth={1.7} aria-hidden="true" />
+        <span class="workspace-pin-copy">
+          <strong>{term("connectMyAI", t)}</strong>
+          <small class="workspace-pin-state" class:connected={aiConnected}>{aiLine}</small>
+        </span>
+      </a>
+    {/if}
     <nav
-      class="workspace-nav"
+      class="workspace-nav workspace-utility"
       aria-label={t("การตั้งค่าและความช่วยเหลือ", "Settings and help")}
     >
       {#each utilityNavigation as item (item.id)}
@@ -334,7 +368,7 @@
           aria-label={item.label}
           title={compact ? item.label : undefined}
         >
-          <item.icon size={18} strokeWidth={1.7} aria-hidden="true" />
+          <item.icon size={17} strokeWidth={1.7} aria-hidden="true" />
           <span class="workspace-nav-label">{item.label}</span>
         </a>
       {/each}
@@ -347,9 +381,11 @@
         <span class="workspace-avatar" aria-hidden="true">{accountInitial}</span>
         <span class="workspace-account-copy"
           ><strong>{accountName}</strong><small
-            >{currentUser
-              ? memberRole(currentUser.role)
-              : t("กำลังโหลด…", "Loading…")}</small
+            >{platformMode
+              ? term("orcaTeam", t)
+              : currentUser
+                ? memberRole(currentUser.role)
+                : t("กำลังโหลด…", "Loading…")}</small
           ></span
         >
         <ChevronDown
@@ -364,28 +400,13 @@
         <small>{organization}</small>
         {#if switchable}<small class="workspace-account-heading">{t("เปลี่ยนบริษัท", "Switch company")}</small>{@render companyLinks()}{/if}
         <a
-          href={localeHref("/app?view=accounts")}
+          href={localeHref("/app?view=settings&section=account")}
           onclick={closeDrawer}
-          aria-current={view === "accounts" ? "page" : undefined}
-          ><KeyRound size={17} aria-hidden="true" />{t(
-            "บัญชีที่เชื่อมไว้",
-            "My accounts",
-          )}</a
-        >
-        <a
-          href={localeHref("/app?view=settings&section=preferences")}
-          onclick={closeDrawer}
-          ><Settings size={17} aria-hidden="true" />{t(
-            "การตั้งค่าบัญชี",
-            "Account settings",
-          )}</a
+          ><UserRound size={17} aria-hidden="true" />{term("myAccount", t)}</a
         >
         <ThemeSwitch compact label />
         <a href="/oauth2/sign_out?rd=/"
-          ><LogOut size={17} aria-hidden="true" />{t(
-            "ออกจากระบบ",
-            "Sign out",
-          )}</a
+          ><LogOut size={17} aria-hidden="true" />{term("signOut", t)}</a
         >
       </div>
     </details>
@@ -431,20 +452,25 @@
       >
       <div class="workspace-location">
         <div class="workspace-organization">
-          <Building2 size={16} strokeWidth={1.6} aria-hidden="true" />
-          {#if switchable}
-            <details class="workspace-company-switch">
-              <summary aria-label={t(`บริษัท ${organization} เปลี่ยนบริษัท`, `Company: ${organization}. Switch company`)}>
-                <span title={organization}>{organization}</span>
-                <ChevronDown size={14} aria-hidden="true" />
-              </summary>
-              <div class="workspace-company-menu">
-                <small>{t("เปลี่ยนบริษัท", "Switch company")}</small>
-                {@render companyLinks()}
-              </div>
-            </details>
+          {#if platformMode}
+            <Globe size={16} strokeWidth={1.6} aria-hidden="true" />
+            <span title={term("platform", t)}>{term("platform", t)}</span>
           {:else}
-            <span title={organization}>{organization}</span>
+            <Building2 size={16} strokeWidth={1.6} aria-hidden="true" />
+            {#if switchable}
+              <details class="workspace-company-switch">
+                <summary aria-label={t(`บริษัท ${organization} เปลี่ยนบริษัท`, `Company: ${organization}. Switch company`)}>
+                  <span title={organization}>{organization}</span>
+                  <ChevronDown size={14} aria-hidden="true" />
+                </summary>
+                <div class="workspace-company-menu">
+                  <small>{t("เปลี่ยนบริษัท", "Switch company")}</small>
+                  {@render companyLinks()}
+                </div>
+              </details>
+            {:else}
+              <span title={organization}>{organization}</span>
+            {/if}
           {/if}
         </div>
         <span class="workspace-breadcrumb-divider" aria-hidden="true">/</span>
@@ -468,4 +494,5 @@
       {@render children()}
     </main>
   </div>
+  <Toast />
 </div>

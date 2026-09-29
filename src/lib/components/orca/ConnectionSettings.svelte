@@ -72,13 +72,13 @@
   const workspaces = $derived(
     data.hubs.filter((item) => gatewayUsesConnection(item, initialConnectionID) && item.status !== 'deleted'),
   );
-  const requestedTab = $derived(page.url.searchParams.get("tab") || (connection ? "overview" : "account"));
+  // The account tab folds into ภาพรวม ("เชื่อมด้วยบัญชีของคุณ").
+  const requestedTab = $derived(page.url.searchParams.get("tab") === "account" ? "overview" : page.url.searchParams.get("tab") || "overview");
   const tab = $derived(connection?.archivedAt && !['workspaces', 'activity'].includes(requestedTab) ? 'overview' : requestedTab);
   const tabs = $derived([
     { id: "overview", name: t("ภาพรวม", "Overview") },
     ...(!connection?.archivedAt ? [
-      { id: "account", name: t("บัญชี", "Account") },
-      { id: "tools", name: t("เครื่องมือและสิทธิ์", "Tools and permissions") }
+      { id: "tools", name: t("สิ่งที่ AI ทำได้", "What AI can do") }
     ] : []),
     { id: "workspaces", name: t("พื้นที่ทำงาน AI", "AI workspaces") },
     { id: "activity", name: t("ประวัติการใช้งาน", "Activity") },
@@ -172,25 +172,6 @@
   </nav>{/if}
 {#if connection?.archivedAt && tab === 'overview'}
   <section class="detail-card"><header class="detail-card-head"><h2>{t('รายละเอียดระบบที่จัดเก็บแล้ว', 'Archived system details')}</h2></header><p class="detail-note">{connection.toolNames.length} {t('เครื่องมือ', 'tools')} · {workspaces.length} {t('พื้นที่ทำงาน AI', 'AI workspaces')}</p><p class="detail-note">{t('การตั้งค่าและบัญชีที่เชื่อมไว้ยังคงอยู่ กู้คืนและตรวจสอบระบบก่อนเปิดให้ทีมใช้งานอีกครั้ง', 'Settings and connected accounts are retained. Restore and review this system before giving your team access again.')}</p></section>
-{:else if tab === "account" && connection && !data.canManage}
-  <section class="detail-card">
-    <header class="detail-card-head"><h2>{t("บัญชีของระบบ", "System account")}</h2></header>
-    <p class="detail-note">
-      {t(
-        "ติดต่อผู้ดูแลระบบขององค์กรเพื่อตรวจสอบหรือตั้งค่าบัญชีของระบบนี้",
-        "Contact your administrator to review or set up the account for this system.",
-      )}
-    </p>
-  </section>
-{:else if tab === "account" && connection}
-  <SourceSetup
-    sourceID={connection.mcpID}
-    sourceLabel={catalogNames[connection.mcpID] || ""}
-    endpointHost={catalogHosts[connection.mcpID] || ""}
-    managedProvider={catalogProviders[connection.mcpID]}
-    canCreate={data.canManage}
-  />
-  <a class="detail-next" href={href("tools")}>{t("จัดการเครื่องมือและสิทธิ์", "Manage tools and permissions")}<ArrowRight size={16} aria-hidden="true" /></a>
 {:else if !connection}
   <div class="connection-editor">
     <Connections
@@ -315,10 +296,8 @@
         <span class="detail-step-number">1</span>
         <div>
           <strong>{t("บัญชีของระบบ", "System account")}</strong>
+          {#if data.canManage}<p>{t("เชื่อมด้วยบัญชีของคุณ ดูด้านล่าง", "Connected with your account. See below.")}</p>{/if}
         </div>
-        <a class="k-button small" href={href("account")}
-          >{t("จัดการบัญชี", "Manage account")}<ArrowRight size={16} aria-hidden="true" /></a
-        >
       </li>
       <li>
         <span class="detail-step-number">2</span>
@@ -381,10 +360,22 @@
         </div>{/if}
     </dl>
   </section>
+  {#if data.canManage}<section class="detail-account" aria-label={t("เชื่อมด้วยบัญชีของคุณ", "Connected with your account")}>
+      <SourceSetup
+        sourceID={connection.mcpID}
+        sourceLabel={catalogNames[connection.mcpID] || ""}
+        endpointHost={catalogHosts[connection.mcpID] || ""}
+        managedProvider={catalogProviders[connection.mcpID]}
+        canCreate={data.canManage}
+      />
+    </section>{/if}
 {/if}
 </div>
 
 <style>
+  .detail-account {
+    margin-top: 16px;
+  }
   .detail {
     min-width: 0;
     color: var(--orca-ink);
@@ -703,19 +694,6 @@
   }
   .detail :global(.source-setup) {
     margin-bottom: 0;
-  }
-  .detail-next {
-    display: flex;
-    width: fit-content;
-    align-items: center;
-    gap: 6px;
-    margin-top: 16px;
-    color: var(--orca-ink);
-    font-size: 14px;
-    font-weight: 500;
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
   }
   @media (max-width: 760px) {
     .detail-head {

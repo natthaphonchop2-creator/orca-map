@@ -7,7 +7,7 @@
   let { hub }: { hub: OrcaHub } = $props();
   let copied = $state(false);
   let copyError = $state(false);
-  const connectPath = $derived(localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}&tab=connect`));
+  const connectPath = $derived(localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}&tab=overview`));
   const shareURL = $derived.by(() => {
     try { gatewayClientConfig(hub.connectURL, 'codex', true); return hub.connectURL; }
     catch { return ''; }
@@ -38,7 +38,7 @@
     </div>
     {:else}<p class="copy-error" role="alert">{t('ยังไม่มีลิงก์เชื่อม AI สำหรับพื้นที่ทำงานนี้ กรุณาเปิดพื้นที่ทำงานเพื่อตรวจสอบอีกครั้ง', 'The AI connection link for this workspace is not available yet. Open the workspace to check again.')}</p>{/if}
     <div class="complete-actions">
-      <a class="k-button primary" href={localeHref('/app?view=settings&section=ai')}>{t('ดูวิธีเชื่อม AI กับ ORCA', 'How to connect AI to ORCA')}<ArrowRight size={16} aria-hidden="true" /></a>
+      <a class="k-button primary" href={localeHref('/app?view=connect-ai')}>{t('เชื่อม AI ของฉัน', 'Connect my AI')}<ArrowRight size={16} aria-hidden="true" /></a>
       <a class="k-button" href={connectPath}>{t('เปิดพื้นที่ทำงาน AI', 'Open AI workspace')}</a>
     </div>
     {#if copied}<p class="copy-status" role="status">{t('คัดลอกลิงก์แล้ว', 'Link copied')}</p>{/if}

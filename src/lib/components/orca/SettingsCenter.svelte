@@ -1,100 +1,95 @@
 <script lang="ts">
+  import { goto } from "$app/navigation";
   import { page } from "$app/state";
+  import { term } from "$lib/orca/glossary";
   import { localeHref, t } from "$lib/orca/locale.svelte";
-  import type { OrcaBootstrap } from "$lib/services/orca";
-  import { ArrowRight, BookOpen, Globe } from "@lucide/svelte";
-  import LocaleSwitch from "./LocaleSwitch.svelte";
-  import PilotInbox from "./PilotInbox.svelte";
-  import PlatformCompanies from "./PlatformCompanies.svelte";
-  import OrcaMCPAccess from "./OrcaMCPAccess.svelte";
+  import {
+    advancedFallback,
+    settingsSection,
+    settingsSections,
+    type SignInSources,
+  } from "$lib/orca/settings-sections";
+  import { memberName, memberRole, type OrcaBootstrap } from "$lib/services/orca";
+  import { OrcaUserSourcesService } from "$lib/services/orca-user-sources";
+  import { ArrowRight, UserRound } from "@lucide/svelte";
+  import { onMount } from "svelte";
+  import OrganizationSettings from "./OrganizationSettings.svelte";
   import ThemeSetting from "./ThemeSetting.svelte";
+  import UserSources from "./UserSources.svelte";
+  import PageHeader from "./ui/PageHeader.svelte";
+
+  // ตั้งค่า: บริษัท (company name and logo), บัญชีของฉัน (theme; the language
+  // is in the top bar only) and ขั้นสูง (the company's own SSO, only once it
+  // has a sign-in source). Platform settings are in the platform area.
   let {
     data,
+    activeData,
     onchanged,
-  }: { data: OrcaBootstrap; onchanged: () => Promise<void> } = $props();
-  const section = $derived(
-    ["ai", "additional", "companies", "owner"].includes(page.url.searchParams.get("section") || "")
-      ? page.url.searchParams.get("section")
-      : "preferences",
-  );
-  const tabs = $derived([
-    { id: "preferences", label: t("ทั่วไป", "General") },
-    { id: "ai", label: t("เชื่อมต่อ AI", "Connect AI") },
-    { id: "additional", label: t("ความสามารถเพิ่มเติม", "Additional features") },
-    // The platform operator opens customer companies and hands them over.
-    ...(data.platformOperator
-      ? [{ id: "companies", label: t("บริษัทลูกค้า", "Customer companies") }]
-      : []),
-    ...(data.canReviewPilotRequests
-      ? [{ id: "owner", label: t("คำขอทดลองใช้", "Pilot requests") }]
-      : []),
-  ]);
+  }: {
+    data: OrcaBootstrap;
+    /** The company's data without archived and removed records. */
+    activeData?: OrcaBootstrap;
+    onchanged: () => Promise<void>;
+  } = $props();
+  let sources = $state<SignInSources>("unknown");
+  onMount(() => {
+    if (!data.canManage) return;
+    let alive = true;
+    OrcaUserSourcesService.list()
+      .then((result) => {
+        if (alive) sources = result.items.length ? "some" : "none";
+      })
+      .catch(() => {
+        if (alive) sources = "error";
+      });
+    return () => {
+      alive = false;
+    };
+  });
+  const requested = $derived(page.url.searchParams.get("section"));
+  const canManage = $derived(data.canManage === true);
+  const section = $derived(settingsSection(requested, canManage, sources));
+  const labels = $derived({ company: term("company", t), account: term("myAccount", t), advanced: term("advanced", t) });
+  const tabs = $derived(settingsSections(canManage, sources));
+  const currentUser = $derived(data.members.find((member) => member.id === data.currentUserID));
+  $effect(() => {
+    const fallback = advancedFallback(requested, canManage, sources);
+    if (fallback) void goto(localeHref(fallback), { replaceState: true });
+  });
 </script>
 
-<div class="k-intro">
-  <h1>{t("ตั้งค่า", "Settings")}</h1>
-  <p class="k-subtitle">
-    {t(
-      "จัดการภาษาที่แสดง ธีม การเชื่อมต่อ AI และการตั้งค่าอื่นของบัญชีคุณ",
-      "Manage your display language, theme, AI connection and other account settings.",
-    )}
-  </p>
-</div>
-<nav
-  class="settings-tabs"
-  aria-label={t("หมวดการตั้งค่า", "Settings sections")}
->
-  {#each tabs as tab}<a
-      href={localeHref(`/app?view=settings&section=${tab.id}`)}
-      class:chosen={section === tab.id}
-      aria-current={section === tab.id ? "page" : undefined}>{tab.label}</a
-    >{/each}
-</nav>
-{#if section === "preferences"}<section class="settings-panel">
+<PageHeader
+  title={term("settings", t)}
+  subtitle={canManage
+    ? t("ข้อมูลบริษัทและการตั้งค่าบัญชีของคุณ", "Your company's details and your own account settings.")
+    : t("การตั้งค่าบัญชีของคุณ", "Your account settings.")}
+/>
+{#if tabs.length > 1}<nav
+    class="settings-tabs"
+    aria-label={t("หมวดการตั้งค่า", "Settings sections")}
+  >
+    {#each tabs as tab (tab)}<a
+        href={localeHref(`/app?view=settings&section=${tab}`)}
+        class:chosen={section === tab}
+        aria-current={section === tab ? "page" : undefined}>{labels[tab]}</a
+      >{/each}
+  </nav>{/if}
+{#if section === "company" && canManage}
+  <OrganizationSettings data={activeData ?? data} {onchanged} embedded />
+{:else if section === "advanced" && canManage}
+  <UserSources data={activeData ?? data} />
+{:else}<section class="settings-panel" aria-labelledby="settings-account-title">
     <div class="settings-panel-head">
       <div>
-        <h2><Globe size={18} />{t("ภาษาที่แสดง", "Display language")}</h2>
+        <h2 id="settings-account-title"><UserRound size={18} />{term("myAccount", t)}</h2>
         <p>
-          {t(
-            "เลือกภาษาไทยหรือภาษาอังกฤษสำหรับการแสดงผลของ ORCA",
-            "Choose Thai or English as the ORCA display language.",
-          )}
+          {#if currentUser}{[memberName(currentUser), currentUser.email, memberRole(currentUser.role)].filter(Boolean).join(" · ")}{/if}
         </p>
+        <p>{t("เปลี่ยนภาษาได้ที่มุมขวาบน · ชื่อและอีเมลมาจากบัญชี Google ของคุณ", "Change the language at the top right. Your name and email come from your Google account.")}</p>
       </div>
-      <LocaleSwitch />
     </div>
     <ThemeSetting />
   </section>
-{:else if section === "ai"}<OrcaMCPAccess {data} />
-{:else if section === "additional"}<section class="settings-panel">
-    <div class="settings-panel-head">
-      <div>
-        <h2>
-          <BookOpen size={18} />{t(
-            "คลังความรู้ (Orca Cloud)",
-            "Knowledge (Orca Cloud)",
-          )}
-        </h2>
-        <p>
-          {t(
-            "จัดการบทความความรู้และแม่แบบในพื้นที่ทำงาน AI ที่คุณมีสิทธิ์",
-            "Manage knowledge articles and templates in the AI workspaces you can access.",
-          )}
-        </p>
-      </div>
-      <a class="k-button small" href={localeHref("/app?view=knowledge")}
-        >{t("เปิดคลังความรู้", "Open Knowledge")}<ArrowRight
-          size={16}
-        /></a
-      >
-    </div>
-  </section>
-{:else if section === "companies" && data.platformOperator}<PlatformCompanies />
-{:else if section === "owner" && data.canReviewPilotRequests}<div
-    class="settings-embedded"
-  >
-    <PilotInbox />
-  </div>
 {/if}
 <a class="settings-help-link" href={localeHref("/app?view=help")}
   >{t(
@@ -106,8 +101,8 @@
 <style>
   .settings-tabs {
     display: flex;
-    gap: 20px;
-    margin: 0 0 20px;
+    gap: 24px;
+    margin: 0 0 24px;
     overflow-x: auto;
     box-shadow: inset 0 -1px 0 var(--orca-line);
     scrollbar-width: none;
@@ -119,7 +114,7 @@
     padding: 0 2px;
     border-bottom: 2px solid transparent;
     color: var(--orca-muted);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 500;
     text-decoration: none;
     white-space: nowrap;
@@ -129,7 +124,7 @@
     text-decoration: none;
   }
   .settings-tabs a.chosen {
-    border-bottom-color: var(--orca-ink);
+    border-bottom-color: var(--orca-tab-indicator, var(--orca-ink));
     color: var(--orca-ink);
     font-weight: 600;
   }

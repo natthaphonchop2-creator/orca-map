@@ -915,7 +915,7 @@
 								{/each}
 							</select>
 							<div class="setup-identity-actions">
-								<a href={localeHref('/app?view=user-sources')}>{t('จัดการการเข้าสู่ระบบองค์กร', 'Manage sign-in sources')}</a>
+								<a href={localeHref('/app?view=settings&section=advanced')}>{t('จัดการ SSO ของบริษัท', 'Manage company SSO')}</a>
 								{#if loadingUserSources}<span role="status">{t('กำลังโหลด…', 'Loading…')}</span>{/if}
 							</div>
 							{#if userSourcesError}<div class="k-banner error" role="alert"><div>{userSourcesError}<button type="button" class="k-link-button" disabled={loadingUserSources} onclick={loadUserSources}>{t('โหลดการเข้าสู่ระบบองค์กรอีกครั้ง', 'Reload sign-in sources')}</button></div></div>{/if}
@@ -1195,7 +1195,7 @@
 							{:else if errorSection === 'elsewhere' && editingID}
 								<a
 									class="k-link-button"
-									href={localeHref(`/app?view=new&edit=${encodeURIComponent(editingID)}`)}
+									href={localeHref(`/app?view=hub&hub=${encodeURIComponent(editingID)}&tab=settings`)}
 									>{t('เปิดหน้าแก้ไขทั้งหมด', 'Open the full editor')}</a
 								>
 							{:else if !savedHub}

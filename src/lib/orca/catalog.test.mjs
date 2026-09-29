@@ -89,9 +89,11 @@ test('setup link preserves exact candidate identity without query injection', ()
 	const id = 'custom/source & add=source#test';
 	const url = new URL(catalogSetupHref(id), 'https://orca.example');
 	assert.equal(url.pathname, '/app');
-	assert.equal(url.searchParams.get('view'), 'servers');
+	// Step 2 of adding a program (the add-program stepper).
+	assert.equal(url.searchParams.get('view'), 'add-program');
 	assert.equal(url.searchParams.get('source'), id);
-	assert.equal(url.searchParams.size, 2);
+	assert.equal(url.searchParams.get('step'), 'connect');
+	assert.equal(url.searchParams.size, 3);
 	assert.equal(url.hash, '');
 });
 

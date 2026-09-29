@@ -1,0 +1,49 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { render } from 'svelte/server';
+import { importTypeScript } from '../../orca/test-import.mjs';
+import { serverComponent } from './test-render.mjs';
+
+const contract = await importTypeScript(new URL('./ui/page-contract.ts', import.meta.url));
+const { titleWithinContract, subtitleWithinContract, visibleLength } = contract;
+
+test('the page contract: a title of at most 4 words, one line of about 80 Thai characters', () => {
+	for (const title of ['เชื่อม AI ของฉัน', 'แอป AI ที่เชื่อมอยู่', 'ตั้งค่า', 'ภาพรวมแพลตฟอร์ม', 'Connect my AI', 'Connected AI apps']) {
+		assert.ok(titleWithinContract(title), title);
+	}
+	assert.equal(titleWithinContract('คีย์และการเข้าสู่ระบบที่ใช้เชื่อม AI กับ ORCA ทั้งหมด'), false);
+	assert.equal(titleWithinContract('One two three four five'), false);
+	assert.equal(titleWithinContract('  '), false);
+	assert.ok(subtitleWithinContract('ให้ Claude หรือ ChatGPT ใช้ข้อมูลบริษัทได้ ทำครั้งเดียว ประมาณ 3 นาที ไม่ต้องใช้คีย์'));
+	assert.ok(subtitleWithinContract(undefined));
+	assert.equal(subtitleWithinContract('ก'.repeat(91)), false);
+	assert.equal(subtitleWithinContract('one\ntwo'), false);
+	// Thai tone marks and vowels above or below a letter are not extra characters.
+	assert.equal(visibleLength('ที่'), 1);
+});
+
+test('PageHeader renders one h1, its line, a status pill and at most one action', async () => {
+	const { warnings, Component } = await serverComponent(new URL('./ui/PageHeader.svelte', import.meta.url), {
+		StatusPill: (renderer, props) => renderer.push(`<span data-pill="${props.tone}">${props.label}</span>`),
+	});
+	assert.deepEqual(warnings, []);
+	const html = render(Component, { props: { title: 'Connect my AI', subtitle: 'Once, about 3 minutes.', status: { label: 'Not connected' }, back: { href: '/app', label: 'Home' } } }).body;
+	assert.equal(html.match(/<h1/g)?.length, 1);
+	assert.match(html, /<h1 id="orca-page-title"[^>]*>Connect my AI<\/h1>/);
+	assert.match(html, /<p class="orca-page-subtitle[^"]*">Once, about 3 minutes.<\/p>/);
+	assert.match(html, /data-pill="neutral">Not connected/);
+	assert.match(html, /href="\/app"/);
+	assert.doesNotMatch(html, /orca-page-action/);
+});
+
+test('StatusPill and EmptyState stay within their contract', async () => {
+	const pill = await serverComponent(new URL('./ui/StatusPill.svelte', import.meta.url), {});
+	assert.deepEqual(pill.warnings, []);
+	assert.match(render(pill.Component, { props: { label: 'Ready', tone: 'ok', dot: true } }).body, /class="orca-pill ok[^"]*"[^>]*>(?:<!--[^>]*-->)*<span class="orca-pill-dot[^"]*" aria-hidden="true"><\/span>(?:<!--[^>]*-->)*Ready/);
+	const empty = await serverComponent(new URL('./ui/EmptyState.svelte', import.meta.url), {});
+	assert.deepEqual(empty.warnings, []);
+	const html = render(empty.Component, { props: { message: 'No programs yet.', actionLabel: 'Connect a program', href: '/app?view=add-program' } }).body;
+	assert.match(html, /<p[^>]*>No programs yet.<\/p>/);
+	assert.equal(html.match(/<a |<button /g)?.length, 1, 'one button');
+	assert.doesNotMatch(render(empty.Component, { props: { message: 'Nothing here.' } }).body, /<a |<button /);
+});

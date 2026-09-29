@@ -690,12 +690,13 @@ export const memberName = (member: OrcaMember) =>
   member.displayName || member.email || member.id;
 export function memberRole(role: string | number): string {
   const key = organizationRole(role);
+  // Company roles by the glossary; the ORCA operator is "ทีม ORCA" elsewhere.
   return key === "owner"
-    ? t("เจ้าของระบบ", "Owner")
+    ? t("เจ้าของบริษัท", "Company owner")
     : key === "admin"
-      ? t("ผู้ดูแลระบบ", "Admin")
+      ? t("ผู้ดูแล", "Admin")
       : key === "employee"
-        ? t("สมาชิกทั่วไป", "Member")
+        ? t("พนักงาน", "Employee")
         : t("ยังไม่กำหนดบทบาท", "Role not assigned");
 }
 export function displayDate(value?: string): string {

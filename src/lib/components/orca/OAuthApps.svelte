@@ -381,7 +381,7 @@
       <aside class="ready-note">
         <Check size={16} aria-hidden="true" />
         <p>{t(`อีก ${apps.readyToSignIn} ระบบเชื่อมด้วย OAuth ได้ทันที ไม่ต้องตั้งค่าแอป`, `${apps.readyToSignIn} more systems connect with OAuth right away, with no app to set up.`)}</p>
-        <a href={localeHref("/app?view=catalog")}>{t("ดูระบบทั้งหมด", "Browse systems")}<ArrowRight size={14} aria-hidden="true" /></a>
+        <a href={localeHref("/app?view=add-program")}>{t("ดูระบบทั้งหมด", "Browse systems")}<ArrowRight size={14} aria-hidden="true" /></a>
       </aside>
     {/if}
   {/if}

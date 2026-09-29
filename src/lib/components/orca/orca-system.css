@@ -45,7 +45,7 @@
   --o-line: var(--orca-line);
   --o-citron: var(--orca-citron);
   --o-violet: var(--orca-ink);
-  --k-sidebar-width: 240px;
+  --k-sidebar-width: 248px;
   --k-header: 56px;
   background: var(--orca-bg);
   color: var(--orca-ink);
@@ -244,6 +244,151 @@
   font-size: 14px;
   font-weight: 500;
   transition: background-color 0.15s var(--orca-ease), color 0.15s var(--orca-ease);
+}
+
+/* ---------- Sidebar v4 (workspace UX, U1) ---------- */
+/* Flat items at the approved mockup's size, the ORCA team's "บริษัท | แพลตฟอร์ม ORCA"
+   switch, and the pinned "เชื่อม AI ของฉัน" button above ตั้งค่า and ช่วยเหลือ. */
+.orca-workspace.orca-app .workspace-nav a {
+  min-height: 40px;
+  padding: 9px 10px;
+  font-size: 15px;
+}
+.orca-workspace.orca-app .workspace-nav a svg {
+  width: 18px;
+  height: 18px;
+}
+.orca-workspace.orca-app .workspace-sidebar-bottom {
+  margin-top: 12px;
+  padding-top: 0;
+  border-top: 0;
+}
+.orca-workspace.orca-app .workspace-sidebar-bottom .workspace-utility {
+  gap: 1px;
+  margin-top: 10px;
+}
+.orca-workspace.orca-app .workspace-utility a {
+  min-height: 36px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+.orca-workspace.orca-app .workspace-utility a svg {
+  width: 17px;
+  height: 17px;
+}
+.orca-workspace.orca-app .workspace-account {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--orca-line);
+}
+.orca-workspace.orca-app .workspace-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0 4px 14px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--orca-secondary);
+}
+.orca-workspace.orca-app .workspace-mode a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: var(--orca-muted);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s var(--orca-ease), color 0.15s var(--orca-ease);
+}
+.orca-workspace.orca-app .workspace-mode a svg {
+  display: none;
+  flex: none;
+}
+.orca-workspace.orca-app .workspace-mode a:not(.chosen):hover {
+  color: var(--orca-ink);
+}
+.orca-workspace.orca-app .workspace-mode a.chosen {
+  background: var(--orca-ink);
+  color: var(--orca-on-ink, #fff);
+  font-weight: 600;
+}
+.orca-workspace.orca-app .compact .workspace-mode {
+  grid-template-columns: 1fr;
+  gap: 2px;
+  margin-inline: 0;
+  border-radius: 12px;
+}
+.orca-workspace.orca-app .compact .workspace-mode a svg {
+  display: block;
+}
+.orca-workspace.orca-app .compact .workspace-mode-label {
+  display: none;
+}
+.orca-workspace.orca-app .workspace-pin {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--orca-line-strong);
+  border-radius: var(--orca-radius-lg);
+  background: var(--orca-surface);
+  color: var(--orca-ink);
+  text-decoration: none;
+  transition: border-color 0.15s var(--orca-ease), box-shadow 0.15s var(--orca-ease);
+}
+.orca-workspace.orca-app .workspace-pin:hover {
+  border-color: var(--orca-line-hover, var(--orca-line-strong));
+  text-decoration: none;
+}
+.orca-workspace.orca-app .workspace-pin.active {
+  border-color: var(--orca-chosen);
+  box-shadow: 0 0 0 1px var(--orca-chosen);
+}
+.orca-workspace.orca-app .workspace-pin svg {
+  flex: none;
+}
+.orca-workspace.orca-app .workspace-pin-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.35;
+}
+.orca-workspace.orca-app .workspace-pin-copy strong {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.orca-workspace.orca-app .workspace-pin-state {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--orca-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.orca-workspace.orca-app .workspace-pin-state::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.orca-workspace.orca-app .workspace-pin-state.connected {
+  color: var(--orca-ok);
+}
+.orca-workspace.orca-app .compact .workspace-pin {
+  justify-content: center;
+  padding: 10px 5px;
+}
+.orca-workspace.orca-app .compact .workspace-pin-copy {
+  display: none;
 }
 
 /* ---------- Top bar and content ---------- */

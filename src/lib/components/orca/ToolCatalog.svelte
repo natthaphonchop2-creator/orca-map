@@ -18,6 +18,7 @@
     toolWorkspaceHref,
   } from "$lib/orca/tool-inventory";
   import { localeHref, t } from "$lib/orca/locale.svelte";
+  import { addByLinkHref } from "$lib/orca/navigation";
   import {
     OrcaService,
     orcaError,
@@ -132,7 +133,8 @@
     );
   }
   function sourceHref(source: CatalogTool) {
-    if (source.guideOnly) return localeHref("/app?view=servers&add=source");
+    // Adding by an MCP link is the ORCA team's (platform › คลังโปรแกรม).
+    if (source.guideOnly) return localeHref(addByLinkHref());
     const connection = sourceConnection(source);
     return localeHref(
       connection
@@ -279,10 +281,10 @@
         </button>{/if}
       </div>
       {:else}<div class="source-actions guide-actions">
-        <span>{t("ต้องมี URL ของ MCP ที่ใช้งานได้อยู่แล้ว", "Requires a working MCP URL.")}</span>
-        <a class="k-button" href={sourceHref(source)}>{source.protocol === "API"
+        <span>{data.platformOperator ? t("ต้องมี URL ของ MCP ที่ใช้งานได้อยู่แล้ว", "Requires a working MCP URL.") : t("ขอให้ทีม ORCA เพิ่มโปรแกรมนี้ให้", "Ask the ORCA team to add this program.")}</span>
+        {#if data.platformOperator}<a class="k-button" href={sourceHref(source)}>{source.protocol === "API"
           ? t("เชื่อมต่อผ่านตัวเชื่อม MCP ขององค์กร", "Connect through your MCP adapter")
-          : t("เพิ่มระบบด้วย MCP URL", "Add a system with an MCP URL")}<ArrowRight size={16} aria-hidden="true" /></a>
+          : t("เพิ่มด้วยลิงก์ MCP", "Add by MCP link")}<ArrowRight size={16} aria-hidden="true" /></a>{/if}
       </div>{/if}
     </div>
   </details>
@@ -291,12 +293,12 @@
 <section class="tool-library" aria-label={t("คลังระบบ", "System catalog")}>
   <header class="catalog-heading">
     <div>
-      <h1>{t("เพิ่มระบบใหม่", "Add a system")}</h1>
+      <h1>{t("เชื่อมโปรแกรม", "Connect a program")}</h1>
     </div>
-    {#if data.canManage}<a
+    {#if data.platformOperator}<a
         class="k-button"
-        href={localeHref("/app?view=servers&add=source")}
-        ><CirclePlus size={16} aria-hidden="true" />{t("เพิ่มระบบด้วย MCP URL", "Add a system with an MCP URL")}</a
+        href={localeHref(addByLinkHref())}
+        ><CirclePlus size={16} aria-hidden="true" />{t("เพิ่มด้วยลิงก์ MCP", "Add by MCP link")}</a
       >{/if}
   </header>
   {#if !data.canManage}

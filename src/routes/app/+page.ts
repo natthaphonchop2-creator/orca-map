@@ -1,6 +1,6 @@
 import type { PageLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
-import { companyPinned, rememberedCompany, resolvePlace, setPageCompany, type CompanyPlace } from '$lib/orca/company';
+import { companyPinned, DEFAULT_COMPANY, rememberedCompany, resolvePlace, setPageCompany, type CompanyPlace } from '$lib/orca/company';
 import { parseErrorContent } from '$lib/errors';
 import { OrcaService } from '$lib/services/orca';
 import { setPageAccount } from '$lib/services/writes';
@@ -20,7 +20,15 @@ export const load: PageLoad = async ({ parent, url }) => {
 	}
 	// Every request this page makes names this account, its first included.
 	setPageAccount(profile.id);
-	const explicit = url.searchParams.get('org');
+	// The platform area (the ORCA team's) always opens the default company,
+	// whatever company another address or tab chose (workspace UX critique 12).
+	const platform = url.searchParams.get('view') === 'platform';
+	if (platform && url.searchParams.has('org') && url.searchParams.get('org') !== DEFAULT_COMPANY) {
+		const target = new URL(url);
+		target.searchParams.set('org', DEFAULT_COMPANY);
+		throw redirect(307, `${target.pathname}${target.search}${target.hash}`);
+	}
+	const explicit = platform ? DEFAULT_COMPANY : url.searchParams.get('org');
 	place ??= (async () => {
 		// An older server has no list (404): it opens "default", as before
 		// companies. Any other failure opens nothing.

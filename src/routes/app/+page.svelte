@@ -2,11 +2,8 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import CompanyGate from "$lib/components/orca/CompanyGate.svelte";
-  import { companyDenied, reloadForAddress } from "$lib/orca/company";
+  import { companyDenied, currentCompany, DEFAULT_COMPANY, reloadForAddress } from "$lib/orca/company";
   import { guardPage, reloadForAccount } from "$lib/services/writes";
-  import Approvals from "$lib/components/orca/Approvals.svelte";
-  import Audit from "$lib/components/orca/Audit.svelte";
-  import OrganizationSettings from "$lib/components/orca/OrganizationSettings.svelte";
   import WorkspaceDetail from "$lib/components/orca/WorkspaceDetail.svelte";
   import WorkspaceWizard from "$lib/components/orca/WorkspaceWizard.svelte";
   import GatewayCreated from "$lib/components/orca/GatewayCreated.svelte";
@@ -15,33 +12,28 @@
   import WorkspaceDashboard from "$lib/components/orca/WorkspaceDashboard.svelte";
   import AppOverview from "$lib/components/orca/AppOverview.svelte";
   import AppShell from "$lib/components/orca/AppShell.svelte";
-  import MyConnections from "$lib/components/orca/MyConnections.svelte";
-  import OAuthApps from "$lib/components/orca/OAuthApps.svelte";
-  import Secrets from "$lib/components/orca/Secrets.svelte";
   import ConnectionCenter from "$lib/components/orca/ConnectionCenter.svelte";
   import ConnectionSettings from "$lib/components/orca/ConnectionSettings.svelte";
-  import ConnectedUsers from "$lib/components/orca/ConnectedUsers.svelte";
-  import FeatureScaffold from "$lib/components/orca/FeatureScaffold.svelte";
-  import UserSources from "$lib/components/orca/UserSources.svelte";
   import SettingsCenter from "$lib/components/orca/SettingsCenter.svelte";
   import KnowledgeLibrary from "$lib/components/orca/KnowledgeLibrary.svelte";
-  import PilotInbox from "$lib/components/orca/PilotInbox.svelte";
-  import TeamAccess from "$lib/components/orca/TeamAccess.svelte";
-  import ToolCatalog from "$lib/components/orca/ToolCatalog.svelte";
   import WorkspaceSetup from "$lib/components/orca/WorkspaceSetup.svelte";
+  import AddProgramView from "$lib/components/orca/views/AddProgramView.svelte";
+  import ConnectAIView from "$lib/components/orca/views/ConnectAIView.svelte";
+  import OversightView from "$lib/components/orca/views/OversightView.svelte";
+  import PlatformView from "$lib/components/orca/views/PlatformView.svelte";
+  import TeamView from "$lib/components/orca/views/TeamView.svelte";
+  import WorkspaceSettingsView from "$lib/components/orca/views/WorkspaceSettingsView.svelte";
   import "$lib/components/orca/orca.css";
   import { initializeLocale, localeHref, t } from "$lib/orca/locale.svelte";
-  import { appNavigation } from "$lib/orca/navigation";
-  import { gatewayHasMember } from "$lib/orca/gateway-sources";
-  import { getFeatureDefinition } from "$lib/orca/feature-registry";
+  import { appNavigation, type PlatformSection } from "$lib/orca/navigation";
   import {
     OrcaService,
     orcaError,
     type OrcaBootstrap,
     type OrcaHub,
   } from "$lib/services/orca";
-  import { ArrowRight, Folder, Info, KeyRound, LoaderCircle } from "@lucide/svelte";
-  import { onMount } from "svelte";
+  import { Folder, Info, LoaderCircle } from "@lucide/svelte";
+  import { onMount, untrack } from "svelte";
   import type { PageProps } from "./$types";
 
   // The company this page opens was picked before it rendered (+page.ts).
@@ -58,16 +50,14 @@
   let error = $state("");
   let refreshing = $state(false);
   let refreshGeneration = 0;
-  let wizardRevision = $state(0);
   let pendingApprovals = $state(0);
   let approvalsGeneration = 0;
-  const navigation = $derived(appNavigation(page.url.searchParams));
+  // Every old address still works: it is sent to its new home once the
+  // company's data (and so the viewer's role) is known.
+  const navigation = $derived(appNavigation(page.url.searchParams, { hash: page.url.hash, role: data, hubs: data?.hubs }));
   const view = $derived(navigation.view);
-  const plannedFeature = $derived(getFeatureDefinition(view));
-  const personalHubs = $derived.by(() => {
-    const current = data;
-    return current?.hubs.filter((item) => item.status !== "archived" && item.status !== "deleted" && gatewayHasMember(item, current.currentUserID)) ?? [];
-  });
+  const section = $derived(navigation.params.get("section"));
+  const tab = $derived(navigation.params.get("tab") ?? "");
   const currentData = $derived(data ? {...data,
     hubs: data.hubs.filter(item => item.status !== 'archived' && item.status !== 'deleted'),
     connections: data.connections.filter(item => !item.archivedAt && !item.deletedAt),
@@ -76,10 +66,8 @@
   } : undefined);
   const managementData = $derived(data && currentData ? {...data, members: currentData.members, units: currentData.units} : undefined);
   const hubID = $derived(page.url.searchParams.get("hub") ?? "");
-  const editID = $derived(page.url.searchParams.get("edit") ?? "");
   const sourceID = $derived(page.url.searchParams.get("source") ?? "");
   const connectionID = $derived(page.url.searchParams.get("connection") ?? "");
-  const addSource = $derived(page.url.searchParams.get("add") === "source");
   const libraryKind = $derived(
     page.url.searchParams.get("kind") === "knowledge"
       ? "knowledge"
@@ -91,7 +79,7 @@
     !!libraryKind && page.url.searchParams.get("create") === "1",
   );
   const hub = $derived(data?.hubs.find((item) => item.id === hubID));
-  const editingHub = $derived(currentData?.hubs.find((item) => item.id === editID));
+  const editableHub = $derived(currentData?.hubs.find((item) => item.id === hubID));
   async function refresh() {
     const request = ++refreshGeneration;
     refreshing = true;
@@ -149,24 +137,45 @@
   $effect(() => {
     if (reloadForAddress(route.place, page.url.searchParams.get("org"))) window.location.reload();
   });
-  async function reloadWizard() {
-    await refresh();
-  }
-  async function saved(hub: OrcaHub) {
+  // Old addresses go to their new home, replacing the history entry. The
+  // platform area always opens the default company: from any other company
+  // that is a new page (critique 12).
+  $effect(() => {
+    if (!data) return;
+    const target = navigation.redirect;
+    if (navigation.view === "platform" && currentCompany() !== DEFAULT_COMPANY) {
+      const url = new URL(target ?? page.url.pathname + page.url.search + page.url.hash, window.location.href);
+      url.searchParams.set("org", DEFAULT_COMPANY);
+      window.location.replace(url.pathname + url.search + url.hash);
+      return;
+    }
+    if (target) void goto(target, { replaceState: true, keepFocus: true });
+  });
+  async function savedNew(saved: OrcaHub) {
     refreshGeneration += 1;
     if (data)
       data = {
         ...data,
-        hubs: [...data.hubs.filter((item) => item.id !== hub.id), hub],
+        hubs: [...data.hubs.filter((item) => item.id !== saved.id), saved],
       };
-    const nextTab = !editID ? '&tab=connect&created=1'
-      : page.url.searchParams.get('step') === 'tools' ? '&tab=tools' : '';
-    await goto(localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}${nextTab}`));
+    await goto(localeHref(`/app?view=hub&hub=${encodeURIComponent(saved.id)}&tab=overview&created=1`));
+    await refresh();
+  }
+  async function savedEdit(saved: OrcaHub) {
+    refreshGeneration += 1;
+    if (data)
+      data = {
+        ...data,
+        hubs: [...data.hubs.filter((item) => item.id !== saved.id), saved],
+      };
+    const next = page.url.searchParams.get("step") === "tools" ? "&tab=programs" : "";
+    await goto(localeHref(`/app?view=hub&hub=${encodeURIComponent(saved.id)}${next}`));
     await refresh();
   }
   $effect(() => {
     const currentView = view;
-    if (typeof window !== "undefined" && currentView)
+    // A link to a part of the page (#accounts) keeps its own scroll.
+    if (typeof window !== "undefined" && currentView && !untrack(() => page.url.hash))
       window.scrollTo({ top: 0, behavior: "instant" });
   });
 </script>
@@ -185,7 +194,7 @@
 
 {#if gate}<CompanyGate mode={gate} {companies} account={route.account} />
 {:else}
-<AppShell {data} {view} {refreshing} {pendingApprovals} {companies} account={route.account} onrefresh={refresh}>
+<AppShell {data} {view} {section} {refreshing} {pendingApprovals} {companies} account={route.account} onrefresh={refresh}>
   {#if error}<div class="k-banner error" role="alert">
       <Info size={20} />
       <div>
@@ -197,10 +206,13 @@
     </div>{/if}
   {#if !data}<div class="k-loading" role="status" aria-live="polite">
       {#if refreshing}<LoaderCircle size={25} class="k-spin" />
-        {t("กำลังโหลดข้อมูลองค์กร…", "Loading organization data…")}{:else}{t(
-          "โหลดข้อมูลองค์กรไม่สำเร็จ กรุณาลองอีกครั้ง",
-          "Organization data could not be loaded. Please try again.",
+        {t("กำลังโหลดข้อมูลบริษัท…", "Loading company data…")}{:else}{t(
+          "โหลดข้อมูลบริษัทไม่สำเร็จ กรุณาลองอีกครั้ง",
+          "Company data could not be loaded. Please try again.",
         )}{/if}
+    </div>
+  {:else if navigation.redirect}<div class="k-loading" role="status" aria-live="polite">
+      <LoaderCircle size={25} class="k-spin" />{t("กำลังเปิดหน้า…", "Opening…")}
     </div>
   {:else if view === "dashboard"}{#key data}<WorkspaceDashboard data={currentData!} />{/key}
   {:else if view === "new"}
@@ -214,37 +226,29 @@
         </h1>
         <p>
           {t(
-            "ติดต่อผู้ดูแลองค์กรเพื่อขอสิทธิ์ที่จำเป็น",
-            "Contact your organization administrator for the required access.",
+            "ขอให้ผู้ดูแลบริษัทสร้างพื้นที่ทำงานให้",
+            "Ask a company admin to create the workspace.",
           )}
         </p>
         <a href={localeHref("/app?view=workspaces")} class="k-button"
           >{t("กลับไปพื้นที่ทำงาน AI", "Back to AI workspaces")}</a
         >
       </div>
-    {:else if editID && !editingHub}<div class="k-empty">
-        <Info size={34} />
-        <h1>{t("ไม่พบพื้นที่ทำงาน AI นี้", "AI workspace not found")}</h1>
-        <p>
-          {t(
-            "พื้นที่ทำงานนี้อาจมีการเปลี่ยนแปลง หรือบัญชีของคุณไม่มีสิทธิ์เข้าถึง กรุณาติดต่อผู้ดูแลองค์กร",
-            "This workspace may have changed, or your account cannot access it.",
-          )}
-        </p>
-        <a href={localeHref("/app?view=workspaces")} class="k-button"
-          >{t("กลับไปพื้นที่ทำงาน AI", "Back to AI workspaces")}</a
-        >
-      </div>
-    {:else}{#key `${editID}:${wizardRevision}:${page.url.searchParams.get('step')}`}<WorkspaceWizard
+    {:else}{#key `new:${connectionID}`}<WorkspaceWizard
           data={currentData!}
-          existing={editingHub}
           initialConnectionID={connectionID}
-          initialStep={page.url.searchParams.get('step') === 'tools' ? 'tools' : undefined}
-          onsaved={saved}
-          onreload={reloadWizard}
+          onsaved={savedNew}
+          onreload={refresh}
         />{/key}{/if}
   {:else if view === "hub"}
-    {#if hub}{#if page.url.searchParams.get('created') === '1' && data.canManage}<GatewayCreated {hub} />{/if}{#key hub.id}<WorkspaceDetail
+    {#if hub && tab === "settings" && data.canManage && editableHub}<WorkspaceSettingsView
+        data={currentData!}
+        hub={editableHub}
+        step={page.url.searchParams.get("step") ?? ""}
+        onsaved={savedEdit}
+        onreload={refresh}
+      />
+    {:else if hub}{#if page.url.searchParams.get('created') === '1' && data.canManage}<GatewayCreated {hub} />{/if}{#key hub.id}<WorkspaceDetail
           data={managementData!}
           {hub}
           onchanged={refresh}
@@ -253,7 +257,7 @@
         <h1>{t("ไม่พบพื้นที่ทำงาน AI นี้", "AI workspace not found")}</h1>
         <p>
           {t(
-            "พื้นที่ทำงานนี้อาจมีการเปลี่ยนแปลง หรือบัญชีของคุณไม่มีสิทธิ์เข้าถึง กรุณาติดต่อผู้ดูแลองค์กร",
+            "พื้นที่ทำงานนี้อาจถูกเปลี่ยน หรือบัญชีของคุณไม่มีสิทธิ์ ขอให้ผู้ดูแลบริษัทตรวจสอบ",
             "This workspace may have changed, or your account cannot access it.",
           )}
         </p>
@@ -268,56 +272,38 @@
       initialCreate={createLibraryItem}
       onchanged={refresh}
     />
-  {:else if view === "catalog"}<ToolCatalog data={currentData!} onchanged={refresh} />
-  {:else if view === "servers"}
-    {#if navigation.connectionDetail}{#key `${sourceID}:${connectionID}:${addSource}`}<ConnectionSettings
+  {:else if view === "add-program" && data.canManage}<AddProgramView
+      data={managementData!}
+      activeData={currentData!}
+      {sourceID}
+      onchanged={refresh}
+    />
+  {:else if view === "servers" && data.canManage}
+    {#if navigation.connectionDetail}{#key connectionID}<ConnectionSettings
           data={managementData!}
           onchanged={refresh}
-          initialSourceID={sourceID}
           initialConnectionID={connectionID}
-          initiallyAddSource={addSource}
         />{/key}{:else}
       <ConnectionCenter data={managementData!} onchanged={refresh} />
     {/if}
-  {:else if view === "accounts"}<MyConnections data={currentData!} />
-  {:else if view === "connected-users"}<ConnectedUsers data={currentData!} />
-  {:else if view === "organization"}
-    <div class="arcade-embedded"><OrganizationSettings data={currentData!} onchanged={refresh} /></div>
-  {:else if view === "members"}
-    <div class="arcade-embedded"><TeamAccess {data} onchanged={refresh} /></div>
-  {:else if view === "api-keys"}
-    <header class="connection-heading"><div>
-      <h1>{t("เชื่อม AI กับ ORCA", "Connect AI to ORCA")}</h1>
-      <p>{t("สร้างคีย์และดูวิธีเชื่อม AI เช่น ChatGPT หรือ Claude เข้ากับพื้นที่ทำงานที่คุณได้รับสิทธิ์", "Create keys and view the instructions for connecting AI, such as ChatGPT or Claude, to the workspaces you can access.")}</p>
-    </div></header>
-    <section class="connection-detail-panel">
-      <div class="connection-section-heading"><div>
-        <h2><KeyRound size={18} />{t("คีย์ ORCA สำหรับทุกพื้นที่ทำงานของคุณ", "One ORCA key for all your workspaces")}</h2>
-        <p>{t("สร้างคีย์และคัดลอกวิธีเชื่อม AI ได้ในที่เดียว กำหนดวันหมดอายุ หรือใช้งานจนกว่าจะยกเลิก", "Create a key and copy the setup instructions in one place. Set an expiry date or keep it active until revoked.")}</p>
-      </div><a class="k-button primary" href={localeHref('/app?view=settings&section=ai')}>{t("สร้างคีย์และดูวิธีเชื่อม", "Create key and view instructions")}<ArrowRight size={16} /></a></div>
-    </section>
-    <section class="connection-detail-panel">
-      <div class="connection-section-heading"><div>
-        <h2><KeyRound size={18} />{t("คีย์ตามพื้นที่ทำงาน", "Keys by workspace")}</h2>
-        <p>{t("เปิดพื้นที่ทำงานเพื่อสร้างคีย์ ตรวจสอบวันหมดอายุ หรือยกเลิกคีย์", "Open a workspace to create a key, check its expiry date or revoke it.")}</p>
-      </div></div>
-      {#each personalHubs as item (item.id)}
-        <a class="connection-workspace-row" href={localeHref(`/app?view=hub&hub=${encodeURIComponent(item.id)}&tab=connect`)}>
-          <span><strong>{item.name}</strong><small>{t("จัดการคีย์ส่วนตัว", "Manage personal keys")}</small></span>
-          <ArrowRight size={16} />
-        </a>
-      {:else}<p>{t("คุณยังไม่ได้รับสิทธิ์ในพื้นที่ทำงานใด", "You have not been added to a workspace.")}</p>{/each}
-    </section>
-  {:else if view === "user-sources"}<UserSources data={currentData!} />
-  {:else if view === "approvals"}<Approvals {data} onchanged={refreshApprovals} />
-  {:else if view === "connected-apps"}<OAuthApps data={currentData!} />
-  {:else if view === "secrets"}<Secrets data={currentData!} />
-  {:else if plannedFeature}<FeatureScaffold feature={plannedFeature} />
-  {:else if view === "settings"}<SettingsCenter {data} onchanged={refresh} />
-  {:else if view === "executions"}<Audit {data} {hubID} mode="executions" />
-  {:else if view === "audit"}<Audit {data} {hubID} mode="administration" />
-  {:else if view === "pilots" && data.canReviewPilotRequests}<PilotInbox />
-  {:else if view === "overview" || view === "workspaces"}<AppOverview data={managementData!} onchanged={refresh} />
+  {:else if view === "connect-ai"}<ConnectAIView data={currentData!} />
+  {:else if view === "members"}<TeamView {data} onchanged={refresh} />
+  {:else if view === "approvals" || view === "executions" || view === "audit" || view === "secrets"}<OversightView
+      {data}
+      activeData={currentData!}
+      {view}
+      {hubID}
+      {pendingApprovals}
+      onapprovalschanged={refreshApprovals}
+    />
+  {:else if view === "settings"}<SettingsCenter {data} activeData={currentData} onchanged={refresh} />
+  {:else if view === "platform" && data.platformOperator}<PlatformView
+      {data}
+      activeData={currentData!}
+      section={(section ?? "overview") as PlatformSection}
+      onchanged={refresh}
+    />
+  {:else if view === "workspaces"}<AppOverview data={managementData!} onchanged={refresh} />
   {:else if view === "help"}
     <div class="k-breadcrumb">
       <a href={localeHref("/app")}>{t("หน้าหลัก", "Home")}</a><span>/</span><span>{t("ช่วยเหลือ", "Help")}</span>
@@ -326,8 +312,8 @@
       <h1>{t("ช่วยเหลือ", "Help")}</h1>
       <p class="k-subtitle">
         {t(
-          "ขั้นตอนการตั้งค่าสำหรับผู้ดูแลระบบและสมาชิก เพื่อให้ AI ที่องค์กรใช้อยู่เข้าถึงข้อมูลตามสิทธิ์ที่กำหนด",
-          "Setup steps for administrators and members, so the AI your organization uses can access data within the permissions you set.",
+          "ขั้นตอนตั้งค่าสำหรับผู้ดูแลและพนักงาน เพื่อให้ AI ของทีมใช้ข้อมูลบริษัทได้ตามสิทธิ์",
+          "Setup steps for admins and employees, so your team's AI can use company data within its permissions.",
         )}
       </p>
     </div>
@@ -335,61 +321,55 @@
     <div class="k-banner">
       <Info size={18} />
       <p>{t(
-        "ลำดับการตั้งค่า: เพิ่มระบบ → ตรวจสอบและเลือกเครื่องมือที่อนุญาต → สร้างพื้นที่ทำงาน AI และกำหนดสมาชิก → เชื่อม AI กับ ORCA",
-        "Setup order: add a system → review and choose the allowed tools → create an AI workspace and choose its members → connect AI to ORCA.",
+        "ลำดับการตั้งค่า: เชื่อมโปรแกรม → เลือกสิ่งที่ AI ทำได้ → สร้างพื้นที่ทำงาน AI และเลือกคนที่ใช้ได้ → เชื่อม AI ของฉัน",
+        "Setup order: connect a program → choose what AI can do → create an AI workspace and choose who can use it → connect my AI.",
       )}</p>
     </div>
     <div class="k-panel">
-      <h2>{t("สำหรับผู้ดูแลระบบ", "For administrators")}</h2>
+      <h2>{t("สำหรับผู้ดูแล", "For admins")}</h2>
       <ol class="k-numbered">
         <li>
           {t("เปิดหน้า", "Open")}
-          <a href={localeHref("/app?view=servers")}>{t("ระบบที่เชื่อมต่อ", "Connected systems")}</a>
+          <a href={localeHref("/app?view=servers")}>{t("โปรแกรมที่เชื่อม", "Programs")}</a>
           {t(
-            "เพื่อเชื่อมระบบขององค์กร แล้วตรวจสอบและเลือกเครื่องมือที่อนุญาต",
-            "to connect your organization's systems, then review and choose the allowed tools.",
+            "เพื่อเชื่อมโปรแกรมของบริษัท แล้วเลือกสิ่งที่ AI ทำได้",
+            "to connect your company's programs, then choose what AI can do.",
           )}
         </li>
         <li>
           <a href={localeHref("/app?view=new")}>{t("สร้างพื้นที่ทำงาน AI", "Create an AI workspace")}</a>
           {t(
-            "โดยเลือกระบบ เครื่องมือ สมาชิก และเพดานการใช้งานต่อวัน",
-            "and choose its systems, tools, members and daily limit.",
+            "โดยเลือกโปรแกรม คนที่ใช้ได้ และจำกัดการใช้ต่อวัน",
+            "and choose its programs, who can use it and its daily limit.",
           )}
         </li>
         <li>
           {t(
-            "ตรวจสอบสิทธิ์ก่อนเปิดใช้งาน สมาชิกแต่ละคนเข้าสู่ระบบด้วยบัญชีของตนเอง",
-            "Review access before activating. Each member signs in with their own account.",
+            "ตรวจสิทธิ์ก่อนเปิดใช้ แต่ละคนเข้าสู่ระบบด้วยบัญชีของตัวเอง",
+            "Review access before activating. Each person signs in with their own account.",
           )}
         </li>
         <li>
-          {t("ตรวจสอบ", "Check")}
+          {t("ดู", "Check")}
           <a href={localeHref("/app?view=executions")}>{t("ประวัติการใช้งาน", "Activity")}</a>
           {t(
-            "และระงับการใช้งานพื้นที่ทำงานได้ทุกเมื่อ",
+            "และหยุดพื้นที่ทำงานได้ทุกเมื่อ",
             "and pause a workspace at any time.",
           )}
         </li>
       </ol>
     </div>
     <div class="k-panel">
-      <h2>{t("สำหรับสมาชิก", "For members")}</h2>
+      <h2>{t("สำหรับพนักงาน", "For employees")}</h2>
       <ol class="k-numbered">
-        <li>{t("คัดลอกลิงก์เชื่อม AI (MCP URL) ของ ORCA หรือของพื้นที่ทำงานที่ได้รับสิทธิ์", "Copy ORCA's AI connection link (MCP URL), or the link of a workspace you can access.")}</li>
-        <li>{t("เพิ่มลิงก์ในแอป AI ที่รองรับ MCP แบบ Streamable HTTP และ OAuth", "Add the link to an AI app that supports Streamable HTTP MCP with OAuth.")}</li>
-        <li>{t("เมื่อหน้าเข้าสู่ระบบของ ORCA ปรากฏ ให้เข้าสู่ระบบด้วยบัญชีของคุณและยืนยันการเชื่อมต่อ", "When the ORCA sign-in page appears, sign in with your account and approve the connection.")}</li>
+        <li>{t("เปิดหน้า", "Open")} <a href={localeHref("/app?view=connect-ai")}>{t("เชื่อม AI ของฉัน", "Connect my AI")}</a> {t("แล้วคัดลอกลิงก์ ORCA ของบริษัท", "and copy your company's ORCA link.")}</li>
+        <li>{t("วางลิงก์ใน Claude หรือ ChatGPT", "Paste the link into Claude or ChatGPT.")}</li>
+        <li>{t("เมื่อหน้าต่าง ORCA เด้งขึ้น ให้เข้าสู่ระบบด้วยบัญชีของคุณแล้วกด อนุญาต", "When the ORCA window opens, sign in with your account and choose Allow.")}</li>
       </ol>
     </div>
-    <div class="k-banner">
-      <Info size={18} />
-      <p>
-        {t("คีย์ API เป็นทางเลือกสำหรับแอปที่ต้องใช้คีย์ ORCA ตรวจสอบสิทธิ์ของบัญชีทุกครั้งที่มีการเรียกใช้เครื่องมือ", "API keys are an option for apps that require them. ORCA checks account access on every tool call.")}
-      </p>
-    </div>
     <div class="k-actions">
-      {#if data.canManage}<a class="k-button" href={localeHref("/app?view=members")}>{t("จัดการสมาชิก", "Manage members")}</a
-        ><a class="k-button" href={localeHref("/app?view=servers")}>{t("จัดการระบบที่เชื่อมต่อ", "Manage connected systems")}</a
+      {#if data.canManage}<a class="k-button" href={localeHref("/app?view=members")}>{t("ไปที่ทีม", "Go to Team")}</a
+        ><a class="k-button" href={localeHref("/app?view=servers")}>{t("ไปที่โปรแกรมที่เชื่อม", "Go to Programs")}</a
         >{/if}<a class="k-button quiet" href="/oauth2/sign_out?rd=/">{t("ออกจากระบบ", "Sign out")}</a>
     </div>
   {:else}{#key data}<WorkspaceDashboard data={currentData!} />{/key}

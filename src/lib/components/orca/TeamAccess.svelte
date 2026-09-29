@@ -38,12 +38,22 @@
     UserPlus,
     Users,
   } from "@lucide/svelte";
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, untrack } from "svelte";
 
+  type TeamSection = "members" | "invitations" | "departments";
   let {
     data,
     onchanged,
-  }: { data: OrcaBootstrap; onchanged: () => Promise<void> } = $props();
+    tab,
+    ontab,
+  }: {
+    data: OrcaBootstrap;
+    onchanged: () => Promise<void>;
+    /** The tab from the address (ทีม › สมาชิก · คำเชิญ · แผนก). */
+    tab?: TeamSection;
+    /** Reports a tab change, so the page can keep it in the address. */
+    ontab?: (next: TeamSection) => void;
+  } = $props();
   let accounts = $state<LocalAuthUser[]>([]);
   let localAvailable = $state(false);
   let loading = $state(false);
@@ -56,7 +66,7 @@
   let availabilityError = $state("");
   let success = $state("");
   let query = $state("");
-  let section = $state<"members" | "invitations" | "departments">("members");
+  let section = $state<TeamSection>(untrack(() => tab ?? "members"));
   let memberStatus = $state("active");
   let departments = $state<LibraryDepartment[]>([]);
   let departmentError = $state("");
@@ -89,7 +99,7 @@
   const roleGroups = $derived([
     {
       id: "owner",
-      label: t("เจ้าของระบบ", "Owner"),
+      label: t("เจ้าของบริษัท", "Company owner"),
       icon: Crown,
       detail: t(
         "ดูแลการตั้งค่าทั้งองค์กรและกำหนดบทบาทสมาชิก",
@@ -98,7 +108,7 @@
     },
     {
       id: "admin",
-      label: t("ผู้ดูแลระบบ", "Admin"),
+      label: t("ผู้ดูแล", "Admin"),
       icon: Shield,
       detail: t(
         "จัดการระบบที่เชื่อมต่อ พื้นที่ทำงาน AI สมาชิก และแผนก",
@@ -107,7 +117,7 @@
     },
     {
       id: "employee",
-      label: t("สมาชิกทั่วไป", "Member"),
+      label: t("พนักงาน", "Employee"),
       icon: Users,
       detail: t(
         "ใช้งานพื้นที่ทำงาน AI และเครื่องมือตามสิทธิ์ที่ได้รับ",
@@ -134,12 +144,20 @@
     await onchanged();
     await refreshDepartments();
   }
-  function changeSection(next: "members" | "invitations" | "departments") {
+  function changeSection(next: TeamSection) {
     if (departmentDirty || saving) return;
     section = next;
     navigationBlocked = false;
     if (next === "members") void refreshDepartments();
+    if (next !== (tab ?? "members")) ontab?.(next);
   }
+  // Back and forward move between tabs held in the address.
+  $effect(() => {
+    const requested = tab ?? "members";
+    untrack(() => {
+      if (requested !== section) changeSection(requested);
+    });
+  });
   function passwordAllowed(member: OrcaMember) {
     if (member.status && member.status !== "active") return false;
     return canResetMemberPassword(
@@ -264,7 +282,7 @@
   <div class="k-heading-row">
     <div class="team-heading">
       <h1>
-        {t("สมาชิกและแผนก", "Members and departments")}
+        {t("ทีม", "Team")}
       </h1>
       <p class="k-subtitle">
         {data.canManage
@@ -301,7 +319,7 @@
                 role="menuitem"
                 onclick={() => {
                   moreOpen = false;
-                  section = "members";
+                  changeSection("members");
                   start();
                 }}
                 ><KeyRound size={16} aria-hidden="true" /><span
@@ -341,7 +359,7 @@
       aria-pressed={section === "invitations"}
       disabled={departmentDirty || saving}
       onclick={() => changeSection("invitations")}
-      ><MailPlus size={16} />{t("คำเชิญที่รอตอบรับ", "Open invitations")}{#if invitationCount}<span class="team-tab-alert">{invitationCount}</span>{/if}</button
+      ><MailPlus size={16} />{t("คำเชิญ", "Invitations")}{#if invitationCount}<span class="team-tab-alert">{invitationCount}</span>{/if}</button
     ><button
       class:active={section === "departments"}
       aria-pressed={section === "departments"}

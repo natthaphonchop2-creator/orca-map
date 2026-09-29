@@ -237,7 +237,7 @@ export function filterCatalog(
 }
 
 export function catalogSetupHref(sourceID: string) {
-	return `/app?view=servers&source=${encodeURIComponent(sourceID)}`;
+	return `/app?view=add-program&source=${encodeURIComponent(sourceID)}&step=connect`;
 }
 
 /** Groups the already-filtered catalog without changing provider identities. */

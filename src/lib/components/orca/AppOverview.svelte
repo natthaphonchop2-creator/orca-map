@@ -99,8 +99,8 @@
 			</p>
 		</div>
 		<div class="spaces-actions">
-			<a class="k-button" href={localeHref('/app?view=settings&section=ai')}
-				><Sparkles size={16} aria-hidden="true" />{t('เชื่อม AI กับ ORCA', 'Connect AI to ORCA')}</a
+			<a class="k-button" href={localeHref('/app?view=connect-ai')}
+				><Sparkles size={16} aria-hidden="true" />{t('เชื่อม AI ของฉัน', 'Connect my AI')}</a
 			>
 			{#if data.canManage}<a class="k-button primary" href={localeHref(createWorkspaceHref)}
 					><Plus size={16} aria-hidden="true" />{t('สร้างพื้นที่ทำงาน AI', 'Create AI workspace')}</a
@@ -194,13 +194,13 @@
 									<div class="spaces-row-actions">
 										{#if !archived}<a
 												class="k-button small"
-												href={hubHref(hub, 'connect')}
+												href={hub.userSourceID ? hubHref(hub, 'overview') : localeHref('/app?view=connect-ai')}
 												aria-label={t(`เชื่อม AI กับ ${hub.name}`, `Connect AI to ${hub.name}`)}
 												><Unplug size={15} aria-hidden="true" />{t('เชื่อม AI', 'Connect')}</a
 											>{/if}
 										{#if data.canManage && !archived}<a
 												class="spaces-icon-button"
-												href={localeHref(`/app?view=new&edit=${encodeURIComponent(hub.id)}`)}
+												href={hubHref(hub, 'settings')}
 												aria-label={t(`แก้ไข ${hub.name}`, `Edit ${hub.name}`)}
 												title={t('แก้ไข', 'Edit')}><Pencil size={16} aria-hidden="true" /></a
 											>{/if}

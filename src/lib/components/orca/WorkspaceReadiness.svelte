@@ -21,7 +21,9 @@
 	const connection = $derived(data.connections.find((item) => gatewaySources(hub).some((source) => source.connectionID === item.id) && !connectionReady(item)) ?? data.connections.find((item) => item.id === hub.connectionID));
 	const toolingReady = $derived(workspaceToolingReady(hub, data.connections));
 	const active = $derived(hub.status === 'active' && toolingReady);
-	const editHref = $derived(`/app?view=new&edit=${encodeURIComponent(hub.id)}`);
+	const editHref = $derived(`/app?view=hub&hub=${encodeURIComponent(hub.id)}&tab=settings`);
+	// A workspace with its own sign-in shows its link on this page; the others use เชื่อม AI ของฉัน.
+	const connectHref = $derived(hub.userSourceID ? `/app?view=hub&hub=${encodeURIComponent(hub.id)}&tab=overview` : '/app?view=connect-ai');
 	const libraryHref = $derived(`/app?view=knowledge&hub=${encodeURIComponent(hub.id)}`);
 	const sourceHref = $derived(
 		connection
@@ -188,7 +190,7 @@
 			<p>{!isMember || !active
                 ? t('เชื่อมแอป AI ด้วยบัญชี ORCA ได้เมื่อพื้นที่ทำงานเปิดใช้งานและคุณได้รับสิทธิ์แล้ว', 'Once the workspace is active and you have access, connect your AI app with your ORCA account.')
                 : t('เพิ่มลิงก์เชื่อม AI ในแอป AI จากนั้นเข้าสู่ระบบด้วยบัญชี ORCA เพื่อยืนยันตัวตน', 'Add the AI connection link to your AI app, then sign in with your ORCA account to verify your identity.')}</p>
-            {#if isMember && active}<a class="k-button small" href="#connect-ai">{t('เชื่อมแอป AI', 'Connect an AI app')}<ArrowRight size={16} aria-hidden="true" /></a>{/if}
+            {#if isMember && active}<a class="k-button small" href={localeHref(connectHref)}>{t('เชื่อม AI ของฉัน', 'Connect my AI')}<ArrowRight size={16} aria-hidden="true" /></a>{/if}
 		</li>
 	</ol>
 	{#if libraryError}<div class="readiness-error" role="alert">

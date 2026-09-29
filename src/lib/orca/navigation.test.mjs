@@ -1,15 +1,39 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 
 const source = stripTypeScriptTypes(
   await readFile(new URL("./navigation.ts", import.meta.url), "utf8"),
 );
-const { appNavigation, activeNavigationView, safeReturnPath } = await import(
+const navigation = await import(
   "data:text/javascript;base64," + Buffer.from(source).toString("base64")
 );
-const resolve = (search) => appNavigation(new URLSearchParams(search));
+const { appNavigation, activeNavigationView, safeReturnPath, platformHref, RETIRED_VIEWS, RETIRED_SETTINGS_SECTIONS, APP_VIEWS } = navigation;
+
+const owner = { canManage: true, platformOperator: false, canReviewPilotRequests: false };
+const employee = { canManage: false, platformOperator: false, canReviewPilotRequests: false };
+const operator = { canManage: true, platformOperator: true, canReviewPilotRequests: true };
+const hubs = [{ id: "hub-one" }, { id: "hub-sso", userSourceID: "company-idp" }];
+
+/** Where an address lands: the view and the canonical address. */
+function land(search, { role = owner, hash = "", withHubs = hubs } = {}) {
+  const route = appNavigation(new URLSearchParams(search), { hash, role, hubs: withHubs ?? undefined });
+  const query = route.params.toString();
+  return { view: route.view, href: `/app${query ? `?${query}` : ""}${route.hash}`, redirect: route.redirect, route };
+}
+function redirects(search, expected, options) {
+  const result = land(search, options);
+  assert.equal(result.href, expected, search);
+  assert.equal(result.redirect, expected, `${search} redirects`);
+  return result;
+}
+function stays(search, view, options) {
+  const result = land(search, options);
+  assert.equal(result.redirect, undefined, `${search} stays`);
+  assert.equal(result.view, view, search);
+  return result;
+}
 
 test("post-auth returns still reject external, encoded-separator and login-loop paths", () => {
   for (const value of ["//example.invalid/", "/\\example.invalid/", "/%2fexample.invalid/", "/%2F%2fexample.invalid/", "/%252fexample.invalid/", "/%255cexample.invalid/", "/%5cexample.invalid/", "/%0dexample.invalid/", "/\n/example.invalid/", "https://example.invalid/", "javascript:alert(1)", "/login", "/", null]) {
@@ -20,71 +44,320 @@ test("post-auth returns still reject external, encoded-separator and login-loop 
   }
 });
 
-test("Connections now means OAuth app administration and personal accounts remain separate", () => {
-  assert.deepEqual(resolve("view=connections"), { view: "connected-apps", connectionDetail: false });
-  assert.equal(resolve("view=connections&section=apps").view, "connected-apps");
-  assert.equal(resolve("view=connections&section=unknown").view, "connected-apps");
-  assert.equal(resolve("view=connected-apps").view, "connected-apps");
-  assert.equal(activeNavigationView("connections"), "connected-apps");
-  for (const path of ["view=accounts&lang=th", "view=connections&section=accounts&lang=en"]) {
-    assert.deepEqual(resolve(path), { view: "accounts", connectionDetail: false });
-  }
-  assert.equal(activeNavigationView("accounts"), "accounts");
-  assert.notEqual(activeNavigationView("accounts"), "connected-apps");
+// §2.5, one row at a time.
+test("Home: /app stays the dashboard", () => {
+  stays("", "dashboard");
+  stays("lang=th", "dashboard");
 });
 
-test("legacy source and policy details become Servers before applying section aliases", () => {
-  for (const route of ["connections", "servers"]) {
-    for (const detail of ["source=provider%2Fone", "connection=policy%26two", "add=source"]) {
-      const params = new URLSearchParams(`view=${route}&section=accounts&${detail}&tab=tools&lang=th`);
-      const original = params.toString();
-      assert.deepEqual(appNavigation(params), { view: "servers", connectionDetail: true });
-      assert.equal(params.toString(), original);
-      assert.equal(params.get("tab"), "tools");
+test("view=new stays the create form, and a stray step is dropped", () => {
+  stays("view=new", "new");
+  stays("view=new&connection=conn-one", "new");
+  redirects("view=new&step=tools", "/app?view=new");
+});
+
+test("workspace tabs: tools becomes โปรแกรม and access becomes คน", () => {
+  stays("view=hub&hub=hub-one&tab=overview", "hub");
+  redirects("view=hub&hub=hub-one&tab=tools", "/app?view=hub&hub=hub-one&tab=programs");
+  redirects("view=hub&hub=hub-one&tab=access", "/app?view=hub&hub=hub-one&tab=people");
+  redirects("view=hub&hub=hub-one&tab=unknown", "/app?view=hub&hub=hub-one");
+});
+
+test("the workspace connect tab becomes เชื่อม AI ของฉัน; a new workspace lands on ภาพรวม", () => {
+  redirects("view=hub&hub=hub-one&tab=connect", "/app?view=connect-ai");
+  redirects("view=hub&hub=hub-one&tab=connect&created=1", "/app?view=hub&hub=hub-one&tab=overview&created=1");
+  // Before the workspace list has loaded nothing is decided yet.
+  const waiting = land("view=hub&hub=hub-one&tab=connect", { withHubs: null });
+  assert.equal(waiting.redirect, undefined);
+});
+
+test("overview becomes the AI workspace list", () => {
+  stays("view=workspaces", "workspaces");
+  redirects("view=overview", "/app?view=workspaces");
+});
+
+test("Knowledge stays", () => {
+  stays("view=knowledge&hub=hub-one", "knowledge");
+});
+
+test("the catalog is step 1 of adding a program", () => {
+  redirects("view=catalog", "/app?view=add-program");
+  redirects("view=catalog&lang=en", "/app?view=add-program&lang=en");
+});
+
+test("the programs list stays", () => {
+  stays("view=servers", "servers");
+  stays("view=servers&status=needs-review", "servers");
+});
+
+test("add=source is step 1 of adding a program", () => {
+  redirects("view=servers&add=source", "/app?view=add-program");
+});
+
+test("a program to set up is step 2 of adding it", () => {
+  redirects("view=servers&source=default-orca-peak", "/app?view=add-program&source=default-orca-peak&step=connect");
+  redirects("view=servers&source=provider%2Fone&lang=th", "/app?view=add-program&source=provider%2Fone&lang=th&step=connect");
+});
+
+test("one program stays its detail page", () => {
+  const route = stays("view=servers&connection=conn-one", "servers").route;
+  assert.equal(route.connectionDetail, true);
+  assert.equal(land("view=servers").route.connectionDetail, false);
+});
+
+test("My accounts is the program-accounts part of เชื่อม AI ของฉัน", () => {
+  redirects("view=accounts", "/app?view=connect-ai#accounts");
+  redirects("view=connections&section=accounts&lang=en", "/app?view=connect-ai&lang=en#accounts");
+  redirects("view=accounts", "/app?view=connect-ai#accounts", { role: employee });
+});
+
+test("Connected users is a program's คนที่เชื่อมบัญชีแล้ว tab", () => {
+  redirects("view=connected-users", "/app?view=servers");
+  redirects("view=connected-users&connection=conn-one&lang=th", "/app?view=servers&connection=conn-one&lang=th&tab=members");
+});
+
+test("Organization is Settings › บริษัท", () => {
+  redirects("view=organization", "/app?view=settings&section=company");
+  redirects("view=settings&section=organization", "/app?view=settings&section=company");
+});
+
+test("Members is ทีม", () => {
+  stays("view=members", "members");
+  redirects("view=settings&section=members", "/app?view=members");
+});
+
+test("API keys and Settings › Connect AI are เชื่อม AI ของฉัน", () => {
+  redirects("view=api-keys", "/app?view=connect-ai");
+  redirects("view=settings&section=keys", "/app?view=connect-ai");
+  redirects("view=settings&section=ai", "/app?view=connect-ai");
+  redirects("view=settings&section=ai", "/app?view=connect-ai", { role: employee });
+});
+
+test("Settings › Additional features is Knowledge", () => {
+  redirects("view=settings&section=additional", "/app?view=knowledge");
+});
+
+test("Settings › Customer companies is the platform's บริษัทลูกค้า, for the ORCA team only", () => {
+  redirects("view=settings&section=companies", "/app?view=platform&section=companies", { role: operator });
+  redirects("view=settings&section=companies", "/app?view=settings", { role: owner });
+  redirects("view=settings&section=companies", "/app?view=settings", { role: employee });
+});
+
+test("pilot requests are the platform's คำขอทดลองใช้", () => {
+  redirects("view=settings&section=owner", "/app?view=platform&section=pilots", { role: operator });
+  redirects("view=pilots", "/app?view=platform&section=pilots", { role: operator });
+  // Anyone else: never the platform.
+  redirects("view=pilots", "/app", { role: owner });
+  redirects("view=settings&section=owner", "/app?view=settings", { role: owner });
+});
+
+test("sign-in sources: Google is the platform's; a company's SSO is Settings › ขั้นสูง", () => {
+  redirects("view=user-sources", "/app?view=platform&section=signin", { role: operator });
+  redirects("view=user-sources", "/app?view=settings&section=advanced", { role: owner });
+  redirects("view=user-sources", "/app?view=settings&section=account", { role: employee });
+});
+
+test("OAuth apps are the platform's; customers see their programs", () => {
+  redirects("view=connected-apps", "/app?view=platform&section=oauth-apps", { role: operator });
+  redirects("view=connected-apps", "/app?view=servers", { role: owner });
+  redirects("view=connections", "/app?view=servers", { role: owner });
+  redirects("view=connections&section=apps", "/app?view=platform&section=oauth-apps", { role: operator });
+  // An employee who follows it ends at their own program accounts.
+  redirects("view=connected-apps", "/app?view=connect-ai#accounts", { role: employee });
+});
+
+test("secrets keeps its id and lights ตรวจสอบ; employees get their own AI apps", () => {
+  stays("view=secrets", "secrets");
+  assert.equal(activeNavigationView("secrets"), "oversight");
+  redirects("view=secrets", "/app?view=connect-ai", { role: employee });
+});
+
+test("approvals keep their id for managers and for an employee's own requests", () => {
+  stays("view=approvals", "approvals");
+  stays("view=approvals", "approvals", { role: employee });
+});
+
+test("activity and settings history keep their workspace filter", () => {
+  stays("view=executions", "executions");
+  stays("view=audit", "audit");
+  const executions = stays("view=executions&hub=hub-one", "executions");
+  assert.equal(executions.route.params.get("hub"), "hub-one");
+  const audit = stays("view=audit&hub=hub-one&lang=en", "audit");
+  assert.equal(audit.route.params.get("hub"), "hub-one");
+  for (const view of ["approvals", "executions", "audit", "secrets"]) assert.equal(activeNavigationView(view), "oversight");
+});
+
+test("help stays", () => {
+  stays("view=help", "help");
+});
+
+test("the five placeholder views are gone and land on /app", () => {
+  for (const view of ["projects", "user-verification", "contextual-access", "logging-policy", "billing"]) {
+    redirects(`view=${view}`, "/app");
+    redirects(`view=${view}&lang=en`, "/app?lang=en");
+  }
+});
+
+test("playground and the legacy Connections page keep their mapping", () => {
+  redirects("view=playground", "/app");
+  redirects("view=connections&status=needs-review", "/app?view=servers&status=needs-review");
+  redirects("view=connections&connection=conn-one&tab=tools", "/app?view=servers&connection=conn-one&tab=tools");
+  redirects("view=connections&source=default-orca-peak", "/app?view=add-program&source=default-orca-peak&step=connect");
+});
+
+// The critique's item 9.
+test("view=new&edit=ID edits on the workspace (ตั้งค่า)", () => {
+  redirects("view=new&edit=hub-one", "/app?view=hub&hub=hub-one&tab=settings");
+  redirects("view=new&edit=keep%2Fid&lang=en", "/app?view=hub&lang=en&hub=keep%2Fid&tab=settings");
+});
+
+test("view=new&edit=ID&step=tools opens the workspace's โปรแกรม tab", () => {
+  redirects("view=new&edit=hub-one&step=tools", "/app?view=hub&hub=hub-one&tab=programs");
+  stays("view=hub&hub=hub-one&tab=settings&step=tools", "hub");
+  redirects("view=hub&hub=hub-one&tab=settings&step=other", "/app?view=hub&hub=hub-one&tab=settings");
+});
+
+test("a program's tabs: the account tab folds into ภาพรวม, the others stay", () => {
+  redirects("view=servers&connection=conn-one&tab=account", "/app?view=servers&connection=conn-one&tab=overview");
+  for (const tab of ["overview", "tools", "members", "activity", "workspaces"]) stays(`view=servers&connection=conn-one&tab=${tab}`, "servers");
+});
+
+test("settings&section=preferences is บัญชีของฉัน", () => {
+  redirects("view=settings&section=preferences", "/app?view=settings&section=account");
+  redirects("view=settings&section=general", "/app?view=settings&section=account");
+  stays("view=settings&section=account", "settings", { role: employee });
+  redirects("view=settings&section=nonsense", "/app?view=settings");
+});
+
+test("the #connect-ai hash goes to เชื่อม AI ของฉัน", () => {
+  redirects("view=hub&hub=hub-one", "/app?view=connect-ai", { hash: "#connect-ai" });
+});
+
+test("employees opening programs or add-program go to their own program accounts", () => {
+  for (const search of ["view=servers", "view=add-program", "view=servers&add=source", "view=servers&source=default-orca-peak", "view=catalog", "view=servers&connection=conn-one&tab=account", "view=servers&connection=conn-one&tab=tools"]) {
+    redirects(search, "/app?view=connect-ai#accounts", { role: employee });
+  }
+});
+
+test("tab=connect on a workspace with its own sign-in stays on ภาพรวม", () => {
+  redirects("view=hub&hub=hub-sso&tab=connect", "/app?view=hub&hub=hub-sso&tab=overview#connect-ai");
+  stays("view=hub&hub=hub-sso&tab=overview", "hub", { hash: "#connect-ai" });
+});
+
+// New areas.
+test("the platform area is the ORCA team's, one section at a time", () => {
+  stays("view=platform&section=overview", "platform", { role: operator });
+  for (const section of ["companies", "pilots", "signin", "oauth-apps", "catalog", "breakglass"]) {
+    stays(`view=platform&section=${section}`, "platform", { role: operator });
+    assert.equal(activeNavigationView("platform", section), `platform:${section}`);
+  }
+  redirects("view=platform", "/app?view=platform&section=overview", { role: operator });
+  redirects("view=platform&section=nope&hub=x", "/app?view=platform&section=overview", { role: operator });
+  redirects("view=platform&section=pilots", "/app?view=platform&section=overview", { role: { ...operator, canReviewPilotRequests: false } });
+  for (const role of [owner, employee]) redirects("view=platform&section=companies", "/app", { role });
+  assert.equal(platformHref("signin"), "/app?org=default&view=platform&section=signin");
+});
+
+test("ทีม tabs live in the address; employees see members only", () => {
+  stays("view=members&tab=invitations", "members");
+  stays("view=members&tab=departments", "members");
+  redirects("view=members&tab=members", "/app?view=members");
+  redirects("view=members&tab=other", "/app?view=members");
+  redirects("view=members&tab=departments", "/app?view=members", { role: employee });
+});
+
+test("Settings: บริษัท and ขั้นสูง are for Owners and Admins", () => {
+  stays("view=settings&section=company", "settings");
+  stays("view=settings&section=advanced", "settings");
+  redirects("view=settings&section=company", "/app?view=settings&section=account", { role: employee });
+  redirects("view=settings&section=advanced", "/app?view=settings&section=account", { role: employee });
+});
+
+test("before the company's data loads, only rules that don't depend on the viewer apply", () => {
+  const route = appNavigation(new URLSearchParams("view=user-sources"));
+  assert.equal(route.view, "user-sources");
+  assert.equal(route.redirect, undefined);
+  assert.equal(appNavigation(new URLSearchParams("view=catalog")).view, "add-program");
+});
+
+test("redirects never change the address they were given, and keep language and company", () => {
+  const params = new URLSearchParams("view=settings&section=organization&lang=en&org=org-12345678-1234-4234-8234-123456789012");
+  const original = params.toString();
+  const route = appNavigation(params, { role: owner });
+  assert.equal(params.toString(), original);
+  assert.equal(route.params.get("lang"), "en");
+  assert.equal(route.params.get("org"), "org-12345678-1234-4234-8234-123456789012");
+});
+
+const everyAddress = [
+  "", "view=new", "view=new&step=tools", "view=hub&hub=hub-one&tab=tools", "view=hub&hub=hub-one&tab=access", "view=hub&hub=hub-one&tab=connect",
+  "view=hub&hub=hub-one&tab=connect&created=1", "view=hub&hub=hub-sso&tab=connect", "view=overview", "view=workspaces", "view=knowledge", "view=catalog",
+  "view=servers", "view=servers&add=source", "view=servers&source=s-one", "view=servers&connection=c-one&tab=account", "view=accounts",
+  "view=connected-users", "view=connected-users&connection=c-one", "view=organization", "view=members", "view=members&tab=members", "view=api-keys",
+  "view=settings", "view=settings&section=ai", "view=settings&section=keys", "view=settings&section=additional", "view=settings&section=companies",
+  "view=settings&section=owner", "view=settings&section=organization", "view=settings&section=preferences", "view=settings&section=members",
+  "view=pilots", "view=user-sources", "view=connected-apps", "view=connections", "view=secrets", "view=approvals", "view=executions&hub=hub-one",
+  "view=audit&hub=hub-one", "view=help", "view=projects", "view=billing", "view=playground", "view=new&edit=hub-one", "view=new&edit=hub-one&step=tools",
+  "view=platform", "view=platform&section=signin",
+];
+
+test("every redirect lands on a live view and is already canonical (no redirect loops)", () => {
+  for (const role of [owner, employee, operator]) {
+    for (const search of everyAddress) {
+      const first = land(search, { role });
+      assert.ok(APP_VIEWS.includes(first.view), `${search} as ${JSON.stringify(role)} → ${first.view}`);
+      const [path, hash = ""] = first.href.split("#");
+      const again = appNavigation(new URLSearchParams(path.replace(/^\/app\??/, "")), { hash: hash ? `#${hash}` : "", role, hubs });
+      assert.equal(again.redirect, undefined, `${search} → ${first.href} is canonical`);
     }
   }
-  assert.equal(resolve("view=connections&source=&connection=&add=other").connectionDetail, false);
-  assert.deepEqual(resolve("view=servers"), { view: "servers", connectionDetail: false });
-  assert.equal(resolve("view=connections&status=needs-review").view, "servers");
 });
 
-test("Connected users can select a connection without entering the Servers editor", () => {
-  const params = new URLSearchParams("view=connected-users&connection=policy-1&lang=th");
-  assert.deepEqual(appNavigation(params), { view: "connected-users", connectionDetail: false });
-  assert.equal(params.get("connection"), "policy-1");
-});
-
-test("Organization, Members and API keys preserve Settings deep-link compatibility", () => {
-  assert.equal(resolve("view=settings&section=organization").view, "organization");
-  assert.equal(resolve("view=settings&section=members").view, "members");
-  assert.equal(resolve("view=settings&section=keys").view, "api-keys");
-  assert.equal(resolve("view=settings&section=preferences").view, "settings");
-  assert.equal(resolve("view=settings&section=additional").view, "settings");
-});
-
-test("Gateway routes preserve identity, edit state, tabs and locale", () => {
-  for (const route of ["hub", "new", "overview", "workspaces"]) {
-    const params = new URLSearchParams(`view=${route}&hub=team%26one&edit=keep%2Fid&tab=connect&lang=en`);
-    const original = params.toString();
-    assert.equal(appNavigation(params).view, route);
-    assert.equal(appNavigation(params).connectionDetail, false);
-    assert.equal(params.toString(), original);
-    assert.equal(activeNavigationView(route), "workspaces");
+test("the sidebar highlight doesn't jump while an old address redirects", () => {
+  for (const search of everyAddress) {
+    const requested = new URLSearchParams(search);
+    const view = requested.get("view") || "dashboard";
+    if (["user-sources", "connected-apps", "pilots", "connections", "platform"].includes(view)) continue; // depends on who is looking
+    if (view === "settings" && ["companies", "owner", "members", "ai", "keys", "additional"].includes(requested.get("section"))) continue;
+    if (view === "hub" && requested.get("tab") === "connect") continue;
+    const landed = land(search);
+    assert.equal(
+      activeNavigationView(view, requested.get("section")),
+      activeNavigationView(landed.view, landed.route.params.get("section")),
+      search,
+    );
   }
 });
 
-test("planned headings retain distinct routes while Knowledge and Playground keep prior behavior", () => {
-  for (const view of ["projects", "user-sources", "secrets", "user-verification", "contextual-access", "logging-policy", "billing"]) {
-    assert.equal(resolve(`view=${view}`).view, view);
-    assert.equal(activeNavigationView(view), view);
+test("no component links to a retired view", async () => {
+  const root = new URL("../../", import.meta.url);
+  const files = [];
+  async function walk(url) {
+    for (const entry of await readdir(url, { withFileTypes: true })) {
+      const next = new URL(entry.name + (entry.isDirectory() ? "/" : ""), url);
+      if (entry.isDirectory()) await walk(next);
+      else if (/\.(svelte|ts|js)$/.test(entry.name) && !/\.test\./.test(entry.name) && !next.pathname.endsWith("/orca/navigation.ts")) files.push(next);
+    }
   }
-  assert.equal(resolve("view=knowledge&hub=my-hub").view, "knowledge");
-  // Knowledge (Orca Cloud) is its own destination in the navigation.
-  assert.equal(activeNavigationView("knowledge"), "knowledge");
-  assert.equal(activeNavigationView("pilots"), "settings");
-  // Admin audit sits under the same Activity destination as tool executions.
-  assert.equal(activeNavigationView("audit"), "executions");
-  assert.equal(activeNavigationView("executions"), "executions");
-  assert.equal(resolve("view=playground").view, "dashboard");
-  assert.equal(resolve("").view, "dashboard");
+  await walk(root);
+  assert.ok(files.length > 50, "scanned the source tree");
+  const retired = new RegExp(`[?&]view=(?:${RETIRED_VIEWS.join("|")})(?![\\w-])`);
+  const retiredSettings = new RegExp(`view=settings&section=(?:${RETIRED_SETTINGS_SECTIONS.join("|")})(?![\\w-])`);
+  const patterns = [
+    [retired, "a retired view id"],
+    [retiredSettings, "a retired settings section"],
+    [/view=servers&(?:source|add)=/, "adding a program from the programs list (use view=add-program)"],
+    [/view=new&edit=/, "the old edit form (use the workspace's ตั้งค่า tab)"],
+    [/[?&]tab=connect(?![\w-])/, "the old workspace connect tab (use view=connect-ai)"],
+    [/href=["'{`(]*#connect-ai/, "the old #connect-ai anchor"],
+  ];
+  const found = [];
+  for (const file of files) {
+    const text = await readFile(file, "utf8");
+    for (const [pattern, reason] of patterns) {
+      const match = text.match(pattern);
+      if (match) found.push(`${file.pathname.split("/src/")[1]}: ${match[0]} (${reason})`);
+    }
+  }
+  assert.deepEqual(found, []);
 });

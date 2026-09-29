@@ -480,7 +480,7 @@
 				>
 					{#if managedHub}<a
 							class="k-button primary small"
-							href={localeHref(`/app?view=new&edit=${encodeURIComponent(managedHub.id)}`)}
+							href={localeHref(`/app?view=hub&hub=${encodeURIComponent(managedHub.id)}&tab=people`)}
 							><Users size={16} />{t('ตรวจสอบสมาชิก', 'Review members')}</a
 						>{:else if readyConnections.length}<a class="k-button primary small" href={createWorkspaceHref}
 							><Plus size={16} />{t('สร้างพื้นที่ทำงาน AI', 'Create an AI workspace')}</a
@@ -488,7 +488,7 @@
 								class="k-button small"
 								href={localeHref('/app?view=servers')}
 								>{t('ดูระบบที่เชื่อมต่อ', 'View connected systems')}</a
-							>{/if}<a class="k-button primary small" href={localeHref('/app?view=catalog')}
+							>{/if}<a class="k-button primary small" href={localeHref('/app?view=add-program')}
 							><Plug size={16} />{t('เพิ่มระบบ', 'Add a system')}</a
 						>{/if}
 				</div>{/if}
@@ -507,7 +507,7 @@
 						>{/each}
 				</div>{:else if !managedHub && managedHubs.length}<div class="library-workspace-grid">
 					{#each managedHubs as item}<a
-							href={localeHref(`/app?view=new&edit=${encodeURIComponent(item.id)}`)}
+							href={localeHref(`/app?view=hub&hub=${encodeURIComponent(item.id)}&tab=people`)}
 							><span class="library-row-icon" aria-hidden="true"><Users size={16} /></span><span
 								><strong>{item.name}</strong><small
 									>{t('ตรวจสอบสมาชิก', 'Review members')}</small

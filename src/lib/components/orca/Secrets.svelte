@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
-  import { ArrowRight, Check, CircleAlert, KeyRound, KeySquare, LoaderCircle, RefreshCw, ShieldCheck, Sparkles } from "@lucide/svelte";
+  import { Check, CircleAlert, KeyRound, LoaderCircle, RefreshCw, ShieldCheck, Sparkles } from "@lucide/svelte";
   import { organizationRole } from "$lib/orca/member-access";
-  import { localeHref, t } from "$lib/orca/locale.svelte";
+  import { t } from "$lib/orca/locale.svelte";
   import { STALE_DAYS, canRevokeSecret, secretHolders, secretRows, type SecretRow } from "$lib/orca/secrets";
   import { OrcaService, displayDate, type OrcaBootstrap, type OrcaSecrets } from "$lib/services/orca";
 
@@ -107,8 +107,8 @@
 <section class="secrets" aria-labelledby="secrets-title">
   <header class="secrets-heading">
     <div>
-      <h1 id="secrets-title">{t("ข้อมูลลับ", "Secrets")}</h1>
-      <p class="k-subtitle">{t("คีย์และการเข้าสู่ระบบที่ใช้เชื่อม AI กับ ORCA ค่าจริงแสดงครั้งเดียวตอนสร้าง หน้านี้จึงแสดงแค่ข้อมูลประกอบ ใช้เพิกถอนได้ทันทีเมื่อมีคนออกหรือเครื่องหาย", "Keys and sign-ins that connect AI to ORCA. Values are shown only once, when created, so this page lists details only. Revoke access at once when someone leaves or loses a device.")}</p>
+      <h1 id="secrets-title">{t("แอป AI ที่เชื่อมอยู่", "Connected AI apps")}</h1>
+      <p class="k-subtitle">{t("ดูว่าใครเชื่อม Claude หรือ ChatGPT กับข้อมูลบริษัทไว้ ถ้ามีคนลาออกหรือทำเครื่องหาย กด ตัดการเชื่อมต่อ ได้ทันที", "See who connected AI apps to company data; disconnect at once if someone leaves or loses a device.")}</p>
     </div>
     {#if data.canManage}
       <button class="k-button secrets-square" disabled={loading} onclick={refresh} aria-label={t("โหลดข้อมูลใหม่", "Refresh")} title={t("โหลดข้อมูลใหม่", "Refresh")}><RefreshCw size={16} class={loading ? "k-spin" : ""} /></button>
@@ -127,7 +127,6 @@
         <div class="stat"><span class="stat-label"><Sparkles size={15} aria-hidden="true" />{t("แอป AI ที่เข้าสู่ระบบอยู่", "AI apps signed in")}</span><strong>{rows.sessions.length}</strong></div>
         <div class="stat"><span class="stat-label"><KeyRound size={15} aria-hidden="true" />{t("คีย์ API ที่ใช้งานได้", "Active API keys")}</span><strong>{rows.keys.length}</strong>{#if neverExpiring}<span class="stat-note warn">{t(`${neverExpiring} คีย์ไม่มีวันหมดอายุ`, `${neverExpiring} never expire`)}</span>{/if}</div>
         <div class="stat"><span class="stat-label"><CircleAlert size={15} aria-hidden="true" />{t(`ไม่ได้ใช้เกิน ${STALE_DAYS} วัน`, `Unused for ${STALE_DAYS}+ days`)}</span><strong>{stale}</strong>{#if stale}<span class="stat-note">{t("ควรพิจารณาเพิกถอน", "Consider revoking")}</span>{/if}</div>
-        <a class="stat link" href={localeHref("/app?view=connected-apps")}><span class="stat-label"><KeySquare size={15} aria-hidden="true" />{t("แอปเชื่อมบัญชี (OAuth)", "OAuth apps")}</span><span class="stat-link">{t("ดูแอปที่ตั้งค่าไว้", "View app settings")}<ArrowRight size={14} aria-hidden="true" /></span></a>
       </div>
 
       {#if holders.length > 1}
@@ -201,9 +200,6 @@
   .stat-label { display: inline-flex; align-items: center; gap: 6px; color: var(--orca-muted); font-size: 13px; }
   .stat-note { color: var(--orca-muted); font-size: 12.5px; }
   .stat-note.warn { color: var(--orca-warn); }
-  .stat.link:hover { background: var(--orca-surface-2); }
-  .stat.link:focus-visible { outline: 2px solid var(--orca-focus, var(--orca-ink)); outline-offset: 2px; }
-  .stat-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; font-size: 14px; font-weight: 500; }
   .holder-filter { display: flex; align-items: center; gap: 10px; }
   .holder-filter label { font-size: 13.5px; font-weight: 600; }
   .holder-filter select { height: 36px; min-width: 0; max-width: 280px; padding: 0 10px; border: 1px solid var(--orca-field-line, var(--orca-line-strong)); border-radius: var(--orca-radius); background: var(--orca-surface); color: var(--orca-ink); font: inherit; font-size: 14px; }

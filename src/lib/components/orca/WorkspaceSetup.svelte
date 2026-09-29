@@ -39,7 +39,7 @@
 			),
 			href: hasOtherMember
 				? usableHubs[0]
-					? `/app?view=new&edit=${encodeURIComponent(usableHubs[0].id)}`
+					? `/app?view=hub&hub=${encodeURIComponent(usableHubs[0].id)}&tab=people`
 					: createWorkspaceHref
 				: '/app?view=members'
 		}

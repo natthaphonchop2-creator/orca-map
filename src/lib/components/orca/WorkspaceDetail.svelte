@@ -52,15 +52,23 @@
 	}: { data: OrcaBootstrap; hub: OrcaHub; onchanged: () => Promise<void> } = $props();
 	// Named when this person has several companies, so each connection says which.
 	const companyName = $derived(companyPinned() ? data.organization.displayName : '');
-	const selectedTab = $derived(page.url.hash === '#connect-ai' ? 'connect' : (page.url.searchParams.get('tab') || 'overview'));
+	// Tabs ภาพรวม · โปรแกรม · คน (and ตั้งค่า, the edit form, for managers).
+	// Connecting an AI app is เชื่อม AI ของฉัน; only a workspace with its own
+	// sign-in keeps its own link, on ภาพรวม.
+	const tabAliases: Record<string, string> = { tools: 'programs', access: 'people' };
+	const selectedTab = $derived.by(() => {
+		const requested = page.url.searchParams.get('tab') || 'overview';
+		return tabAliases[requested] ?? requested;
+	});
 	const archived = $derived(hub.status === 'archived' || hub.status === 'deleted');
-	const activeTab = $derived(archived && selectedTab === 'connect' ? 'overview' : ['overview', 'tools', 'access', 'connect'].includes(selectedTab) ? selectedTab : 'overview');
+	const activeTab = $derived(['overview', 'programs', 'people'].includes(selectedTab) ? selectedTab : 'overview');
+	const showConnect = $derived(!archived && activeTab === 'overview' && !!hub.userSourceID);
 	let toolQuery = $state('');
 	const tabs = $derived([
 		{ id: 'overview', label: t('ภาพรวม', 'Overview') },
-		{ id: 'tools', label: t('เครื่องมือ', 'Tools'), count: gatewayToolCount(hub) },
-		{ id: 'access', label: t('สิทธิ์และสมาชิก', 'Access and members'), count: gatewayMemberIDs(hub).length },
-		...(!archived ? [{ id: 'connect', label: t('เชื่อมแอป AI', 'Connect an AI app') }] : [])
+		{ id: 'programs', label: t('โปรแกรม', 'Programs'), count: gatewayToolCount(hub) },
+		{ id: 'people', label: t('คน', 'People'), count: gatewayMemberIDs(hub).length },
+		...(data.canManage && !archived ? [{ id: 'settings', label: t('ตั้งค่า', 'Settings') }] : [])
 	]);
 	function tabHref(tab: string) {
 		return localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}&tab=${tab}`);
@@ -132,7 +140,7 @@
 	$effect(() => {
 		const requestedAccount = page.url.searchParams.get('account');
 		if (requestedAccount === null) return;
-		accountSourceID = canConnect && activeTab === 'connect' && sources.some((source) =>
+		accountSourceID = canConnect && showConnect && sources.some((source) =>
 			source.connectionID === requestedAccount && source.ready
 		) ? requestedAccount : '';
 	});
@@ -207,7 +215,7 @@
 		clearCreatedKey();
 	});
 	$effect(() => {
-		if (!canConnect || activeTab !== 'connect') {
+		if (!canConnect || !showConnect) {
 			keyCreationGeneration += 1;
 			clearCreatedKey();
 		}
@@ -337,7 +345,7 @@
 		clearCreatedKey();
 		try {
 			const created = await OrcaService.createKey(hub.id, keyName.trim(), expiryDays!);
-			if (request === keyCreationGeneration && canConnect && activeTab === 'connect' && data.currentUserID === creatorID && hub.id === createdHubID) {
+			if (request === keyCreationGeneration && canConnect && showConnect && data.currentUserID === creatorID && hub.id === createdHubID) {
 				newKey = created.key;
 				newKeyID = created.id;
 			}
@@ -419,7 +427,7 @@
 						: hub.status === 'active'
 							? t('ระงับการใช้งาน', 'Pause access')
 							: t('เปิดใช้งาน', 'Activate')}</button
-				><a class="k-button primary" href={localeHref(`/app?view=new&edit=${encodeURIComponent(hub.id)}`)}
+				><a class="k-button primary" href={tabHref('settings')}
 					><Pencil size={16} aria-hidden="true" />{t('แก้ไขพื้นที่ทำงาน', 'Edit workspace')}</a
 				>{/if}
 		</div>{/if}
@@ -574,10 +582,11 @@
 	<WorkspaceReadiness {data} {hub} {keyState} />
 </details>{/if}
 <div class="gateway-overview-actions">
-	{#if !archived}<a class="k-button primary" href={tabHref('connect')}>{t('เชื่อมแอป AI', 'Connect an AI app')}</a>{/if}
-	<a class="k-button" href={tabHref('tools')}>{t('ดูเครื่องมือที่อนุญาต', 'View allowed tools')}</a>
+	{#if !archived && !hub.userSourceID}<a class="k-button primary" href={localeHref('/app?view=connect-ai')}>{t('เชื่อม AI ของฉัน', 'Connect my AI')}</a>{/if}
+	<a class="k-button" href={tabHref('programs')}>{t('ดูสิ่งที่ AI ทำได้', 'See what AI can do')}</a>
 </div>
-{:else if activeTab === 'connect'}
+{/if}
+{#if showConnect}
 <section
 	id="connect-ai"
 	class="detail-stack"
@@ -586,14 +595,14 @@
 >
 	<div class="detail-card">
 		<header class="detail-card-head detail-card-head-ruled">
-			<h2 id="connect-title">{t('เชื่อมแอป AI กับพื้นที่ทำงานนี้', 'Connect your AI app to this workspace')}</h2>
+			<h2 id="connect-title">{t('พื้นที่ทำงานนี้ใช้การเข้าสู่ระบบเฉพาะ ต้องใช้ลิงก์นี้แทน', 'This workspace has its own sign-in. Use this link instead.')}</h2>
 		</header>
 		<div class="detail-card-body">
 			<GatewayClientSetup endpoint={hub.connectURL} ready={canConnect} oauth={true} {companyName} />
 		</div>
 	</div><div class="detail-card gateway-unified-intro">
 		<div><h2>{t('เชื่อม AI กับ ORCA เพียงครั้งเดียว', 'Connect to ORCA once')}</h2><p>{t('ใช้เครื่องมือจากทุกพื้นที่ทำงาน AI ที่คุณได้รับสิทธิ์ รวมถึงพื้นที่ทำงานนี้', 'Use tools from every AI workspace you can access, including this one.')}</p></div>
-		<a class="k-button" href={localeHref('/app?view=settings&section=ai')}>{t('เชื่อม AI กับ ORCA', 'Connect AI to ORCA')}</a>
+		<a class="k-button" href={localeHref('/app?view=connect-ai')}>{t('เชื่อม AI ของฉัน', 'Connect my AI')}</a>
 	</div>
 	{#if canConnect}<div class="gateway-account-list">
 		{#each sources as source (source.connectionID)}
@@ -797,11 +806,11 @@
 	</div>
 	</details>
 </section>
-{:else if activeTab === 'tools'}
+{:else if activeTab === 'programs'}
 <section class="detail-card gateway-tools" aria-labelledby="detail-tools-title">
 	<header class="detail-card-head">
 		<h2 id="detail-tools-title">{t('เครื่องมือที่อนุญาตในพื้นที่ทำงานนี้', 'Allowed tools in this workspace')}</h2>
-		{#if data.canManage && !archived}<a class="k-button small" href={localeHref(`/app?view=new&edit=${encodeURIComponent(hub.id)}&step=tools`)}><Pencil size={16} aria-hidden="true" />{t('แก้ไขเครื่องมือ', 'Edit tools')}</a>{:else}<span class="detail-head-icon" aria-hidden="true"><FileCheck2 size={18} /></span>{/if}
+		{#if data.canManage && !archived}<a class="k-button small" href={localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}&tab=settings&step=tools`)}><Pencil size={16} aria-hidden="true" />{t('แก้ไขเครื่องมือ', 'Edit tools')}</a>{:else}<span class="detail-head-icon" aria-hidden="true"><FileCheck2 size={18} /></span>{/if}
 	</header>
 	{#if unavailableTools.length}<div class="k-banner detail-inset" role="status"><Info size={16} aria-hidden="true" /><p>{t('เครื่องมือบางรายการยังใช้งานไม่ได้ กรุณาตรวจสอบระบบนั้นหรือปรับเครื่องมือที่อนุญาต', 'Some allowed tools are unavailable. Review that system or update its allowed tools.')}</p></div>{/if}
 	<div class="detail-toolbar">
@@ -820,11 +829,11 @@
 	{:else}<p class="gateway-empty">{t('ไม่พบเครื่องมือที่ตรงกับคำค้น', 'No tools match your search.')}</p>{/each}
 	</div>
 </section>
-{:else if activeTab === 'access'}
+{:else if activeTab === 'people'}
 <div class="detail-stack">
 	<section class="detail-card gateway-identity" aria-labelledby="detail-identity-title">
 		<header class="detail-card-head">
-			<h2 id="detail-identity-title">{t('การเข้าสู่ระบบของสมาชิก', 'Member sign-in')}</h2>{#if data.canManage}<a class="k-button small" href={localeHref('/app?view=user-sources')}>{t('จัดการการเข้าสู่ระบบองค์กร', 'Manage sign-in sources')}</a>{/if}
+			<h2 id="detail-identity-title">{t('การเข้าสู่ระบบของสมาชิก', 'Member sign-in')}</h2>{#if data.canManage}<a class="k-button small" href={localeHref('/app?view=settings&section=advanced')}>{t('จัดการ SSO ของบริษัท', 'Manage company SSO')}</a>{/if}
 		</header>
 		<div class="detail-card-body">
 		{#if data.canManage}

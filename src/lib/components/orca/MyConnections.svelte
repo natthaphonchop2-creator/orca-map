@@ -12,6 +12,8 @@
     X,
   } from "@lucide/svelte";
   import CatalogIcon from "$lib/orca/CatalogIcon.svelte";
+  import Sheet from "./ui/Sheet.svelte";
+  import SourceSetup from "./SourceSetup.svelte";
   import { catalogSourceDisplayName } from "$lib/orca/catalog";
   import { workspaceToolingReady } from "$lib/orca/activation";
   import { sourceAccountState } from "$lib/orca/connection-presentation";
@@ -25,7 +27,11 @@
   import { localeHref, t } from "$lib/orca/locale.svelte";
   import { OrcaService, type OrcaBootstrap } from "$lib/services/orca";
 
-  let { data }: { data: OrcaBootstrap } = $props();
+  // `embedded`: the program-accounts part of เชื่อม AI ของฉัน (an h2, not the page's h1).
+  let { data, embedded = false }: { data: OrcaBootstrap; embedded?: boolean } = $props();
+  // Signing in to one program opens its setup in a side panel, on this page.
+  let signingIn = $state<{ sourceID: string; name: string }>();
+  let sheetOpen = $state(false);
   type AccountRecord = {
     status: "loading" | "ready" | "error";
     setup?: PersonalSetup;
@@ -97,8 +103,12 @@
   onDestroy(() => reader.dispose());
   function manageHref(source: PersonalSource) {
     return localeHref(
-      `/app?view=hub&hub=${encodeURIComponent(source.manageHubID)}&tab=connect`,
+      `/app?view=hub&hub=${encodeURIComponent(source.manageHubID)}`,
     );
+  }
+  function openSignIn(source: PersonalSource, name: string) {
+    signingIn = { sourceID: source.sourceID, name };
+    sheetOpen = true;
   }
   function canConnectSource(source: PersonalSource) {
     const gateway = source.hubs.find((hub) => hub.id === source.manageHubID);
@@ -164,8 +174,8 @@
       "account-needed": {
         title: t("ยังไม่เชื่อมบัญชี", "Account not connected"),
         description: t(
-          "เปิดพื้นที่ทำงาน AI เพื่อเชื่อมบัญชีของคุณ",
-          "Open the AI workspace to connect your own account.",
+          "ลงชื่อเข้าใช้ด้วยบัญชีของคุณ AI จึงจะใช้ข้อมูลจากโปรแกรมนี้ได้",
+          "Sign in with your own account so AI can use this program.",
         ),
       },
       "not-configured": {
@@ -192,14 +202,15 @@
     });
 </script>
 
-<section class="my-connections" aria-labelledby="accounts-title">
+<section class="my-connections" class:embedded aria-labelledby="accounts-title">
   <header class="accounts-heading">
     <div>
-      <h1 id="accounts-title">{t("บัญชีที่เชื่อมไว้", "My accounts")}</h1>
+      {#if embedded}<h2 id="accounts-title" class="accounts-title">{t("บัญชีโปรแกรมของคุณ", "Your program accounts")}</h2>
+      {:else}<h1 id="accounts-title">{t("บัญชีโปรแกรมของคุณ", "Your program accounts")}</h1>{/if}
       <p class="k-subtitle">
         {t(
-          "จัดการบัญชีส่วนตัวที่ใช้กับระบบในพื้นที่ทำงาน AI ที่คุณเป็นสมาชิก",
-          "Manage the personal accounts you use with systems in the AI workspaces you belong to.",
+          "AI ใช้ข้อมูลจากโปรแกรมด้วยบัญชีของคุณเอง ลงชื่อเข้าใช้แต่ละโปรแกรมครั้งเดียว",
+          "AI reaches each program with your own account. Sign in to each program once.",
         )}
       </p>
     </div>
@@ -214,8 +225,8 @@
     <ShieldCheck size={16} aria-hidden="true" />
     <p>
       {t(
-        "หน้านี้แสดงเฉพาะสถานะการตั้งค่าที่บันทึกไว้ การอนุญาตที่บันทึกไว้ไม่ได้ยืนยันว่าจะเรียกข้อมูลจากระบบได้สำเร็จ",
-        "This page shows saved account status only. A saved authorization does not confirm that requests to the system will succeed.",
+        "ถ้า AI ดึงข้อมูลจากโปรแกรมไหนไม่ได้ ให้กด จัดการบัญชี แล้วลงชื่อเข้าใช้ใหม่ที่โปรแกรมนั้น",
+        "If AI can't reach a program, choose Manage account on it and sign in again.",
       )}
     </p>
   </div>
@@ -285,19 +296,24 @@
                 class="k-button small quiet retry"
                 onclick={() => reader.retry(source.sourceID)}
                 ><RefreshCw size={16} aria-hidden="true" />{t("ลองอีกครั้ง", "Try again")}</button
-              >{/if}<a class="k-button small" href={manageHref(source)}
-              >{canConnectSource(source) &&
-              (status === "account-needed" || status === "not-configured")
-                ? t("เชื่อมบัญชี", "Connect account")
-                : t("เปิดพื้นที่ทำงาน AI", "Open AI workspace")}<ArrowRight size={16} aria-hidden="true" /></a
-            >
+              >{/if}{#if canConnectSource(source)}<button
+                type="button"
+                class="k-button small"
+                class:primary={status === "account-needed" || status === "not-configured"}
+                onclick={() => openSignIn(source, sourceName)}
+                >{status === "account-needed" || status === "not-configured"
+                  ? t("เชื่อมบัญชี", "Connect account")
+                  : t("จัดการบัญชี", "Manage account")}<ArrowRight size={16} aria-hidden="true" /></button
+              >{:else}<a class="k-button small" href={manageHref(source)}
+              >{t("เปิดพื้นที่ทำงาน AI", "Open AI workspace")}<ArrowRight size={16} aria-hidden="true" /></a
+            >{/if}
           </div>
           <div class="linked-gateways">
             <span>{t("พื้นที่ทำงาน AI", "AI workspaces")}</span>
             <div>
               {#each source.hubs as hub (hub.id)}<a
                   href={localeHref(
-                    `/app?view=hub&hub=${encodeURIComponent(hub.id)}&tab=connect`,
+                    `/app?view=hub&hub=${encodeURIComponent(hub.id)}`,
                   )}
                   >{hub.name}{#if hub.status !== "active"}<small
                       >{hub.status === "draft"
@@ -336,6 +352,15 @@
     </div>{/if}
 </section>
 
+{#if signingIn}<Sheet
+    bind:open={sheetOpen}
+    title={t(`ลงชื่อเข้าใช้ ${signingIn.name}`, `Sign in to ${signingIn.name}`)}
+    description={t("ใช้บัญชีของคุณเอง AI จะทำได้เฉพาะสิ่งที่บัญชีนี้ทำได้", "Use your own account. AI can do only what this account can.")}
+    onclose={refresh}
+  >
+    <SourceSetup sourceID={signingIn.sourceID} sourceLabel={signingIn.name} />
+  </Sheet>{/if}
+
 <style>
   .my-connections {
     min-width: 0;
@@ -348,8 +373,17 @@
     gap: 16px 24px;
     margin-bottom: 20px;
   }
-  .accounts-heading h1 {
+  .accounts-heading h1,
+  .accounts-heading h2.accounts-title {
     margin: 0;
+  }
+  .my-connections.embedded {
+    margin-top: 32px;
+    padding-top: 28px;
+    border-top: 1px solid var(--orca-line);
+  }
+  .accounts-heading h2.accounts-title {
+    font-size: 19px;
   }
   .accounts-heading > button {
     flex-shrink: 0;

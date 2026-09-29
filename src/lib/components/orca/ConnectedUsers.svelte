@@ -129,7 +129,7 @@
         "Manage your own accounts in My accounts.",
       )}
     </p>
-    <a class="k-button small" href={localeHref("/app?view=accounts")}
+    <a class="k-button small" href={localeHref("/app?view=connect-ai#accounts")}
       >{t("บัญชีที่เชื่อมไว้", "My accounts")}<ArrowRight size={16} aria-hidden="true" /></a
     >
   </section>
@@ -143,7 +143,7 @@
         "Add a system from the system catalog, then assign members in an AI workspace so that they can connect their own accounts.",
       )}
     </p>
-    <a class="k-button small" href={localeHref("/app?view=catalog")}
+    <a class="k-button small" href={localeHref("/app?view=add-program")}
       >{t("เพิ่มระบบ", "Add a system")}<ArrowRight size={16} aria-hidden="true" /></a
     >
   </section>

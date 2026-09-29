@@ -121,7 +121,7 @@
       </p>
     </div>
     {#if data.canManage}<div class="systems-actions">
-        <a class="k-button primary" href={localeHref("/app?view=servers&add=source")}
+        <a class="k-button primary" href={localeHref("/app?view=add-program")}
           ><Plus size={16} aria-hidden="true" />{t("เพิ่มระบบ", "Add a system")}</a
         >
       </div>{/if}

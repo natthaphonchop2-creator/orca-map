@@ -17,7 +17,7 @@ test('installed API connectors replace their guide while retaining the real conf
     assert.equal(item.protocol, 'API');
     assert.equal(item.reference.id, guideID);
     assert.deepEqual(item.authTags.map(tag => tag.id), ['secrets']);
-    assert.match(catalogSetupHref(item.id), new RegExp(`source=${source.id}$`));
+    assert.match(catalogSetupHref(item.id), new RegExp(`source=${source.id}&step=connect$`));
   }
 });
 

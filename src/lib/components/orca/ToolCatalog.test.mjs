@@ -13,6 +13,7 @@ const component = await readFile(
   "utf8",
 );
 const catalog = await importTypeScript(new URL('../../orca/catalog.ts', import.meta.url));
+const { addByLinkHref } = await importTypeScript(new URL('../../orca/navigation.ts', import.meta.url));
 const { catalogCategories } = await importTypeScript(
   new URL("../../orca/catalog-data.ts", import.meta.url)
 );
@@ -24,7 +25,7 @@ const script = stripTypeScriptTypes(
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(testProps, dependencies) {
-  const { OrcaService, onMount, onDestroy, catalogDirectory, catalogSetupState, filterCatalog, googleDriveProvider, groupCatalog, popularCatalog, starterCatalog, catalogSetupHref, catalogCategories, selectedToolInventory, orcaError, localeHref } = dependencies;
+  const { OrcaService, onMount, onDestroy, catalogDirectory, catalogSetupState, filterCatalog, googleDriveProvider, groupCatalog, popularCatalog, starterCatalog, catalogSetupHref, catalogCategories, selectedToolInventory, orcaError, localeHref, addByLinkHref } = dependencies;
   ${script}
   return {
     load, otherDriveConnections, driveProviderLabel, sourceHref, sourceConnection, changeTab, openSetup,
@@ -54,6 +55,7 @@ function dependencies(candidates, inventory = []) {
     selectedToolInventory: () => inventory,
     orcaError: (error) => error.message,
     localeHref: (href) => href,
+    addByLinkHref,
   };
 }
 
@@ -95,8 +97,10 @@ test('unavailable integrations open the real add-MCP flow without sending a guid
       const source = view.guideSources.find((row) => row.id === id);
       assert.ok(source.guideOnly);
       const href = new URL(view.sourceHref(source), 'https://orca.test');
-      assert.equal(href.searchParams.get('view'), 'servers');
-      assert.equal(href.searchParams.get('add'), 'source');
+      // Adding by an MCP link is the platform's program catalog, in the default company.
+      assert.equal(href.searchParams.get('view'), 'platform');
+      assert.equal(href.searchParams.get('section'), 'catalog');
+      assert.equal(href.searchParams.get('org'), 'default');
       assert.equal(href.searchParams.has('source'), false);
       assert.equal(view.sourceConnection(source), undefined);
     }

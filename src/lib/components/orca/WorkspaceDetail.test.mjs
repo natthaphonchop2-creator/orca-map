@@ -21,7 +21,8 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 const compiled = compileModule(`
 export function harness(testProps, OrcaService, personalKeyAvailable, workspaceToolingReady, t, orcaError, onMount, onDestroy, untrack, gatewaySources, gatewayToolCount, gatewayHasMember, gatewayMemberIDs, matchesToolSearch, toolPresentation, OrcaUserSourcesService) {
 	const orcaLocale = $state({ value: 'en' });
-	const page = $state({ url: new URL('https://orca.example.test/app?tab=connect') });
+	// Connecting lives on ภาพรวม, and only for a workspace with its own sign-in.
+	const page = $state({ url: new URL('https://orca.example.test/app?tab=overview') });
 	${script}
 	return {
 		createKey, revokeKey, clearCreatedKey, changeStatus, loadUserSources, saveIdentity, saveGuidance, saveWriteMode,
@@ -37,7 +38,7 @@ export function harness(testProps, OrcaService, personalKeyAvailable, workspaceT
 		changeHub(id) { hub = { ...hub, id }; },
 		setMembership(direct, effective, teams = []) { hub = { ...hub, memberIDs: direct, effectiveMemberIDs: effective, accessUnitIDs: teams }; },
 		changeTab(tab) { page.url = new URL('https://orca.example.test/app?tab=' + tab); },
-		openAccount(connectionID) { page.url = new URL('https://orca.example.test/app?tab=connect&account=' + encodeURIComponent(connectionID)); },
+		openAccount(connectionID) { page.url = new URL('https://orca.example.test/app?tab=overview&account=' + encodeURIComponent(connectionID)); },
 		pause() { hub = { ...hub, status: 'paused' }; },
 		archive() { hub = { ...hub, status: 'archived' }; },
 		remove() { hub = { ...hub, status: 'deleted' }; },
@@ -63,7 +64,7 @@ function setup(context, service = {}, hubOverrides = {}) {
 				currentUserID: 'member-one', members: [], canManage: true,
 				connections: [{ id: 'server-one', enabled: true, reviewedTools: true, toolNames: ['read'], tools: [{ name: 'read' }] }]
 			},
-			hub: { id: 'gateway-one', connectionID: 'server-one', status: 'active', toolNames: ['read'], memberIDs: ['member-one', 'member-two'], dailyLimit: 100, ...hubOverrides },
+			hub: { id: 'gateway-one', connectionID: 'server-one', status: 'active', toolNames: ['read'], memberIDs: ['member-one', 'member-two'], dailyLimit: 100, userSourceID: 'company-idp', ...hubOverrides },
 			onchanged: async () => {}
 		}, {
 			keys: async () => [],
@@ -326,7 +327,7 @@ test('account deep link cannot open a disabled source while another source remai
 	assert.equal(view.state.accountSourceID, 'server-one');
 });
 
-test('Gateway connect renders OAuth first for both ORCA and organization sign-in; keys stay optional', async () => {
+test('only a workspace with its own sign-in shows its own link on Overview, OAuth first and keys optional; others point to Connect my AI', async () => {
 	const compiled = compile(component, { filename: 'WorkspaceDetail.svelte', generate: 'server' });
 	assert.deepEqual(compiled.warnings, []);
 	const code = compiled.js.code.replace(/^import[\s\S]*?;\n/gm, '').replace('export default function WorkspaceDetail', 'function WorkspaceDetail');
@@ -339,7 +340,7 @@ test('Gateway connect renders OAuth first for both ORCA and organization sign-in
 	const calls = [];
 	const deps = Object.fromEntries(names.map((name) => [name, () => {}]));
 	Object.assign(deps, {
-		page: { url: new URL('https://orca.example/app?tab=connect') }, orcaLocale: { value: 'en' },
+		page: { url: new URL('https://orca.example/app?tab=overview') }, orcaLocale: { value: 'en' },
 		t: (_th, en) => en, localeHref: (url) => url, untrack,
 		personalKeyAvailable, workspaceToolingReady, gatewaySources, gatewayToolCount, gatewayHasMember, gatewayMemberIDs,
 		matchesToolSearch, toolPresentation, statusLabels: { active: 'Active' },
@@ -353,6 +354,13 @@ test('Gateway connect renders OAuth first for both ORCA and organization sign-in
 			hub: { id: 'gateway-one', name: 'Team', connectionID: 'server-one', status: 'active', toolNames: ['read'], memberIDs: ['member-one'], dailyLimit: 100, connectURL: 'https://orca.example/api/orca/hubs/gateway-one/mcp', userSourceID },
 			onchanged: async () => {}
 		} }).body;
+		if (!userSourceID) {
+			// The company link covers it: no second link, and no tab=connect.
+			assert.deepEqual(calls, []);
+			assert.match(html, /view=connect-ai/);
+			assert.doesNotMatch(html, /tab=connect|API key \(optional\)/);
+			continue;
+		}
 		assert.deepEqual(calls.map((props) => props.oauth), [true, false]);
 		assert.equal(calls[0].endpoint, calls[1].endpoint);
 		const keyPanel = html.match(/<details([^>]*)><summary[^>]*>API key \(optional\)<\/summary>/);

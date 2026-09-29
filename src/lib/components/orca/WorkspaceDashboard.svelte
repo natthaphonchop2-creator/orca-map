@@ -57,7 +57,7 @@
       done: data.connections.length > 0,
       title: t("เชื่อมระบบขององค์กร", "Connect a system"),
       detail: t("เช่น FlowAccount, Google Drive หรือ API ขององค์กร", "Such as FlowAccount, Google Drive or your own API"),
-      href: "/app?view=catalog",
+      href: "/app?view=add-program",
       action: t("เพิ่มระบบ", "Add a system"),
     },
     {
@@ -76,9 +76,9 @@
     },
     {
       done: aiUsed,
-      title: t("เชื่อม AI กับ ORCA", "Connect AI to ORCA"),
-      detail: t("เพิ่มลิงก์เชื่อม AI ใน ChatGPT หรือ Claude", "Add the AI connection link to ChatGPT or Claude"),
-      href: "/app?view=api-keys",
+      title: t("เชื่อม AI ของฉัน", "Connect my AI"),
+      detail: t("เพิ่มลิงก์ ORCA ของบริษัทใน Claude หรือ ChatGPT", "Add your company's ORCA link to Claude or ChatGPT"),
+      href: "/app?view=connect-ai",
       action: t("ดูวิธีเชื่อม", "View instructions"),
     },
   ]);
@@ -95,7 +95,7 @@
         ]
       : [
           { label: t("พื้นที่ทำงานของคุณ", "Your workspaces"), value: data.hubs.length, detail: t(`เปิดใช้งาน ${activeSpaces} แห่ง`, `${activeSpaces} active`), icon: Boxes, href: "/app?view=workspaces" },
-          { label: t("ระบบที่ใช้งานได้", "Available systems"), value: data.connections.length, detail: t(`พร้อมใช้งาน ${ready} ระบบ`, `${ready} ready`), icon: Plug, href: "/app?view=accounts" },
+          { label: t("ระบบที่ใช้งานได้", "Available systems"), value: data.connections.length, detail: t(`พร้อมใช้งาน ${ready} ระบบ`, `${ready} ready`), icon: Plug, href: "/app?view=connect-ai#accounts" },
           { label: t("การใช้งานวันนี้", "Usage today"), value: today, detail: t("จำนวนครั้งในพื้นที่ทำงานของคุณ", "Requests in your workspaces"), icon: Activity, href: "/app?view=workspaces" },
         ],
   );
@@ -190,10 +190,10 @@
     </div>
     <div class="home-actions">
       {#if manager}
-        <a class="k-button" href={localeHref("/app?view=catalog")}><Plug size={16} />{t("เพิ่มระบบ", "Add a system")}</a>
+        <a class="k-button" href={localeHref("/app?view=add-program")}><Plug size={16} />{t("เชื่อมโปรแกรม", "Connect a program")}</a>
         <a class="k-button primary" href={localeHref("/app?view=new")}><Plus size={16} />{t("สร้างพื้นที่ทำงาน AI", "New AI workspace")}</a>
       {:else}
-        <a class="k-button primary" href={localeHref("/app?view=api-keys")}><Sparkles size={16} />{t("เชื่อม AI กับ ORCA", "Connect AI to ORCA")}</a>
+        <a class="k-button primary" href={localeHref("/app?view=connect-ai")}><Sparkles size={16} />{t("เชื่อม AI ของฉัน", "Connect my AI")}</a>
       {/if}
     </div>
   </header>
@@ -354,11 +354,11 @@
       <section class="home-card" aria-labelledby="home-systems-title">
         <header class="home-card-head">
           <h2 id="home-systems-title">{manager ? t("ระบบที่เชื่อมต่อ", "Connected systems") : t("ระบบที่ใช้งานได้", "Available systems")}</h2>
-          <a class="k-button small" href={localeHref(manager ? "/app?view=servers" : "/app?view=accounts")}>{t("ดูทั้งหมด", "View all")}</a>
+          <a class="k-button small" href={localeHref(manager ? "/app?view=servers" : "/app?view=connect-ai#accounts")}>{t("ดูทั้งหมด", "View all")}</a>
         </header>
         {#each systems as connection (connection.id)}
           {@const status = systemStatus(connection)}
-          <a class="home-system" href={localeHref(manager ? "/app?view=servers&connection=" + encodeURIComponent(connection.id) : "/app?view=accounts")}>
+          <a class="home-system" href={localeHref(manager ? "/app?view=servers&connection=" + encodeURIComponent(connection.id) : "/app?view=connect-ai#accounts")}>
             <span class="home-logo large"><CatalogIcon name={systemIconName(connection)} size={20} /></span>
             <span class="home-system-copy"><strong title={connection.name}>{connection.name}</strong><small>{t(`เครื่องมือที่อนุญาต ${connection.toolNames.length} รายการ`, `${plural(connection.toolNames.length, "allowed tool", "allowed tools")}`)}</small></span>
             <span class="home-badge {status.tone}">{status.label}</span>
@@ -366,7 +366,7 @@
         {:else}
           <div class="home-empty compact">
             <strong>{t("ยังไม่มีระบบที่เชื่อมต่อ", "No connected systems yet")}</strong>
-            {#if manager}<a class="k-button small" href={localeHref("/app?view=catalog")}>{t("เพิ่มระบบ", "Add a system")}</a>{/if}
+            {#if manager}<a class="k-button small" href={localeHref("/app?view=add-program")}>{t("เพิ่มระบบ", "Add a system")}</a>{/if}
           </div>
         {/each}
         {#if data.connections.length > systems.length}<p class="home-note">{t(`แสดง ${systems.length} จาก ${data.connections.length} ระบบ`, `Showing ${systems.length} of ${data.connections.length} systems`)}</p>{/if}

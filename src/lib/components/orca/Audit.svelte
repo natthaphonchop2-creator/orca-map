@@ -40,7 +40,14 @@
     data,
     hubID = "",
     mode = "executions",
-  }: { data: OrcaBootstrap; hubID?: string; mode?: AuditMode } = $props();
+    showModeTabs = true,
+  }: {
+    data: OrcaBootstrap;
+    hubID?: string;
+    mode?: AuditMode;
+    /** Off under ตรวจสอบ, whose tab bar already switches between the two histories. */
+    showModeTabs?: boolean;
+  } = $props();
   let events = $state<OrcaAuditEvent[]>([]);
   let loading = $state(true),
     error = $state(""),
@@ -61,8 +68,8 @@
   let requestNumber = 0,
     previousFilters = "";
   let previousMode: AuditMode | undefined;
-  // One "Activity" page; the tabs tell tool use apart from admin changes.
-  const title = $derived(t("ประวัติการใช้งาน", "Activity"));
+  // Tool use is ประวัติการใช้งาน; changes by Owners and Admins are ประวัติการตั้งค่า.
+  const title = $derived(mode === "administration" ? t("ประวัติการตั้งค่า", "Settings history") : t("ประวัติการใช้งาน", "Activity"));
   const labels: Record<string, string> = $derived({
     admitted: t("รับคำขอแล้ว", "Received"),
     success: t("สำเร็จ", "Succeeded"),
@@ -387,7 +394,7 @@
       )}</button
     >
   </header>
-  <nav class="audit-tabs" aria-label={t("ประเภทประวัติการใช้งาน", "Activity type")}>
+  {#if showModeTabs}<nav class="audit-tabs" aria-label={t("ประเภทประวัติการใช้งาน", "Activity type")}>
     <a
       class:active={mode === "executions"}
       aria-current={mode === "executions" ? "page" : undefined}
@@ -401,7 +408,7 @@
         `/app?view=audit${selectedHubID ? `&hub=${encodeURIComponent(selectedHubID)}` : ""}`,
       )}>{t("การเปลี่ยนแปลงโดยผู้ดูแล", "Admin changes")}</a
     >
-  </nav>
+  </nav>{/if}
   <div class="audit-toolbar">
     <div class="filters">
       <div class="search-field">

@@ -1,0 +1,112 @@
+<script lang="ts">
+	import type { Snippet } from 'svelte';
+	import { ChevronLeft } from '@lucide/svelte';
+	import StatusPill, { type StatusTone } from './StatusPill.svelte';
+
+	// The page contract: an H1 of at most 4 words, one line under it, an
+	// optional status pill and at most one primary action.
+	let {
+		title,
+		subtitle = '',
+		status,
+		back,
+		eyebrow,
+		action,
+		id = 'orca-page-title'
+	}: {
+		title: string;
+		subtitle?: string;
+		status?: { label: string; tone?: StatusTone };
+		back?: { href: string; label: string };
+		eyebrow?: Snippet;
+		action?: Snippet;
+		id?: string;
+	} = $props();
+</script>
+
+<header class="orca-page-header">
+	{#if back}<a class="orca-page-back" href={back.href}><ChevronLeft size={16} aria-hidden="true" />{back.label}</a>{/if}
+	{#if eyebrow}<div class="orca-page-eyebrow">{@render eyebrow()}</div>{/if}
+	<div class="orca-page-row">
+		<div class="orca-page-heading">
+			<div class="orca-page-title">
+				<h1 {id}>{title}</h1>
+				{#if status}<StatusPill label={status.label} tone={status.tone ?? 'neutral'} dot />{/if}
+			</div>
+			{#if subtitle}<p class="orca-page-subtitle">{subtitle}</p>{/if}
+		</div>
+		{#if action}<div class="orca-page-action">{@render action()}</div>{/if}
+	</div>
+</header>
+
+<style>
+	.orca-page-header {
+		margin: 0 0 24px;
+	}
+	.orca-page-back {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		margin-bottom: 10px;
+		color: var(--orca-muted);
+		font-size: 14px;
+		font-weight: 500;
+		text-decoration: none;
+	}
+	.orca-page-back:hover {
+		color: var(--orca-ink);
+	}
+	.orca-page-eyebrow {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 10px;
+		color: var(--orca-muted);
+		font-size: 13px;
+	}
+	.orca-page-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 12px 24px;
+	}
+	.orca-page-heading {
+		flex: 1 1 320px;
+		min-width: 0;
+	}
+	.orca-page-title {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px 14px;
+	}
+	.orca-page-title h1 {
+		margin: 0;
+		font-size: 28px;
+		line-height: 1.3;
+		font-weight: 700;
+	}
+	.orca-page-subtitle {
+		max-width: 680px;
+		margin: 6px 0 0;
+		color: var(--orca-muted);
+		font-size: 15px;
+		line-height: 1.6;
+	}
+	.orca-page-action {
+		display: flex;
+		flex: none;
+		align-items: center;
+		gap: 8px;
+	}
+	@media (max-width: 720px) {
+		.orca-page-title h1 {
+			font-size: 24px;
+		}
+		.orca-page-action {
+			width: 100%;
+		}
+	}
+</style>

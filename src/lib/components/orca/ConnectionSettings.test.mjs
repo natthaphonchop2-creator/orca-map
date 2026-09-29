@@ -43,13 +43,16 @@ function screen(tab, canManage = true, props = {}) {
   return { calls, html: result.body };
 }
 
-test('existing Account renders only personal source setup without a policy save or discovery callback', () => {
-  const { calls } = screen('account');
-  assert.deepEqual(calls.map((call) => call.name), ['SourceSetup']);
-  assert.equal(calls[0].input.sourceID, connection.mcpID);
-  assert.equal(calls[0].input.canCreate, true);
-  assert.equal(calls[0].input.onready, undefined);
-  assert.equal(calls[0].input.onchanged, undefined);
+test('the account folds into Overview: personal source setup without a policy save or discovery callback', () => {
+  for (const tab of ['overview', 'account']) {
+    const { calls, html } = screen(tab);
+    assert.deepEqual(calls.map((call) => call.name), ['SourceSetup'], tab);
+    assert.equal(calls[0].input.sourceID, connection.mcpID);
+    assert.equal(calls[0].input.canCreate, true);
+    assert.equal(calls[0].input.onready, undefined);
+    assert.equal(calls[0].input.onchanged, undefined);
+    assert.doesNotMatch(html, /tab=account/, 'no account tab any more');
+  }
 });
 
 test('manager Tools renders policy mode directly while new source retains the setup flow', () => {
@@ -65,6 +68,7 @@ test('manager Tools renders policy mode directly while new source retains the se
 
 test('nonmanagers cannot mount account controls or policy editor through detail tabs', () => {
   assert.deepEqual(screen('account', false).calls, []);
+  assert.deepEqual(screen('overview', false).calls, []);
   const tools = screen('tools', false);
   assert.deepEqual(tools.calls, []);
   assert.match(tools.html, /search/);
