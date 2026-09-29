@@ -1,0 +1,302 @@
+// Home's first-run checklist (workspace UX proposal §4, build plan §4). Pure
+// rules only: the page loads the data and this decides what is done, what
+// comes next and what to show. Everything here guides setup; the server still
+// authorizes every operation.
+import { connectionReady, workspaceToolingReady } from './activation';
+import { gatewayConnections, gatewayHasMember } from './gateway-sources';
+import { lineExternalURL } from './in-app-browser';
+import type { OrcaAuditEvent, OrcaBootstrap, OrcaConnection, OrcaHub } from '../services/orca';
+import type { OrcaAnnotatedTool, OrcaMyAIApps, OrcaMyAISession, OrcaToolAnnotations } from '../services/orca-u6';
+
+type Translate = (th: string, en: string) => string;
+
+// ---------------------------------------------------------------------------
+// What AI can do in a program (build plan §4 rule 1)
+// ---------------------------------------------------------------------------
+
+/** The provider's annotations: the API sends them inside `definition`. */
+export function toolAnnotations(tool: OrcaAnnotatedTool | undefined): OrcaToolAnnotations | undefined {
+	return tool?.definition?.annotations ?? tool?.annotations ?? undefined;
+}
+
+/**
+ * A tool only reads when the provider says so: `readOnlyHint === true` and no
+ * destructive hint. Everything else, unannotated tools included, may change data.
+ */
+export function toolChangesData(tool: OrcaAnnotatedTool | undefined): boolean {
+	const annotations = toolAnnotations(tool);
+	return !(annotations?.readOnlyHint === true && annotations.destructiveHint !== true);
+}
+
+/** The allowed tools of a program, split into reading and changing data. */
+export function programAbilities(connection: Pick<OrcaConnection, 'toolNames' | 'tools'>) {
+	let read = 0;
+	let change = 0;
+	for (const name of connection.toolNames) {
+		const tool = connection.tools.find((item) => item.name === name) as OrcaAnnotatedTool | undefined;
+		if (toolChangesData(tool)) change += 1;
+		else read += 1;
+	}
+	return { total: read + change, read, change };
+}
+
+// ---------------------------------------------------------------------------
+// The viewer's own AI and use
+// ---------------------------------------------------------------------------
+
+/** B1's answer: `unknown` while it loads or when it cannot be read. */
+export type AIState = 'connected' | 'none' | 'unknown';
+
+/** The person's most recently renewed AI sign-in that has not expired. */
+export function activeAISession(apps: OrcaMyAIApps | undefined | null, now: number): OrcaMyAISession | undefined {
+	return (apps?.sessions ?? [])
+		.filter((session) => {
+			const expires = Date.parse(session.expiresAt);
+			return Number.isNaN(expires) || expires > now;
+		})
+		.sort((a, b) => (b.lastRefreshedAt || b.createdAt).localeCompare(a.lastRefreshedAt || a.createdAt))[0];
+}
+
+export function aiState(apps: OrcaMyAIApps | undefined | null, now: number): AIState {
+	if (!apps) return 'unknown';
+	return activeAISession(apps, now) ? 'connected' : 'none';
+}
+
+/** The app's name for people: the hint first, then what the app called itself. */
+export function aiAppName(session: Pick<OrcaMyAISession, 'client' | 'app'> | undefined): string {
+	if (!session) return '';
+	if (session.client === 'claude') return 'Claude';
+	if (session.client === 'chatgpt') return 'ChatGPT';
+	return session.app?.trim() || '';
+}
+
+export function isToolCall(event: Pick<OrcaAuditEvent, 'action' | 'method'>): boolean {
+	return ['tools.call', 'tools/call'].includes(event.action || event.method || '');
+}
+
+/** Only the viewer's own calls count: anyone else's says nothing about their AI. */
+export function askedAI(events: OrcaAuditEvent[], userID: string): boolean {
+	return !!userID && events.some((event) => isToolCall(event) && event.userID === userID);
+}
+
+// ---------------------------------------------------------------------------
+// Workspaces and programs the viewer can use
+// ---------------------------------------------------------------------------
+
+const live = (hub: OrcaHub) => hub.status !== 'archived' && hub.status !== 'deleted';
+
+/** Active workspaces where the viewer is an effective member and a program is ready. */
+export function usableWorkspaces(data: Pick<OrcaBootstrap, 'hubs' | 'connections' | 'currentUserID'>): OrcaHub[] {
+	return data.hubs.filter(
+		(hub) => hub.status === 'active' && gatewayHasMember(hub, data.currentUserID) && workspaceToolingReady(hub, data.connections)
+	);
+}
+
+/** Ready workspaces the viewer is not in yet (an admin may add themselves instead of making another). */
+export function workspacesWithoutMe(data: Pick<OrcaBootstrap, 'hubs' | 'connections' | 'currentUserID'>): OrcaHub[] {
+	return data.hubs.filter(
+		(hub) => hub.status === 'active' && !gatewayHasMember(hub, data.currentUserID) && workspaceToolingReady(hub, data.connections)
+	);
+}
+
+/** The programs the viewer can ask about now, else the company's ready ones. */
+export function askablePrograms(data: Pick<OrcaBootstrap, 'hubs' | 'connections' | 'currentUserID'>): OrcaConnection[] {
+	const mine = new Map<string, OrcaConnection>();
+	for (const hub of usableWorkspaces(data))
+		for (const connection of gatewayConnections(hub, data.connections))
+			if (connectionReady(connection)) mine.set(connection.id, connection);
+	if (mine.size > 0) return [...mine.values()];
+	return data.connections.filter(connectionReady);
+}
+
+/** The ready program the one-click "ให้ทุกคนในบริษัทใช้" starts from: the newest one no workspace uses yet. */
+export function teamProgram(data: Pick<OrcaBootstrap, 'hubs' | 'connections'>): OrcaConnection | undefined {
+	const ready = data.connections.filter(connectionReady).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+	const used = new Set(data.hubs.filter(live).flatMap((hub) => gatewayConnections(hub, data.connections).map((item) => item.id)));
+	return ready.find((connection) => !used.has(connection.id)) ?? ready[0];
+}
+
+/** What Home's status view flags for a manager: programs to review, unusable workspaces, paused programs. */
+export function attentionCounts(data: Pick<OrcaBootstrap, 'hubs' | 'connections'>) {
+	const ready = data.connections.filter(connectionReady).length;
+	const paused = data.connections.filter((connection) => !connection.enabled).length;
+	const review = data.connections.length - ready - paused;
+	const blocked = data.hubs.filter((hub) => hub.status === 'active' && !workspaceToolingReady(hub, data.connections)).length;
+	return { ready, paused, review, blocked, total: review + blocked + paused };
+}
+
+// ---------------------------------------------------------------------------
+// The checklist
+// ---------------------------------------------------------------------------
+
+export type StepState = 'done' | 'current' | 'todo';
+/** `undefined`: not known yet (still loading, or it could not be read). */
+export type Done = boolean | undefined;
+export interface ChecklistStep<ID extends string = string> {
+	id: ID;
+	done: Done;
+	state: StepState;
+	minutes: number;
+}
+export interface Checklist<ID extends string = string> {
+	steps: ChecklistStep<ID>[];
+	doneCount: number;
+	/** Setup mode: some required step is known not to be done. Unknown alone never nags. */
+	incomplete: boolean;
+	/** Every required step is done. */
+	complete: boolean;
+	remainingMinutes: number;
+	current?: ID;
+}
+
+function checklist<ID extends string>(items: { id: ID; done: Done; minutes: number }[]): Checklist<ID> {
+	const current = items.find((item) => item.done !== true)?.id;
+	const steps = items.map((item) => ({
+		...item,
+		state: (item.done === true ? 'done' : item.id === current ? 'current' : 'todo') as StepState
+	}));
+	return {
+		steps,
+		doneCount: items.filter((item) => item.done === true).length,
+		incomplete: items.some((item) => item.done === false),
+		complete: items.every((item) => item.done === true),
+		remainingMinutes: items.filter((item) => item.done !== true).reduce((sum, item) => sum + item.minutes, 0),
+		current
+	};
+}
+
+export type OwnerStepID = 'program' | 'team' | 'ai' | 'ask';
+
+/**
+ * The owner's and admin's four required steps. Until B1 answers, "เชื่อม AI
+ * ของฉัน" is merged with the first question: asking proves the AI is connected.
+ */
+export function ownerChecklist(
+	data: Pick<OrcaBootstrap, 'hubs' | 'connections' | 'currentUserID'>,
+	ai: AIState,
+	asked: Done
+): Checklist<OwnerStepID> {
+	return checklist<OwnerStepID>([
+		{ id: 'program', done: data.connections.some(connectionReady), minutes: 4 },
+		{ id: 'team', done: usableWorkspaces(data).length > 0, minutes: 1 },
+		{ id: 'ai', done: aiDone(ai, asked), minutes: 3 },
+		{ id: 'ask', done: asked, minutes: 2 }
+	]);
+}
+
+function aiDone(ai: AIState, asked: Done): Done {
+	if (ai === 'connected' || asked === true) return true;
+	if (ai === 'none') return false;
+	return asked;
+}
+
+/** One program row of the employee's step 2. */
+export type AccountState = 'signed-in' | 'needed' | 'waiting' | 'checking' | 'unknown';
+
+/** A program the employee signs in to, with its logo's catalog name. */
+export type ProgramAccount = { id: string; name: string; icon: string; state: AccountState };
+
+export type EmployeeStepID = 'ai' | 'accounts' | 'ask';
+
+/** The employee's three steps; `accounts` holds one state per program in their workspaces. */
+export function employeeChecklist(ai: AIState, accounts: AccountState[], asked: Done): Checklist<EmployeeStepID> {
+	const accountsDone: Done =
+		accounts.length === 0 ? undefined
+			: accounts.every((state) => state === 'signed-in') ? true
+			: accounts.some((state) => state === 'needed' || state === 'waiting') ? false
+			: undefined;
+	return checklist<EmployeeStepID>([
+		{ id: 'ai', done: aiDone(ai, asked), minutes: 3 },
+		{ id: 'accounts', done: accountsDone, minutes: 2 },
+		{ id: 'ask', done: asked, minutes: 2 }
+	]);
+}
+
+/** From the program's saved sign-in (sourceAccountState): signed in, or still needed. */
+export function accountStateFrom(state: 'account-needed' | 'not-configured' | 'account-connected' | 'configured' | 'unverified'): AccountState {
+	if (state === 'account-connected' || state === 'configured') return 'signed-in';
+	if (state === 'account-needed' || state === 'not-configured') return 'needed';
+	return 'unknown';
+}
+
+// ---------------------------------------------------------------------------
+// Copy
+// ---------------------------------------------------------------------------
+
+/** "วิภา" from "วิภา ตัวอย่าง"; nothing for an account with no name. */
+export function firstName(displayName: string | undefined): string {
+	return (displayName ?? '').trim().split(/\s+/)[0] ?? '';
+}
+
+const prompts: { match: RegExp; th: (name: string) => string; en: (name: string) => string }[] = [
+	{ match: /flowaccount/, th: (n) => `สรุปใบแจ้งหนี้ที่ค้างชำระจาก ${n}`, en: (n) => `Summarize unpaid invoices from ${n}` },
+	{ match: /\bpeak\b/, th: (n) => `สรุปยอดขายเดือนนี้จาก ${n}`, en: (n) => `Summarize this month's sales from ${n}` },
+	{ match: /gmail/, th: (n) => `สรุปอีเมลสำคัญวันนี้จาก ${n}`, en: (n) => `Summarize today's important email in ${n}` },
+	{ match: /calendar/, th: (n) => `วันนี้ฉันมีนัดอะไรบ้างใน ${n}`, en: (n) => `What meetings do I have today in ${n}?` },
+	{ match: /sheets/, th: (n) => `สรุปตัวเลขในไฟล์ล่าสุดของ ${n}`, en: (n) => `Summarize the figures in my latest ${n} file` },
+	{ match: /drive|onedrive/, th: (n) => `หาเอกสารล่าสุดใน ${n} แล้วสรุปให้หน่อย`, en: (n) => `Find the latest documents in ${n} and summarize them` },
+	{ match: /slack/, th: (n) => `สรุปข้อความสำคัญใน ${n} วันนี้`, en: (n) => `Summarize today's important messages in ${n}` },
+	{ match: /notion/, th: (n) => `หาคู่มือใน ${n} แล้วสรุปให้หน่อย`, en: (n) => `Find a guide in ${n} and summarize it` },
+	{ match: /\bline\b/, th: (n) => `ดูยอดข้อความของ ${n} เดือนนี้`, en: (n) => `Show this month's message usage in ${n}` },
+	{ match: /hubspot|salesforce|crm/, th: (n) => `สรุปดีลที่กำลังจะปิดเดือนนี้จาก ${n}`, en: (n) => `Summarize deals closing this month in ${n}` }
+];
+
+/** A first question to try, per program. The program is named, so AI uses it. */
+export function firstPrompt(connection: Pick<OrcaConnection, 'name' | 'mcpID'>, t: Translate): string {
+	const name = connection.name.trim() || connection.mcpID;
+	const key = `${connection.mcpID} ${connection.name}`.toLowerCase().replace(/[-_]+/g, ' ');
+	const found = prompts.find((prompt) => prompt.match.test(key));
+	return found ? t(found.th(name), found.en(name)) : t(`ดูข้อมูลล่าสุดจาก ${name} แล้วสรุปให้หน่อย`, `Look at the latest data in ${name} and summarize it`);
+}
+
+/** Where an admin adds people to workspaces, in this company (short: it goes into a chat message). */
+export function workspacesLink(origin: string, company: string): string {
+	const url = new URL('/app', origin);
+	url.searchParams.set('view', 'workspaces');
+	if (company && company !== 'default') url.searchParams.set('org', company);
+	return url.href;
+}
+
+/** The message an employee without a workspace sends an admin. Generic: no admin names (critique 8). */
+export function accessRequestText(
+	input: { name: string; email: string; company: string; link: string },
+	t: Translate
+): string {
+	const who = [input.name.trim(), input.email.trim() ? `(${input.email.trim()})` : ''].filter(Boolean).join(' ');
+	const link = lineExternalURL(input.link);
+	return t(
+		`รบกวนเพิ่ม${who ? ` ${who}` : 'ฉัน'} เข้าพื้นที่ทำงาน AI ของ ${input.company} ใน ORCA เพื่อให้ใช้ AI กับข้อมูลบริษัทได้ ${link}`,
+		`Please add ${who || 'me'} to an AI workspace of ${input.company} in ORCA, so I can use AI with company data. ${link}`
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Per-viewer memory (browser storage; a convenience only, never required)
+// ---------------------------------------------------------------------------
+
+export type HomeFlag = 'setup-dismissed' | 'skip-invite' | 'skip-knowledge';
+
+/** One key per flag, company and person: another viewer or company never inherits it. */
+export function homeFlagKey(flag: HomeFlag, company: string, userID: string): string {
+	return `orca.home.${flag}.${company}.${userID}`;
+}
+
+type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
+
+/** Private windows and blocked site data throw: the flag then reads as unset. */
+export function readHomeFlag(storage: () => StorageLike | undefined, key: string): boolean {
+	try {
+		return storage()?.getItem(key) === '1';
+	} catch {
+		return false;
+	}
+}
+
+export function writeHomeFlag(storage: () => StorageLike | undefined, key: string): boolean {
+	try {
+		storage()?.setItem(key, '1');
+		return true;
+	} catch {
+		return false;
+	}
+}

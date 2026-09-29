@@ -1,5 +1,6 @@
 <script lang="ts">
   import Brand from "$lib/components/orca/Brand.svelte";
+  import InAppBrowserNotice from "$lib/components/orca/InAppBrowserNotice.svelte";
   import PublicFooter from "$lib/components/orca/PublicFooter.svelte";
   import "$lib/components/orca/forms.css";
   import "$lib/components/orca/orca.css";
@@ -105,6 +106,8 @@
       </p>
     </section>
     <section class="o-auth-form invite-panel" aria-live="polite">
+      <!-- Invitations are often shared in LINE, where Google refuses to sign in. -->
+      {#if phase !== "joined"}<InAppBrowserNotice />{/if}
       {#if phase === "loading"}
         <p class="invite-loading"><LoaderCircle size={20} class="k-spin" aria-hidden="true" />{t("กำลังตรวจสอบลิงก์เชิญ…", "Checking the invitation link…")}</p>
       {:else if phase === "invalid"}

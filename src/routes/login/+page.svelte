@@ -2,6 +2,7 @@
   import { page } from "$app/state";
   import { LOCAL_AUTH_MIN_PASSWORD_LENGTH } from "$lib/constants";
   import Brand from "$lib/components/orca/Brand.svelte";
+  import InAppBrowserNotice from "$lib/components/orca/InAppBrowserNotice.svelte";
   import PublicFooter from "$lib/components/orca/PublicFooter.svelte";
   import "$lib/components/orca/forms.css";
   import "$lib/components/orca/orca.css";
@@ -112,6 +113,8 @@
               : "Choose the sign-in method set up by your organization.",
         )}
       </p>
+      <!-- Inside LINE or Facebook, Google refuses to sign in: open the page in a real browser first. -->
+      <InAppBrowserNotice />
       {#if data.unavailable}<div class="o-alert" role="alert">
           {t(
             "โหลดวิธีเข้าสู่ระบบไม่สำเร็จ กรุณาโหลดหน้านี้อีกครั้ง",
