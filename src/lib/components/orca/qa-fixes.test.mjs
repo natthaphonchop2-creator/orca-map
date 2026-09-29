@@ -68,3 +68,22 @@ test('the ORCA team\'s own company has one name on the platform pages', async ()
 	}
 	assert.match(await read('./platform/BreakGlassAccounts.svelte'), /resettingSelf[\s\S]*?นี่คือบัญชีของคุณ/, 'resetting your own password warns first');
 });
+
+test('an outlined o-button draws no outline but its focus ring, in one rule for every page', async () => {
+	// "outline" is also Tailwind's .outline utility (a 1px solid outline): orca.css, which every
+	// page with these buttons loads, turns it off outside :focus-visible, scoped to .orca.
+	const orca = (await read('./orca.css')).replace(/\/\*[\s\S]*?\*\//g, '');
+	assert.match(orca, /\.orca \.o-button\.outline:not\(:focus-visible\) \{\s*outline: none;\s*\}/);
+	assert.match(orca, /\.orca :focus-visible \{\s*outline: 3px solid/);
+	for (const file of ['./login.css', './forms.css']) {
+		const css = (await read(file)).replace(/\/\*[\s\S]*?\*\//g, '');
+		assert.doesNotMatch(css, /\.o-button\.outline[^{]*\{[^}]*outline(?:-color)?:\s*(?:0|none|transparent)/, `${file} has no second workaround`);
+		assert.match(css, /\.orca\.o-auth-page(?:\.o-login)? :focus-visible \{\s*outline: 2px solid var\(--(?:login-citron|orca-ink)\);/, `${file} keeps its focus ring`);
+	}
+	// The sign-in page stays dark, and Google keeps its white button.
+	const login = (await read('./login.css')).replace(/\/\*[\s\S]*?\*\//g, '');
+	assert.match(login, /\.orca\.o-auth-page\.o-login \.o-button\.outline\.o-google \{[^}]*background: #f7f8f8;[^}]*color: #08090a !important;/);
+	for (const page of ['../../../routes/login/+page.svelte', '../../../routes/login/ai/+page.svelte', '../../../routes/invite/[token]/+page.svelte', './CompanyGate.svelte']) {
+		assert.match(await read(page), /import "(?:\$lib\/components\/orca|\.)\/orca\.css";/, `${page} loads orca.css`);
+	}
+});

@@ -385,10 +385,6 @@
 	padding-block: 10px;
 	text-align: center;
 }
-/* Tailwind's own .outline utility (outline: 1px) also matches .o-button.outline: only the focus ring draws one. */
-.orca.o-auth-page.o-login .o-handoff-actions .o-button.outline:not(:focus-visible) {
-	outline: 0;
-}
 .orca.o-auth-page.o-login .o-handoff-label {
 	min-width: 0;
 	overflow-wrap: anywhere;

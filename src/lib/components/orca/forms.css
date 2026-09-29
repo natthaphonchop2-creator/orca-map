@@ -341,11 +341,9 @@
 	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-button:hover {
 		background: var(--orca-citron-hover);
 	}
-	/* Secondary: an outline on the dark card. The class "outline" also matches Tailwind's
-	   .outline utility (a 1px currentColor ring), which would draw a white ring in dark. */
+	/* Secondary: an outline on the dark card (orca.css keeps Tailwind's .outline ring off it). */
 	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-button.outline {
 		border-color: var(--orca-line-strong);
-		outline-color: transparent;
 		background: transparent;
 		color: var(--orca-ink) !important;
 	}

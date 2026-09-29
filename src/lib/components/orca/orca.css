@@ -113,6 +113,12 @@
 	background: transparent;
 	color: var(--o-ink) !important;
 }
+/* The class "outline" is also Tailwind's .outline utility (a 1px solid outline in the text colour),
+   which drew a second ring outside these buttons on /login, /login/ai, /invite and the company
+   chooser. Only the focus ring draws an outline on them (each page's :focus-visible rule). */
+.orca .o-button.outline:not(:focus-visible) {
+	outline: none;
+}
 .o-button.small {
 	min-height: 40px;
 	padding: 8px 15px;
