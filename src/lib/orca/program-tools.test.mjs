@@ -40,6 +40,9 @@ test('only a tool annotated readOnlyHint:true and not destructive only reads (th
 	assert.equal(toolChangesData(tool('i', { readOnlyHint: 'true' })), true);
 	assert.equal(toolChangesData(tool('j', { readOnlyHint: true, destructiveHint: 'no' })), true);
 	assert.equal(toolChangesData({ name: 'k', definition: { annotations: [] } }), true);
+	assert.equal(toolChangesData({ name: 'k2', definition: { annotations: null } }), true);
+	// Only the reviewed definition counts, as on the server: hints on the tool itself are ignored.
+	assert.equal(toolChangesData({ name: 'k3', inputSchema: {}, annotations: { readOnlyHint: true } }), true);
 	// A definition sent as JSON text is read the same way; broken JSON is a write.
 	assert.equal(toolChangesData({ name: 'l', definition: JSON.stringify({ annotations: { readOnlyHint: true } }) }), false);
 	assert.equal(toolChangesData({ name: 'm', definition: '{broken' }), true);
@@ -52,6 +55,9 @@ test('tools group into ดูข้อมูล and สร้าง / แก้�
 	assert.deepEqual(groups.unspecified, ['email_invoice', 'sync']);
 	assert.equal(toolUnspecified(tool('x', { readOnlyHint: false })), false);
 	assert.equal(toolUnspecified(tool('y', { title: 'Only a title' })), true);
+	assert.equal(toolUnspecified(tool('z', undefined)), true, 'no annotations at all');
+	assert.equal(toolUnspecified({ name: 'w' }), true, 'no definition at all');
+	assert.equal(toolUnspecified(tool('v', { readOnlyHint: true, destructiveHint: true })), false);
 });
 
 test('a new program starts read-only; with nothing that qualifies the read-only preset is off and nothing is ticked', () => {

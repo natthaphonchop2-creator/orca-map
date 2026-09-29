@@ -17,7 +17,7 @@
 	} from '$lib/orca/workspace-edit';
 	import { OrcaLibraryService, type LibraryDepartment } from '$lib/services/orca-library';
 	import { OrcaService, type OrcaBootstrap, type OrcaHub } from '$lib/services/orca';
-	import { workspaceWriteError } from '$lib/services/orca-u5';
+	import { workspaceWriteError } from '$lib/services/orca-workspaces';
 	import { ChevronDown, Info, LoaderCircle, Plus, Users } from '@lucide/svelte';
 	import { onMount, untrack } from 'svelte';
 	import FormErrorSummary from '../ui/FormErrorSummary.svelte';

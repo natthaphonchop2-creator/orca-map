@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { stripTypeScriptTypes } from 'node:module';
 import test from 'node:test';
-import { importTypeScript } from './test-import.mjs';
+import { importTypeScript, typescriptModuleURL } from './test-import.mjs';
 
 const edit = await importTypeScript(new URL('./workspace-edit.ts', import.meta.url));
 const th = (value) => value;
@@ -26,20 +28,6 @@ const hub = {
 	memberIDs: ['u-owner', 'u-a'], unitIDs: ['legacy'], accessUnitIDs: ['dept-acc'], effectiveMemberIDs: ['u-owner', 'u-a', 'u-b'],
 	dailyLimit: 200, status: 'active', version: 7, createdAt: '', updatedAt: '', connectURL: 'https://orca.example.test/mcp/hub-one', usedToday: 12
 };
-
-test('tools change data unless the reviewed definition says read-only and not destructive (the approval rule)', () => {
-	assert.equal(edit.toolChangesData(read('a')), false);
-	assert.equal(edit.toolChangesData(write('a')), true);
-	assert.equal(edit.toolChangesData(destructive('a')), true);
-	assert.equal(edit.toolChangesData(unannotated('a')), true);
-	assert.equal(edit.toolChangesData({ name: 'a', definition: { annotations: null } }), true);
-	assert.equal(edit.toolChangesData({ name: 'a', definition: { annotations: { readOnlyHint: 'true' } } }), true, 'a hint that is not a boolean does not parse');
-	assert.equal(edit.toolChangesData({ name: 'a', definition: { annotations: { readOnlyHint: true, destructiveHint: 'no' } } }), true);
-	assert.equal(edit.toolChangesData({ name: 'a', definition: JSON.stringify({ annotations: { readOnlyHint: true } }) }), false, 'raw JSON is parsed');
-	assert.equal(edit.toolChangesData({ name: 'a', definition: '{broken' }), true);
-	assert.equal(edit.toolHintMissing(unannotated('a')), true);
-	assert.equal(edit.toolHintMissing(write('a')), false);
-});
 
 test('a program reviewed as read-only never holds anything; otherwise any change tool or unknown tool does', () => {
 	assert.equal(edit.sourceChangesData(drive, ['search_files', 'read_file']), false);
@@ -127,6 +115,94 @@ test('saveHubPatch GETs the workspace first, PUTs with its version, and turns a 
 	assert.equal(edit.hubConflictMessage(th), 'มีคนแก้พื้นที่นี้พร้อมกัน โหลดใหม่');
 	assert.match(edit.hubRuleMessage('an active Gateway requires a connection, reviewed tools, and members or departments', th), /ต้องมีอย่างน้อย 1 โปรแกรม และ 1 คนหรือแผนก/);
 	assert.equal(edit.hubRuleMessage('something else', th), undefined);
+});
+
+test('"add me" (เชื่อม AI ของฉัน, คลังความรู้) is one saveHubPatch: fresh GET, whole workspace back with its version, no write when already in', async () => {
+	const calls = [];
+	const fresh = { ...hub, memberIDs: ['u-owner'], version: 4, sources: [{ connectionID: 'conn-flow', toolNames: ['list_invoices'] }] };
+	const service = {
+		hub: async (id) => { calls.push(['get', id]); return structuredClone(fresh); },
+		save: async (input, id) => { calls.push(['put', id, input]); return { ...fresh, ...input, version: 5 }; },
+		status: (error) => error?.status
+	};
+	const saved = await edit.saveHubPatch('hub-one', (current) => edit.joinPatch(current, 'me'), service);
+	assert.deepEqual(calls.map((call) => call.slice(0, 2)), [['get', 'hub-one'], ['put', 'hub-one']]);
+	const input = calls[1][2];
+	assert.equal(input.version, 4);
+	assert.deepEqual(input.memberIDs, ['u-owner', 'me']);
+	// Everything else goes back as saved, so nothing another admin set is wiped.
+	assert.deepEqual(input.sources, [{ connectionID: 'conn-flow', toolNames: ['list_invoices'] }]);
+	assert.deepEqual(input.accessUnitIDs, ['dept-acc']);
+	assert.deepEqual([input.instructions, input.writeMode, input.dailyLimit, input.status, input.description], ['ตอบเป็นไทย', 'approval', 200, 'active', 'เดิม']);
+	assert.equal(saved.version, 5);
+	// Already a member: no write at all.
+	calls.length = 0;
+	const again = await edit.saveHubPatch('hub-one', (current) => edit.joinPatch(current, 'u-owner'), service);
+	assert.deepEqual(calls.map((call) => call[0]), ['get']);
+	assert.equal(again.version, 4);
+	assert.equal(edit.joinPatch({ ...fresh, memberIDs: null }, 'me').memberIDs.length, 1, 'a workspace without members yet');
+	// Someone else saved in between: the one conflict message.
+	const conflict = { ...service, save: async () => { throw Object.assign(new Error('409'), { status: 409 }); } };
+	await assert.rejects(edit.saveHubPatch('hub-one', (current) => edit.joinPatch(current, 'me'), conflict), edit.HubConflictError);
+});
+
+test('hubInput sends the whole workspace back: a legacy one keeps its program, absent fields stay absent', () => {
+	const fresh = {
+		...hub, id: 'h', name: 'h', memberIDs: ['a'], accessUnitIDs: ['sales'], unitIDs: ['label'], instructions: 'ตอบภาษาไทย', writeMode: 'approval',
+		connectionID: 'c', toolNames: ['t'], sources: [{ connectionID: 'c', toolNames: ['t'] }], userSourceID: 'sso', description: 'd', dailyLimit: 50, status: 'paused', version: 9
+	};
+	assert.deepEqual(edit.hubInput(fresh, edit.joinPatch(fresh, 'me')), {
+		name: 'h', description: 'd', connectionID: 'c', toolNames: ['t'], sources: [{ connectionID: 'c', toolNames: ['t'] }],
+		memberIDs: ['a', 'me'], unitIDs: ['label'], accessUnitIDs: ['sales'], userSourceID: 'sso', dailyLimit: 50, status: 'paused',
+		instructions: 'ตอบภาษาไทย', writeMode: 'approval', version: 9
+	});
+	// A legacy workspace without `sources` keeps its one program; a missing list is empty.
+	const legacy = edit.hubInput({ ...fresh, sources: undefined, memberIDs: null, accessUnitIDs: undefined, instructions: undefined, writeMode: undefined });
+	assert.deepEqual(legacy.sources, [{ connectionID: 'c', toolNames: ['t'] }]);
+	assert.deepEqual(legacy.memberIDs, []);
+	assert.ok(!('accessUnitIDs' in legacy) && !('instructions' in legacy) && !('writeMode' in legacy), 'absent stays absent, so the server keeps it');
+});
+
+test('hubWriteService reads and saves the workspace in the page\'s company, and names a conflict in Thai', async () => {
+	const code = stripTypeScriptTypes(await readFile(new URL('../services/orca-workspaces.ts', import.meta.url), 'utf8'))
+		.replace(/^import[^;]+;/gm, '')
+		.replace(/^export /gm, '');
+	const companyURL = await typescriptModuleURL(new URL('./company.ts', import.meta.url));
+	const { service, setPageCompany } = await import('data:text/javascript;base64,' + Buffer.from(`import { orcaPath, setPageCompany } from ${JSON.stringify(companyURL)};
+export { setPageCompany };
+export function service(doGet, OrcaService, parseErrorContent, t, HubConflictError, hubConflictMessage, hubRuleMessage, orcaError) { ${code}; return { hubWriteService, workspaceWriteError }; }`).toString('base64'));
+	const calls = [];
+	const stored = { ...hub, id: 'h 1', memberIDs: ['a'], version: 4 };
+	const { hubWriteService, workspaceWriteError } = service(
+		async (path) => { calls.push(['GET', path]); return structuredClone(stored); },
+		{ hub: async (input, id) => { calls.push(['PUT', id, input]); return { ...stored, ...input }; } },
+		(error) => ({ status: error?.status, message: error?.message ?? '' }),
+		th, edit.HubConflictError, edit.hubConflictMessage, edit.hubRuleMessage, () => 'server said no'
+	);
+	const company = 'org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+	setPageCompany(company, [{ id: company }]);
+	try {
+		await edit.saveHubPatch('h 1', (fresh) => edit.joinPatch(fresh, 'me'), hubWriteService);
+		assert.deepEqual(calls.map((call) => call.slice(0, 2)), [['GET', `/orca/orgs/${company}/hubs/h%201`], ['PUT', 'h 1']]);
+		assert.equal(calls[1][2].version, 4);
+		assert.deepEqual(calls[1][2].memberIDs, ['a', 'me']);
+		calls.length = 0;
+		await edit.saveHubPatch('h 1', (fresh) => edit.joinPatch(fresh, 'a'), hubWriteService);
+		assert.deepEqual(calls.map((call) => call[0]), ['GET'], 'already a member: no write');
+	} finally {
+		setPageCompany('default', []);
+	}
+	assert.equal(workspaceWriteError(new edit.HubConflictError()), 'มีคนแก้พื้นที่นี้พร้อมกัน โหลดใหม่');
+	assert.equal(workspaceWriteError({ status: 409 }), 'มีคนแก้พื้นที่นี้พร้อมกัน โหลดใหม่');
+	assert.match(workspaceWriteError({ status: 400, message: 'an active Gateway requires a connection, reviewed tools, and members or departments' }), /ต้องมีอย่างน้อย 1 โปรแกรม/);
+	assert.equal(workspaceWriteError({ status: 500 }), 'server said no');
+});
+
+test('hubInput never hands back the fresh record\'s own lists', () => {
+	const input = edit.hubInput(hub, {});
+	assert.notEqual(input.sources, hub.sources);
+	assert.notEqual(input.memberIDs, hub.memberIDs);
+	assert.notEqual(input.sources[0].toolNames, hub.sources[0].toolNames);
 });
 
 const members = [

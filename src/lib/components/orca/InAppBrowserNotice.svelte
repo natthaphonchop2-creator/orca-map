@@ -6,21 +6,25 @@
 	import { copyFeedback, copyText } from './ui/copy';
 
 	// Google refuses to sign anyone in inside LINE's and Facebook's in-app
-	// browsers (workspace UX critique 13). On /login and /invite this asks the
-	// person to open the same page in Chrome or Safari. The page's own flow
-	// stays exactly as it is below it, with its own primary button: the
+	// browsers (workspace UX critique 13). On /login, /invite and เชื่อม AI ของฉัน
+	// this asks the person to open the same page in Chrome or Safari. The page's
+	// own flow stays exactly as it is below it, with its own primary button: the
 	// notice's buttons are outlined, so the page keeps one primary action.
 	let {
 		userAgent,
 		href,
-		level = 3
+		level = 3,
+		variant = 'auth'
 	}: {
 		/** For tests; the browser's own by default. */
 		userAgent?: string;
 		href?: string;
 		/** The heading level that fits the page's outline (2 when the notice comes before the page's own h2). */
 		level?: 2 | 3;
+		/** `workspace`: inside the signed-in app, with its buttons and a warning panel. */
+		variant?: 'auth' | 'workspace';
 	} = $props();
+	const button = $derived(variant === 'workspace' ? 'k-button' : 'o-button outline');
 	// Tests pass the user agent and address; the page reads the browser's on mount.
 	const fromProps = () => ({
 		browser: userAgent !== undefined ? inAppBrowser(userAgent) : undefined,
@@ -47,15 +51,15 @@
 </script>
 
 {#if browser}
-	<section class="o-inapp" aria-labelledby="o-inapp-{uid}">
+	<section class="o-inapp" class:workspace={variant === 'workspace'} aria-labelledby="o-inapp-{uid}">
 		<svelte:element this={`h${level}`} id="o-inapp-{uid}" class="o-inapp-title"><Globe size={18} aria-hidden="true" />{t('เปิดใน Chrome หรือ Safari', 'Open in Chrome or Safari')}</svelte:element>
 		<p>{t(`${app} เปิดหน้านี้ในเบราว์เซอร์ของแอป ซึ่ง Google ไม่ให้เข้าสู่ระบบ`, `${app} opened this page in its own browser, where Google won't sign you in.`)}</p>
 		{#if browser === 'line'}
-			<a class="o-button outline" href={lineExternalURL(here)}>{t('เปิดใน Chrome หรือ Safari', 'Open in Chrome or Safari')}<ExternalLink size={16} aria-hidden="true" /></a>
+			<a class={button} href={lineExternalURL(here)}>{t('เปิดใน Chrome หรือ Safari', 'Open in Chrome or Safari')}<ExternalLink size={16} aria-hidden="true" /></a>
 		{:else}
 			<p class="o-inapp-step">{t('แตะ ⋯ มุมขวาบน แล้วเลือก “เปิดในเบราว์เซอร์” หรือคัดลอกลิงก์ไปวางเอง', 'Tap ⋯ at the top right and choose “Open in browser”, or copy the link and paste it yourself.')}</p>
 		{/if}
-		<button type="button" class="o-button outline" onclick={copy}>
+		<button type="button" class={button} onclick={copy}>
 			{#if copied}<Check size={16} aria-hidden="true" />{t('คัดลอกลิงก์แล้ว', 'Link copied')}{:else}<Copy size={16} aria-hidden="true" />{t('คัดลอกลิงก์', 'Copy the link')}{/if}
 		</button>
 		<span class="o-inapp-announce" role="status" aria-live="polite">{copied ? t('คัดลอกลิงก์แล้ว', 'Link copied') : ''}</span>
@@ -101,6 +105,22 @@
 	.o-inapp :global(.o-button) {
 		gap: 8px;
 		margin: 0;
+	}
+	/* Inside the workspace: a warning panel on the page's own tokens. */
+	.o-inapp.workspace {
+		grid-template-columns: minmax(0, 1fr);
+		justify-items: start;
+		margin: 0 0 24px;
+		border-color: var(--orca-warn-line);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-warn-bg);
+	}
+	.o-inapp.workspace .o-inapp-title :global(svg) {
+		flex: none;
+		color: var(--orca-warn);
+	}
+	.o-inapp.workspace p {
+		color: var(--orca-text-2);
 	}
 	.o-inapp .o-inapp-failed {
 		color: var(--login-deny, var(--orca-deny));

@@ -5,7 +5,7 @@
 	import { everyonePlan, everyoneSummary, runEveryone } from '$lib/orca/workspace-edit';
 	import { OrcaLibraryService } from '$lib/services/orca-library';
 	import { OrcaService, type OrcaBootstrap, type OrcaHub, type OrcaUnit } from '$lib/services/orca';
-	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-u5';
+	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-workspaces';
 	import { Building2, CircleAlert, Eye, Info, LoaderCircle, ShieldCheck, Users } from '@lucide/svelte';
 	import EmptyState from '../ui/EmptyState.svelte';
 	import PageHeader from '../ui/PageHeader.svelte';

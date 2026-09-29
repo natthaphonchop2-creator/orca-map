@@ -27,7 +27,7 @@
 		type AccessPreset
 	} from '$lib/orca/program-tools';
 	import { orcaError, type OrcaBootstrap, type OrcaCandidate, type OrcaConnection } from '$lib/services/orca';
-	import { ProgramService, type ProgramTool } from '$lib/services/orca-u4';
+	import { ProgramService, type ProgramTool } from '$lib/services/orca-programs';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import PageHeader from '../ui/PageHeader.svelte';
 	import Stepper from '../ui/Stepper.svelte';

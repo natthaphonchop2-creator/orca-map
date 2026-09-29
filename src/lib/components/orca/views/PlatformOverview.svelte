@@ -5,7 +5,7 @@
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { platformHref, type PlatformSection } from '$lib/orca/navigation';
 	import { OrcaService, orcaError, type OrcaGoogleSignIn, type OrcaPlatformCompany, type PilotRequest } from '$lib/services/orca';
-	import { googleClientSaved, platformCounts } from '$lib/services/orca-u2';
+	import { googleClientSaved, platformCounts } from '$lib/services/orca-platform';
 	import PlatformBadge from '../platform/PlatformBadge.svelte';
 	import PageHeader from '../ui/PageHeader.svelte';
 

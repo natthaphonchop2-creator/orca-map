@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { stripTypeScriptTypes } from 'node:module';
 import test from 'node:test';
-import { importTypeScript, typescriptModuleURL } from './test-import.mjs';
+import { importTypeScript } from './test-import.mjs';
 
 const k = await importTypeScript(new URL('./knowledge.ts', import.meta.url));
 const th = (thai) => thai;
@@ -213,51 +212,10 @@ test('the preview checks required fields itself; a prompt knows which of its art
 	assert.deepEqual(k.brokenReferences({ kind: 'knowledge', knowledgeIDs: ['gone'] }, items), [], 'articles have no references');
 });
 
-test('"add me" sends the whole fresh workspace back with its version and the viewer added', () => {
-	const fresh = hub('h', {
-		memberIDs: ['a'], accessUnitIDs: ['sales'], unitIDs: ['label'], instructions: 'ตอบภาษาไทย', writeMode: 'approval',
-		sources: [{ connectionID: 'c', toolNames: ['t'] }], userSourceID: 'sso', description: 'd', dailyLimit: 50, status: 'paused', version: 9
-	});
-	const input = k.withMember(fresh, 'me');
-	assert.deepEqual(input, {
-		name: 'h', description: 'd', connectionID: 'c', toolNames: ['t'], sources: [{ connectionID: 'c', toolNames: ['t'] }],
-		memberIDs: ['a', 'me'], unitIDs: ['label'], accessUnitIDs: ['sales'], userSourceID: 'sso', dailyLimit: 50, status: 'paused',
-		instructions: 'ตอบภาษาไทย', writeMode: 'approval', version: 9
-	});
-	assert.deepEqual(k.withMember(fresh, 'a').memberIDs, ['a'], 'never twice');
-	// A legacy workspace without `sources` keeps its program; absent optional fields stay absent.
-	const legacy = k.hubInputFrom(hub('l', { memberIDs: null }));
-	assert.deepEqual(legacy.sources, [{ connectionID: 'c', toolNames: ['t'] }]);
-	assert.deepEqual(legacy.memberIDs, []);
-	assert.ok(!('accessUnitIDs' in legacy) && !('instructions' in legacy) && !('writeMode' in legacy));
-});
-
-test('KnowledgeWorkspaceService reads the workspace fresh, then saves it with its version, in the page\'s company', async () => {
-	const code = stripTypeScriptTypes(await readFile(new URL('../services/orca-u8.ts', import.meta.url), 'utf8'))
-		.replace(/^import[^;]+;/gm, '')
-		.replace(/^export /gm, '');
-	const companyURL = await typescriptModuleURL(new URL('./company.ts', import.meta.url));
-	const { service, setPageCompany } = await import('data:text/javascript;base64,' + Buffer.from(`import { orcaPath, setPageCompany } from ${JSON.stringify(companyURL)};
-export { setPageCompany };
-export function service(doGet, doPut, withMember) { ${code}; return KnowledgeWorkspaceService; }`).toString('base64'));
-	const calls = [];
-	const stored = hub('h 1', { memberIDs: ['a'], version: 4 });
-	const api = service(
-		async (path) => { calls.push(['GET', path]); return stored; },
-		async (path, body) => { calls.push(['PUT', path, body]); return { ...stored, ...body }; },
-		k.withMember
-	);
-	const company = 'org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-	setPageCompany(company, [{ id: company }]);
-	try {
-		await api.addMember('h 1', 'me');
-		assert.deepEqual(calls.map((call) => call.slice(0, 2)), [['GET', `/orca/orgs/${company}/hubs/h%201`], ['PUT', `/orca/orgs/${company}/hubs/h%201`]]);
-		assert.equal(calls[1][2].version, 4);
-		assert.deepEqual(calls[1][2].memberIDs, ['a', 'me']);
-		calls.length = 0;
-		await api.addMember('h 1', 'a');
-		assert.deepEqual(calls.map((call) => call[0]), ['GET'], 'already a member: no write');
-	} finally {
-		setPageCompany('default', []);
-	}
+test('"เพิ่มฉันเลย" saves through the one workspace helper, not a copy of its own', async () => {
+	// Covered in workspace-edit.test.mjs: saveHubPatch + joinPatch with hubWriteService.
+	const page = await readFile(new URL('../components/orca/KnowledgeLibrary.svelte', import.meta.url), 'utf8');
+	assert.match(page, /saveHubPatch\(id, \(fresh\) => joinPatch\(fresh, data\.currentUserID\), hubWriteService\)/);
+	assert.equal(k.hubInputFrom, undefined);
+	assert.equal(k.withMember, undefined);
 });

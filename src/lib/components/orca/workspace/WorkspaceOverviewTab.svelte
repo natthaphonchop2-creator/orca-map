@@ -7,7 +7,7 @@
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { aiReachesWorkspace, connectAILink, programSummary, programSummaryLabel, samplePrompt, sourceChangesData, workspaceInviteMessage } from '$lib/orca/workspace-edit';
 	import type { OrcaBootstrap, OrcaHub } from '$lib/services/orca';
-	import { OrcaWorkspaceService } from '$lib/services/orca-u5';
+	import { MyAIAppsService } from '$lib/services/orca-ai-apps';
 	import { ArrowRight, BookOpen, Check, CircleCheck, Copy, MessageCircle, Play, ShieldCheck, Sparkles, UserPlus } from '@lucide/svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import GatewayClientSetup from '../GatewayClientSetup.svelte';
@@ -62,7 +62,7 @@
 		origin = window.location.origin;
 		const controller = new AbortController();
 		if (isMember && !archived && !sso)
-			void OrcaWorkspaceService.myAIApps(controller.signal)
+			void MyAIAppsService.list(controller.signal)
 				.then((apps) => {
 					ai = aiReachesWorkspace(apps, hub.id) ? 'connected' : 'none';
 				})

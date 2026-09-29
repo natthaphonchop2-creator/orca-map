@@ -3,7 +3,7 @@
 	import { t } from '$lib/orca/locale.svelte';
 	import { presetFor, programSaveInput, saveProblem, savedSelection, type AccessPreset } from '$lib/orca/program-tools';
 	import { orcaError, type OrcaConnection } from '$lib/services/orca';
-	import { ProgramService, type ProgramTool } from '$lib/services/orca-u4';
+	import { ProgramService, type ProgramTool } from '$lib/services/orca-programs';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import { showToast } from '../ui/toast-store.svelte';
 	import ProgramToolsEditor from './ProgramToolsEditor.svelte';

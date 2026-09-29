@@ -2,7 +2,7 @@
 // behind KnowledgeLibrary and LibraryEditor, free of Svelte so it is tested.
 // Everything here only guides the screen. The server still decides who may
 // read, write and publish each item.
-import type { HubInput, OrcaHub } from '../services/orca';
+import type { OrcaHub } from '../services/orca';
 import type {
 	LibraryDepartment,
 	LibraryItem,
@@ -10,7 +10,7 @@ import type {
 	LibraryParameter,
 	LibraryStatus
 } from '../services/orca-library';
-import { gatewayHasMember, gatewaySources } from './gateway-sources';
+import { gatewayHasMember } from './gateway-sources';
 
 type Translate = (th: string, en: string) => string;
 
@@ -455,32 +455,4 @@ export function brokenReferences(template: Pick<LibraryItem, 'kind' | 'knowledge
 	return template.knowledgeIDs.filter((id) => !items.some((item) => item.id === id && item.kind === 'knowledge' && item.status === 'published'));
 }
 
-// ── Adding the viewer to a workspace ────────────────────────────────
-
-/**
- * A full workspace save built from a fresh GET (critique 2): PUT replaces the
- * whole workspace, so every field is sent back as it is now, with its version.
- */
-export function hubInputFrom(hub: OrcaHub, patch: Partial<HubInput> = {}): HubInput {
-	return {
-		name: hub.name,
-		description: hub.description ?? '',
-		connectionID: hub.connectionID ?? '',
-		toolNames: hub.toolNames ?? [],
-		sources: gatewaySources({ ...hub, toolNames: hub.toolNames ?? [] }),
-		memberIDs: hub.memberIDs ?? [],
-		unitIDs: hub.unitIDs ?? [],
-		...(hub.accessUnitIDs !== undefined ? { accessUnitIDs: hub.accessUnitIDs ?? [] } : {}),
-		userSourceID: hub.userSourceID ?? '',
-		dailyLimit: hub.dailyLimit,
-		status: hub.status,
-		...(hub.instructions !== undefined ? { instructions: hub.instructions } : {}),
-		...(hub.writeMode !== undefined ? { writeMode: hub.writeMode } : {}),
-		version: hub.version,
-		...patch
-	};
-}
-
-export function withMember(hub: OrcaHub, memberID: string): HubInput {
-	return hubInputFrom(hub, { memberIDs: unique([...(hub.memberIDs ?? []), memberID]) });
-}
+// "เพิ่มฉันเลย" saves through workspace-edit's saveHubPatch() and joinPatch() (critique 2).

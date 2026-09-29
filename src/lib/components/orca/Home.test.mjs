@@ -222,10 +222,15 @@ test('the in-app browser notice: LINE opens outside, Facebook explains the menu,
 	let html = render(Notice, { props: { userAgent: 'Mozilla/5.0 (iPhone) Mobile/15E148 Safari Line/14.9.0', href } }).body;
 	assert.match(html, /<h3 id="(o-inapp-[^"]+)" class="o-inapp-title[^"]*">(?:(?!<\/h3>)[\s\S])*เปิดใน Chrome หรือ Safari/);
 	assert.match(html, /<section class="o-inapp[^"]*" aria-labelledby="(o-inapp-[^"]+)">[\s\S]*id="\1"/, 'the section is named by its heading');
-	assert.match(html, /<a class="o-button outline" href="https:\/\/orca\.example\.test\/login\?rd=%2Fapp&amp;openExternalBrowser=1">/);
-	assert.match(html, /class="o-button outline"[^>]*>[\s\S]*?คัดลอกลิงก์/);
+	assert.match(html, /<a class="o-button outline(?: svelte-[\w-]+)?" href="https:\/\/orca\.example\.test\/login\?rd=%2Fapp&amp;openExternalBrowser=1">/);
+	assert.match(html, /class="o-button outline(?: svelte-[\w-]+)?"[^>]*>[\s\S]*?คัดลอกลิงก์/);
 	// The page below keeps the one primary button: the notice's are outlined.
-	assert.doesNotMatch(html, /class="o-button"/);
+	assert.doesNotMatch(html, /class="o-button(?: svelte-[\w-]+)?"|primary/);
+	// Inside the workspace (เชื่อม AI ของฉัน): the app's own buttons, still never a second primary.
+	html = render(Notice, { props: { userAgent: 'Mozilla/5.0 (iPhone) Mobile/15E148 Safari Line/14.9.0', href, level: 2, variant: 'workspace' } }).body;
+	assert.match(html, /<section class="o-inapp[^"]*\bworkspace\b[^"]*"/);
+	assert.match(html, /<a class="k-button(?: svelte-[\w-]+)?" href="[^"]*openExternalBrowser=1">/);
+	assert.doesNotMatch(html, /o-button|primary/);
 	html = render(Notice, { props: { userAgent: 'Mozilla/5.0 (iPhone) Mobile/15E148 Safari Line/14.9.0', href, level: 2 } }).body;
 	assert.match(html, /<h2 id="o-inapp-[^"]+" class="o-inapp-title[^"]*">/);
 	html = render(Notice, { props: { userAgent: 'Mozilla/5.0 [FB_IAB/FB4A;FBAV/470.0.0.0;]', href } }).body;

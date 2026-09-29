@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { orcaLocale, t } from '$lib/orca/locale.svelte';
 	import { toolPresentation } from '$lib/orca/tool-presentation';
-	import { allowedTools, readOnlyToolNames, toolHintMissing } from '$lib/orca/workspace-edit';
+	import { toolUnspecified } from '$lib/orca/program-tools';
+	import { allowedTools, readOnlyToolNames } from '$lib/orca/workspace-edit';
 	import type { OrcaConnection } from '$lib/services/orca';
-	import type { OrcaReviewedTool } from '$lib/services/orca-u5';
+	import type { ProgramTool } from '$lib/services/orca-programs';
 	import { Eye, Info, Pencil } from '@lucide/svelte';
 	import Sheet from '../ui/Sheet.svelte';
 
@@ -26,11 +27,11 @@
 	$effect(() => {
 		if (open) chosen = selected.filter((name) => connection?.toolNames.includes(name));
 	});
-	const tools = $derived(allowedTools(connection) as OrcaReviewedTool[]);
+	const tools = $derived(allowedTools(connection) as ProgramTool[]);
 	const readNames = $derived(readOnlyToolNames(connection));
 	const readTools = $derived(tools.filter((tool) => readNames.includes(tool.name)));
 	const changeTools = $derived(tools.filter((tool) => !readNames.includes(tool.name)));
-	const unstated = $derived(!connection?.reviewedReadOnly && changeTools.some((tool) => toolHintMissing(tool)));
+	const unstated = $derived(!connection?.reviewedReadOnly && changeTools.some((tool) => toolUnspecified(tool)));
 	const name = $derived(connection?.name ?? '');
 
 	function toggle(tool: string) {
@@ -77,7 +78,7 @@
 							<label class="narrow-tool">
 								<input type="checkbox" checked={chosen.includes(tool.name)} onchange={() => toggle(tool.name)} />
 								<span>
-									<strong>{shown.label}{#if group.id === 'change' && toolHintMissing(tool)}<em class="narrow-tag">{t('ผู้ให้บริการไม่ได้ระบุ', 'Not stated')}</em>{/if}</strong>
+									<strong>{shown.label}{#if group.id === 'change' && toolUnspecified(tool)}<em class="narrow-tag">{t('ผู้ให้บริการไม่ได้ระบุ', 'Not stated')}</em>{/if}</strong>
 									{#if shown.description && shown.description !== shown.label}<small>{shown.description}</small>{/if}
 								</span>
 							</label>

@@ -12,7 +12,7 @@ import { effect_root, flush } from 'svelte/internal/client';
 import { importTypeScript } from '../../orca/test-import.mjs';
 import { serverComponent } from './test-render.mjs';
 
-const u2 = await importTypeScript(new URL('../../services/orca-u2.ts', import.meta.url));
+const u2 = await importTypeScript(new URL('../../services/orca-platform.ts', import.meta.url));
 const navigation = await importTypeScript(new URL('../../orca/navigation.ts', import.meta.url));
 const contract = await importTypeScript(new URL('./ui/page-contract.ts', import.meta.url));
 const require = createRequire(import.meta.url);

@@ -5,7 +5,7 @@
   import { term } from "$lib/orca/glossary";
   import { t } from "$lib/orca/locale.svelte";
   import { OrcaService, displayDate, orcaError, type OrcaBootstrap, type OrcaGoogleSignIn } from "$lib/services/orca";
-  import { backendOrigin, googleClientIDFormat, googleClientSaved, googleRedirectTargets } from "$lib/services/orca-u2";
+  import { backendOrigin, googleClientIDFormat, googleClientSaved, googleRedirectTargets } from "$lib/services/orca-platform";
   import PlatformBadge from "./platform/PlatformBadge.svelte";
   import ConfirmDialog from "./ui/ConfirmDialog.svelte";
   import PageHeader from "./ui/PageHeader.svelte";

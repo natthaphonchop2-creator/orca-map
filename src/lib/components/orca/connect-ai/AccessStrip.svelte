@@ -3,10 +3,12 @@
 	import { ArrowRight, Check, Copy, Info, UserPlus } from '@lucide/svelte';
 	import { parseErrorContent } from '$lib/errors';
 	import { keepCompany } from '$lib/orca/company';
-	import { accessFix, accessRequestText, hubInputWithMember, namesText, withExternalBrowser, type ConnectAccess } from '$lib/orca/connect-ai';
+	import { accessFix, accessRequestText, namesText, type ConnectAccess } from '$lib/orca/connect-ai';
+	import { lineExternalURL } from '$lib/orca/in-app-browser';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
-	import { OrcaService, orcaError, type OrcaBootstrap } from '$lib/services/orca';
-	import { MyAIAppsService } from '$lib/services/orca-u3';
+	import { HubConflictError, hubConflictMessage, joinPatch, saveHubPatch } from '$lib/orca/workspace-edit';
+	import { orcaError, type OrcaBootstrap } from '$lib/services/orca';
+	import { hubWriteService } from '$lib/services/orca-workspaces';
 	import { copyFeedback, copyText } from '../ui/copy';
 	import { showToast } from '../ui/toast-store.svelte';
 
@@ -41,16 +43,15 @@
 		error = '';
 		stale = false;
 		try {
-			// A fresh copy, so nothing another admin just changed is overwritten (critique 2).
-			const fresh = await MyAIAppsService.hub(hub.id);
-			await OrcaService.hub(hubInputWithMember(fresh, data.currentUserID), fresh.id);
-			showToast(t(`เพิ่มคุณเข้า ${fresh.name} แล้ว`, `You were added to ${fresh.name}`));
+			// From a fresh copy with its version, so nothing another admin just changed is overwritten (critique 2).
+			const saved = await saveHubPatch(hub.id, (fresh) => joinPatch(fresh, data.currentUserID), hubWriteService);
+			showToast(t(`เพิ่มคุณเข้า ${saved.name} แล้ว`, `You were added to ${saved.name}`));
 			await onchanged?.();
 		} catch (cause) {
 			const status = parseErrorContent(cause).status;
-			if (status === 409) {
+			if (cause instanceof HubConflictError || status === 409) {
 				stale = true;
-				error = t('มีคนแก้พื้นที่นี้พร้อมกัน โหลดใหม่แล้วลองอีกครั้ง', 'Someone changed this workspace at the same time. Reload and try again.');
+				error = hubConflictMessage(t);
 			} else if (status === 400 || status === 422) {
 				error = t('ยังเพิ่มไม่ได้ เพราะพื้นที่ทำงานนี้ต้องแก้ไขก่อน เปิดพื้นที่ทำงานเพื่อดูว่าต้องแก้อะไร', 'This workspace needs fixing before you can join it. Open it to see what to fix.');
 			} else error = orcaError(cause);
@@ -64,7 +65,7 @@
 		const origin = typeof window === 'undefined' ? 'https://orca.invalid' : window.location.origin;
 		const url = new URL('/app?view=workspaces', origin);
 		keepCompany(url);
-		return withExternalBrowser(url.href);
+		return lineExternalURL(url.href);
 	});
 	const request = $derived(accessRequestText({ name: me?.displayName ?? '', email: me?.email ?? '', company: data.organization.displayName, url: requestURL }, t));
 	let copied = $state(false);

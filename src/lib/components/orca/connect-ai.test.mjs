@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { render } from 'svelte/server';
 import { importTypeScript } from '../../orca/test-import.mjs';
@@ -11,6 +11,8 @@ const ai = await importTypeScript(new URL('../../orca/connect-ai.ts', import.met
 const { term } = await importTypeScript(new URL('../../orca/glossary.ts', import.meta.url));
 const { aiConnectionLine } = await importTypeScript(new URL('../../orca/ai-connection.ts', import.meta.url));
 const { copyFeedback, copyText } = await importTypeScript(new URL('./ui/copy.ts', import.meta.url));
+const inApp = await importTypeScript(new URL('../../orca/in-app-browser.ts', import.meta.url));
+const workspaceEdit = await importTypeScript(new URL('../../orca/workspace-edit.ts', import.meta.url));
 const en = (_th, english) => english;
 const url = (name) => new URL(`./connect-ai/${name}.svelte`, import.meta.url);
 const NOW = Date.parse('2026-09-28T10:30:00+07:00');
@@ -34,7 +36,7 @@ const stub = (mounted, name, body = '') => (renderer, props) => {
 	mounted.push({ name, props });
 	renderer.push(`<div data-child="${name}">${body}</div>`);
 };
-const common = { t: en, term, localeHref: (href) => href, orcaLocale: { value: 'en' }, untrack: (fn) => fn(), onMount: () => {}, onDestroy: () => {}, copyFeedback, copyText, ...ai };
+const common = { t: en, term, localeHref: (href) => href, orcaLocale: { value: 'en' }, untrack: (fn) => fn(), onMount: () => {}, onDestroy: () => {}, copyFeedback, copyText, ...ai, ...inApp, ...workspaceEdit };
 
 async function page(props) {
 	const mounted = [];
@@ -113,11 +115,20 @@ test('the pinned state is loaded once when the workspace opens, and the page can
 	assert.equal(route.match(/checkAIConnectionOnce\(\)/g)?.length, 1);
 	assert.match(route, /data = result;\s*void refreshApprovals\(\);\s*void checkAIConnectionOnce\(\);/);
 	assert.match(route, /<ConnectAIView data=\{currentData!\} onchanged=\{refresh\} \/>/);
-	const service = await readFile(new URL('../../services/orca-u3.ts', import.meta.url), 'utf8');
+	const service = await readFile(new URL('../../services/orca-ai-apps.ts', import.meta.url), 'utf8');
 	assert.match(service, /orcaPath\('\/me\/ai-apps'\)/);
 	assert.match(service, /\/me\/ai-apps\/sessions\/\$\{part\(id\)\}\/revoke/);
 	assert.match(service, /\/me\/ai-apps\/keys\/\$\{part\(String\(id\)\)\}\/revoke/);
-	assert.match(service, /if \(checked\) return;/);
+	assert.match(service, /if \(checked\) return pending \?\? Promise\.resolve\(\);/);
+	// A server without B1 (404) or without it for this person (403): a neutral pin, never "ยังไม่ได้เชื่อม".
+	assert.match(service, /status === 404 \|\| status === 403/);
+	assert.match(service, /if \(aiAppsUnavailable\(cause\)\) setAIConnection\(\{ state: 'unknown' \}\)/);
+	// One B1 client: nothing else in the app reads GET …/me/ai-apps itself.
+	const root = new URL('../../', import.meta.url);
+	const files = (await readdir(root, { recursive: true })).filter((name) => /\.(ts|svelte)$/.test(name) && !/\.test\./.test(name));
+	const readers = [];
+	for (const name of files) if ((await readFile(new URL(name, root), 'utf8')).includes("'/me/ai-apps'")) readers.push(name);
+	assert.deepEqual(readers, ['services/orca-ai-apps.ts']);
 });
 
 async function strip(props) {
@@ -280,9 +291,10 @@ test('program sign-ins and the in-app browser notice keep their promises', async
 	assert.match(programs, /id="accounts"/, 'old links to #accounts land here');
 	assert.match(programs, /ขอให้ผู้ดูแลเพิ่มผู้ใช้ใน \$\{row\.name\}/, 'critique 5: people without their own login');
 	const view = await readFile(new URL('./views/ConnectAIView.svelte', import.meta.url), 'utf8');
-	assert.match(view, /inAppBrowser\(navigator\.userAgent\)/);
-	assert.match(view, /เปิดใน Chrome หรือ Safari/);
-	assert.match(view, /withExternalBrowser\(pageURL\)/);
+	// LINE and Facebook: the one shared notice (in-app-browser.ts), as on /login and /invite.
+	assert.match(view, /import InAppBrowserNotice from '\.\.\/InAppBrowserNotice\.svelte'/);
+	assert.match(view, /<InAppBrowserNotice level=\{2\} variant="workspace" \/>/);
+	assert.doesNotMatch(view, /navigator\.userAgent|withExternalBrowser/);
 	for (const source of [programs, view, ...await Promise.all(['AccessStrip', 'AIAppPicker', 'AppSteps', 'ConnectResult', 'ConnectStep', 'ConnectedAIList', 'ConsentDrawing', 'DeveloperKeys'].map((name) => readFile(url(name), 'utf8')))]) {
 		assert.doesNotMatch(source, /#fff\b|#ffffff|#151823/i, 'tokens only');
 		assert.doesNotMatch(source, /localStorage\.setItem\((?!.*AI_APP_KEY)/, 'only the chosen app is remembered in the browser');

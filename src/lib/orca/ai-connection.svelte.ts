@@ -1,10 +1,11 @@
 import type { AIConnectionStatus } from './ai-connection';
 
 /**
- * The viewer's AI connection, shown on the pinned "เชื่อม AI ของฉัน" button.
- * B1 (GET …/me/ai-apps) feeds it later: setAIConnection({ state: 'connected', app: 'Claude' }).
+ * The viewer's AI connection: the pinned "เชื่อม AI ของฉัน" button and Home read
+ * it; B1 (GET …/me/ai-apps, services/orca-ai-apps.ts) feeds it. It starts
+ * "unknown", which the pin shows without a state line.
  */
-export const aiConnection = $state<AIConnectionStatus>({ state: 'none' });
+export const aiConnection = $state<AIConnectionStatus>({ state: 'unknown' });
 
 export function setAIConnection(status: AIConnectionStatus) {
 	aiConnection.state = status.state;

@@ -4,7 +4,7 @@
 	import { HubConflictError, departmentsPatch, membersPatch, saveHubPatch } from '$lib/orca/workspace-edit';
 	import { OrcaLibraryService, type LibraryDepartment } from '$lib/services/orca-library';
 	import { memberName, memberRole, type OrcaBootstrap, type OrcaHub } from '$lib/services/orca';
-	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-u5';
+	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-workspaces';
 	import { onMount, untrack } from 'svelte';
 	import { personInitial } from '../ui/person-picker';
 	import { showToast } from '../ui/toast-store.svelte';

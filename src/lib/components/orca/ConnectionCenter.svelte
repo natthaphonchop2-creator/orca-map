@@ -17,7 +17,7 @@
 	} from '$lib/orca/program-catalog';
 	import { accessSummary } from '$lib/orca/program-tools';
 	import { OrcaService, type OrcaBootstrap, type OrcaCandidate, type OrcaConnectionHealth } from '$lib/services/orca';
-	import { ProgramService } from '$lib/services/orca-u4';
+	import { ProgramService } from '$lib/services/orca-programs';
 	import { onDestroy, onMount } from 'svelte';
 	import PageHeader from './ui/PageHeader.svelte';
 	import StatusPill, { type StatusTone } from './ui/StatusPill.svelte';

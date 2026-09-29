@@ -5,6 +5,7 @@
 import type { HubInput, OrcaConnection, OrcaHub, OrcaHubSource, OrcaMember, OrcaUnit, UnitInput } from '../services/orca';
 import { connectionReady } from './activation';
 import { gatewaySources } from './gateway-sources';
+import { toolChangesData } from './program-tools';
 
 type Translate = (th: string, en: string) => string;
 type ToolLike = { name: string; definition?: unknown };
@@ -14,41 +15,8 @@ type ProgramLike = Pick<OrcaConnection, 'toolNames' | 'tools' | 'reviewedReadOnl
 // What AI can do: reading or changing data (critique 1)
 // ---------------------------------------------------------------------------
 
-type Annotations = { readOnlyHint?: unknown; destructiveHint?: unknown };
-
-function annotationsOf(tool: ToolLike): Annotations | undefined {
-	let definition = tool.definition;
-	if (typeof definition === 'string') {
-		try {
-			definition = JSON.parse(definition);
-		} catch {
-			return undefined;
-		}
-	}
-	if (!definition || typeof definition !== 'object') return undefined;
-	const annotations = (definition as { annotations?: unknown }).annotations;
-	return annotations && typeof annotations === 'object' ? (annotations as Annotations) : undefined;
-}
-
-/**
- * The backend's approval rule (orca_approvals.go, orcaToolChangesData): a tool
- * changes data unless its reviewed definition says it only reads and is not
- * destructive. Missing or malformed hints count as a change.
- */
-export function toolChangesData(tool: ToolLike): boolean {
-	const hints = annotationsOf(tool);
-	if (!hints) return true;
-	const { readOnlyHint, destructiveHint } = hints;
-	// A hint that is not a boolean does not parse on the server: a change.
-	if (readOnlyHint !== undefined && readOnlyHint !== null && typeof readOnlyHint !== 'boolean') return true;
-	if (destructiveHint !== undefined && destructiveHint !== null && typeof destructiveHint !== 'boolean') return true;
-	return readOnlyHint !== true || destructiveHint === true;
-}
-
-/** The provider did not say whether the tool reads or changes data ("ผู้ให้บริการไม่ได้ระบุ"). */
-export function toolHintMissing(tool: ToolLike): boolean {
-	return typeof annotationsOf(tool)?.readOnlyHint !== 'boolean';
-}
+// Whether a tool only reads is program-tools' toolChangesData(), the one copy
+// of the backend's approval rule.
 
 /** The tools a program allows today, in the program's order (a tool must be reviewed and listed). */
 export function allowedTools<T extends ToolLike>(connection: { toolNames: string[]; tools: T[] } | undefined): T[] {
@@ -165,6 +133,14 @@ export function membersPatch(fresh: OrcaHub, change: { add?: readonly string[]; 
 	return { memberIDs: union(fresh.memberIDs ?? [], change.add ?? []).filter((id) => !remove.has(id)) };
 }
 
+/**
+ * "เพิ่มฉัน" (เชื่อม AI ของฉัน, คลังความรู้): the viewer as a direct member on top
+ * of whoever is in the workspace now; null (no write) when they already are one.
+ */
+export function joinPatch(fresh: OrcaHub, memberID: string): Pick<HubInput, 'memberIDs'> | null {
+	return (fresh.memberIDs ?? []).includes(memberID) ? null : membersPatch(fresh, { add: [memberID] });
+}
+
 /** Adds and removes department grants on top of the saved ones. */
 export function departmentsPatch(fresh: OrcaHub, change: { add?: readonly string[]; remove?: readonly string[] }): Pick<HubInput, 'accessUnitIDs'> {
 	const remove = new Set(change.remove ?? []);
@@ -213,11 +189,12 @@ export type HubWriteService = {
 };
 
 /**
- * One workspace write: GET the workspace as saved now, put `patch` on top
- * with hubInput(), and PUT it with that version. Someone else's save between
- * the two is a 409, reported as HubConflictError ("มีคนแก้พื้นที่นี้พร้อมกัน").
+ * One workspace write, the only one in the app: GET the workspace as saved
+ * now, put `patch` on top with hubInput(), and PUT it with that version.
+ * Someone else's save between the two is a 409, reported as HubConflictError
+ * ("มีคนแก้พื้นที่นี้พร้อมกัน โหลดใหม่"). A patch of null changes nothing: no PUT.
  */
-export async function saveHubPatch(id: string, patch: (fresh: OrcaHub) => Partial<HubInput>, service: HubWriteService): Promise<OrcaHub> {
+export async function saveHubPatch(id: string, patch: (fresh: OrcaHub) => Partial<HubInput> | null, service: HubWriteService): Promise<OrcaHub> {
 	let fresh: OrcaHub;
 	try {
 		fresh = await service.hub(id);
@@ -225,8 +202,10 @@ export async function saveHubPatch(id: string, patch: (fresh: OrcaHub) => Partia
 		if (service.status(cause) === 409) throw new HubConflictError();
 		throw cause;
 	}
+	const change = patch(fresh);
+	if (change === null) return fresh;
 	try {
-		return await service.save(hubInput(fresh, patch(fresh)), id);
+		return await service.save(hubInput(fresh, change), id);
 	} catch (cause) {
 		if (service.status(cause) === 409) throw new HubConflictError();
 		throw cause;

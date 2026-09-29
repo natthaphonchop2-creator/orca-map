@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import type { OrcaBootstrap } from '$lib/services/orca';
-	import { ProgramService } from '$lib/services/orca-u4';
+	import { ProgramService } from '$lib/services/orca-programs';
 	import AddProgramFlow from './programs/AddProgramFlow.svelte';
 	import ProgramDetail from './programs/ProgramDetail.svelte';
 	import SourceSetup from './SourceSetup.svelte';

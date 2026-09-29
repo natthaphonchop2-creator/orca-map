@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { render } from 'svelte/server';
 import { typescriptModuleURL } from '../../orca/test-import.mjs';
@@ -109,6 +110,17 @@ test('the ORCA team switches between their company and the platform, whose items
 test('the pin says which AI is connected once B1 reports it', async () => {
 	const { html } = await renderShell({ data: owner, companies: [companies[0]], account: '7', aiStatus: { state: 'connected', app: 'Claude' } });
 	assert.match(html, /<small class="workspace-pin-state connected">Claude connected<\/small>/);
+});
+
+test('a server without B1 (GET me/ai-apps 404) or not read yet: a neutral pin, never "Not connected"', async () => {
+	const { html } = await renderShell({ data: owner, companies: [companies[0]], account: '7', aiStatus: { state: 'unknown' } });
+	const aside = html.slice(html.indexOf('<aside'), html.indexOf('</aside>'));
+	assert.match(aside, /workspace-pin/);
+	assert.match(aside, /aria-label="Connect my AI"/);
+	assert.doesNotMatch(aside, /workspace-pin-state|Not connected/);
+	// The store starts unknown, so nothing is claimed before B1 answers.
+	const store = await readFile(new URL('../../orca/ai-connection.svelte.ts', import.meta.url), 'utf8');
+	assert.match(store, /\$state<AIConnectionStatus>\(\{ state: 'unknown' \}\)/);
 });
 
 test('sub-pages keep their sidebar item lit', async () => {

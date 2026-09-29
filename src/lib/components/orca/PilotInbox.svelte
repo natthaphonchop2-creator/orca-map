@@ -3,7 +3,7 @@
 	import { term } from '$lib/orca/glossary';
 	import { displayDate, orcaError } from '$lib/services/orca';
 	import { OrcaService, type PilotRequest, type PilotStatus } from '$lib/services/orca';
-	import { PILOT_STATUSES } from '$lib/services/orca-u2';
+	import { PILOT_STATUSES } from '$lib/services/orca-platform';
 	import { Building2, Check, Inbox, Info, Mail, RefreshCw, UserRound, Users } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import PlatformBadge from './platform/PlatformBadge.svelte';

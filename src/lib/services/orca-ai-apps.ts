@@ -1,13 +1,12 @@
-// U3 "เชื่อม AI ของฉัน": the person's own AI apps (backend B1) and the one
-// hub read the "add me" button needs. Kept apart from orca.ts so the areas of
-// the workspace redesign merge cleanly; fold into OrcaService later.
+// The person's own AI apps (backend B1, GET …/me/ai-apps): the one client
+// for เชื่อม AI ของฉัน, Home, a workspace's overview and the pinned
+// "เชื่อม AI ของฉัน" button. Metadata only: no token ever reaches the page.
 import { parseErrorContent } from '$lib/errors';
 import { orcaPath } from '$lib/orca/company';
 import { setAIConnection } from '$lib/orca/ai-connection.svelte';
 import { aiConnectionFrom } from '$lib/orca/connect-ai';
 import { t } from '$lib/orca/locale.svelte';
 import { doGet, doPost } from './http';
-import type { OrcaHub } from './orca';
 
 /** Which AI app a sign-in is: a display hint the server takes from its redirect host or name. */
 export type AIClient = 'claude' | 'chatgpt' | 'other';
@@ -52,14 +51,36 @@ export const MyAIAppsService = {
 	revokeSession: (id: string) =>
 		doPost(orcaPath(`/me/ai-apps/sessions/${part(id)}/revoke`), {}, options) as Promise<{ revoked: boolean }>,
 	revokeKey: (id: number) =>
-		doPost(orcaPath(`/me/ai-apps/keys/${part(String(id))}/revoke`), {}, options) as Promise<{ revoked: boolean }>,
-	/** A fresh copy of one workspace, so a save starts from its latest version (critique 2). */
-	hub: (id: string) => doGet(orcaPath(`/hubs/${part(id)}`), options) as Promise<OrcaHub>
+		doPost(orcaPath(`/me/ai-apps/keys/${part(String(id))}/revoke`), {}, options) as Promise<{ revoked: boolean }>
 };
 
-/** The server has no B1 routes yet, or not for this company: fall back to static hints. */
+/**
+ * The server cannot say: it has no B1 routes yet (404), or none for this
+ * person in this company (403). Pages then fall back to static hints, and the
+ * pinned button stays neutral instead of claiming "ยังไม่ได้เชื่อม".
+ */
 export function aiAppsUnavailable(error: unknown): boolean {
-	return parseErrorContent(error).status === 404;
+	const status = parseErrorContent(error).status;
+	return status === 404 || status === 403;
+}
+
+let pending: Promise<void> | undefined;
+/**
+ * Reads B1 once more and updates the shared store (the pin, Home). Calls made
+ * while one is in flight share it. Unavailable → "unknown" (a neutral pin); any
+ * other failure keeps what was known.
+ */
+export function refreshAIConnection(): Promise<void> {
+	pending ??= (async () => {
+		try {
+			setAIConnection(aiConnectionFrom(await MyAIAppsService.list(), Date.now(), t));
+		} catch (cause) {
+			if (aiAppsUnavailable(cause)) setAIConnection({ state: 'unknown' });
+		} finally {
+			pending = undefined;
+		}
+	})();
+	return pending;
 }
 
 let checked = false;
@@ -67,12 +88,8 @@ let checked = false;
  * One read when the workspace opens, so the pinned "เชื่อม AI ของฉัน" button
  * shows the right state on every page. The connect page keeps it current after.
  */
-export async function checkAIConnectionOnce() {
-	if (checked) return;
+export function checkAIConnectionOnce(): Promise<void> {
+	if (checked) return pending ?? Promise.resolve();
 	checked = true;
-	try {
-		setAIConnection(aiConnectionFrom(await MyAIAppsService.list(), Date.now(), t));
-	} catch {
-		// Unknown stays "ยังไม่ได้เชื่อม"; the connect page explains.
-	}
+	return refreshAIConnection();
 }

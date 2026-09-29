@@ -4,7 +4,7 @@
 	import { orcaLocale, t } from '$lib/orca/locale.svelte';
 	import ToolIcon from '$lib/orca/ToolIcon.svelte';
 	import { OrcaService, orcaError, type OrcaHub } from '$lib/services/orca';
-	import { MyAIAppsService, type MyAIKey, type MyAISession } from '$lib/services/orca-u3';
+	import { MyAIAppsService, type MyAIKey, type MyAISession } from '$lib/services/orca-ai-apps';
 	import { term } from '$lib/orca/glossary';
 	import ConfirmDialog from '../ui/ConfirmDialog.svelte';
 	import { showToast } from '../ui/toast-store.svelte';

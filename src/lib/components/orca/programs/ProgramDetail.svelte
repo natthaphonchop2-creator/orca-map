@@ -19,7 +19,7 @@
 		type OrcaCandidate,
 		type OrcaConnectionHealth
 	} from '$lib/services/orca';
-	import { ProgramService } from '$lib/services/orca-u4';
+	import { ProgramService } from '$lib/services/orca-programs';
 	import { onDestroy, onMount } from 'svelte';
 	import ConnectionMembers from '../ConnectionMembers.svelte';
 	import LifecycleActions from '../LifecycleActions.svelte';

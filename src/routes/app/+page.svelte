@@ -30,7 +30,7 @@
     type OrcaBootstrap,
     type OrcaHub,
   } from "$lib/services/orca";
-  import { checkAIConnectionOnce } from "$lib/services/orca-u3";
+  import { checkAIConnectionOnce } from "$lib/services/orca-ai-apps";
   import { Folder, Info, LoaderCircle } from "@lucide/svelte";
   import { onMount, untrack } from "svelte";
   import type { PageProps } from "./$types";

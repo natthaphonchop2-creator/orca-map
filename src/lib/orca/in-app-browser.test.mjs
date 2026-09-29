@@ -29,6 +29,11 @@ test('LINE and Facebook in-app browsers are recognised; real browsers are not', 
 	for (const ua of [UA.safari, UA.chrome, UA.desktop, '', undefined, null]) assert.equal(inAppBrowser(ua), undefined, String(ua));
 	// "Line" as a word elsewhere is not the LINE app.
 	assert.equal(inAppBrowser('Mozilla/5.0 Headline/2.0 Safari'), undefined);
+	assert.equal(inAppBrowser('Mozilla/5.0 Outline/1.0'), undefined);
+	// Short user agents (as เชื่อม AI ของฉัน's own tests had them).
+	assert.equal(inAppBrowser('Mozilla/5.0 (Linux; Android 14) Chrome/120.0 Mobile Safari/537.36 Line/13.16.1/IAB'), 'line');
+	assert.equal(inAppBrowser('Mozilla/5.0 (iPhone) Mobile/15E148 [FBAN/FBIOS;FBAV/440.0.0]'), 'facebook');
+	assert.equal(inAppBrowser('Mozilla/5.0 (Linux; Android 14) Instagram 300.0'), 'instagram');
 });
 
 test('LINE opens the same page in the phone\'s browser; the copied link stays clean', () => {

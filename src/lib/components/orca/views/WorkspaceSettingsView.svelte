@@ -4,7 +4,7 @@
 	import { HubConflictError, MAX_DAILY_LIMIT, changedFields, limitValid, saveHubPatch, sourceChangesData } from '$lib/orca/workspace-edit';
 	import { gatewaySources } from '$lib/orca/gateway-sources';
 	import type { HubInput, OrcaBootstrap, OrcaHub } from '$lib/services/orca';
-	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-u5';
+	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-workspaces';
 	import { OrcaUserSourcesService, type OrcaUserSource } from '$lib/services/orca-user-sources';
 	import { Pause, Play } from '@lucide/svelte';
 	import { onMount, untrack } from 'svelte';

@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { importTypeScript } from './test-import.mjs';
 
 const home = await importTypeScript(new URL('./home-setup.ts', import.meta.url));
 const NOW = Date.parse('2026-09-28T10:30:00+07:00');
 const ago = (minutes) => new Date(NOW - minutes * 60_000).toISOString();
-const ahead = (days) => new Date(NOW + days * 86_400_000).toISOString();
 
 const tool = (name, annotations) => ({ name, inputSchema: {}, ...(annotations === undefined ? {} : { definition: { annotations } }) });
 const connection = (id, extra = {}) => ({
@@ -22,30 +22,27 @@ const hub = (id, extra = {}) => ({
 const company = (extra = {}) => ({ currentUserID: 'me', connections: [], hubs: [], ...extra });
 const call = (userID, extra = {}) => ({ id: `e-${userID}`, createdAt: ago(5), userID, hubID: 'h', action: 'tools.call', outcome: 'success', ...extra });
 
-test('only a tool the provider marks read-only (and not destructive) counts as viewing data', () => {
-	assert.equal(home.toolChangesData(tool('a', { readOnlyHint: true })), false);
-	assert.equal(home.toolChangesData(tool('b', { readOnlyHint: true, destructiveHint: true })), true);
-	assert.equal(home.toolChangesData(tool('c', { readOnlyHint: false })), true);
-	assert.equal(home.toolChangesData(tool('d')), true, 'an unannotated tool may change data');
-	assert.equal(home.toolChangesData(undefined), true, 'a tool missing from the list may change data');
-	// Annotations on the tool itself (older shape) are read too.
-	assert.equal(home.toolChangesData({ name: 'e', inputSchema: {}, annotations: { readOnlyHint: true } }), false);
+test('what AI can do in a program follows the one approval rule (program-tools\' toolChangesData)', async () => {
+	const { toolChangesData } = await importTypeScript(new URL('./program-tools.ts', import.meta.url));
+	assert.equal(toolChangesData(tool('a', { readOnlyHint: true })), false);
+	assert.equal(toolChangesData(tool('b', { readOnlyHint: true, destructiveHint: true })), true);
+	assert.equal(toolChangesData(tool('c', { readOnlyHint: false })), true);
+	assert.equal(toolChangesData(tool('d')), true, 'an unannotated tool may change data');
+	// As on the server, only the reviewed definition counts: hints on the tool itself are not read.
+	assert.equal(toolChangesData({ name: 'e', inputSchema: {}, annotations: { readOnlyHint: true } }), true);
 	const abilities = home.programAbilities({ toolNames: ['list_invoices', 'create_invoice', 'gone'], tools: connection('conn-flow').tools });
-	assert.deepEqual(abilities, { total: 3, read: 1, change: 2 });
+	assert.deepEqual(abilities, { total: 3, read: 1, change: 2 }, 'a tool missing from the list may change data');
+	assert.equal(home.toolChangesData, undefined, 'no second copy of the rule here');
 });
 
-test('B1: an unexpired sign-in means connected; nothing read means unknown', () => {
-	const claude = { id: 's1', app: 'Claude Desktop', client: 'claude', createdAt: ago(60), lastRefreshedAt: ago(10), expiresAt: ahead(20) };
-	const expired = { ...claude, id: 's2', client: 'chatgpt', expiresAt: ago(1) };
-	assert.equal(home.aiState(undefined, NOW), 'unknown');
-	assert.equal(home.aiState(null, NOW), 'unknown');
-	assert.equal(home.aiState({ sessions: [], keys: [{ id: 1, name: 'k', hubID: '', createdAt: ago(1) }] }, NOW), 'none', 'a key is not an AI sign-in');
-	assert.equal(home.aiState({ sessions: [expired], keys: [] }, NOW), 'none');
-	assert.equal(home.aiState({ sessions: [expired, claude], keys: [] }, NOW), 'connected');
-	assert.equal(home.aiAppName(home.activeAISession({ sessions: [claude], keys: [] }, NOW)), 'Claude');
-	assert.equal(home.aiAppName({ client: 'chatgpt', app: 'x' }), 'ChatGPT');
-	assert.equal(home.aiAppName({ client: 'other', app: ' Cursor ' }), 'Cursor');
-	assert.equal(home.aiAppName(undefined), '');
+test('Home\'s "เชื่อม AI ของฉัน" step reads the pinned button\'s store, fed by the one B1 client', async () => {
+	const page = await readFile(new URL('../components/orca/WorkspaceDashboard.svelte', import.meta.url), 'utf8');
+	assert.match(page, /import \{ aiConnection \} from '\$lib\/orca\/ai-connection\.svelte'/);
+	assert.match(page, /import \{ refreshAIConnection \} from '\$lib\/services\/orca-ai-apps'/);
+	assert.match(page, /aiChecked \? aiConnection\.state : 'unknown'/);
+	assert.doesNotMatch(page, /setAIConnection|MyAIAppsService/, 'Home never sets the pin on its own rules');
+	assert.equal(home.aiState, undefined);
+	assert.equal(home.activeAISession, undefined);
 });
 
 test('the first question counts only the viewer\'s own tool calls', () => {

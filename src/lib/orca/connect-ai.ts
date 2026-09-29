@@ -1,7 +1,7 @@
 // "เชื่อม AI ของฉัน" (view=connect-ai): the rules behind the page, kept free of
 // Svelte so they are tested on their own. Proposal §3.1, critique 5, 10, 11, 13.
-import type { HubInput, OrcaBootstrap, OrcaHub } from '../services/orca';
-import type { MyAIApps, MyAIKey, MyAISession } from '../services/orca-u3';
+import type { OrcaBootstrap, OrcaHub } from '../services/orca';
+import type { MyAIApps, MyAIKey, MyAISession } from '../services/orca-ai-apps';
 import type { AIConnectionStatus } from './ai-connection';
 import type { AIApp, ClientNames, GatewayClient } from './client-config';
 import { connectionReady, workspaceToolingReady } from './activation';
@@ -243,13 +243,6 @@ export function examplePrompts(programs: string[], t: Translate): string[] {
 	return prompts;
 }
 
-/** A link opened from LINE leaves its in-app browser, where Google refuses sign-in (critique 13). */
-export function withExternalBrowser(url: string): string {
-	const target = new URL(url);
-	target.searchParams.set('openExternalBrowser', '1');
-	return target.href;
-}
-
 /** What an employee without access sends their admin. Generic: they cannot see who the admins are (critique 8). */
 export function accessRequestText(
 	who: { name: string; email: string; company: string; url: string },
@@ -260,14 +253,6 @@ export function accessRequestText(
 		`รบกวนเพิ่มฉัน (${me}) เข้าพื้นที่ทำงาน AI ใน ORCA ของ ${who.company} ด้วย เพื่อให้ AI ของฉันใช้ข้อมูลบริษัทได้ เพิ่มได้ที่ ${who.url}`,
 		`Please add me (${me}) to an AI workspace in ${who.company}'s ORCA, so my AI can use company data. You can add me here: ${who.url}`
 	);
-}
-
-/** LINE and Facebook (Messenger, Instagram) open links in their own browser, where Google sign-in is refused. */
-export function inAppBrowser(userAgent: string | undefined): 'line' | 'facebook' | null {
-	if (!userAgent) return null;
-	if (/\bLine\/\d/.test(userAgent)) return 'line';
-	if (/FBAN|FBAV|FB_IAB|FBIOS|Instagram/.test(userAgent)) return 'facebook';
-	return null;
 }
 
 // ---------- Developer keys (critique 10) ----------
@@ -377,38 +362,8 @@ export function otherAppInstructions(endpoint: string, oauth: boolean, companyNa
 	}
 }
 
-// ---------- "เพิ่มฉันเข้าพื้นที่ทำงาน" (critique 2) ----------
-
-/**
- * A full PUT body from a fresh GET of the workspace: the server replaces every
- * field a PUT leaves out, so a partial body would wipe departments, programs
- * and limits. `version` makes a concurrent edit a 409.
- */
-export function hubInputFrom(hub: OrcaHub, patch: Partial<HubInput> = {}): HubInput {
-	return {
-		name: hub.name,
-		description: hub.description ?? '',
-		connectionID: hub.connectionID ?? '',
-		toolNames: [...(hub.toolNames ?? [])],
-		...(hub.sources !== undefined ? { sources: hub.sources.map((source) => ({ connectionID: source.connectionID, toolNames: [...source.toolNames] })) } : {}),
-		memberIDs: [...(hub.memberIDs ?? [])],
-		unitIDs: [...(hub.unitIDs ?? [])],
-		...(hub.accessUnitIDs !== undefined ? { accessUnitIDs: [...hub.accessUnitIDs] } : {}),
-		userSourceID: hub.userSourceID ?? '',
-		dailyLimit: hub.dailyLimit,
-		status: hub.status,
-		version: hub.version,
-		...(hub.instructions !== undefined ? { instructions: hub.instructions } : {}),
-		...(hub.writeMode !== undefined ? { writeMode: hub.writeMode } : {}),
-		...patch
-	};
-}
-
-/** The workspace with this person as a direct member. */
-export function hubInputWithMember(hub: OrcaHub, memberID: string): HubInput {
-	const memberIDs = hub.memberIDs?.includes(memberID) ? [...hub.memberIDs] : [...(hub.memberIDs ?? []), memberID];
-	return hubInputFrom(hub, { memberIDs });
-}
+// "เพิ่มฉันเข้าพื้นที่ทำงาน" saves through workspace-edit's saveHubPatch() (critique 2),
+// and the LINE/Facebook notice is in-app-browser.ts with InAppBrowserNotice.
 
 // ---------- Polling step 5 ----------
 

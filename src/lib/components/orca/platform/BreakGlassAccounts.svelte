@@ -6,7 +6,7 @@
 	import { t } from '$lib/orca/locale.svelte';
 	import type { LocalAuthUser } from '$lib/services/admin/types';
 	import { OrcaService, displayDate, memberName, memberRole, orcaError, type OrcaBootstrap } from '$lib/services/orca';
-	import { passwordAccounts, type PasswordAccountRow, type PasswordAccountState } from '$lib/services/orca-u2';
+	import { passwordAccounts, type PasswordAccountRow, type PasswordAccountState } from '$lib/services/orca-platform';
 	import PageHeader from '../ui/PageHeader.svelte';
 	import Sheet from '../ui/Sheet.svelte';
 	import StatusPill, { type StatusTone } from '../ui/StatusPill.svelte';

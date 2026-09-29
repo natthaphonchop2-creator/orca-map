@@ -157,7 +157,7 @@ async function page(data, props = {}) {
 		beforeNavigate: noop, goto: noop, getHttpStatusCode: () => undefined, connectionReady: () => true,
 		aiConnection: { state: 'none' }, currentCompany: () => 'default',
 		memberName: (member) => member.displayName || member.email, orcaError: () => '', statusLabels: { active: 'เปิดใช้งาน', paused: 'ระงับ', draft: 'ฉบับร่าง' },
-		OrcaLibraryService: {}, KnowledgeWorkspaceService: {}, copyText: noop, showToast: noop,
+		OrcaLibraryService: {}, hubWriteService: {}, copyText: noop, showToast: noop,
 		ChoiceTile: (renderer, input) => renderer.push(`<choice data-hub="${input.value}" data-selected="${input.selected}"></choice>`),
 		KnowledgeList: (renderer) => renderer.push('<knowledge-list></knowledge-list>')
 	});

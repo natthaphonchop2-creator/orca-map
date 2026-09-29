@@ -5,7 +5,7 @@
 	import { toolPresentation } from '$lib/orca/tool-presentation';
 	import { HubConflictError, allowedTools, programsPatch, readOnlyToolNames, saveHubPatch } from '$lib/orca/workspace-edit';
 	import type { OrcaBootstrap, OrcaHub } from '$lib/services/orca';
-	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-u5';
+	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-workspaces';
 	import { ChevronDown, Plus } from '@lucide/svelte';
 	import { showToast } from '../ui/toast-store.svelte';
 	import ProgramToggleCard from './ProgramToggleCard.svelte';

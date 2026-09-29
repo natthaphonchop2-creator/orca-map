@@ -14,7 +14,8 @@
 		type LibraryItem,
 		type LibraryKind
 	} from '$lib/services/orca-library';
-	import { KnowledgeWorkspaceService } from '$lib/services/orca-u8';
+	import { HubConflictError, hubConflictMessage, joinPatch, saveHubPatch } from '$lib/orca/workspace-edit';
+	import { hubWriteService } from '$lib/services/orca-workspaces';
 	import { Copy, FolderPlus, Info, SearchX, UserPlus, Users } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 	import LibraryEditor from './LibraryEditor.svelte';
@@ -255,12 +256,13 @@
 		joinError = '';
 		joinProblem = '';
 		try {
-			const saved = await KnowledgeWorkspaceService.addMember(id, data.currentUserID);
+			// "เพิ่มฉันเลย": a fresh read, then the whole workspace back with its version (critique 2).
+			const saved = await saveHubPatch(id, (fresh) => joinPatch(fresh, data.currentUserID), hubWriteService);
 			remember(id);
 			await onchanged();
 			showToast(t(`เพิ่มคุณในพื้นที่ทำงาน ${saved.name} แล้ว`, `You were added to ${saved.name}`));
 		} catch (cause) {
-			const code = getHttpStatusCode(cause);
+			const code = cause instanceof HubConflictError ? 409 : getHttpStatusCode(cause);
 			joinProblem = code === 409 || code === 404 ? 'conflict' : code === 400 ? 'invalid' : '';
 			joinError = joinMessage(code, cause);
 		} finally {
@@ -268,7 +270,7 @@
 		}
 	}
 	function joinMessage(code: number | undefined, cause: unknown) {
-		if (code === 409) return t('มีคนแก้พื้นที่นี้พร้อมกัน โหลดใหม่แล้วลองอีกครั้ง', 'Someone changed this workspace at the same time. Reload and try again.');
+		if (code === 409) return hubConflictMessage(t);
 		if (code === 404) return t('ไม่พบพื้นที่ทำงานนี้แล้ว โหลดใหม่แล้วลองอีกครั้ง', 'This workspace is gone. Reload and try again.');
 		if (code === 400) return t('เพิ่มไม่ได้ เพราะพื้นที่ทำงานนี้ต้องแก้การตั้งค่าก่อน', 'Can’t add you: this workspace’s settings need fixing first.');
 		return libraryProblem(parseErrorContent(cause), t) ?? orcaError(cause);

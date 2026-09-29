@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import { Check, Copy, Globe, Info } from '@lucide/svelte';
-	import { parseErrorContent } from '$lib/errors';
+	import { Check, Copy, Info } from '@lucide/svelte';
 	import { aiConnectionLine } from '$lib/orca/ai-connection';
 	import { aiConnection, setAIConnection } from '$lib/orca/ai-connection.svelte';
 	import type { AIApp } from '$lib/orca/client-config';
@@ -15,20 +14,19 @@
 		connectorName,
 		createPoller,
 		examplePrompts,
-		inAppBrowser,
 		isChatApp,
 		liveKeys,
 		liveSessions,
 		relativeWhen,
 		rememberedApp,
 		usableProgramNames,
-		validConnectLink,
-		withExternalBrowser
+		validConnectLink
 	} from '$lib/orca/connect-ai';
 	import { term } from '$lib/orca/glossary';
 	import { localeHref, orcaLocale, t } from '$lib/orca/locale.svelte';
 	import { OrcaService, type OrcaBootstrap } from '$lib/services/orca';
-	import { MyAIAppsService, aiAppsUnavailable, type MyAIApps, type MyAIKey } from '$lib/services/orca-u3';
+	import { MyAIAppsService, aiAppsUnavailable, type MyAIApps, type MyAIKey } from '$lib/services/orca-ai-apps';
+	import InAppBrowserNotice from '../InAppBrowserNotice.svelte';
 	import AccessStrip from '../connect-ai/AccessStrip.svelte';
 	import AIAppPicker from '../connect-ai/AIAppPicker.svelte';
 	import AppSteps from '../connect-ai/AppSteps.svelte';
@@ -103,10 +101,11 @@
 			}
 		} catch (cause) {
 			if (request === generation && !destroyed) {
-				// No B1 on this server yet (or no access here): a static hint, and
-				// the company-wide keys the old way.
-				if (aiAppsUnavailable(cause) || parseErrorContent(cause).status === 403) {
+				// No B1 on this server yet (or no access here): a static hint, a
+				// neutral pin, and the company-wide keys the old way.
+				if (aiAppsUnavailable(cause)) {
 					appsState = 'unavailable';
+					setAIConnection({ state: 'unknown' });
 					void loadLegacyKeys();
 					return 'stop';
 				}
@@ -130,11 +129,7 @@
 		return poller?.poke();
 	}
 
-	let inApp = $state<'line' | 'facebook' | null>(null);
-	let pageURL = $state('');
 	onMount(() => {
-		inApp = inAppBrowser(navigator.userAgent);
-		pageURL = window.location.href;
 		poller = createPoller(load, { interval: 4000, visible: () => document.visibilityState !== 'hidden' });
 		void poller.poke();
 		// Hidden: no requests. Shown again (back from Claude's tab): check at once.
@@ -172,40 +167,20 @@
 	async function copyName() {
 		if (await copyText(connector, typeof navigator === 'undefined' ? undefined : navigator.clipboard, typeof document === 'undefined' ? undefined : document)) nameFeedback.copied();
 	}
-	let pageCopied = $state(false);
-	const pageFeedback = copyFeedback((on) => (pageCopied = on));
-	async function copyPage() {
-		if (await copyText(pageURL, typeof navigator === 'undefined' ? undefined : navigator.clipboard, typeof document === 'undefined' ? undefined : document)) pageFeedback.copied();
-	}
 	$effect(() => () => {
 		nameFeedback.dispose();
-		pageFeedback.dispose();
 	});
 </script>
 
 <div class="ca">
-	{#if inApp}
-		<div class="ca-inapp" role="alert">
-			<Globe size={18} aria-hidden="true" />
-			<div>
-				<b>{t('เปิดใน Chrome หรือ Safari', 'Open in Chrome or Safari')}</b>
-				<span>{inApp === 'line'
-					? t('Google ไม่ให้เข้าสู่ระบบในเบราว์เซอร์ของ LINE เปิดหน้านี้ในเบราว์เซอร์ของเครื่องก่อน', "Google refuses sign-in inside LINE's browser. Open this page in your phone's browser first.")
-					: t('Google ไม่ให้เข้าสู่ระบบในเบราว์เซอร์ของ Facebook ให้กด ⋯ แล้วเลือก เปิดในเบราว์เซอร์', "Google refuses sign-in inside Facebook's browser. Choose ⋯, then Open in browser.")}</span>
-			</div>
-			{#if inApp === 'line' && pageURL}
-				<a class="k-button" href={withExternalBrowser(pageURL)}>{t('เปิดในเบราว์เซอร์', 'Open in browser')}</a>
-			{:else if pageURL}
-				<button type="button" class="k-button" onclick={copyPage}>{#if pageCopied}<Check size={16} aria-hidden="true" />{t('คัดลอกแล้ว', 'Copied')}{:else}<Copy size={16} aria-hidden="true" />{t('คัดลอกลิงก์หน้านี้', 'Copy this page’s link')}{/if}</button>
-			{/if}
-		</div>
-	{/if}
-
 	<PageHeader
 		title={term('connectMyAI', t)}
 		subtitle={t('ให้ Claude หรือ ChatGPT ใช้ข้อมูลบริษัทได้ ทำครั้งเดียว ประมาณ 3 นาที ไม่ต้องใช้คีย์', 'Let Claude or ChatGPT use company data. Once, about 3 minutes, no key needed.')}
-		status={{ label: aiConnectionLine(aiConnection, t), tone: aiConnection.state === 'connected' ? 'ok' : 'neutral' }}
+		status={aiConnection.state === 'unknown' ? undefined : { label: aiConnectionLine(aiConnection, t), tone: aiConnection.state === 'connected' ? 'ok' : 'neutral' }}
 	/>
+
+	<!-- LINE or Facebook's own browser, where Google refuses sign-in (critique 13): the shared notice. -->
+	<InAppBrowserNotice level={2} variant="workspace" />
 
 	<div class="ca-strip"><AccessStrip {data} {access} {onchanged} /></div>
 
@@ -283,36 +258,6 @@
 	}
 	.ca :global(.orca-page-header) {
 		margin-bottom: 22px;
-	}
-	.ca-inapp {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 10px 14px;
-		margin-bottom: 20px;
-		padding: 14px 16px;
-		border: 1px solid var(--orca-warn-line);
-		border-radius: var(--orca-radius-lg);
-		background: var(--orca-warn-bg);
-		color: var(--orca-ink);
-	}
-	.ca-inapp > :global(svg) {
-		flex: none;
-		color: var(--orca-warn);
-	}
-	.ca-inapp > div {
-		display: grid;
-		flex: 1 1 240px;
-		gap: 2px;
-		font-size: 14px;
-		line-height: 1.55;
-	}
-	.ca-inapp b {
-		font-size: 15px;
-		font-weight: 650;
-	}
-	.ca-inapp span {
-		color: var(--orca-text-2);
 	}
 	.ca-strip {
 		margin-bottom: 36px;

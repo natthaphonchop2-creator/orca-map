@@ -5,8 +5,9 @@
 import { connectionReady, workspaceToolingReady } from './activation';
 import { gatewayConnections, gatewayHasMember } from './gateway-sources';
 import { lineExternalURL } from './in-app-browser';
+import { toolChangesData } from './program-tools';
+import type { AIConnectionState } from './ai-connection';
 import type { OrcaAuditEvent, OrcaBootstrap, OrcaConnection, OrcaHub, OrcaMember } from '../services/orca';
-import type { OrcaAnnotatedTool, OrcaMyAIApps, OrcaMyAISession, OrcaToolAnnotations } from '../services/orca-u6';
 
 type Translate = (th: string, en: string) => string;
 
@@ -14,27 +15,17 @@ type Translate = (th: string, en: string) => string;
 // What AI can do in a program (build plan §4 rule 1)
 // ---------------------------------------------------------------------------
 
-/** The provider's annotations: the API sends them inside `definition`. */
-export function toolAnnotations(tool: OrcaAnnotatedTool | undefined): OrcaToolAnnotations | undefined {
-	return tool?.definition?.annotations ?? tool?.annotations ?? undefined;
-}
-
-/**
- * A tool only reads when the provider says so: `readOnlyHint === true` and no
- * destructive hint. Everything else, unannotated tools included, may change data.
- */
-export function toolChangesData(tool: OrcaAnnotatedTool | undefined): boolean {
-	const annotations = toolAnnotations(tool);
-	return !(annotations?.readOnlyHint === true && annotations.destructiveHint !== true);
-}
+// Whether a tool only reads is program-tools' toolChangesData(): the backend's
+// approval rule, from the reviewed definition's annotations only.
 
 /** The allowed tools of a program, split into reading and changing data. */
 export function programAbilities(connection: Pick<OrcaConnection, 'toolNames' | 'tools'>) {
 	let read = 0;
 	let change = 0;
 	for (const name of connection.toolNames) {
-		const tool = connection.tools.find((item) => item.name === name) as OrcaAnnotatedTool | undefined;
-		if (toolChangesData(tool)) change += 1;
+		const tool = connection.tools.find((item) => item.name === name);
+		// A tool the program no longer lists may change data.
+		if (!tool || toolChangesData(tool)) change += 1;
 		else read += 1;
 	}
 	return { total: read + change, read, change };
@@ -44,31 +35,11 @@ export function programAbilities(connection: Pick<OrcaConnection, 'toolNames' | 
 // The viewer's own AI and use
 // ---------------------------------------------------------------------------
 
-/** B1's answer: `unknown` while it loads or when it cannot be read. */
-export type AIState = 'connected' | 'none' | 'unknown';
-
-/** The person's most recently renewed AI sign-in that has not expired. */
-export function activeAISession(apps: OrcaMyAIApps | undefined | null, now: number): OrcaMyAISession | undefined {
-	return (apps?.sessions ?? [])
-		.filter((session) => {
-			const expires = Date.parse(session.expiresAt);
-			return Number.isNaN(expires) || expires > now;
-		})
-		.sort((a, b) => (b.lastRefreshedAt || b.createdAt).localeCompare(a.lastRefreshedAt || a.createdAt))[0];
-}
-
-export function aiState(apps: OrcaMyAIApps | undefined | null, now: number): AIState {
-	if (!apps) return 'unknown';
-	return activeAISession(apps, now) ? 'connected' : 'none';
-}
-
-/** The app's name for people: the hint first, then what the app called itself. */
-export function aiAppName(session: Pick<OrcaMyAISession, 'client' | 'app'> | undefined): string {
-	if (!session) return '';
-	if (session.client === 'claude') return 'Claude';
-	if (session.client === 'chatgpt') return 'ChatGPT';
-	return session.app?.trim() || '';
-}
+/**
+ * The viewer's AI, as the pinned "เชื่อม AI ของฉัน" button shows it (the shared
+ * store, fed by B1): `unknown` while it loads or when the server cannot say.
+ */
+export type AIState = AIConnectionState;
 
 export function isToolCall(event: Pick<OrcaAuditEvent, 'action' | 'method'>): boolean {
 	return ['tools.call', 'tools/call'].includes(event.action || event.method || '');

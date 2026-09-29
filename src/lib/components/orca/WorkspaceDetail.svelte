@@ -4,7 +4,7 @@
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { saveHubPatch } from '$lib/orca/workspace-edit';
 	import type { OrcaBootstrap, OrcaHub } from '$lib/services/orca';
-	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-u5';
+	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-workspaces';
 	import { ArrowUpRight, Info, LoaderCircle, Play } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import LifecycleActions from './LifecycleActions.svelte';

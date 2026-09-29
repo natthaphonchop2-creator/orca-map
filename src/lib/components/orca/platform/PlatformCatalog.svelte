@@ -16,7 +16,7 @@
 		validMCPLink,
 		type CatalogState,
 		type RemoteAuth
-	} from '$lib/services/orca-u2';
+	} from '$lib/services/orca-platform';
 	import SourceSetup from '../SourceSetup.svelte';
 	import ChoiceTile from '../ui/ChoiceTile.svelte';
 	import FormErrorSummary from '../ui/FormErrorSummary.svelte';

@@ -3,6 +3,8 @@ import { test } from 'node:test';
 import { importTypeScript } from './test-import.mjs';
 
 const ai = await importTypeScript(new URL('./connect-ai.ts', import.meta.url));
+const inApp = await importTypeScript(new URL('./in-app-browser.ts', import.meta.url));
+const connection_ = await importTypeScript(new URL('./ai-connection.ts', import.meta.url));
 const th = (thai) => thai;
 const en = (_thai, english) => english;
 const NOW = Date.parse('2026-09-28T10:30:00+07:00');
@@ -118,6 +120,16 @@ test('the pinned button: any live sign-in, else a key that has been used', () =>
 	assert.equal(ai.sessionLabel({ client: 'other', app: 'Cursor' }, th), 'Cursor');
 });
 
+test('the pin: connected names the app, none says so, unknown (no B1 on this server) says nothing', () => {
+	assert.equal(connection_.aiConnectionLine({ state: 'connected', app: 'Claude' }, th), 'Claude เชื่อมแล้ว');
+	assert.equal(connection_.aiConnectionLine({ state: 'connected' }, en), 'Connected');
+	assert.equal(connection_.aiConnectionLine({ state: 'none' }, th), 'ยังไม่ได้เชื่อม');
+	assert.equal(connection_.aiConnectionLine({ state: 'unknown' }, th), '', 'never "ยังไม่ได้เชื่อม" when it cannot tell');
+	assert.equal(connection_.aiConnectionLine(undefined, th), '');
+	// An expired sign-in is not a connection.
+	assert.deepEqual(ai.aiConnectionFrom({ sessions: [session('a', 'claude', 'Claude', 5, { expiresAt: ago(1) })], keys: [] }, NOW), { state: 'none' });
+});
+
 test('dates read as people say them, in Bangkok time', () => {
 	assert.equal(ai.relativeWhen(ago(1), NOW, th), 'เมื่อสักครู่');
 	assert.equal(ai.relativeWhen(ago(12), NOW, th), '12 นาทีที่แล้ว');
@@ -132,23 +144,13 @@ test('dates read as people say them, in Bangkok time', () => {
 });
 
 test('the access request is generic, and its link leaves the LINE browser', () => {
-	const url = ai.withExternalBrowser('https://orca.example.test/app?view=workspaces&org=org-1');
+	const url = inApp.lineExternalURL('https://orca.example.test/app?view=workspaces&org=org-1');
 	assert.equal(url, 'https://orca.example.test/app?view=workspaces&org=org-1&openExternalBrowser=1');
 	const text = ai.accessRequestText({ name: 'มาลี', email: 'mali@example.com', company: 'บริษัท ตัวอย่าง', url }, th);
 	assert.match(text, /มาลี · mali@example\.com/);
 	assert.match(text, /บริษัท ตัวอย่าง/);
 	assert.ok(text.endsWith(url));
 	assert.doesNotMatch(text, /MCP|OAuth|คีย์/);
-});
-
-test('LINE and Facebook in-app browsers are recognised, ordinary browsers are not', () => {
-	assert.equal(ai.inAppBrowser('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari Line/13.16.0'), 'line');
-	assert.equal(ai.inAppBrowser('Mozilla/5.0 (Linux; Android 14) Chrome/120.0 Mobile Safari/537.36 Line/13.16.1/IAB'), 'line');
-	assert.equal(ai.inAppBrowser('Mozilla/5.0 (iPhone) Mobile/15E148 [FBAN/FBIOS;FBAV/440.0.0]'), 'facebook');
-	assert.equal(ai.inAppBrowser('Mozilla/5.0 (Linux; Android 14) Instagram 300.0'), 'facebook');
-	assert.equal(ai.inAppBrowser('Mozilla/5.0 (Macintosh) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15'), null);
-	assert.equal(ai.inAppBrowser('Mozilla/5.0 Outline/1.0'), null);
-	assert.equal(ai.inAppBrowser(undefined), null);
 });
 
 test('developer keys: 30 days by default, never-expiring for owners and admins only, names within 120 bytes', () => {
@@ -190,23 +192,6 @@ test('developer tools get their own setup, by sign-in or by key; nothing secret 
 		const setup = ai.devSetup(app, endpoint, false, names);
 		assert.doesNotMatch(JSON.stringify(setup), /orca-example-key|sk-/, app);
 	}
-});
-
-test('"add me" sends the whole workspace from a fresh read, with its version', () => {
-	const fresh = hub('h', {
-		name: 'บัญชี', description: 'd', instructions: 'ตอบเป็นไทย', writeMode: 'approval', memberIDs: ['a'], unitIDs: ['u'], accessUnitIDs: ['dept'],
-		userSourceID: '', dailyLimit: 250, version: 9, sources: [{ connectionID: 'flow', toolNames: ['read', 'list'] }], connectURL: 'x', usedToday: 3
-	});
-	const input = ai.hubInputWithMember(fresh, 'me');
-	assert.deepEqual(input, {
-		name: 'บัญชี', description: 'd', connectionID: 'flow', toolNames: ['read'], sources: [{ connectionID: 'flow', toolNames: ['read', 'list'] }],
-		memberIDs: ['a', 'me'], unitIDs: ['u'], accessUnitIDs: ['dept'], userSourceID: '', dailyLimit: 250, status: 'active', version: 9,
-		instructions: 'ตอบเป็นไทย', writeMode: 'approval'
-	});
-	assert.notEqual(input.sources, fresh.sources, 'a copy, never the fresh record itself');
-	assert.deepEqual(ai.hubInputWithMember({ ...fresh, memberIDs: ['me'] }, 'me').memberIDs, ['me'], 'never twice');
-	const legacy = ai.hubInputFrom({ ...fresh, sources: undefined, accessUnitIDs: undefined, instructions: undefined, writeMode: undefined });
-	assert.ok(!('sources' in legacy) && !('accessUnitIDs' in legacy) && !('instructions' in legacy) && !('writeMode' in legacy), 'absent stays absent, so the server keeps it');
 });
 
 test('the poller checks now, keeps a rhythm while waiting, and stops when told or hidden', async () => {

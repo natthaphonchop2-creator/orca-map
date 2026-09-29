@@ -15,7 +15,7 @@ const component = await readFile(file, "utf8");
 const helpers = {
   ...(await importTypeScript(new URL("../../orca/platform-companies.ts", import.meta.url))),
   ...(await importTypeScript(new URL("../../orca/invitations.ts", import.meta.url))),
-  ...(await importTypeScript(new URL("../../services/orca-u2.ts", import.meta.url))),
+  ...(await importTypeScript(new URL("../../services/orca-platform.ts", import.meta.url))),
 };
 const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1]).replace(/^\s*import[^;]+;/gm, "");
 const require = createRequire(import.meta.url);

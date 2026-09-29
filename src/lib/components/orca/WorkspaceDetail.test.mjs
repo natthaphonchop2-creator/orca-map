@@ -158,7 +158,7 @@ test('the short form turns on ?connection=, starts with "คุณ" chosen and a
 });
 
 test('ภาพรวม offers the invite message after creation and one banner for connecting AI', async () => {
-	const Overview = await component('./workspace/WorkspaceOverviewTab.svelte', { StatusPill, OrcaWorkspaceService: {} });
+	const Overview = await component('./workspace/WorkspaceOverviewTab.svelte', { StatusPill, MyAIAppsService: {} });
 	const tabHref = (tab) => `/app?view=hub&hub=hub-one&tab=${tab}`;
 	let html = htmlOf(Overview, { props: { data: company(), hub, created: true, tabHref } }).body;
 	assert.match(html, /คัดลอกข้อความเชิญ/);

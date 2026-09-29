@@ -2,7 +2,7 @@
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import { CircleCheck, CircleHelp, Plus } from '@lucide/svelte';
 	import { currentCompany } from '$lib/orca/company';
-	import { setAIConnection } from '$lib/orca/ai-connection.svelte';
+	import { aiConnection } from '$lib/orca/ai-connection.svelte';
 	import { sourceAccountState, sourcePresentationNames } from '$lib/orca/connection-presentation';
 	import { term } from '$lib/orca/glossary';
 	import {
@@ -10,9 +10,6 @@
 		accessRequestText,
 		accountStateFrom,
 		activeMembers,
-		activeAISession,
-		aiAppName,
-		aiState,
 		askablePrograms,
 		askedAI,
 		attentionCounts,
@@ -36,7 +33,7 @@
 	import { personalAccountReader, personalSetup, personalSources } from '$lib/orca/personal-connections';
 	import { OrcaService, type OrcaAuditEvent, type OrcaBootstrap, type OrcaConnection } from '$lib/services/orca';
 	import { OrcaLibraryService } from '$lib/services/orca-library';
-	import { OrcaU6Service, type OrcaMyAIApps } from '$lib/services/orca-u6';
+	import { refreshAIConnection } from '$lib/services/orca-ai-apps';
 	import EmployeeSetup from './home/EmployeeSetup.svelte';
 	import HomeStatus from './home/HomeStatus.svelte';
 	import OwnerSetup from './home/OwnerSetup.svelte';
@@ -46,7 +43,6 @@
 	// approved home-first-run mockup). Afterwards: "ตั้งค่าเสร็จแล้ว", which the
 	// viewer can hide, and the company at a glance.
 	let { data }: { data: OrcaBootstrap } = $props();
-	const now = Date.now();
 	let alive = true;
 
 	// ---- What the page reads beyond the bootstrap ----
@@ -55,8 +51,8 @@
 	/** The history filled the audit window: an older call of mine may be missing from it. */
 	let eventsTruncated = $state(false);
 	let eventsError = $state(false);
-	/** B1: undefined while loading, null when it cannot be read (an older server). */
-	let aiApps = $state<OrcaMyAIApps | null>();
+	/** B1 answered (or failed): the pin's store then says connected, none or unknown. */
+	let aiChecked = $state(false);
 	let sourceNames = $state<Record<string, string>>({});
 	let invitesSent = $state(false);
 	let knowledgePublished = $state(false);
@@ -76,8 +72,9 @@
 	const me = $derived(data.members.find((member) => member.id === data.currentUserID));
 	const company = $derived(data.organization.displayName || 'ORCA');
 	const iconName = (connection: OrcaConnection) => sourceNames[connection.mcpID] || connection.name;
-	const ai = $derived(aiState(aiApps, now));
-	const aiApp = $derived(aiAppName(activeAISession(aiApps, now)));
+	// The same store the pinned "เชื่อม AI ของฉัน" button reads (B1).
+	const ai = $derived(aiChecked ? aiConnection.state : 'unknown');
+	const aiApp = $derived(ai === 'connected' ? (aiConnection.app ?? '') : '');
 	const asked = $derived<Done>(eventsError || !events ? undefined : askedAI(events, data.currentUserID, eventsTruncated));
 	const owner = $derived(ownerChecklist(data, ai, asked));
 	const sources = $derived(manager ? [] : personalSources(data));
@@ -92,7 +89,7 @@
 	const employee = $derived(employeeChecklist(ai, accounts.map((account) => account.state), asked));
 	const list = $derived(manager ? owner : employee);
 	const noWorkspace = $derived(!manager && usableWorkspaces(data).length === 0);
-	const loaded = $derived((events !== undefined || eventsError) && aiApps !== undefined && accounts.every((account) => account.state !== 'checking'));
+	const loaded = $derived((events !== undefined || eventsError) && aiChecked && accounts.every((account) => account.state !== 'checking'));
 	const mode = $derived(homeMode(list, noWorkspace, loaded));
 	const invite = $derived({ done: invitesSent || activeMembers(data.members).length > 1, skipped: flags['skip-invite'] });
 	const knowledge = $derived({ done: knowledgePublished, skipped: flags['skip-knowledge'] });
@@ -131,16 +128,10 @@
 		}
 	}
 	async function loadAIApps() {
-		try {
-			const result = await OrcaU6Service.myAIApps();
-			if (!alive) return;
-			aiApps = result;
-			const session = activeAISession(result, now);
-			setAIConnection(session ? { state: 'connected', app: aiAppName(session) } : { state: 'none' });
-		} catch {
-			// An older server has no B1: connecting AI is then proven by the first question.
-			if (alive) aiApps = null;
-		}
+		// A fresh read for Home; an older server without B1 leaves it unknown, and
+		// connecting AI is then proven by the first question.
+		await refreshAIConnection();
+		if (alive) aiChecked = true;
 	}
 	async function loadOptional() {
 		try {

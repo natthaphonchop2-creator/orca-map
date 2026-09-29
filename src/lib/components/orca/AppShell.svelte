@@ -354,13 +354,14 @@
         href={localeHref("/app?view=connect-ai")}
         onclick={closeDrawer}
         aria-current={activeView === "connect-ai" ? "page" : undefined}
-        aria-label={`${term("connectMyAI", t)} · ${aiLine}`}
-        title={compact ? `${term("connectMyAI", t)} · ${aiLine}` : undefined}
+        aria-label={aiLine ? `${term("connectMyAI", t)} · ${aiLine}` : term("connectMyAI", t)}
+        title={compact ? (aiLine ? `${term("connectMyAI", t)} · ${aiLine}` : term("connectMyAI", t)) : undefined}
       >
         <Sparkles size={18} strokeWidth={1.7} aria-hidden="true" />
         <span class="workspace-pin-copy">
           <strong>{term("connectMyAI", t)}</strong>
-          <small class="workspace-pin-state" class:connected={aiConnected}>{aiLine}</small>
+          <!-- Unknown (B1 not read, or not on this server): no state rather than a wrong one. -->
+          {#if aiLine}<small class="workspace-pin-state" class:connected={aiConnected}>{aiLine}</small>{/if}
         </span>
       </a>
     {/if}

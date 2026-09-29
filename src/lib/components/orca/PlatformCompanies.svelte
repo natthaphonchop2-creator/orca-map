@@ -7,7 +7,7 @@
   import { platformHref } from "$lib/orca/navigation";
   import { canInviteOwner, emailDomain, ownerStatus, platformRefusal, signInWarnings, type OwnerStatus } from "$lib/orca/platform-companies";
   import { OrcaService, displayDate, orcaError, type OrcaOwnerInvitationLink, type OrcaPlatformCompany } from "$lib/services/orca";
-  import { externalBrowserLink } from "$lib/services/orca-u2";
+  import { externalBrowserLink } from "$lib/services/orca-platform";
   import PlatformBadge from "./platform/PlatformBadge.svelte";
   import ConfirmDialog from "./ui/ConfirmDialog.svelte";
   import PageHeader from "./ui/PageHeader.svelte";
