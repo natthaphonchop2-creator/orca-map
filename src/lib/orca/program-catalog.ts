@@ -65,10 +65,16 @@ const shortCopy: Record<string, readonly [string, string]> = {
 	[LINE_API]: ['ดูข้อมูลบัญชี LINE OA และยอดข้อความ', "Your LINE OA's profile and message usage"]
 };
 
+// The catalog's line for a program it has no copy for (catalog-data.ts) names the
+// mechanism ("…ระบบนี้ผ่าน MCP"); people see a plain line instead.
+const UNKNOWN_PROGRAM_LINE = 'ดูรายละเอียดและวิธีเชื่อมต่อระบบนี้ผ่าน MCP';
+const addedProgramLine = ['โปรแกรมที่ทีม ORCA เพิ่มไว้', 'A program the ORCA team added'] as const;
+
 /** One Thai line about the program. */
 export function programLine(source: Pick<CatalogTool, 'id' | 'name' | 'description' | 'descriptionTh' | 'descriptionEn'>): readonly [string, string] {
 	const short = shortCopy[source.id] ?? shortCopy[source.name];
 	if (short) return short;
+	if (!source.descriptionTh || (source.descriptionTh === UNKNOWN_PROGRAM_LINE && !source.descriptionEn)) return addedProgramLine;
 	return [source.descriptionTh, source.descriptionEn || source.description || source.descriptionTh];
 }
 
@@ -166,6 +172,15 @@ export function programCancelHref(returnTo: string | null | undefined): string {
 	return returnTo === 'new' ? '/app?view=new' : '/app?view=servers';
 }
 
+/**
+ * Where a "เชื่อมแล้ว" card goes: from the create form, back to it with that
+ * program (nothing to connect again); otherwise the program's own page.
+ */
+export function programConnectedHref(connectionID: string, returnTo: string | null | undefined): string {
+	const id = encodeURIComponent(connectionID);
+	return returnTo === 'new' ? `/app?view=new&connection=${id}` : `/app?view=servers&connection=${id}`;
+}
+
 // ---------------------------------------------------------------------------
 // Step 4: the one next action
 // ---------------------------------------------------------------------------
@@ -209,6 +224,19 @@ export function programStatus(connection: OrcaConnection, health?: Pick<OrcaConn
 	if (!connection.enabled) return 'paused';
 	if (!connectionReady(connection) || (health?.changed ?? 0) > 0) return 'review';
 	return 'ready';
+}
+
+/**
+ * A history row's result, in the same words as ตรวจสอบ › ประวัติ (Audit.svelte).
+ * "admitted" is a call ORCA received whose result is not recorded yet, never an approval.
+ */
+export function programEventOutcome(outcome: string | undefined): { th: string; en: string; tone: 'ok' | 'neutral' | 'deny' } {
+	if (outcome === 'success') return { th: 'สำเร็จ', en: 'Succeeded', tone: 'ok' };
+	if (outcome === 'admitted') return { th: 'รับคำขอแล้ว', en: 'Received', tone: 'neutral' };
+	if (outcome === 'denied') return { th: 'ไม่ได้รับอนุญาต', en: 'Denied', tone: 'deny' };
+	if (outcome === 'timeout') return { th: 'หมดเวลา', en: 'Timed out', tone: 'deny' };
+	if (outcome === 'error') return { th: 'ไม่สำเร็จ', en: 'Failed', tone: 'deny' };
+	return { th: 'ไม่ทราบผล', en: 'Unknown', tone: 'neutral' };
 }
 
 /** A name nobody else uses in this company: "FlowAccount", then "FlowAccount (2)"… */

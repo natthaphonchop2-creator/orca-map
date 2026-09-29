@@ -389,7 +389,8 @@
 		width: 18px;
 		height: 18px;
 		margin-top: 2px;
-		border: 1.5px solid var(--orca-line-strong);
+		/* A control's edge: 3:1 on the surface in dark (WCAG 1.4.11); the same grey as today in light. */
+		border: 1.5px solid var(--orca-field-line);
 		border-radius: 50%;
 	}
 	.preset.on .radio {
@@ -583,7 +584,7 @@
 		width: 18px;
 		height: 18px;
 		margin: 3px 0 0;
-		border: 1.5px solid var(--orca-line-strong);
+		border: 1.5px solid var(--orca-field-line);
 		border-radius: 5px;
 		background: var(--orca-field);
 		appearance: none;

@@ -119,6 +119,10 @@ test('step 1: four recommended cards, เชื่อมแล้ว opens the p
 	// In a sheet (the workspace form) cards are buttons that hand the pick back.
 	const sheet = render(Component, { props: { data: data(false), sources, onpick() {} } }).body;
 	assert.doesNotMatch(sheet, /href="\/app\?view=(add-program|servers)/);
+	// From the create form (&return=new) a connected program goes straight back to it.
+	const fromForm = render(Component, { props: { data: data(false), sources, hrefFor, connectedHref: (id) => catalogHelpers.programConnectedHref(id, 'new') } }).body;
+	assert.match(fromForm, /href="\/app\?view=new&amp;connection=conn-drive"/);
+	assert.doesNotMatch(fromForm, /view=servers&amp;connection=conn-drive/);
 });
 
 const connection = (id, mcpID, extra = {}) => ({
@@ -145,6 +149,12 @@ test('the programs list: one row per program with what AI can do, workspaces and
 	const empty = render(Component, { props: { data: { ...data, connections: [], hubs: [] } } }).body;
 	assert.match(empty, /ยังไม่มีโปรแกรมที่เชื่อม/);
 	assert.match(empty, /href="\/app\?view=add-program"/);
+	assert.doesNotMatch(empty, /ดูที่จัดเก็บแล้ว/);
+	// Only archived programs left: start again from the cards, with a way to the archived ones (not an empty filter).
+	const archivedOnly = text(render(Component, { props: { data: { ...data, connections: [connection('c-old', 's1', { archivedAt: 'x' })], hubs: [] } } }).body);
+	assert.match(archivedOnly, /ยังไม่มีโปรแกรมที่เชื่อม/);
+	assert.match(archivedOnly, /ดูที่จัดเก็บแล้ว \(1\)/);
+	assert.doesNotMatch(archivedOnly, /ไม่พบโปรแกรมที่ตรงกับตัวกรอง/);
 });
 
 test('step 4 names the per-person account and gives one next action', async () => {
@@ -161,8 +171,35 @@ test('step 4 names the per-person account and gives one next action', async () =
 	const workspace = text(render(Component, { props: { ...props, hubs: [{ id: 'h', name: 'Sales', status: 'active' }] } }).body);
 	assert.match(workspace, /เพิ่มลงพื้นที่ทำงาน…/);
 	assert.doesNotMatch(workspace, /everyone=1/);
-	const back = text(render(Component, { props: { ...props, hubs: [], returnTo: 'new' } }).body);
+	const back = text(render(Component, { props: { ...props, hubs: [], returnTo: 'new', anotherHref: '/app?view=add-program&return=new&step=choose' } }).body);
 	assert.match(back, /href="\/app\?view=new&amp;connection=c1"[^>]*>กลับไปสร้างพื้นที่ทำงาน/);
+	// The quiet links: another program (keeping the way back to the form) and the programs list.
+	assert.match(back, /href="\/app\?view=add-program&amp;return=new&amp;step=choose"[^>]*>เชื่อมโปรแกรมอื่น/);
+	assert.match(back, /href="\/app\?view=servers"[^>]*>ดูโปรแกรมที่เชื่อม/);
+	assert.equal((back.match(/class="k-button primary/g) ?? []).length, 1, 'one primary action');
+});
+
+test('the page keeps its place: step links while adding, none once saved; a connected card honours the way back', async () => {
+	const calls = [];
+	const deps = {
+		...base, untrack: (fn) => fn(), currentCompany: () => 'default', ProgramService: { candidates: async () => [] }, orcaError: () => '',
+		Stepper: spy(calls, 'Stepper'), ProgramPicker: spy(calls, 'ProgramPicker'), ProgramDone: spy(calls, 'ProgramDone')
+	};
+	const { warnings, Component } = await serverComponent(new URL('./programs/AddProgramFlow.svelte', import.meta.url), deps);
+	assert.deepEqual(warnings, []);
+	const data = { connections: [connection('c1', 's1')], hubs: [], members: [], platformOperator: false };
+	const props = { data, onchanged: async () => {}, navigate() {}, address: '/app?view=add-program&return=new' };
+	// render() is lazy: reading the body is what renders.
+	assert.match(render(Component, { props: { ...props, step: 'choose', returnTo: 'new' } }).body, /href="\/app\?view=new"/, 'ยกเลิก goes back to the create form');
+	const picker = calls.find((call) => call.name === 'ProgramPicker').props;
+	assert.equal(picker.connectedHref('c1'), '/app?view=new&connection=c1', 'back to the create form, not the program page');
+	assert.equal(typeof calls.find((call) => call.name === 'Stepper').props.hrefFor, 'function');
+	calls.length = 0;
+	assert.doesNotMatch(render(Component, { props: { ...props, step: 'done', sourceID: 's1', connectionID: 'c1', returnTo: 'new', address: '/app?view=add-program&return=new&source=s1&step=done&connection=c1' } }).body, /ap-cancel/, 'nothing to cancel once saved');
+	assert.equal(calls.find((call) => call.name === 'Stepper').props.hrefFor, undefined, 'a saved program is not reopened as a new one');
+	const done = calls.find((call) => call.name === 'ProgramDone').props;
+	assert.equal(done.connection.id, 'c1');
+	assert.equal(done.anotherHref, '/app?view=add-program&return=new&step=choose');
 });
 
 test('program detail: tabs follow the role, and archived programs cannot be edited', async () => {

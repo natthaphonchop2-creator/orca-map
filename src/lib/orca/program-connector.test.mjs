@@ -154,14 +154,26 @@ test('keys are checked before sending, and a key is never sent through a sign-in
 		checkSource: async () => ({ ready: true, oauthRequired: false })
 	});
 	await view.load('src');
-	await view.configure({ Authorization: ' ' });
+	assert.equal(await view.configure({ Authorization: ' ' }), false, 'the page keeps what was typed');
 	assert.match(view.error, /Key/);
 	assert.equal(calls.length, 1, 'nothing sent');
-	await view.configure({ Authorization: 'secret-key' });
+	assert.equal(await view.configure({ Authorization: 'secret-key' }), true, 'sent: the page forgets the key');
 	assert.equal(browser.opened.length, 0);
 	assert.deepEqual(calls[1], ['configure', 'src', { Authorization: 'secret-key' }, undefined]);
 	assert.deepEqual(ready, ['src']);
 	assert.equal(view.phase, 'ready');
+});
+
+test('a key the program refuses still counts as sent, so the page forgets it', async () => {
+	const fields = [{ key: 'Authorization', name: 'Key', description: '', required: true, sensitive: true }];
+	const { view } = connector({
+		sourceSetup: async () => setup({ oauthSupported: false, fields, configured: false }),
+		configureSource: async () => { throw new Error('คีย์ไม่ถูกต้อง'); }
+	});
+	await view.load('src');
+	assert.equal(await view.configure({ Authorization: 'wrong-key' }), true);
+	assert.equal(view.error, 'คีย์ไม่ถูกต้อง');
+	assert.equal(view.phase, 'fields', 'the form stays open for another try');
 });
 
 test('"ใช้บัญชีอื่น" signs the old account out first; a late answer for another program is ignored', async () => {

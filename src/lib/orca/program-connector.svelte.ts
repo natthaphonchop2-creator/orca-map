@@ -324,25 +324,29 @@ export class ProgramConnector {
 		);
 	}
 
-	/** "เชื่อมต่อ" with typed keys (and the account's own address, when the program needs one). */
-	configure(values: Record<string, string>, accountURL = '') {
-		if (this.busy || !this.setup || this.unavailable) return Promise.resolve();
+	/**
+	 * "เชื่อมต่อ" with typed keys (and the account's own address, when the program
+	 * needs one). Resolves true once the keys were sent, so the page can forget
+	 * them whatever the answer; false when nothing left the page.
+	 */
+	async configure(values: Record<string, string>, accountURL = ''): Promise<boolean> {
+		if (this.busy || !this.setup || this.unavailable) return false;
 		const { t } = this.#deps;
 		if (this.requiresURL && !validAccountURL(accountURL.trim())) {
 			this.error = t(
 				'กรอกที่อยู่บัญชีที่ขึ้นต้นด้วย https:// โดยไม่มีรหัสผ่านในที่อยู่',
 				'Enter the account address starting with https://, without a password in it.'
 			);
-			return Promise.resolve();
+			return false;
 		}
 		const missing = this.fields.find((field) => field.required && !values[field.key]?.trim());
 		if (missing) {
 			this.error = t(`กรอก ${missing.name || missing.key}`, `Enter ${missing.name || missing.key}`);
-			return Promise.resolve();
+			return false;
 		}
 		const usingToken = Object.entries(values).some(([key, value]) => key.toLowerCase() === 'authorization' && value.trim());
 		const popup = usingToken ? null : this.#reserve();
-		return this.#run(
+		await this.#run(
 			'configure',
 			async (request) => {
 				const result = await this.#deps.service.configureSource(request.sourceID, values, this.requiresURL ? accountURL.trim() : undefined);
@@ -353,6 +357,7 @@ export class ProgramConnector {
 			},
 			popup
 		);
+		return true;
 	}
 
 	/** "ใช้บัญชีนี้ต่อ" / "เชื่อมต่อ": checks the saved account and moves on. */

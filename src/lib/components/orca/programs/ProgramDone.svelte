@@ -14,7 +14,8 @@
 		logoName,
 		hubs,
 		people,
-		returnTo = ''
+		returnTo = '',
+		anotherHref = '/app?view=add-program'
 	}: {
 		connection: OrcaConnection;
 		programName: string;
@@ -23,6 +24,8 @@
 		/** Active people in the company, for "ให้ทุกคนในบริษัทใช้". */
 		people: number;
 		returnTo?: string | null;
+		/** "เชื่อมโปรแกรมอื่น": step 1 again, keeping where the person came from. */
+		anotherHref?: string;
 	} = $props();
 
 	const summary = $derived(accessSummary(connection));
@@ -68,8 +71,8 @@
 			</div>
 		{/if}
 		<div class="done-more">
-			<a class="k-button quiet" href={localeHref('/app?view=add-program')}>{t('เชื่อมโปรแกรมอื่น', 'Connect another program')}</a>
-			<a class="k-button quiet" href={localeHref(`/app?view=servers&connection=${encodeURIComponent(connection.id)}`)}>{t('ดูโปรแกรมที่เชื่อม', 'View the program')}</a>
+			<a class="k-button quiet" href={localeHref(anotherHref)}>{t('เชื่อมโปรแกรมอื่น', 'Connect another program')}</a>
+			<a class="k-button quiet" href={localeHref('/app?view=servers')}>{t('ดูโปรแกรมที่เชื่อม', 'Go to Programs')}</a>
 		</div>
 	</div>
 </section>

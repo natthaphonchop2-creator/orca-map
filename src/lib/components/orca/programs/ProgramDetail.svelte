@@ -7,7 +7,7 @@
 	import { gatewayMemberIDs, gatewayToolCount, gatewayUsesConnection } from '$lib/orca/gateway-sources';
 	import { term } from '$lib/orca/glossary';
 	import { localeHref, orcaLocale, t } from '$lib/orca/locale.svelte';
-	import { programDisplayName, programLine, programStatus, type ProgramStatus } from '$lib/orca/program-catalog';
+	import { programDisplayName, programEventOutcome, programLine, programStatus, type ProgramStatus } from '$lib/orca/program-catalog';
 	import { accessSummary, toolCopy, type ProgramToolLike } from '$lib/orca/program-tools';
 	import {
 		OrcaService,
@@ -159,13 +159,6 @@
 		if (event.action === 'connection.restore') return t('กู้คืนโปรแกรม', 'Restored the program');
 		return event.toolName || event.action || t('การใช้งาน', 'Activity');
 	}
-	function outcome(event: OrcaAuditEvent): { th: string; en: string; tone: StatusTone } {
-		if (event.outcome === 'success') return { th: 'สำเร็จ', en: 'Done', tone: 'ok' };
-		if (event.outcome === 'admitted') return { th: 'รออนุมัติ', en: 'Waiting', tone: 'warn' };
-		if (event.outcome === 'denied') return { th: 'ไม่อนุญาต', en: 'Refused', tone: 'deny' };
-		if (event.outcome === 'timeout') return { th: 'หมดเวลา', en: 'Timed out', tone: 'deny' };
-		return { th: 'ไม่สำเร็จ', en: 'Failed', tone: 'deny' };
-	}
 	const person = (id: string) => {
 		const member = data.members.find((item) => item.id === id);
 		return member ? member.displayName || member.email : '';
@@ -238,7 +231,7 @@
 			{:else if activityLoading && !events.length}<p class="pd-note" role="status">{t('กำลังโหลด…', 'Loading…')}</p>
 			{:else}
 				{#each events.slice(0, 50) as event (event.id)}
-					{@const result = outcome(event)}
+					{@const result = programEventOutcome(event.outcome)}
 					<div class="pd-event">
 						<span class="pd-event-copy"><strong>{eventLabel(event)}</strong><small>{[person(event.userID), displayDate(event.createdAt)].filter(Boolean).join(' · ')}</small></span>
 						<StatusPill label={t(result.th, result.en)} tone={result.tone} />

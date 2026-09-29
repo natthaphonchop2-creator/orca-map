@@ -28,6 +28,7 @@
 		error = '',
 		onretry,
 		hrefFor,
+		connectedHref,
 		onpick
 	}: {
 		data: OrcaBootstrap;
@@ -37,6 +38,8 @@
 		onretry?: () => void;
 		/** A program's step-2 address (the page); without it cards are buttons (a sheet). */
 		hrefFor?: (sourceID: string) => string;
+		/** Where a program the company already connected opens (the page); by default its program page. */
+		connectedHref?: (connectionID: string) => string;
 		/** A sheet's pick; a program already connected passes its connection. */
 		onpick?: (sourceID: string, connectionID?: string) => void;
 	} = $props();
@@ -58,7 +61,8 @@
 
 	function cardHref(source: CatalogTool): string | undefined {
 		const card = programCard(source, context);
-		if (card.state === 'connected') return hrefFor ? localeHref(`/app?view=servers&connection=${encodeURIComponent(card.connectionID!)}`) : undefined;
+		if (card.state === 'connected')
+			return hrefFor ? (connectedHref?.(card.connectionID!) ?? localeHref(`/app?view=servers&connection=${encodeURIComponent(card.connectionID!)}`)) : undefined;
 		if (card.state === 'available' && hrefFor) return hrefFor(source.id);
 		return undefined;
 	}

@@ -105,7 +105,8 @@
 	{/snippet}
 </PageHeader>
 
-{#if !live.length}
+{#if !live.length || (!counts.all && filter === 'all' && !words.length)}
+	<!-- Nothing in use (archived ones aside): start from the recommended programs. -->
 	<section class="programs-start" aria-labelledby="programs-start-title">
 		<h2 id="programs-start-title">{t('ยังไม่มีโปรแกรมที่เชื่อม', 'No programs connected yet')}</h2>
 		<p>{t('เริ่มจากโปรแกรมที่ธุรกิจไทยใช้กันมาก เชื่อมได้ในไม่กี่นาที', 'Start with a program Thai businesses use most. It takes a few minutes.')}</p>
@@ -132,7 +133,10 @@
 				{/each}
 			</div>
 		{/if}
-		<a class="programs-start-all" href={localeHref('/app?view=add-program')}>{t('ดูโปรแกรมทั้งหมด', 'See every program')}<ChevronRight size={15} aria-hidden="true" /></a>
+		<div class="programs-start-links">
+			<a class="programs-start-all" href={localeHref('/app?view=add-program')}>{t('ดูโปรแกรมทั้งหมด', 'See every program')}<ChevronRight size={15} aria-hidden="true" /></a>
+			{#if counts.archived}<button type="button" class="k-link-button" onclick={() => (filter = 'archived')}>{t(`ดูที่จัดเก็บแล้ว (${counts.archived})`, `See archived (${counts.archived})`)}</button>{/if}
+		</div>
 	</section>
 {:else}
 	<div class="programs-toolbar">
@@ -447,11 +451,21 @@
 	.programs-start-card.soon span {
 		color: var(--orca-subtle);
 	}
+	.programs-start-links {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 12px 24px;
+		margin-top: 20px;
+	}
+	.programs-start-links .k-link-button {
+		color: var(--orca-muted);
+		font-size: 14px;
+	}
 	.programs-start-all {
 		display: inline-flex;
 		align-items: center;
 		gap: 4px;
-		margin-top: 20px;
 		color: var(--orca-ink);
 		font-size: 14px;
 		font-weight: 600;
@@ -475,6 +489,8 @@
 		}
 		.programs-row {
 			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+			/* The cells' small labels line up across the card. */
+			align-items: start;
 			gap: 12px;
 			margin-bottom: 12px;
 			padding: 16px;

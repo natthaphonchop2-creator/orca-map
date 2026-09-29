@@ -66,17 +66,11 @@
 
 	async function submitFields(event: SubmitEvent) {
 		event.preventDefault();
-		const typed = values;
-		const url = accountURL;
-		try {
-			await connector.configure(typed, url);
-		} finally {
-			// Keys are never kept in the page after they are sent.
-			if (!connector.error) {
-				values = {};
-				accountURL = '';
-			}
-		}
+		// Keys are never kept in the page after they are sent, even when the
+		// program refuses them (as SourceSetup does); a typo found before sending
+		// keeps what was typed. The account's address is not a secret and stays.
+		const sent = await connector.configure(values, accountURL);
+		if (sent) values = {};
 	}
 	function fieldLabel(field: { key: string; name: string }) {
 		const copy = guide?.fields[field.key];
@@ -255,10 +249,16 @@
 			{#if phase === 'loading' || phase === 'idle' || busy}
 				<span class="acct-icon small"><LoaderCircle size={16} class="k-spin" aria-hidden="true" /></span>
 				<div><strong>{phase === 'loading' ? t('กำลังโหลด…', 'Loading…') : busyLabel}</strong></div>
-			{:else if phase === 'connected' || phase === 'ready' || phase === 'check'}
+			{:else if phase === 'check'}
 				<span class="acct-icon small ok"><CircleCheck size={16} aria-hidden="true" /></span>
 				<div>
-					<strong>{t('เชื่อมด้วยบัญชีของคุณ', 'Connected with your account')}</strong>
+					<strong>{t('ไม่ต้องลงชื่อเข้าใช้', 'No sign-in needed')}</strong>
+					<small>{t(`${programName} ไม่ใช้บัญชีของแต่ละคน`, `${programName} does not use a personal account`)}</small>
+				</div>
+			{:else if phase === 'connected' || phase === 'ready'}
+				<span class="acct-icon small ok"><CircleCheck size={16} aria-hidden="true" /></span>
+				<div>
+					<strong>{connector.alreadyConnected ? t('เชื่อมด้วยบัญชีของคุณ', 'Connected with your account') : t('ไม่ต้องลงชื่อเข้าใช้', 'No sign-in needed')}</strong>
 					<small>{phase === 'ready' ? t('ตรวจแล้ว ใช้งานได้', 'Checked: working') : t(`ORCA ใช้บัญชี ${programName} ของคุณดูว่า AI ทำอะไรได้`, `ORCA uses your ${programName} account to see what AI can do`)}</small>
 				</div>
 			{:else if phase === 'waiting'}
@@ -281,7 +281,7 @@
 		<div class="acct-row-actions">
 			{#if !busy}
 				{#if phase === 'connected' || phase === 'check'}
-					<button type="button" class="k-button small" onclick={() => connector.verify()}>{t('ตรวจบัญชี', 'Check')}</button>
+					<button type="button" class="k-button small" onclick={() => connector.verify()}>{phase === 'check' ? t('ตรวจการเชื่อมต่อ', 'Check the connection') : t('ตรวจบัญชี', 'Check the account')}</button>
 					{#if connector.alreadyConnected}<button type="button" class="k-button small" onclick={useAnother}>{t('เชื่อมบัญชีใหม่', 'Connect another account')}</button>{/if}
 				{:else if phase === 'ready' && connector.alreadyConnected}
 					<button type="button" class="k-button small" onclick={useAnother}>{t('เชื่อมบัญชีใหม่', 'Connect another account')}</button>

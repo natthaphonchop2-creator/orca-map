@@ -8,6 +8,7 @@
 		draftKey,
 		programCancelHref,
 		programCategory,
+		programConnectedHref,
 		programDisplayName,
 		programStepHref,
 		readDraft,
@@ -296,7 +297,8 @@
 
 <div class="ap" class:sheet={mode === 'sheet'}>
 	<div class="ap-top">
-		<Stepper {steps} current={step} hrefFor={mode === 'page' ? (id) => href(id as ProgramStep) : undefined} label={t('ขั้นตอนเชื่อมโปรแกรม', 'Connect a program: steps')} />
+		<!-- Once saved (step 4) the steps are a record, not links: going back to step 3 after a reload would add the program twice. -->
+		<Stepper {steps} current={step} hrefFor={mode === 'page' && step !== 'done' ? (id) => href(id as ProgramStep) : undefined} label={t('ขั้นตอนเชื่อมโปรแกรม', 'Connect a program: steps')} />
 		{#if mode === 'page' && step !== 'done'}
 			<a class="k-button quiet ap-cancel" href={localeHref(programCancelHref(returnTo))} onclick={() => clearDraft(storage(), key)}><X size={16} aria-hidden="true" />{t('ยกเลิก', 'Cancel')}</a>
 		{/if}
@@ -310,6 +312,7 @@
 			error={catalogError}
 			onretry={() => loadCatalog(true)}
 			hrefFor={mode === 'page' ? (id) => href('connect', { source: id }) : undefined}
+			connectedHref={mode === 'page' ? (id) => localeHref(programConnectedHref(id, returnTo)) : undefined}
 			onpick={mode === 'sheet' ? pick : undefined}
 		/>
 	{:else if step === 'done'}
@@ -322,6 +325,7 @@
 				hubs={data.hubs}
 				people={data.members.filter((member) => !member.status || member.status === 'active').length}
 				{returnTo}
+				anotherHref={programStepHref(address, 'choose', { source: null })}
 			/>
 		{:else}
 			<div class="ap-problem" role="alert">

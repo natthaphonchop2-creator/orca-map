@@ -7,7 +7,7 @@ const { catalogSource } = await importTypeScript(new URL('./catalog.ts', import.
 const { appNavigation } = await importTypeScript(new URL('./navigation.ts', import.meta.url));
 const {
 	PROGRAM_CHIPS, programCategory, programCard, programDisplayName, programLine, recommendedPrograms, pickerPrograms, availableChips,
-	programStep, programStepHref, programCancelHref, finishAction, teamSizeFor, programStatus, uniqueProgramName,
+	programStep, programStepHref, programCancelHref, programConnectedHref, programEventOutcome, finishAction, teamSizeFor, programStatus, uniqueProgramName,
 	draftKey, readDraft, writeDraft, clearDraft, DRAFT_TTL_MS
 } = catalog;
 
@@ -134,4 +134,32 @@ test('the draft keeps ticked tools per company and program, and survives broken 
 	assert.doesNotThrow(() => writeDraft(throwing, key, { sourceID: 's', toolNames: [], preset: 'read', name: '', note: '' }));
 	assert.doesNotThrow(() => clearDraft(throwing, key));
 	assert.equal(readDraft(undefined, key, 's'), undefined);
+});
+
+test('a program the company already connected opens its page, or goes back to the create form it came from', () => {
+	assert.equal(programConnectedHref('c 1', null), '/app?view=servers&connection=c%201');
+	assert.equal(programConnectedHref('c1', 'new'), '/app?view=new&connection=c1');
+	// Both addresses are already canonical for the page's router.
+	for (const href of [programConnectedHref('c1', null), programConnectedHref('c1', 'new')]) {
+		const route = appNavigation(new URLSearchParams(href.split('?')[1]), { role: { canManage: true, platformOperator: false } });
+		assert.equal(route.redirect, undefined, href);
+	}
+});
+
+test('a program the catalog has no words for gets a plain line, never "ระบบ … MCP"', () => {
+	const custom = catalogSource(source('custom-stock', 'ระบบคลังสินค้าเดิม', { description: 'Internal MCP' }));
+	assert.deepEqual(programLine(custom), ['โปรแกรมที่ทีม ORCA เพิ่มไว้', 'A program the ORCA team added']);
+	for (const line of programLine(custom)) assert.doesNotMatch(line, /MCP|ระบบ/);
+	// Known programs keep their own line.
+	assert.deepEqual(programLine(catalogSource(source('s-flow', 'FlowAccount'))), ['ดูใบเสนอราคา ใบแจ้งหนี้ และรายรับรายจ่าย', 'Quotations, invoices, income and expenses']);
+});
+
+test('history results use the audit page\'s words; a received call is never shown as waiting for approval', () => {
+	assert.deepEqual(programEventOutcome('admitted'), { th: 'รับคำขอแล้ว', en: 'Received', tone: 'neutral' });
+	assert.equal(programEventOutcome('success').tone, 'ok');
+	assert.equal(programEventOutcome('denied').th, 'ไม่ได้รับอนุญาต');
+	assert.equal(programEventOutcome('timeout').tone, 'deny');
+	assert.equal(programEventOutcome('error').th, 'ไม่สำเร็จ');
+	assert.deepEqual(programEventOutcome('something-new'), { th: 'ไม่ทราบผล', en: 'Unknown', tone: 'neutral' });
+	for (const outcome of ['success', 'admitted', 'denied', 'timeout', 'error', undefined]) assert.doesNotMatch(programEventOutcome(outcome).th, /อนุมัติ/);
 });
