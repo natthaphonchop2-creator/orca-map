@@ -30,6 +30,7 @@
     type OrcaBootstrap,
     type OrcaHub,
   } from "$lib/services/orca";
+  import { checkAIConnectionOnce } from "$lib/services/orca-u3";
   import { Folder, Info, LoaderCircle } from "@lucide/svelte";
   import { onMount, untrack } from "svelte";
   import type { PageProps } from "./$types";
@@ -92,6 +93,7 @@
         }
         data = result;
         void refreshApprovals();
+        void checkAIConnectionOnce();
       }
     } catch (cause) {
       if (request === refreshGeneration) error = orcaError(cause);
@@ -260,7 +262,7 @@
         />{/key}{:else}
       <ConnectionCenter data={managementData!} onchanged={refresh} />
     {/if}
-  {:else if view === "connect-ai"}<ConnectAIView data={currentData!} />
+  {:else if view === "connect-ai"}<ConnectAIView data={currentData!} onchanged={refresh} />
   {:else if view === "members"}<TeamView {data} onchanged={refresh} />
   {:else if view === "approvals" || view === "executions" || view === "audit" || view === "secrets"}<OversightView
       {data}
