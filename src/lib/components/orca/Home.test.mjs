@@ -168,6 +168,25 @@ test('Home picks its mode from the viewer\'s own data: setup at once, else a sho
 	assert.doesNotMatch(html, /\/home\?to=start/);
 });
 
+test('a lapsed AI sign-in after setup: one line and a way back on the status view, not the checklist', async () => {
+	const Banner = await component('./home/AIReconnectBanner.svelte', base);
+	const html = render(Banner).body;
+	assert.match(text(html), /การเชื่อม AI ของคุณหมดอายุแล้ว เชื่อมใหม่/);
+	assert.match(html, /<a class="k-button small[^"]*" href="\/app\?view=connect-ai">เชื่อมใหม่<\/a>/);
+	const english = render(await component('./home/AIReconnectBanner.svelte', { ...base, t: (_th, en) => en })).body;
+	assert.match(text(english), /Your AI connection has expired Reconnect/);
+	// Home: the rule decides the mode and the pill, and the banner sits on the status view only.
+	const page = await readFile(new URL('./WorkspaceDashboard.svelte', import.meta.url), 'utf8');
+	assert.match(page, /const lapsed = \$derived\(aiLapsed\(list, ai\)\);/);
+	assert.match(page, /homeMode\(list, noWorkspace, loaded, lapsed\)/);
+	assert.match(page, /homeBadge\(mode, manager, attention, t, lapsed\)/);
+	const status = page.slice(page.indexOf("{:else if mode === 'loading'}"));
+	assert.match(status, /\{:else\}\s*\{#if lapsed\}<AIReconnectBanner \/>\{\/if\}/);
+	assert.equal(page.match(/<AIReconnectBanner/g)?.length, 1);
+	const banner = await readFile(new URL('./home/AIReconnectBanner.svelte', import.meta.url), 'utf8');
+	assert.doesNotMatch(banner, /#[0-9a-f]{3,6}\b|rgba?\(/i, 'tokens only');
+});
+
 test('the status view follows the role: managers see the company and its alerts, employees their own part', async () => {
 	const programTools = await importTypeScript(new URL('../../orca/program-tools.ts', import.meta.url));
 	const programCatalog = await importTypeScript(new URL('../../orca/program-catalog.ts', import.meta.url));

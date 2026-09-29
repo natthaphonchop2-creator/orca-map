@@ -225,23 +225,43 @@ export function employeeChecklist(ai: AIState, accounts: AccountState[], asked: 
 export type HomeMode = 'setup' | 'status' | 'loading';
 
 /**
+ * Setup was finished before, and only the viewer's own AI sign-in lapsed: B1
+ * says no AI is connected now (it expired, or was disconnected), yet the
+ * viewer has asked a first question and every other step is still done (a
+ * ready program and an active workspace they use; an employee's program
+ * sign-ins, when known). Home then stays in status mode with a one-line
+ * "reconnect" banner instead of the whole checklist again.
+ */
+export function aiLapsed(list: Pick<Checklist, 'steps'>, ai: AIState): boolean {
+	if (ai !== 'none') return false;
+	const step = (id: string) => list.steps.find((item) => item.id === id);
+	if (step('ai')?.done !== false || step('ask')?.done !== true) return false;
+	// The owner's program and workspace steps are always known; an employee's
+	// sign-ins may not be (a program an admin hasn't opened yet): unknown alone never nags.
+	return list.steps.every((item) => item.id === 'ai' || item.id === 'ask' || (item.id === 'accounts' ? item.done !== false : item.done === true));
+}
+
+/**
  * What Home shows. Setup while a required step is known not to be done (or an
  * employee has no usable workspace); the status cards once everything known is
- * done; a short "checking" line until then, so the checklist never flashes.
+ * done, or when only the viewer's AI sign-in lapsed after setup (`lapsed`,
+ * aiLapsed); a short "checking" line until then, so the checklist never flashes.
  */
-export function homeMode(list: Pick<Checklist, 'incomplete'>, noWorkspace: boolean, loaded: boolean): HomeMode {
-	if (noWorkspace || list.incomplete) return 'setup';
+export function homeMode(list: Pick<Checklist, 'incomplete'>, noWorkspace: boolean, loaded: boolean, lapsed = false): HomeMode {
+	if (noWorkspace || (list.incomplete && !lapsed)) return 'setup';
 	return loaded ? 'status' : 'loading';
 }
 
 /**
  * The pill beside Home's title. Never "ระบบพร้อมใช้งาน" on an unfinished
- * company: setup says so, and a manager sees what needs looking at.
+ * company: setup says so, and a manager sees what needs looking at. A lapsed
+ * AI sign-in is one thing to look at, for any role: it is the viewer's own.
  */
-export function homeBadge(mode: HomeMode, manager: boolean, attention: number, t: Translate): { label: string; tone: 'warn' | 'ok' } | undefined {
+export function homeBadge(mode: HomeMode, manager: boolean, attention: number, t: Translate, lapsed = false): { label: string; tone: 'warn' | 'ok' } | undefined {
 	if (mode === 'loading') return undefined;
 	if (mode === 'setup') return { label: t('ยังตั้งค่าไม่เสร็จ', 'Setup not finished'), tone: 'warn' };
-	if (manager && attention > 0) return { label: t(`ต้องดูแล ${attention} เรื่อง`, `${attention} to look at`), tone: 'warn' };
+	const count = (manager ? attention : 0) + (lapsed ? 1 : 0);
+	if (count > 0) return { label: t(`ต้องดูแล ${count} เรื่อง`, `${count} to look at`), tone: 'warn' };
 	return { label: t('พร้อมใช้งาน', 'Ready'), tone: 'ok' };
 }
 

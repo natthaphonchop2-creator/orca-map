@@ -155,6 +155,52 @@ test('until B1 answers, connecting AI is merged with the first question', () => 
 	assert.equal(home.employeeChecklist('none', ['signed-in'], true).current, 'ai');
 });
 
+test('an AI sign-in that lapsed after setup keeps Home in status mode, with one line to reconnect', () => {
+	const th = (thai) => thai;
+	const ready = company({ connections: [connection('conn-flow')], hubs: [hub('h')] });
+	// Steps 1, 2 and 4 are done (a ready program, an active workspace I use, my own first
+	// question) and B1 says no AI now: my sign-in expired or was disconnected.
+	let list = home.ownerChecklist(ready, 'none', true);
+	assert.equal(list.incomplete, true, 'the checklist still knows step 3 is open');
+	assert.equal(home.aiLapsed(list, 'none'), true);
+	assert.equal(home.homeMode(list, false, true, true), 'status', 'not the setup checklist again');
+	assert.equal(home.homeMode(list, false, false, true), 'loading', 'nothing flashes while the rest loads');
+	assert.equal(home.homeMode(list, false, true), 'setup', 'without the rule, as before');
+	// The pill counts it as one thing to look at, for any role: it is the viewer's own.
+	assert.deepEqual(home.homeBadge('status', true, 0, th, true), { label: 'ต้องดูแล 1 เรื่อง', tone: 'warn' });
+	assert.deepEqual(home.homeBadge('status', true, 2, th, true), { label: 'ต้องดูแล 3 เรื่อง', tone: 'warn' });
+	assert.deepEqual(home.homeBadge('status', false, 2, th, true), { label: 'ต้องดูแล 1 เรื่อง', tone: 'warn' });
+	assert.deepEqual(home.homeBadge('status', false, 0, th), { label: 'พร้อมใช้งาน', tone: 'ok' });
+
+	// Anything else undone, or not proven, is still setup.
+	const cases = [
+		['never asked', home.ownerChecklist(ready, 'none', false), 'none'],
+		['my question unknown (history failed, or a full window)', home.ownerChecklist(ready, 'none', undefined), 'none'],
+		['no ready program now', home.ownerChecklist(company({ connections: [connection('conn-flow', { enabled: false })], hubs: [hub('h')] }), 'none', true), 'none'],
+		['no active workspace I use', home.ownerChecklist(company({ connections: [connection('conn-flow')], hubs: [hub('h', { status: 'archived' })] }), 'none', true), 'none'],
+		['not in the workspace any more', home.ownerChecklist(company({ connections: [connection('conn-flow')], hubs: [hub('h', { memberIDs: ['other'], effectiveMemberIDs: ['other'] })] }), 'none', true), 'none'],
+		['an employee who must sign in to a program too', home.employeeChecklist('none', ['signed-in', 'needed'], true), 'none'],
+		['an employee who never asked', home.employeeChecklist('none', ['signed-in'], false), 'none']
+	];
+	for (const [label, checklist, ai] of cases) {
+		assert.equal(home.aiLapsed(checklist, ai), false, label);
+		assert.equal(home.homeMode(checklist, false, true, home.aiLapsed(checklist, ai)), 'setup', label);
+	}
+	// Connected, or B1 unknown (an older server: asking proves the AI): nothing lapsed, setup is complete.
+	for (const ai of ['connected', 'unknown']) {
+		list = home.ownerChecklist(ready, ai, true);
+		assert.equal(home.aiLapsed(list, ai), false, ai);
+		assert.equal(list.complete, true, ai);
+		assert.equal(home.homeMode(list, false, true, false), 'status', ai);
+	}
+	// An employee: the program sign-ins done, or not known (unknown alone never nags).
+	assert.equal(home.aiLapsed(home.employeeChecklist('none', ['signed-in'], true), 'none'), true);
+	assert.equal(home.aiLapsed(home.employeeChecklist('none', ['waiting'], true), 'none'), true);
+	assert.equal(home.aiLapsed(home.employeeChecklist('none', ['unknown'], true), 'none'), true);
+	// An employee with no usable workspace asks for access first, whatever else.
+	assert.equal(home.homeMode(home.employeeChecklist('none', ['signed-in'], true), true, true, true), 'setup');
+});
+
 test('employee checklist: AI, then a sign-in per program, then the first question', () => {
 	let list = home.employeeChecklist('none', ['signed-in', 'needed'], false);
 	assert.deepEqual(list.steps.map((s) => [s.id, s.state]), [['ai', 'current'], ['accounts', 'todo'], ['ask', 'todo']]);

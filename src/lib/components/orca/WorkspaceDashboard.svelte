@@ -8,6 +8,7 @@
 	import {
 		AUDIT_WINDOW,
 		accessRequestText,
+		aiLapsed,
 		accountStateFrom,
 		activeMembers,
 		askablePrograms,
@@ -38,6 +39,7 @@
 	import { programStatus } from '$lib/orca/program-catalog';
 	import { OrcaLibraryService } from '$lib/services/orca-library';
 	import { refreshAIConnection } from '$lib/services/orca-ai-apps';
+	import AIReconnectBanner from './home/AIReconnectBanner.svelte';
 	import EmployeeSetup from './home/EmployeeSetup.svelte';
 	import HomeStatus from './home/HomeStatus.svelte';
 	import OwnerSetup from './home/OwnerSetup.svelte';
@@ -98,7 +100,9 @@
 	const list = $derived(manager ? owner : employee);
 	const noWorkspace = $derived(!manager && usableWorkspaces(data).length === 0);
 	const loaded = $derived((events !== undefined || eventsError) && aiChecked && accounts.every((account) => account.state !== 'checking'));
-	const mode = $derived(homeMode(list, noWorkspace, loaded));
+	// Setup was done and only my AI sign-in expired or was disconnected: stay in status mode, with a banner.
+	const lapsed = $derived(aiLapsed(list, ai));
+	const mode = $derived(homeMode(list, noWorkspace, loaded, lapsed));
 	const invite = $derived({ done: invitesSent || activeMembers(data.members).length > 1, skipped: flags['skip-invite'] });
 	const knowledge = $derived({ done: knowledgePublished, skipped: flags['skip-knowledge'] });
 	// Plus a program that changed at the provider since its last review (HomeStatus's "ต้องตรวจใหม่").
@@ -123,7 +127,7 @@
 				: manager
 					? t(`โปรแกรม พื้นที่ทำงาน AI และการใช้งานของ ${company}`, `Programs, AI workspaces and use at ${company}`)
 					: t(`พื้นที่ทำงาน AI และโปรแกรมที่คุณใช้ได้ใน ${company}`, `The AI workspaces and programs you can use at ${company}`),
-		status: homeBadge(mode, manager, attention, t)
+		status: homeBadge(mode, manager, attention, t, lapsed)
 	});
 
 	// ---- Loading ----
@@ -254,6 +258,7 @@
 {:else if mode === 'loading'}
 	<p class="home-loading" role="status" aria-live="polite">{t('กำลังตรวจสถานะการตั้งค่า…', 'Checking your setup…')}</p>
 {:else}
+	{#if lapsed}<AIReconnectBanner />{/if}
 	{#if list.complete && !flags['setup-dismissed']}
 		<section class="home-done" aria-labelledby="home-done-title">
 			<span class="home-done-icon" aria-hidden="true"><CircleCheck size={20} /></span>
