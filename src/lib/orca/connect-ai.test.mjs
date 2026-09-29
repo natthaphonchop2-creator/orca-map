@@ -130,6 +130,12 @@ test('the pin: connected names the app, none says so, unknown (no B1 on this ser
 	assert.deepEqual(ai.aiConnectionFrom({ sessions: [session('a', 'claude', 'Claude', 5, { expiresAt: ago(1) })], keys: [] }, NOW), { state: 'none' });
 });
 
+test('the app buttons: Claude\'s connectors page, and ChatGPT itself (no unverified deep link)', () => {
+	assert.equal(ai.CONNECTOR_PAGES.claude, 'https://claude.ai/settings/connectors');
+	assert.equal(ai.CONNECTOR_PAGES.chatgpt, 'https://chatgpt.com/');
+	for (const url of Object.values(ai.CONNECTOR_PAGES)) assert.doesNotMatch(url, /#/, 'no fragment routes we cannot check');
+});
+
 test('dates read as people say them, in Bangkok time', () => {
 	assert.equal(ai.relativeWhen(ago(1), NOW, th), 'เมื่อสักครู่');
 	assert.equal(ai.relativeWhen(ago(12), NOW, th), '12 นาทีที่แล้ว');

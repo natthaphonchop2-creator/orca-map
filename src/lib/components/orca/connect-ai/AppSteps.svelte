@@ -53,7 +53,7 @@
 	</ol>
 	<div class="ca-act">
 		<a class="k-button" href={CONNECTOR_PAGES[app]} target="_blank" rel="noopener noreferrer">
-			{app === 'claude' ? t('เปิดหน้า Connectors ของ Claude', "Open Claude's Connectors") : t('เปิดหน้าตั้งค่าของ ChatGPT', "Open ChatGPT's settings")}<ExternalLink size={16} aria-hidden="true" />
+			{app === 'claude' ? t('เปิดหน้า Connectors ของ Claude', "Open Claude's Connectors") : t('เปิด ChatGPT', 'Open ChatGPT')}<ExternalLink size={16} aria-hidden="true" />
 		</a>
 		<span class="ca-small">{app === 'claude'
 			? t('ใช้ Claude แบบ Team หรือ Enterprise? ให้ผู้ดูแล Claude เพิ่ม ORCA ก่อน', 'On Claude Team or Enterprise? Ask your Claude admin to add ORCA first.')

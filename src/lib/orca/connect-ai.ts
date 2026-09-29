@@ -122,10 +122,14 @@ export function validConnectLink(endpoint: string | undefined): boolean {
 	}
 }
 
-/** Deep links to the page where each chat app adds a connector. */
+/**
+ * Where each chat app's button goes. Claude's connectors page is a real
+ * address; ChatGPT has no verified one, so it opens ChatGPT itself and the
+ * written steps (Settings → Apps & Connectors → Create) say where to go.
+ */
 export const CONNECTOR_PAGES: Record<ChatApp, string> = {
 	claude: 'https://claude.ai/settings/connectors',
-	chatgpt: 'https://chatgpt.com/#settings/Connectors'
+	chatgpt: 'https://chatgpt.com/'
 };
 
 // ---------- The person's AI apps (B1) ----------

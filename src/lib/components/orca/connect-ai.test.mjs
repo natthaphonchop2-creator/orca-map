@@ -264,6 +264,10 @@ test('step 5 says waiting, connected or asks for a manual check, and step 3 spea
 	assert.doesNotMatch(claude, /above|ด้านบน/, 'steps name step 2, never "above"');
 	const chatgpt = render(steps.Component, { props: { ...props, app: 'chatgpt' } }).body;
 	assert.match(chatgpt, /Developer mode must be on first[\s\S]*Plus, Pro and Business/);
+	// No unverified deep link: ChatGPT itself, and the written steps say where to go.
+	assert.match(chatgpt, /<kbd[^>]*>Settings<\/kbd>[\s\S]*<kbd[^>]*>Apps &amp; Connectors<\/kbd>[\s\S]*<kbd[^>]*>Create<\/kbd>/);
+	assert.match(chatgpt, /href="https:\/\/chatgpt\.com\/" target="_blank" rel="noopener noreferrer"[^>]*>\s*Open ChatGPT/);
+	assert.doesNotMatch(chatgpt, /#settings/);
 	const codex = render(steps.Component, { props: { ...props, app: 'codex' } }).body;
 	assert.match(codex, /codex mcp add orca --url &#39;https:\/\/orca\.example\.test\/api\/orca\/mcp&#39;|codex mcp add orca --url 'https:\/\/orca\.example\.test\/api\/orca\/mcp'/);
 	assert.match(codex, /codex mcp login orca/);
