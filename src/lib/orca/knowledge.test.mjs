@@ -191,6 +191,15 @@ test('a new field\'s chip lands at the caret even when other chips change (Codex
 	// A plain insert replaces the selection, and the selection is clamped.
 	assert.deepEqual(k.insertField('ab', 1, 2, [], [{ name: 'field_1', label: 'X', required: true }], 'field_1'), { text: 'a{{X}}', caret: 6 });
 	assert.deepEqual(k.insertField('ab', 9, 9, [], [{ name: 'field_1', label: 'X', required: true }], 'field_1').text, 'ab{{X}}');
+	// Never inside a chip: a caret in one puts the new chip after it; a selection
+	// that ends in one stops before it (Codex release review 65).
+	const one = [{ name: 'customer', label: 'ลูกค้า', required: true }];
+	const two = [...one, { name: 'field_1', label: 'ยอด', required: true }];
+	const inChip = k.insertField('ก {{ลูกค้า}} ข', 5, 5, one, two, 'field_1');
+	assert.equal(inChip.text, 'ก {{ลูกค้า}}{{ยอด}} ข');
+	assert.equal(inChip.caret, 'ก {{ลูกค้า}}{{ยอด}}'.length);
+	assert.deepEqual(k.contentForSaving(inChip.text, two), { content: 'ก {{customer}}{{field_1}} ข', unknown: [] });
+	assert.equal(k.insertField('ก {{ลูกค้า}} ข', 0, 5, one, two, 'field_1').text, '{{ยอด}}{{ลูกค้า}} ข');
 });
 
 test('audience mismatch: who could use the prompt but cannot read an article', () => {

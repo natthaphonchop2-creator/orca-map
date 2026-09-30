@@ -359,8 +359,14 @@ export function insertField(
 	after: readonly LibraryParameter[],
 	name: string
 ) {
-	const from = Math.max(0, Math.min(start, text.length));
-	const to = Math.max(from, Math.min(end, text.length));
+	// Never inside a chip (the textarea lets the caret sit in one): the start
+	// moves past the chip it is in, the end back before it (Codex release review 65).
+	const chips = [...text.matchAll(TOKEN)].map((match) => ({ start: match.index ?? 0, end: (match.index ?? 0) + match[0].length }));
+	const inside = (position: number) => chips.find((chip) => position > chip.start && position < chip.end);
+	const clampedStart = Math.max(0, Math.min(start, text.length));
+	const clampedEnd = Math.max(clampedStart, Math.min(end, text.length));
+	const from = inside(clampedStart)?.end ?? clampedStart;
+	const to = Math.max(from, inside(clampedEnd)?.start ?? clampedEnd);
 	const head = retokenFields(text.slice(0, from), before, after);
 	const chip = `{{${fieldTokens(after).get(name) ?? name}}}`;
 	return { text: head + chip + retokenFields(text.slice(to), before, after), caret: head.length + chip.length };
