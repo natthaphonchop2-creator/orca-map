@@ -138,14 +138,43 @@ test('ready-made prompt fields: Thai labels in the editor, field_N names on the 
 	assert.equal(k.cleanFieldLabel('  {{ชื่อ}}  ลูกค้า '), 'ชื่อ ลูกค้า');
 	assert.ok(k.fieldLabelTaken(parameters, ' ชื่อลูกค้า '));
 	assert.equal(k.fieldLabelTaken(parameters, 'ชื่อลูกค้า', 'customer'), false, 'renaming a field to its own name');
-	assert.equal(k.renameFieldTokens(shown, 'ชื่อลูกค้า', 'ลูกค้า'), 'เรียนคุณ {{ลูกค้า}} ยอดของ {{ช่วงวันที่}} {{ไม่รู้จัก}}');
-	assert.equal(k.removeFieldTokens('ก {{ช่วงวันที่}} ข', 'ช่วงวันที่'), 'ก  ข');
+	const renamed = parameters.map((item) => (item.name === 'customer' ? { ...item, label: 'ลูกค้า' } : item));
+	assert.equal(k.retokenFields(shown, parameters, renamed), 'เรียนคุณ {{ลูกค้า}} ยอดของ {{ช่วงวันที่}} {{ไม่รู้จัก}}');
+	assert.equal(k.retokenFields('ก {{ช่วงวันที่}} ข', parameters, parameters.slice(0, 1)), 'ก  ข');
 	assert.deepEqual([...k.fieldsInUse('{{ชื่อลูกค้า}}', parameters)], ['customer']);
 	assert.deepEqual(k.insertText('abcd', 1, 3, 'XY'), { text: 'aXYd', caret: 3 });
 	assert.deepEqual(k.insertText('ab', 9, 9, '!'), { text: 'ab!', caret: 3 });
 	const runs = k.tokenRuns('ก {{ชื่อลูกค้า}} {{อื่น}}', parameters);
 	assert.deepEqual(runs.map((run) => [run.text, run.field, run.known]), [['ก ', false, false], ['{{ชื่อลูกค้า}}', true, true], [' ', false, false], ['{{อื่น}}', true, false]]);
 	assert.equal(runs.map((run) => run.text).join(''), 'ก {{ชื่อลูกค้า}} {{อื่น}}', 'the highlight layer keeps every character');
+});
+
+test('fields with one label, or named like another field\'s label, save back exactly (Codex release review 63)', () => {
+	// The server allows two fields with one label; the editor shows those by name.
+	const twins = [{ name: 'from', label: 'Date', required: true }, { name: 'to', label: 'Date', required: true }];
+	const saved = '{{from}} to {{to}}';
+	const shown = k.contentForEditing(saved, twins);
+	assert.equal(shown, '{{from}} to {{to}}');
+	assert.deepEqual(k.contentForSaving(shown, twins), { content: saved, unknown: [] });
+	assert.deepEqual([...k.fieldsInUse(shown, twins)].sort(), ['from', 'to']);
+	assert.deepEqual(k.contentForSaving('{{Date}}', twins), { content: '{{Date}}', unknown: ['Date'] }, 'a shared label names no one field');
+	// Renaming one of them gives each its own label back.
+	const apart = [{ name: 'from', label: 'วันเริ่ม', required: true }, twins[1]];
+	const retokened = k.retokenFields(shown, twins, apart);
+	assert.equal(retokened, '{{วันเริ่ม}} to {{Date}}');
+	assert.deepEqual(k.contentForSaving(retokened, apart), { content: saved, unknown: [] });
+	// A label spelled like another field's name, and a field with no label.
+	const crossed = [{ name: 'x', label: 'y', required: true }, { name: 'y', label: 'ลูกค้า', required: true }, { name: 'z', label: '', required: false }];
+	const text = '{{x}} {{y}} {{z}}';
+	assert.equal(k.contentForEditing(text, crossed), '{{x}} {{ลูกค้า}} {{z}}');
+	assert.deepEqual(k.contentForSaving(k.contentForEditing(text, crossed), crossed), { content: text, unknown: [] });
+	// Names differing only in case stay apart.
+	const cased = [{ name: 'Date', label: 'วัน', required: true }, { name: 'date', label: 'วัน', required: true }];
+	assert.deepEqual(k.contentForSaving(k.contentForEditing('{{Date}} {{date}}', cased), cased), { content: '{{Date}} {{date}}', unknown: [] });
+	const runs = k.tokenRuns(shown, twins);
+	assert.deepEqual(runs.filter((run) => run.field).map((run) => run.known), [true, true]);
+	// Removing a field drops only its own tokens.
+	assert.equal(k.retokenFields(shown, twins, twins.slice(1)), ' to {{Date}}');
 });
 
 test('audience mismatch: who could use the prompt but cannot read an article', () => {

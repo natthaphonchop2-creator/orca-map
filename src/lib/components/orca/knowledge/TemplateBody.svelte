@@ -6,11 +6,11 @@
 		TEMPLATE_FIELDS_MAX,
 		cleanFieldLabel,
 		fieldLabelTaken,
+		fieldTokens,
 		fieldsInUse,
 		insertText,
 		nextFieldName,
-		removeFieldTokens,
-		renameFieldTokens,
+		retokenFields,
 		tokenRuns
 	} from '$lib/orca/knowledge';
 	import { t } from '$lib/orca/locale.svelte';
@@ -60,15 +60,19 @@
 			return;
 		}
 		if (editing) {
-			const before = editing;
-			parameters = parameters.map((item) => (item.name === before.name ? { ...item, label: clean, required } : item));
-			text = renameFieldTokens(text, before.label, clean);
+			const renamed = editing;
+			const before = parameters;
+			parameters = parameters.map((item) => (item.name === renamed.name ? { ...item, label: clean, required } : item));
+			text = retokenFields(text, before, parameters);
 			dialogOpen = false;
 			return;
 		}
 		const name = nextFieldName(parameters);
+		const before = parameters;
 		parameters = [...parameters, { name, label: clean, required }];
-		const next = insertText(text, selection.start, selection.end, `{{${clean}}}`);
+		// The new label may be shown by name if another field is named like it.
+		text = retokenFields(text, before, parameters);
+		const next = insertText(text, selection.start, selection.end, `{{${fieldTokens(parameters).get(name) ?? name}}}`);
 		text = next.text;
 		dialogOpen = false;
 		await tick();
@@ -78,8 +82,9 @@
 		}, 30);
 	}
 	function remove(field: LibraryParameter) {
+		const before = parameters;
 		parameters = parameters.filter((item) => item.name !== field.name);
-		text = removeFieldTokens(text, field.label);
+		text = retokenFields(text, before, parameters);
 		area?.focus();
 	}
 </script>

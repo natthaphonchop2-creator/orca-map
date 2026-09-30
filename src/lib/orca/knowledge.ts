@@ -260,11 +260,43 @@ export function fieldLabelTaken(parameters: readonly LibraryParameter[], label: 
 	return parameters.some((parameter) => parameter.name !== except && fold(parameter.label) === key);
 }
 
+/**
+ * The text each field shows as in the editor, by field name: its label, or
+ * its name (unique on the server) when it has no label, or when another field
+ * shows the same label or is named like it. The server allows two fields with
+ * one label, so this keeps every {{…}} the editor shows tied to exactly one
+ * field, and a save gives back the content it was given (Codex release review 63).
+ */
+export function fieldTokens(parameters: readonly LibraryParameter[]): Map<string, string> {
+	const wanted = parameters.map((parameter) => cleanFieldLabel(parameter.label) || parameter.name);
+	const shown = new Map<string, number>();
+	for (const token of wanted) shown.set(fold(token), (shown.get(fold(token)) ?? 0) + 1);
+	const tokens = new Map<string, string>();
+	parameters.forEach((parameter, index) => {
+		const token = wanted[index];
+		const shared =
+			(shown.get(fold(token)) ?? 0) > 1 || parameters.some((other) => other.name !== parameter.name && fold(other.name) === fold(token));
+		tokens.set(parameter.name, shared ? parameter.name : token);
+	});
+	return tokens;
+}
+
+/** The field a {{…}} in the editor stands for: the text it shows as, else its name as typed. */
+function fieldFor(inner: string, parameters: readonly LibraryParameter[], tokens = fieldTokens(parameters)) {
+	if (!inner) return undefined;
+	const exact = parameters.find((parameter) => tokens.get(parameter.name) === inner);
+	if (exact) return exact;
+	const folded = parameters.filter((parameter) => fold(tokens.get(parameter.name) ?? '') === fold(inner));
+	if (folded.length === 1) return folded[0];
+	return parameters.find((parameter) => parameter.name === inner);
+}
+
 /** The saved content as the editor shows it: {{customer}} becomes {{ชื่อลูกค้า}}. */
 export function contentForEditing(content: string, parameters: readonly LibraryParameter[]): string {
+	const tokens = fieldTokens(parameters);
 	return content.replace(TOKEN, (match, inner: string) => {
-		const parameter = parameters.find((item) => item.name === inner);
-		return parameter ? `{{${cleanFieldLabel(parameter.label) || parameter.name}}}` : match;
+		const token = tokens.get(inner);
+		return token === undefined ? match : `{{${token}}}`;
 	});
 }
 
@@ -274,12 +306,11 @@ export function contentForSaving(
 	parameters: readonly LibraryParameter[]
 ): { content: string; unknown: string[] } {
 	const unknown: string[] = [];
+	const tokens = fieldTokens(parameters);
 	const content = text.replace(TOKEN, (match, inner: string) => {
 		if (!inner) return match;
-		const byLabel = parameters.find((item) => fold(item.label) === fold(inner));
-		if (byLabel) return `{{${byLabel.name}}}`;
-		const byName = parameters.find((item) => item.name === inner);
-		if (byName) return `{{${byName.name}}}`;
+		const field = fieldFor(inner, parameters, tokens);
+		if (field) return `{{${field.name}}}`;
 		if (!unknown.includes(inner)) unknown.push(inner);
 		return match;
 	});
@@ -289,19 +320,28 @@ export function contentForSaving(
 /** Field names the editor's text uses. */
 export function fieldsInUse(text: string, parameters: readonly LibraryParameter[]): Set<string> {
 	const used = new Set<string>();
+	const tokens = fieldTokens(parameters);
 	for (const [, inner] of text.matchAll(TOKEN)) {
-		const parameter = parameters.find((item) => fold(item.label) === fold(inner) || item.name === inner);
-		if (parameter) used.add(parameter.name);
+		const field = fieldFor(inner, parameters, tokens);
+		if (field) used.add(field.name);
 	}
 	return used;
 }
 
-export function renameFieldTokens(text: string, from: string, to: string): string {
-	return text.replace(TOKEN, (match, inner: string) => (fold(inner) === fold(from) ? `{{${to}}}` : match));
-}
-
-export function removeFieldTokens(text: string, label: string): string {
-	return text.replace(TOKEN, (match, inner: string) => (fold(inner) === fold(label) ? '' : match));
+/**
+ * The editor's text after its fields changed from `before` to `after` (one
+ * renamed, added or removed): each {{…}} of a field that stays shows as that
+ * field shows now, one of a removed field goes, and anything else stays as typed.
+ */
+export function retokenFields(text: string, before: readonly LibraryParameter[], after: readonly LibraryParameter[]): string {
+	const was = fieldTokens(before);
+	const now = fieldTokens(after);
+	return text.replace(TOKEN, (match, inner: string) => {
+		const field = fieldFor(inner, before, was);
+		if (!field) return match;
+		const token = now.get(field.name);
+		return token === undefined ? '' : `{{${token}}}`;
+	});
 }
 
 /** Text with `insert` put in place of the selection; `caret` is just after it. */
@@ -314,12 +354,13 @@ export function insertText(text: string, start: number, end: number, insert: str
 /** The editor's text split into plain runs and field chips, for the highlight behind it. */
 export function tokenRuns(text: string, parameters: readonly LibraryParameter[]) {
 	const runs: { text: string; field: boolean; known: boolean }[] = [];
+	const tokens = fieldTokens(parameters);
 	let position = 0;
 	for (const match of text.matchAll(TOKEN)) {
 		const index = match.index ?? 0;
 		if (index > position) runs.push({ text: text.slice(position, index), field: false, known: false });
 		const inner = match[1];
-		const known = parameters.some((item) => fold(item.label) === fold(inner) || item.name === inner);
+		const known = !!fieldFor(inner, parameters, tokens);
 		runs.push({ text: match[0], field: !!inner, known });
 		position = index + match[0].length;
 	}
