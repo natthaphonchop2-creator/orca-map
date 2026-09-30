@@ -39,7 +39,8 @@ test('Home\'s "เชื่อม AI ของฉัน" step reads the pinned b
 	const page = await readFile(new URL('../components/orca/WorkspaceDashboard.svelte', import.meta.url), 'utf8');
 	assert.match(page, /import \{ aiConnection \} from '\$lib\/orca\/ai-connection\.svelte'/);
 	assert.match(page, /import \{ refreshAIConnection \} from '\$lib\/services\/orca-ai-apps'/);
-	assert.match(page, /const ai = \$derived\(homeAIState\(aiConnection, aiChecked\)\);/);
+	assert.match(page, /const ai = \$derived\(homeAIState\(aiConnection, aiChecked, companyLink\)\);/);
+	assert.match(page, /const companyLink = \$derived\(connectAccess\(data\)\.usable\.length > 0\);/);
 	assert.doesNotMatch(page, /setAIConnection|MyAIAppsService/, 'Home never sets the pin on its own rules');
 	assert.equal(home.aiState, undefined);
 	assert.equal(home.activeAISession, undefined);
@@ -239,6 +240,26 @@ test('after the viewer\'s own disconnect, an earlier question never ticks "เ�
 	// The old-server fallback is separate: on a page where nothing was disconnected, asking proves it.
 	assert.equal(home.ownerChecklist(ready, 'unknown', true).complete, true);
 	assert.equal(home.aiLapsed(home.ownerChecklist(ready, 'unknown', true), 'unknown'), false);
+});
+
+test('an AI connected only through workspaces\' own links never ticks "เชื่อม AI" for the company link (B3 follow-up)', () => {
+	const ready = company({ connections: [connection('conn-flow')], hubs: [hub('h')] });
+	const limited = { state: 'connected', app: 'Claude', only: [{ id: 'h-own', name: 'ฝ่ายขาย' }] };
+	assert.equal(home.homeAIState(limited, true), 'limited', 'the company link has workspaces for me');
+	assert.equal(home.homeAIState(limited, true, true), 'limited');
+	assert.equal(home.homeAIState(limited, true, false), 'connected', 'every workspace of mine has its own sign-in: those links are mine');
+	assert.equal(home.homeAIState(limited, false), 'unknown', 'before Home\'s own read');
+	assert.equal(home.homeAIState({ state: 'connected', app: 'Claude', only: [] }, true), 'connected');
+	assert.equal(home.homeAIState({ ...limited, disconnected: true }, true), 'limited');
+	let list = home.ownerChecklist(ready, 'limited', true);
+	assert.deepEqual(list.steps.map((step) => step.done), [true, true, false, true]);
+	assert.equal(list.complete, false, 'no "ตั้งค่าเสร็จแล้ว"');
+	assert.equal(home.aiLapsed(list, 'limited'), true, 'after setup: status mode with the banner');
+	assert.equal(home.homeMode(list, false, true, true), 'status');
+	list = home.ownerChecklist(ready, 'limited', false);
+	assert.equal(list.current, 'ai');
+	assert.equal(home.homeMode(list, false, true, home.aiLapsed(list, 'limited')), 'setup');
+	assert.equal(home.employeeChecklist('limited', ['signed-in'], true).steps[0].done, false);
 });
 
 test('employee checklist: AI, then a sign-in per program, then the first question', () => {

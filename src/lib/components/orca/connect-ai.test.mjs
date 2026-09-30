@@ -342,12 +342,12 @@ test('the pin\'s shared read that started before a disconnect changes nothing, a
 test('the shared store: a disconnect clears the app and is remembered for the page, whatever reads come later (Codex release review 70)', async () => {
 	const store = await sharedStore();
 	assert.deepEqual({ ...store.aiConnection }, { state: 'unknown', disconnected: false });
-	store.setAIConnection({ state: 'connected', app: 'ChatGPT' });
-	assert.deepEqual({ ...store.aiConnection }, { state: 'connected', app: 'ChatGPT', disconnected: false });
+	store.setAIConnection({ state: 'connected', app: 'ChatGPT', only: [{ id: 'hub-sales', name: 'ฝ่ายขาย' }] });
+	assert.deepEqual({ ...store.aiConnection, only: [...store.aiConnection.only].map((hub) => ({ ...hub })) }, { state: 'connected', app: 'ChatGPT', only: [{ id: 'hub-sales', name: 'ฝ่ายขาย' }], disconnected: false }, 'where a limited sign-in reaches is kept (B3 follow-up)');
 	store.markAIDisconnected();
-	assert.deepEqual({ ...store.aiConnection }, { state: 'unknown', app: undefined, disconnected: true });
+	assert.deepEqual({ ...store.aiConnection }, { state: 'unknown', app: undefined, only: undefined, disconnected: true });
 	store.setAIConnection({ state: 'connected', app: 'Claude' });
-	assert.deepEqual({ ...store.aiConnection }, { state: 'connected', app: 'Claude', disconnected: true }, 'another app still connected; the disconnect stays known');
+	assert.deepEqual({ ...store.aiConnection }, { state: 'connected', app: 'Claude', only: undefined, disconnected: true }, 'another app still connected; the disconnect stays known');
 	store.setAIConnection({ state: 'unknown' });
 	assert.equal(store.aiConnection.disconnected, true);
 	// Every own disconnect goes through the one service call, which marks it.
@@ -355,6 +355,24 @@ test('the shared store: a disconnect clears the app and is remembered for the pa
 	assert.match(service, /export function aiAppsRevoked\(\): void \{\s*revocations \+= 1;\s*pending = undefined;\s*markAIDisconnected\(\);\s*\}/);
 	const view = await readFile(new URL('./views/ConnectAIView.svelte', import.meta.url), 'utf8');
 	assert.doesNotMatch(view, /markAIDisconnected/, 'the connect page disconnects through aiAppsRevoked');
+});
+
+test('เชื่อม AI ของฉัน names where each sign-in reaches, and a limited one is never the company-wide "connected" (B3 follow-up)', async () => {
+	const result = await serverComponent(url('ConnectedAIList'), { ...common, term, AIAppTile: () => {}, ConfirmDialog: () => {} });
+	assert.deepEqual(result.warnings, []);
+	const sessions = [
+		{ id: 'co', app: 'Claude', client: 'claude', hubID: '', hubName: '', createdAt: ago(60), lastRefreshedAt: ago(5), expiresAt: ago(-600) },
+		{ id: 'ws', app: 'ChatGPT', client: 'chatgpt', hubID: 'sales', hubName: 'Sales', createdAt: ago(60), lastRefreshedAt: ago(5), expiresAt: ago(-600) }
+	];
+	const html = render(result.Component, { props: { sessions, keys: [], hubs: [{ id: 'sales', name: 'Sales team' }], now: NOW, onchanged: () => {} } }).body;
+	assert.match(html, /<b[^>]*>Claude<\/b>\s*<small[^>]*>All my workspaces · Connected/);
+	assert.match(html, /<b[^>]*>ChatGPT<\/b>\s*<small[^>]*>Only Sales team · Connected/);
+	const view = await readFile(new URL('./views/ConnectAIView.svelte', import.meta.url), 'utf8');
+	assert.match(view, /tone: aiConnection\.state === 'connected' && !aiConnection\.only\?\.length \? 'ok' : 'neutral'/);
+	const shell = await readFile(new URL('./AppShell.svelte', import.meta.url), 'utf8');
+	assert.match(shell, /const aiConnected = \$derived\(\(aiStatus \?\? aiConnection\)\?\.state === "connected" && !\(aiStatus \?\? aiConnection\)\?\.only\?\.length\);/);
+	const library = await readFile(new URL('./KnowledgeLibrary.svelte', import.meta.url), 'utf8');
+	assert.match(library, /const connected = \$derived\(aiConnectionReaches\(aiConnection, hub\?\.id\)\);/);
 });
 
 test('step 5 says waiting, connected or asks for a manual check, and step 3 speaks each app’s menus', async () => {

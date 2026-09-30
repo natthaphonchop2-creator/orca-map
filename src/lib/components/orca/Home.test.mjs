@@ -16,6 +16,8 @@ const copy = await importTypeScript(new URL('./ui/copy.ts', import.meta.url));
 const navigation = await importTypeScript(new URL('../../orca/navigation.ts', import.meta.url));
 const connectedApps = await importTypeScript(new URL('../../orca/connected-ai-apps.ts', import.meta.url));
 const secrets = await importTypeScript(new URL('../../orca/secrets.ts', import.meta.url));
+const connectAI = await importTypeScript(new URL('../../orca/connect-ai.ts', import.meta.url));
+const aiConnection = await importTypeScript(new URL('../../orca/ai-connection.ts', import.meta.url));
 
 const th = (thai) => thai;
 const base = { ...home, ...activation, ...gateway, ...inApp, ...copy, TEAM_INVITE_HREF: navigation.TEAM_INVITE_HREF, connectedAppsHref: connectedApps.connectedAppsHref, STALE_DAYS: secrets.STALE_DAYS, term: glossary.term, t: th, localeHref: (path) => path, orcaLocale: { value: 'th' } };
@@ -125,6 +127,14 @@ test('after my own disconnect, step "เชื่อม AI" is open again and sa
 	plain = text(html);
 	assert.match(plain, /คุณเพิ่งตัดการเชื่อม AI ขั้นนี้จะขึ้นว่าเสร็จเมื่อ ORCA ตรวจเจอ AI ที่ยังเชื่อมอยู่/);
 	assert.doesNotMatch(plain, /AI ของคุณเชื่อมกับ ORCA แล้ว|เชื่อมแล้ว ลองถาม/);
+	// Connected only through a workspace's own link (B3 follow-up): open, and says where it reaches.
+	html = owner(data, 'limited', true, { aiOnly: 'เฉพาะ ฝ่ายขาย', aiApp: 'Claude' });
+	plain = text(html);
+	assert.match(html, /<li class="home-step current[^"]*" aria-current="step"[\s\S]*?เชื่อม AI ของฉัน/);
+	assert.match(plain, /AI ของคุณใช้ได้เฉพาะ ฝ่ายขาย ใช้ลิงก์ ORCA ของบริษัทเพื่อให้ AI ใช้ได้ทุกพื้นที่ทำงานของคุณ/);
+	assert.doesNotMatch(plain, /Claude เชื่อมแล้ว|AI ของคุณเชื่อมกับ ORCA แล้ว|เชื่อมแล้ว ลองถาม/);
+	html = render(EmployeeSetup, { props: { list: home.employeeChecklist('limited', ['signed-in'], true), ai: 'limited', aiOnly: 'เฉพาะ ฝ่ายขาย', programs: [flow], accounts: [] } }).body;
+	assert.match(text(html), /AI ของคุณใช้ได้เฉพาะ ฝ่ายขาย/);
 	// Without a disconnect, an older server still merges the two steps, as before.
 	assert.match(text(owner(data, 'unknown', false)), /ขั้นนี้จะขึ้นว่าเสร็จเมื่อคุณถามครั้งแรก/);
 	assert.doesNotMatch(text(owner(data, 'unknown', false)), /คุณเพิ่งตัดการเชื่อม AI/);
@@ -155,7 +165,8 @@ test('Home picks its mode from the viewer\'s own data: setup at once, else a sho
 	const personal = await importTypeScript(new URL('../../orca/personal-connections.ts', import.meta.url));
 	const PageHeader = await component('./ui/PageHeader.svelte', children);
 	const Dashboard = await component('./WorkspaceDashboard.svelte', {
-		...children, ...personal, OwnerSetup, EmployeeSetup, PageHeader, currentCompany: () => 'default'
+		...children, ...personal, OwnerSetup, EmployeeSetup, PageHeader, currentCompany: () => 'default',
+		connectAccess: connectAI.connectAccess, onlyWorkspacesText: aiConnection.onlyWorkspacesText
 	});
 	const page = (data) => render(Dashboard, { props: { data } }).body;
 
@@ -206,7 +217,13 @@ test('a lapsed AI sign-in after setup: one line and a way back on the status vie
 	assert.match(page, /homeMode\(list, noWorkspace, loaded, lapsed\)/);
 	assert.match(page, /homeBadge\(mode, manager, attention, t, lapsed\)/);
 	const status = page.slice(page.indexOf("{:else if mode === 'loading'}"));
-	assert.match(status, /\{:else\}\s*\{#if lapsed\}<AIReconnectBanner disconnected=\{aiConnection\.disconnected\} \/>\{\/if\}/);
+	assert.match(status, /\{:else\}\s*\{#if lapsed\}<AIReconnectBanner disconnected=\{aiConnection\.disconnected\} only=\{aiOnly\} \/>\{\/if\}/);
+	// Connected only through a workspace's own link: where it reaches, and the company link (B3 follow-up).
+	const limited = render(Banner, { props: { only: 'เฉพาะ ฝ่ายขาย', disconnected: true } }).body;
+	assert.match(text(limited), /AI ของคุณใช้ได้เฉพาะ ฝ่ายขาย ใช้ลิงก์ของบริษัท/);
+	assert.doesNotMatch(text(limited), /หมดอายุ|คุณตัดการเชื่อม/);
+	assert.match(page, /const aiOnly = \$derived\(ai === 'limited' \? onlyWorkspacesText\(aiConnection\.only \?\? \[\], t\) : ''\);/);
+	assert.equal(page.match(/^\t+\{aiOnly\}$/gm)?.length, 2, 'both setup cards get it');
 	assert.equal(page.match(/<AIReconnectBanner/g)?.length, 1);
 	const banner = await readFile(new URL('./home/AIReconnectBanner.svelte', import.meta.url), 'utf8');
 	assert.doesNotMatch(banner, /#[0-9a-f]{3,6}\b|rgba?\(/i, 'tokens only');

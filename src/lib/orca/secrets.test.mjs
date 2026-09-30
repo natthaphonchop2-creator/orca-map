@@ -36,6 +36,20 @@ test("rows name the holder and workspace, newest activity first", () => {
   assert.equal(keys.find((row) => row.label === "Leaver key").member, "", "a removed member has no name to show");
 });
 
+test("a sign-in through one workspace's own link names it: the company's name first, else the server's (B3 follow-up)", () => {
+  const signIns = {
+    keys: [],
+    sessions: [
+      { id: "s-co", app: "Claude", userID: "3", hubID: "", hubName: "", createdAt: daysAgo(3), lastRefreshedAt: daysAgo(1), expiresAt: daysAgo(-20) },
+      { id: "s-hub", app: "Claude", userID: "3", hubID: "khh-1", hubName: "Old name", createdAt: daysAgo(3), lastRefreshedAt: daysAgo(1), expiresAt: daysAgo(-20) },
+      { id: "s-other", app: "ChatGPT", userID: "3", hubID: "khh-9", hubName: "Sales desk", createdAt: daysAgo(3), lastRefreshedAt: daysAgo(1), expiresAt: daysAgo(-20) },
+      { id: "s-gone", app: "ChatGPT", userID: "3", hubID: "khh-8", hubName: "", createdAt: daysAgo(3), lastRefreshedAt: daysAgo(1), expiresAt: daysAgo(-20) },
+    ],
+  };
+  const byID = Object.fromEntries(secretRows(signIns, members, hubs, now, isOwner).sessions.map((row) => [row.id, [row.hubID, row.hubName]]));
+  assert.deepEqual(byID, { "s-co": [undefined, undefined], "s-hub": ["khh-1", "Accounting"], "s-other": ["khh-9", "Sales desk"], "s-gone": ["khh-8", undefined] });
+});
+
 test(`access unused for ${STALE_DAYS} days is flagged, and keys without expiry are marked`, () => {
   const { keys, sessions } = secretRows(inventory, members, hubs, now, isOwner);
   const byLabel = Object.fromEntries([...keys, ...sessions].map((row) => [row.label, row]));

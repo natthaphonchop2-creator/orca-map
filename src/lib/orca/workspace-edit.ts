@@ -619,13 +619,15 @@ export function samplePrompt(program: string, t: Translate): string {
 }
 
 /**
- * Whether the viewer's own AI already reaches this workspace through the
- * company link (B1 list): a Claude or ChatGPT sign-in, or a key for every
- * workspace or for this one. A key for another workspace does not count. (A
- * workspace with its own sign-in is not on the company link; callers don't ask.)
+ * Whether the viewer's own AI already reaches this workspace (B1 list): a
+ * Claude or ChatGPT sign-in through the company link or this workspace's own
+ * link, or a key for every workspace or for this one. A sign-in or key for
+ * another workspace does not count (B3 follow-up). (A workspace with its own
+ * sign-in is not on the company link; callers don't ask.)
  */
-export function aiReachesWorkspace(apps: { sessions: readonly unknown[]; keys: readonly { hubID?: string }[] }, hubID: string): boolean {
-	return apps.sessions.length > 0 || apps.keys.some((key) => !key.hubID || key.hubID === hubID);
+export function aiReachesWorkspace(apps: { sessions: readonly { hubID?: string }[]; keys: readonly { hubID?: string }[] }, hubID: string): boolean {
+	const reaches = (item: { hubID?: string }) => !item.hubID || item.hubID === hubID;
+	return apps.sessions.some(reaches) || apps.keys.some(reaches);
 }
 
 // ---------------------------------------------------------------------------

@@ -146,6 +146,23 @@ export function liveSessions(apps: MyAIApps | undefined, now: number): MyAISessi
 	return (apps?.sessions ?? []).filter((session) => later(session.expiresAt, now)).sort(newestFirst);
 }
 
+/**
+ * A sign-in through the company's link, which reaches every workspace the
+ * person may use. One made through a workspace's own link names that
+ * workspace (hubID, B3 follow-up) and is never counted as company-wide. A
+ * server from before it sends no hubID: every sign-in then counts, as before.
+ */
+export function companyLinkSession(session: Pick<MyAISession, 'hubID'>): boolean {
+	return !session.hubID;
+}
+
+/** Where one of the person's sign-ins reaches: "ทุกพื้นที่ทำงานของฉัน", or "เฉพาะ {workspace}". */
+export function sessionScope(session: Pick<MyAISession, 'hubID' | 'hubName'>, hubs: Pick<OrcaHub, 'id' | 'name'>[], t: Translate): string {
+	if (companyLinkSession(session)) return t('ทุกพื้นที่ทำงานของฉัน', 'All my workspaces');
+	const name = hubs.find((hub) => hub.id === session.hubID)?.name || session.hubName?.trim();
+	return name ? t(`เฉพาะ ${name}`, `Only ${name}`) : t('พื้นที่ทำงานเดียว', 'One workspace');
+}
+
 /** One sign-in or key disconnected on this page, as withoutRevoked keeps it. */
 export function revokedKey(kind: 'session' | 'key', id: string | number): string {
 	return `${kind}:${id}`;
@@ -201,16 +218,28 @@ export function sessionMatchesApp(session: MyAISession, app: AIApp, since = Infi
 	return session.client === 'other' && (app === 'other' || (Date.parse(session.createdAt) || 0) >= since);
 }
 
-/** The newest live sign-in of the chosen app: step 5's "เชื่อม Claude แล้ว". */
+/**
+ * The newest live sign-in of the chosen app through the company's link: step
+ * 5's "เชื่อม Claude แล้ว". One through a workspace's own link does not count.
+ */
 export function connectedSession(apps: MyAIApps | undefined, app: AIApp, now: number, since = Infinity): MyAISession | undefined {
-	return liveSessions(apps, now).find((session) => sessionMatchesApp(session, app, since));
+	return liveSessions(apps, now).find((session) => companyLinkSession(session) && sessionMatchesApp(session, app, since));
 }
 
-/** The pinned button's state: any live sign-in, or a key that has been used. */
+/**
+ * The pinned button's state: a live sign-in through the company's link, or a
+ * key that has been used. Sign-ins through workspaces' own links alone make
+ * it connected `only` to those workspaces, never company-wide (B3 follow-up).
+ */
 export function aiConnectionFrom(apps: MyAIApps | undefined, now: number, t: Translate = (th) => th): AIConnectionStatus {
-	const session = liveSessions(apps, now)[0];
+	const live = liveSessions(apps, now);
+	const session = live.find(companyLinkSession);
 	if (session) return { state: 'connected', app: sessionLabel(session, t) };
 	if (liveKeys(apps, now).some((key) => !!key.lastUsedAt)) return { state: 'connected' };
+	if (live.length) {
+		const only = new Map(live.map((item) => [item.hubID!, { id: item.hubID!, name: item.hubName?.trim() ?? '' }]));
+		return { state: 'connected', app: sessionLabel(live[0], t), only: [...only.values()] };
+	}
 	return { state: 'none' };
 }
 

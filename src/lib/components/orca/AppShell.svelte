@@ -164,7 +164,8 @@
     return active === "oversight" && !canManage && !platformMode && view !== "approvals" ? "" : active;
   });
   const aiLine = $derived(aiConnectionLine(aiStatus ?? aiConnection, t));
-  const aiConnected = $derived((aiStatus ?? aiConnection)?.state === "connected");
+  // Only through workspaces' own links: said in the line, never shown as the company-wide "connected" (B3 follow-up).
+  const aiConnected = $derived((aiStatus ?? aiConnection)?.state === "connected" && !(aiStatus ?? aiConnection)?.only?.length);
   // The platform always opens the default company; from another company that is a new page.
   const platformReload = $derived(company !== DEFAULT_COMPANY);
   // The breadcrumb names the page; an employee's oversight pages by their own names.

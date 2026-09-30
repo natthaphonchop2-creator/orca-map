@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { getHttpStatusCode, parseErrorContent } from '$lib/errors';
 	import { connectionReady } from '$lib/orca/activation';
+	import { aiConnectionReaches } from '$lib/orca/ai-connection';
 	import { aiConnection } from '$lib/orca/ai-connection.svelte';
 	import { currentCompany } from '$lib/orca/company';
 	import { term } from '$lib/orca/glossary';
@@ -87,7 +88,8 @@
 		const id = screenID(screen);
 		return id ? items.find((item) => item.id === id) : undefined;
 	});
-	const connected = $derived(aiConnection.state === 'connected');
+	// Through the company's link, or a sign-in limited to this workspace; not one limited to another (B3 follow-up).
+	const connected = $derived(aiConnectionReaches(aiConnection, hub?.id));
 
 	let contextID = '';
 	$effect(() => {

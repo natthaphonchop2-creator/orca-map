@@ -2,7 +2,9 @@
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import { CircleCheck, CircleHelp, Plus } from '@lucide/svelte';
 	import { currentCompany } from '$lib/orca/company';
+	import { onlyWorkspacesText } from '$lib/orca/ai-connection';
 	import { aiConnection } from '$lib/orca/ai-connection.svelte';
+	import { connectAccess } from '$lib/orca/connect-ai';
 	import { sourceAccountState, sourcePresentationNames } from '$lib/orca/connection-presentation';
 	import { term } from '$lib/orca/glossary';
 	import {
@@ -83,13 +85,17 @@
 	// ---- The checklist ----
 	const manager = $derived(data.canManage);
 	const me = $derived(data.members.find((member) => member.id === data.currentUserID));
+	/** The company's link reaches a workspace of mine (one without its own sign-in). */
+	const companyLink = $derived(connectAccess(data).usable.length > 0);
 	const company = $derived(data.organization.displayName || 'ORCA');
 	const iconName = (connection: OrcaConnection) => sourceNames[connection.mcpID] || connection.name;
 	// The same store the pinned "เชื่อม AI ของฉัน" button reads (B1). After my
 	// own disconnect on this page, an earlier question no longer counts (Codex
 	// release review 70).
-	const ai = $derived(homeAIState(aiConnection, aiChecked));
+	const ai = $derived(homeAIState(aiConnection, aiChecked, companyLink));
 	const aiApp = $derived(ai === 'connected' ? (aiConnection.app ?? '') : '');
+	// Connected only through workspaces' own links: where it reaches, never company-wide (B3 follow-up).
+	const aiOnly = $derived(ai === 'limited' ? onlyWorkspacesText(aiConnection.only ?? [], t) : '');
 	const asked = $derived<Done>(eventsError || !events ? undefined : askedAI(events, data.currentUserID, eventsTruncated));
 	const owner = $derived(ownerChecklist(data, ai, asked));
 	const sources = $derived(manager ? [] : personalSources(data));
@@ -265,6 +271,7 @@
 				list={owner}
 				{ai}
 				{aiApp}
+				{aiOnly}
 				historyFailed={eventsError}
 				onretry={loadActivity}
 				{invite}
@@ -277,6 +284,7 @@
 				list={employee}
 				{ai}
 				{aiApp}
+				{aiOnly}
 				{accounts}
 				programs={askablePrograms(data)}
 				{noWorkspace}
@@ -295,7 +303,7 @@
 {:else if mode === 'loading'}
 	<p class="home-loading" role="status" aria-live="polite">{t('กำลังตรวจสถานะการตั้งค่า…', 'Checking your setup…')}</p>
 {:else}
-	{#if lapsed}<AIReconnectBanner disconnected={aiConnection.disconnected} />{/if}
+	{#if lapsed}<AIReconnectBanner disconnected={aiConnection.disconnected} only={aiOnly} />{/if}
 	{#if list.complete && !flags['setup-dismissed']}
 		<section class="home-done" aria-labelledby="home-done-title">
 			<span class="home-done-icon" aria-hidden="true"><CircleCheck size={20} /></span>

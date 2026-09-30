@@ -218,7 +218,7 @@
 	<PageHeader
 		title={term('connectMyAI', t)}
 		subtitle={t('ให้ Claude หรือ ChatGPT ใช้ข้อมูลบริษัทได้ ทำครั้งเดียว ประมาณ 3 นาที ไม่ต้องใช้คีย์', 'Let Claude or ChatGPT use company data. Once, about 3 minutes, no key needed.')}
-		status={aiConnection.state === 'unknown' ? undefined : { label: aiConnectionLine(aiConnection, t), tone: aiConnection.state === 'connected' ? 'ok' : 'neutral' }}
+		status={aiConnection.state === 'unknown' ? undefined : { label: aiConnectionLine(aiConnection, t), tone: aiConnection.state === 'connected' && !aiConnection.only?.length ? 'ok' : 'neutral' }}
 	/>
 
 	<!-- LINE or Facebook's own browser, where Google refuses sign-in (critique 13): the shared notice. -->

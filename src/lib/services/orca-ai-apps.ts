@@ -17,6 +17,14 @@ export interface MyAISession {
 	/** The name the AI app registered with. */
 	app: string;
 	client: AIClient;
+	/**
+	 * The workspace a sign-in through that workspace's own link is limited to;
+	 * "" (or absent, on a server from before B3's follow-up) for the company's
+	 * link, which reaches every workspace the person may use.
+	 */
+	hubID?: string;
+	/** That workspace's name while the person sees it; "" otherwise. */
+	hubName?: string;
 	createdAt: string;
 	/** The last token refresh, not the last tool call. */
 	lastRefreshedAt: string;

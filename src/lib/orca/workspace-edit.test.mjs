@@ -413,6 +413,11 @@ test('my AI reaches a workspace through a sign-in, a key for every workspace or 
 	assert.equal(edit.aiReachesWorkspace({ sessions: [], keys: [{ hubID: '' }] }, 'hub-one'), true);
 	assert.equal(edit.aiReachesWorkspace({ sessions: [], keys: [{ hubID: 'hub-one' }] }, 'hub-one'), true);
 	assert.equal(edit.aiReachesWorkspace({ sessions: [], keys: [{ hubID: 'hub-other' }] }, 'hub-one'), false, 'a key for another workspace');
+	// A sign-in through another workspace's own link does not reach this one (B3 follow-up).
+	assert.equal(edit.aiReachesWorkspace({ sessions: [{ id: 's', hubID: 'hub-other' }], keys: [] }, 'hub-one'), false);
+	assert.equal(edit.aiReachesWorkspace({ sessions: [{ id: 's', hubID: 'hub-one' }], keys: [] }, 'hub-one'), true);
+	assert.equal(edit.aiReachesWorkspace({ sessions: [{ id: 's', hubID: '' }], keys: [] }, 'hub-one'), true, 'the company link');
+	assert.equal(edit.aiReachesWorkspace({ sessions: [{ id: 's', hubID: 'hub-other' }], keys: [{ hubID: '' }] }, 'hub-one'), true);
 });
 
 test('the invite message points to เชื่อม AI ของฉัน in the phone\'s browser, in this company', () => {

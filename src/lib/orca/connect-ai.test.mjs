@@ -120,6 +120,46 @@ test('the pinned button: any live sign-in, else a key that has been used', () =>
 	assert.equal(ai.sessionLabel({ client: 'other', app: 'Cursor' }, th), 'Cursor');
 });
 
+test('a sign-in through one workspace\'s own link is never the company link: step 5, the pin and the list say where it reaches (B3 follow-up)', () => {
+	const own = (id, hubID, hubName, created = 5, client = 'claude', app = 'Claude') => session(id, client, app, created, { hubID, hubName });
+	// Step 5 ("เชื่อม Claude แล้ว") waits for the company link.
+	const onlyOwn = { sessions: [own('ws', 'hub-sales', 'ฝ่ายขาย')], keys: [] };
+	assert.equal(ai.connectedSession(onlyOwn, 'claude', NOW), undefined);
+	const both = { sessions: [own('ws', 'hub-sales', 'ฝ่ายขาย', 1), session('co', 'claude', 'Claude', 60, { hubID: '', hubName: '' })], keys: [] };
+	assert.equal(ai.connectedSession(both, 'claude', NOW)?.id, 'co', 'the company link\'s sign-in, though older');
+	// A server from before the follow-up sends no hubID: every sign-in counts, as before.
+	assert.equal(ai.connectedSession({ sessions: [session('old', 'claude', 'Claude')], keys: [] }, 'claude', NOW)?.id, 'old');
+	assert.equal(ai.companyLinkSession({}), true);
+	assert.equal(ai.companyLinkSession({ hubID: '' }), true);
+	assert.equal(ai.companyLinkSession({ hubID: 'hub-sales' }), false);
+	// The pin: the company link first, then a used key, and only then "เฉพาะ …".
+	assert.deepEqual(ai.aiConnectionFrom(both, NOW, en), { state: 'connected', app: 'Claude' });
+	assert.deepEqual(ai.aiConnectionFrom(onlyOwn, NOW, en), { state: 'connected', app: 'Claude', only: [{ id: 'hub-sales', name: 'ฝ่ายขาย' }] });
+	const usedKey = { id: 1, name: 'n8n', hubID: '', createdAt: ago(9), lastUsedAt: ago(3) };
+	assert.deepEqual(ai.aiConnectionFrom({ ...onlyOwn, keys: [usedKey] }, NOW, en), { state: 'connected' });
+	const two = { sessions: [own('a', 'hub-sales', 'ฝ่ายขาย', 1), own('b', 'hub-acc', '', 2, 'chatgpt', 'ChatGPT'), own('c', 'hub-sales', 'ฝ่ายขาย', 3)], keys: [] };
+	assert.deepEqual(ai.aiConnectionFrom(two, NOW, en), { state: 'connected', app: 'Claude', only: [{ id: 'hub-sales', name: 'ฝ่ายขาย' }, { id: 'hub-acc', name: '' }] }, 'each workspace once, newest app');
+	assert.deepEqual(ai.aiConnectionFrom({ sessions: [own('x', 'hub-sales', 'ฝ่ายขาย', 5, 'claude', 'Claude')].map((item) => ({ ...item, expiresAt: ago(1) })), keys: [] }, NOW), { state: 'none' }, 'an expired one is nothing');
+	assert.equal(connection_.aiConnectionLine(ai.aiConnectionFrom(onlyOwn, NOW, th), th), 'Claude เชื่อมเฉพาะ ฝ่ายขาย');
+	assert.equal(connection_.aiConnectionLine(ai.aiConnectionFrom(onlyOwn, NOW, en), en), 'Claude: only ฝ่ายขาย');
+	assert.equal(connection_.aiConnectionLine(ai.aiConnectionFrom(two, NOW, th), th), 'Claude เชื่อมเฉพาะ 2 พื้นที่ทำงาน');
+	assert.equal(connection_.aiConnectionLine({ state: 'connected', only: [{ id: 'h', name: '' }] }, th), 'เชื่อมเฉพาะพื้นที่ทำงานเดียว', 'a workspace they cannot see is not named');
+	assert.doesNotMatch(connection_.aiConnectionLine(ai.aiConnectionFrom(two, NOW, th), th), /เชื่อมแล้ว/);
+	// Whether it reaches a workspace (คลังความรู้): the company link reaches all, a limited one only its own.
+	assert.equal(connection_.aiConnectionReaches({ state: 'connected', app: 'Claude' }, 'hub-acc'), true);
+	assert.equal(connection_.aiConnectionReaches({ state: 'connected', only: [{ id: 'hub-sales', name: '' }] }, 'hub-sales'), true);
+	assert.equal(connection_.aiConnectionReaches({ state: 'connected', only: [{ id: 'hub-sales', name: '' }] }, 'hub-acc'), false);
+	assert.equal(connection_.aiConnectionReaches({ state: 'connected', only: [{ id: 'hub-sales', name: '' }] }, undefined), false);
+	assert.equal(connection_.aiConnectionReaches({ state: 'none' }, 'hub-sales'), false);
+	// The list names where each sign-in reaches.
+	const hubs = [{ id: 'hub-sales', name: 'ผู้ช่วยฝ่ายขาย' }];
+	assert.equal(ai.sessionScope({ hubID: '' }, hubs, th), 'ทุกพื้นที่ทำงานของฉัน');
+	assert.equal(ai.sessionScope({}, hubs, en), 'All my workspaces');
+	assert.equal(ai.sessionScope({ hubID: 'hub-sales', hubName: 'ฝ่ายขาย' }, hubs, th), 'เฉพาะ ผู้ช่วยฝ่ายขาย', 'the company\'s own name for it first');
+	assert.equal(ai.sessionScope({ hubID: 'hub-gone', hubName: 'ฝ่ายเก่า' }, hubs, th), 'เฉพาะ ฝ่ายเก่า', 'else the server\'s');
+	assert.equal(ai.sessionScope({ hubID: 'hub-gone', hubName: '' }, hubs, en), 'One workspace');
+});
+
 test('the pin: connected names the app, none says so, unknown (no B1 on this server) says nothing', () => {
 	assert.equal(connection_.aiConnectionLine({ state: 'connected', app: 'Claude' }, th), 'Claude เชื่อมแล้ว');
 	assert.equal(connection_.aiConnectionLine({ state: 'connected' }, en), 'Connected');

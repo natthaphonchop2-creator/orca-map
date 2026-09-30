@@ -12,6 +12,7 @@ export const aiConnection = $state<AIConnectionStatus & { disconnected: boolean 
 export function setAIConnection(status: AIConnectionStatus) {
 	aiConnection.state = status.state;
 	aiConnection.app = status.app;
+	aiConnection.only = status.only;
 }
 
 /**
@@ -23,5 +24,6 @@ export function setAIConnection(status: AIConnectionStatus) {
 export function markAIDisconnected() {
 	aiConnection.state = 'unknown';
 	aiConnection.app = undefined;
+	aiConnection.only = undefined;
 	aiConnection.disconnected = true;
 }

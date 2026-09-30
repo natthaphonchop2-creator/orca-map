@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Unplug } from '@lucide/svelte';
-	import { dayLabel, keyScope, sessionLabel, shortDate } from '$lib/orca/connect-ai';
+	import { dayLabel, keyScope, sessionLabel, sessionScope, shortDate } from '$lib/orca/connect-ai';
 	import { orcaLocale, t } from '$lib/orca/locale.svelte';
 	import { OrcaService, orcaError, type OrcaHub } from '$lib/services/orca';
 	import { MyAIAppsService, type MyAIKey, type MyAISession } from '$lib/services/orca-ai-apps';
@@ -72,7 +72,7 @@
 					<AIAppTile kind={session.client} size={40} />
 					<div class="ca-copy">
 						<b>{label}</b>
-						<small>{t(`เชื่อมเมื่อ ${shortDate(session.createdAt, now, lang)}`, `Connected ${shortDate(session.createdAt, now, lang)}`)} · {t(`ต่ออายุล่าสุด ${dayLabel(session.lastRefreshedAt, now, t, lang)}`, `Last renewed ${dayLabel(session.lastRefreshedAt, now, t, lang)}`)}</small>
+						<small>{sessionScope(session, hubs, t)} · {t(`เชื่อมเมื่อ ${shortDate(session.createdAt, now, lang)}`, `Connected ${shortDate(session.createdAt, now, lang)}`)} · {t(`ต่ออายุล่าสุด ${dayLabel(session.lastRefreshedAt, now, t, lang)}`, `Last renewed ${dayLabel(session.lastRefreshedAt, now, t, lang)}`)}</small>
 					</div>
 					<button type="button" class="k-button small ca-cut" onclick={() => ask({ kind: 'session', item: session, label })} aria-label={t(`ตัดการเชื่อมต่อ ${label}`, `Disconnect ${label}`)}>
 						<Unplug size={14} aria-hidden="true" />{term('disconnect', t)}

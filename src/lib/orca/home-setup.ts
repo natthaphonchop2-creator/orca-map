@@ -7,7 +7,7 @@ import { gatewayConnections, gatewayHasMember } from './gateway-sources';
 import { lineExternalURL } from './in-app-browser';
 import { toolChangesData } from './program-tools';
 import { secretRows } from './secrets';
-import type { AIConnectionState } from './ai-connection';
+import type { AIConnectionStatus } from './ai-connection';
 import type { OrcaAuditEvent, OrcaBootstrap, OrcaConnection, OrcaHub, OrcaMember, OrcaSecrets } from '../services/orca';
 
 type Translate = (th: string, en: string) => string;
@@ -41,8 +41,10 @@ export function programAbilities(connection: Pick<OrcaConnection, 'toolNames' | 
  * store, fed by B1): `unknown` while it loads or when the server cannot say.
  * `revoked`: unknown too, but the viewer disconnected one of their own AI apps
  * on this page, so an earlier question proves nothing now (homeAIState).
+ * `limited`: connected only through workspaces' own links while the company's
+ * link has workspaces for them: not the company-wide connection (B3 follow-up).
  */
-export type AIState = AIConnectionState | 'revoked';
+export type AIState = AIConnectionStatus['state'] | 'revoked' | 'limited';
 
 /**
  * Home's AI state, from the shared store: B1's answer once Home's own read is
@@ -51,10 +53,14 @@ export type AIState = AIConnectionState | 'revoked';
  * only a read of B1 says what is left, and history never ticks "เชื่อม AI" or
  * brings back "ตั้งค่าเสร็จแล้ว" (Codex release review 70). The old-server
  * fallback, where the first question proves the AI, stays for a page where
- * nothing was disconnected.
+ * nothing was disconnected. Connected only through workspaces' own links is
+ * `limited` while the company's link has workspaces for the viewer
+ * (`companyLink`); with none (every workspace of theirs has its own sign-in)
+ * those links are theirs, and it counts as connected.
  */
-export function homeAIState(store: { state: AIConnectionState; disconnected?: boolean }, checked: boolean): AIState {
+export function homeAIState(store: AIConnectionStatus & { disconnected?: boolean }, checked: boolean, companyLink = true): AIState {
 	const state = checked ? store.state : 'unknown';
+	if (state === 'connected' && store.only?.length && companyLink) return 'limited';
 	return store.disconnected && state === 'unknown' ? 'revoked' : state;
 }
 
@@ -203,12 +209,13 @@ export function ownerChecklist(
 /**
  * B1 decides when it answers: "none" means no AI is connected now, even if
  * this person asked something before (their sign-in expired or was
- * disconnected). Only while B1 is unknown does an earlier question prove it,
- * and never after the viewer's own disconnect (`revoked`): that is not known.
+ * disconnected), and `limited` that the company's link is not connected.
+ * Only while B1 is unknown does an earlier question prove it, and never after
+ * the viewer's own disconnect (`revoked`): that is not known.
  */
 function aiDone(ai: AIState, asked: Done): Done {
 	if (ai === 'connected') return true;
-	if (ai === 'none') return false;
+	if (ai === 'none' || ai === 'limited') return false;
 	if (ai === 'revoked') return undefined;
 	return asked;
 }
@@ -244,15 +251,16 @@ export type HomeMode = 'setup' | 'status' | 'loading';
 
 /**
  * Setup was finished before, and only the viewer's own AI sign-in lapsed: B1
- * says no AI is connected now (it expired, or was disconnected), or the viewer
- * just disconnected their own and B1 has not said what is left (`revoked`),
+ * says no AI is connected now (it expired, or was disconnected) or only
+ * through workspaces' own links (`limited`), or the viewer just disconnected
+ * their own and B1 has not said what is left (`revoked`),
  * yet the viewer has asked a first question and every other step is still
  * done (a ready program and an active workspace they use; an employee's
  * program sign-ins, when known). Home then stays in status mode with a
  * one-line "reconnect" banner instead of the whole checklist again.
  */
 export function aiLapsed(list: Pick<Checklist, 'steps'>, ai: AIState): boolean {
-	if (ai !== 'none' && ai !== 'revoked') return false;
+	if (ai !== 'none' && ai !== 'revoked' && ai !== 'limited') return false;
 	const step = (id: string) => list.steps.find((item) => item.id === id);
 	if (step('ai')?.done === true || step('ask')?.done !== true) return false;
 	// The owner's program and workspace steps are always known; an employee's

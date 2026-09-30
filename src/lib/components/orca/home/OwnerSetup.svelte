@@ -32,6 +32,7 @@
 		list,
 		ai,
 		aiApp = '',
+		aiOnly = '',
 		historyFailed = false,
 		onretry,
 		invite,
@@ -43,6 +44,8 @@
 		list: Checklist<OwnerStepID>;
 		ai: AIState;
 		aiApp?: string;
+		/** `limited`: where the viewer's AI reaches, e.g. "เฉพาะ ฝ่ายขาย" (B3 follow-up). */
+		aiOnly?: string;
 		historyFailed?: boolean;
 		onretry?: () => void;
 		invite: { done: boolean; skipped: boolean };
@@ -190,7 +193,7 @@
 				<a class="k-button primary lg" href={localeHref('/app?view=connect-ai')}>{term('connectMyAI', t)}<ArrowRight size={16} aria-hidden="true" /></a>
 				<span class="home-acts-note">{t('ใช้ลิงก์ ORCA ของบริษัท ไม่ต้องใช้คีย์', "Uses your company's ORCA link. No key needed.")}</span>
 			</div>
-			{#if merged}<p class="home-aside">{t('เชื่อมแล้ว ลองถามในขั้นที่ 4 ได้เลย ขั้นนี้จะขึ้นว่าเสร็จเมื่อคุณถามครั้งแรก', 'Connected? Try step 4. This step is marked done after your first question.')}</p>{:else if ai === 'revoked'}<p class="home-aside">{t('คุณเพิ่งตัดการเชื่อม AI ขั้นนี้จะขึ้นว่าเสร็จเมื่อ ORCA ตรวจเจอ AI ที่ยังเชื่อมอยู่', 'You just disconnected your AI. This step is marked done once ORCA finds an AI that is still connected.')}</p>{/if}
+			{#if merged}<p class="home-aside">{t('เชื่อมแล้ว ลองถามในขั้นที่ 4 ได้เลย ขั้นนี้จะขึ้นว่าเสร็จเมื่อคุณถามครั้งแรก', 'Connected? Try step 4. This step is marked done after your first question.')}</p>{:else if ai === 'revoked'}<p class="home-aside">{t('คุณเพิ่งตัดการเชื่อม AI ขั้นนี้จะขึ้นว่าเสร็จเมื่อ ORCA ตรวจเจอ AI ที่ยังเชื่อมอยู่', 'You just disconnected your AI. This step is marked done once ORCA finds an AI that is still connected.')}</p>{:else if ai === 'limited'}<p class="home-aside">{t(`AI ของคุณใช้ได้${aiOnly} ใช้ลิงก์ ORCA ของบริษัทเพื่อให้ AI ใช้ได้ทุกพื้นที่ทำงานของคุณ`, `Your AI reaches ${aiOnly}. Use the company's ORCA link so it reaches all your workspaces.`)}</p>{/if}
 		{/snippet}
 		{#snippet action()}
 			{#if aiStep.state !== 'done'}<button type="button" class="k-button home-off" disabled>{term('connectMyAI', t)}</button>{/if}
