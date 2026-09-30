@@ -308,28 +308,76 @@
 .orca-workspace.orca-app .compact .workspace-mode-label {
   display: none;
 }
+/* "เชื่อม AI ของฉัน" reads as the AI button (owner, 2026-10-01): a citron-to-ink edge, the sparkle
+   on an ink tile with a citron glyph (like the ORCA app icon), a soft citron glow, and one light
+   sweep on hover. Citron stays on the edge, the glyph and the glow. */
 .orca-workspace.orca-app .workspace-pin {
+  --pin-mid: rgba(21, 24, 35, 0.16);
+  --pin-glow: rgba(150, 180, 30, 0.42);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 11px 12px;
-  border: 1px solid var(--orca-line-strong);
+  padding: 10px 12px 10px 10px;
+  border: 1px solid transparent;
   border-radius: var(--orca-radius-lg);
-  background: var(--orca-surface);
+  background:
+    linear-gradient(var(--orca-surface), var(--orca-surface)) padding-box,
+    linear-gradient(135deg, var(--orca-citron) 0%, var(--pin-mid) 42%, var(--pin-mid) 62%, var(--orca-citron) 100%) border-box;
+  box-shadow: 0 8px 20px -14px var(--pin-glow);
   color: var(--orca-ink);
   text-decoration: none;
-  transition: border-color 0.15s var(--orca-ease), box-shadow 0.15s var(--orca-ease);
+  transition: box-shadow 0.2s var(--orca-ease);
+}
+.orca-workspace.orca-app .workspace-pin::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(215, 244, 113, 0.32) 50%, transparent 70%);
+  transform: translateX(-120%);
+  pointer-events: none;
 }
 .orca-workspace.orca-app .workspace-pin:hover {
-  border-color: var(--orca-line-hover, var(--orca-line-strong));
+  box-shadow: 0 10px 24px -12px var(--pin-glow);
   text-decoration: none;
 }
+.orca-workspace.orca-app .workspace-pin:hover::after {
+  animation: orca-pin-sweep 0.9s var(--orca-ease) 1;
+}
+@keyframes orca-pin-sweep {
+  to { transform: translateX(120%); }
+}
 .orca-workspace.orca-app .workspace-pin.active {
-  border-color: var(--orca-chosen);
-  box-shadow: 0 0 0 1px var(--orca-chosen);
+  box-shadow: 0 0 0 1px var(--orca-chosen), 0 10px 24px -12px var(--pin-glow);
+}
+.orca-workspace.orca-app .workspace-pin-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: #151823;
+  color: var(--orca-citron);
+  box-shadow: 0 0 0 3px rgba(215, 244, 113, 0.22);
 }
 .orca-workspace.orca-app .workspace-pin svg {
   flex: none;
+}
+@media screen {
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-pin {
+    --pin-mid: rgba(255, 255, 255, 0.12);
+    --pin-glow: rgba(215, 244, 113, 0.3);
+  }
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-pin-icon {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 0 0 3px rgba(215, 244, 113, 0.14);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orca-workspace.orca-app .workspace-pin:hover::after { animation: none; }
 }
 .orca-workspace.orca-app .workspace-pin-copy {
   display: flex;
@@ -365,7 +413,7 @@
 }
 .orca-workspace.orca-app .compact .workspace-pin {
   justify-content: center;
-  padding: 10px 5px;
+  padding: 8px 5px;
 }
 .orca-workspace.orca-app .compact .workspace-pin-copy {
   display: none;

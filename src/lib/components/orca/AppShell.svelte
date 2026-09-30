@@ -385,7 +385,7 @@
         aria-label={aiLine ? `${term("connectMyAI", t)} · ${aiLine}` : term("connectMyAI", t)}
         title={compact ? (aiLine ? `${term("connectMyAI", t)} · ${aiLine}` : term("connectMyAI", t)) : undefined}
       >
-        <Sparkles size={18} strokeWidth={1.7} aria-hidden="true" />
+        <span class="workspace-pin-icon" aria-hidden="true"><Sparkles size={17} strokeWidth={1.8} /></span>
         <span class="workspace-pin-copy">
           <strong>{term("connectMyAI", t)}</strong>
           <!-- Unknown (B1 not read, or not on this server): no state rather than a wrong one. -->
