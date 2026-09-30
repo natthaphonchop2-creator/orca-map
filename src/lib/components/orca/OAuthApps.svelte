@@ -152,6 +152,8 @@
 
   /** A program's own app: its guided setup, where the ORCA team saves the app and tries it. */
   function openCheck(app: { id: string; name: string; endpointHost?: string }) {
+    // Never while a save runs: its answer closes the sheet, and the guide's inputs with it (Codex release review 68).
+    if (busy) return;
     closeForm();
     removing = undefined;
     notice = "";
@@ -368,7 +370,7 @@
       {#if target.provider}
         <a class="k-button console-link" href={providerConsole(target.provider)} target="_blank" rel="noopener noreferrer">{target.provider === "google" ? t("เปิด Google Auth Platform", "Open Google Auth Platform") : t("เปิด Microsoft Entra", "Open Microsoft Entra")}<ExternalLink size={14} aria-hidden="true" /></a>
       {:else}
-        <button type="button" class="k-button console-link" onclick={() => openCheck({ id: target.sourceID, name: target.name })}>{t("ดูวิธีตั้งค่าแอปของโปรแกรมนี้", "View this program's app guide")}<ArrowRight size={14} aria-hidden="true" /></button>
+        <button type="button" class="k-button console-link" disabled={busy} onclick={() => openCheck({ id: target.sourceID, name: target.name })}>{t("ดูวิธีตั้งค่าแอปของโปรแกรมนี้", "View this program's app guide")}<ArrowRight size={14} aria-hidden="true" /></button>
       {/if}
       <div class="setup-field">
         <label for={`oauth-callback-${target.key}`}>Callback URL</label>
@@ -389,11 +391,11 @@
       <div class="credential-fields">
         <div class="setup-field">
           <label for={`oauth-client-id-${target.key}`}>{target.provider === "microsoft" ? "Application (client) ID" : "Client ID"}</label>
-          <input id={`oauth-client-id-${target.key}`} bind:value={clientID} required autocomplete="off" spellcheck="false" />
+          <input id={`oauth-client-id-${target.key}`} bind:value={clientID} required autocomplete="off" spellcheck="false" disabled={busy} />
         </div>
         <div class="setup-field">
           <label for={`oauth-client-secret-${target.key}`}>Client secret</label>
-          <input id={`oauth-client-secret-${target.key}`} type="password" bind:value={clientSecret} required autocomplete="new-password" spellcheck="false" />
+          <input id={`oauth-client-secret-${target.key}`} type="password" bind:value={clientSecret} required autocomplete="new-password" spellcheck="false" disabled={busy} />
         </div>
       </div>
       <p class="apps-hint">{t("ORCA เก็บ Client secret เป็นความลับและไม่แสดงค่านี้อีก", "ORCA keeps the client secret secret and never shows it again.")}</p>

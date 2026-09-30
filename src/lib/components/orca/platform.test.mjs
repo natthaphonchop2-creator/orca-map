@@ -573,3 +573,14 @@ test('แอป OAuth ของโปรแกรม sets up a program’s own a
 	const oauth = await readFile(files.oauth, 'utf8');
 	assert.match(oauth, /\{:else if checking\}[\s\S]*?<SourceSetup operator sourceID=\{checking\.id\}/);
 });
+
+test('OAuth apps: while a save runs, the guide and the credential fields wait, so its answer never closes a guide opened meanwhile (Codex release review 68)', async () => {
+	const source = await readFile(new URL('./OAuthApps.svelte', import.meta.url), 'utf8');
+	assert.match(source, /function openCheck\([^)]*\) \{\s*\/\/[^\n]*\n\s*if \(busy\) return;/, 'openCheck refuses during a save');
+	assert.match(source, /class="k-button console-link" disabled=\{busy\} onclick=\{\(\) => openCheck/);
+	for (const field of ['bind:value={clientID}', 'bind:value={clientSecret}']) {
+		const at = source.indexOf(field);
+		assert.ok(at > 0, field);
+		assert.match(source.slice(at, source.indexOf('/>', at)), /disabled=\{busy\}/, field);
+	}
+});
