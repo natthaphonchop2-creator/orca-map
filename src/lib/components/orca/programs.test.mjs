@@ -262,3 +262,15 @@ test('the retired program pages are gone and nothing imports them', async () => 
 		assert.doesNotMatch(source, /\/(Connections|ToolCatalog|ConnectedUsers|ConnectionSetupDialog)\.svelte['"]|orca\/(connected-users|tool-inventory)['"]/, file.pathname);
 	}
 });
+
+test('the request to the ORCA team waits while it sends: its fields are disabled, since the receipt replaces the form (Codex release review 67)', async () => {
+	const source = await readFile(new URL('./programs/ProgramRequestSheet.svelte', import.meta.url), 'utf8');
+	const form = source.slice(source.indexOf('<form class="request-form"'), source.indexOf('</form>'));
+	for (const field of ['bind:value={name}', 'bind:value={work}', 'bind:value={email}', 'bind:checked={consent}']) {
+		const at = form.indexOf(field);
+		assert.ok(at > 0, field);
+		const tag = form.slice(form.lastIndexOf('<', at), form.indexOf('>', at));
+		assert.match(tag, /disabled=\{sending\}/, field);
+	}
+	assert.match(form, /type="submit"[^>]*disabled=\{sending\}/);
+});

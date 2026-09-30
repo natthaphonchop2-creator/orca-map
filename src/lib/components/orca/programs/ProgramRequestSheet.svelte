@@ -92,22 +92,23 @@
 		</div>
 		<button type="button" class="k-button" onclick={() => (open = false)}>{t('ปิด', 'Close')}</button>
 	{:else}
+		<!-- The fields wait while it sends: the receipt replaces the form, so typing then would be lost (Codex release review 67). -->
 		<form class="request-form" onsubmit={send} novalidate>
 			{#if error}<p class="request-error" role="alert">{error}</p>{/if}
 			<label class="request-field">
 				<span>{t('โปรแกรมที่อยากเชื่อม', 'Program to connect')}</span>
-				<input bind:value={name} maxlength="120" required placeholder={t('เช่น Express, SAP Business One', 'e.g. Express, SAP Business One')} />
+				<input bind:value={name} maxlength="120" required disabled={sending} placeholder={t('เช่น Express, SAP Business One', 'e.g. Express, SAP Business One')} />
 			</label>
 			<label class="request-field">
 				<span>{t('อยากให้ AI ช่วยอะไร', 'What should AI help with')} <em>{t('(ไม่บังคับ)', '(optional)')}</em></span>
-				<textarea bind:value={work} maxlength="1500" rows="3" placeholder={t('เช่น สรุปยอดขายรายวันให้ทีมขาย', 'e.g. daily sales summaries for the sales team')}></textarea>
+				<textarea bind:value={work} maxlength="1500" rows="3" disabled={sending} placeholder={t('เช่น สรุปยอดขายรายวันให้ทีมขาย', 'e.g. daily sales summaries for the sales team')}></textarea>
 			</label>
 			<label class="request-field">
 				<span>{t('อีเมลที่ให้ติดต่อกลับ', 'Email to reply to')}</span>
-				<input type="email" bind:value={email} maxlength="254" required autocomplete="email" />
+				<input type="email" bind:value={email} maxlength="254" required autocomplete="email" disabled={sending} />
 			</label>
 			<label class="request-consent">
-				<input type="checkbox" bind:checked={consent} />
+				<input type="checkbox" bind:checked={consent} disabled={sending} />
 				<span>{t('ยินยอมให้ทีม ORCA ใช้ข้อมูลนี้ติดต่อกลับเรื่องโปรแกรมนี้', 'The ORCA team may use these details to reply about this program.')}</span>
 			</label>
 			<button type="submit" class="k-button primary" disabled={sending}>{sending ? t('กำลังส่ง…', 'Sending…') : t('ส่งถึงทีม ORCA', 'Send to the ORCA team')}</button>
