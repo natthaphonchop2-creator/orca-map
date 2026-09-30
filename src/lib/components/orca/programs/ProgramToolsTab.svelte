@@ -28,6 +28,14 @@
 	let error = $state('');
 	let alive = true;
 	let request = 0;
+	// The draft is made on the program as it was when the list loaded (Codex
+	// release review 64): a save sends that version, so a newer program
+	// (someone else saved, then this page refreshed) is refused, never
+	// overwritten; "คืนค่าเดิม" takes the newer one. An untouched draft follows
+	// a newer program by itself.
+	let baseVersion = untrack(() => connection.version);
+	let baseline = '';
+	const draftKey = () => JSON.stringify([name, note, [...selected].sort()]);
 
 	function reset(list: ProgramTool[]) {
 		selected = savedSelection(list, connection.toolNames);
@@ -35,7 +43,15 @@
 		name = connection.name;
 		note = connection.scopeNote;
 		error = '';
+		baseVersion = connection.version;
+		baseline = draftKey();
 	}
+	$effect(() => {
+		const version = connection.version;
+		untrack(() => {
+			if (version !== baseVersion && !loading && !saving && draftKey() === baseline) reset(tools);
+		});
+	});
 	async function load() {
 		const current = ++request;
 		loading = true;
@@ -68,10 +84,12 @@
 		saving = true;
 		error = '';
 		try {
-			await ProgramService.save(programSaveInput({ name, note, mcpID: connection.mcpID, selected, tools, existing: connection }), connection.id);
+			await ProgramService.save(programSaveInput({ name, note, mcpID: connection.mcpID, selected, tools, existing: { ...connection, version: baseVersion } }), connection.id);
 			if (!alive) return;
 			showToast(t(`บันทึกแล้ว · AI ทำได้ ${selected.length} อย่างใน ${programName}`, `Saved · AI can do ${selected.length} things in ${programName}`));
 			await onchanged();
+			// The saved program, as it now is.
+			if (alive) reset(tools);
 		} catch (cause) {
 			if (alive) error = programSaveError(cause);
 		} finally {
