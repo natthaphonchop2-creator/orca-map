@@ -480,14 +480,20 @@
 		min-width: 0;
 		color: var(--orca-ink);
 	}
+	/* The steps and ยกเลิก share a row while the steps have at least 360px; on a
+	   phone ยกเลิก moves up to its own row at the right (wrap-reverse) and the steps
+	   get the full width. */
 	.ap-top {
 		display: flex;
-		flex-wrap: wrap;
+		flex-wrap: wrap-reverse;
 		align-items: center;
 		justify-content: space-between;
-		gap: 12px 16px;
+		gap: 12px 24px;
 		min-height: 36px;
 		margin-bottom: 36px;
+	}
+	.ap-top :global(.orca-stepper) {
+		flex: 1 1 360px;
 	}
 	.ap.sheet .ap-top {
 		margin-bottom: 24px;
@@ -498,6 +504,7 @@
 	}
 	.ap-cancel {
 		flex: none;
+		margin-inline-start: auto;
 	}
 	.ap-strip {
 		display: flex;
