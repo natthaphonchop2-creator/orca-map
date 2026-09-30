@@ -125,6 +125,8 @@ test('after a save whose refresh failed, the tab shows what was saved, on the ve
 	await view.save();
 	assert.equal(saves[1].input.version, 2, 'the next save goes on the version the first one made');
 	assert.equal(view.state.error, '', 'and is not refused');
+	// The page's own "คืนค่าเดิม" button is that same reset, onto the newest record.
+	assert.match(component, /onback=\{\(\) => reset\(tools\)\}/, 'undo takes reset\'s newest record, never the page\'s older copy');
 	// A refresh that brings the saved program: the page's copy is used.
 	props.connection = program(3, ['list', 'get']);
 	flush();
