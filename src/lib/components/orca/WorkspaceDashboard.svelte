@@ -47,6 +47,7 @@
 	import HomeStatus from './home/HomeStatus.svelte';
 	import OwnerSetup from './home/OwnerSetup.svelte';
 	import PageHeader from './ui/PageHeader.svelte';
+	import SupportContact from './ui/SupportContact.svelte';
 
 	// หน้าหลัก. While setup is unfinished: one setup panel (proposal §4, the
 	// approved home-first-run mockup). Afterwards: "ตั้งค่าเสร็จแล้ว", which the
@@ -297,7 +298,8 @@
 	</div>
 	<p class="home-helpline">
 		<CircleHelp size={17} aria-hidden="true" />
-		{#if manager}{t('ติดตรงไหน', 'Stuck?')} <a href={localeHref('/home?to=start')}>{t('ขอให้ทีม ORCA ช่วยตั้งค่า', 'Ask the ORCA team to help you set up')}</a>
+		<!-- A manager in a company on ORCA reaches the ORCA team directly ($lib/orca/support), not through the trial-request form. -->
+		{#if manager}{t('ติดตรงไหน', 'Stuck?')} <SupportContact />
 		{:else}{t('ติดตรงไหน', 'Stuck?')} <a href={localeHref('/app?view=help')}>{t('ดูคำถามที่พบบ่อย', 'Read the common questions')}</a>{/if}
 	</p>
 {:else if mode === 'loading'}

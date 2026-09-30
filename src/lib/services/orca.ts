@@ -1,6 +1,7 @@
 import { parseErrorContent } from "$lib/errors";
 import { orcaPath, type OrcaCompanyChoice } from "$lib/orca/company";
 import { orcaLocale, t } from "$lib/orca/locale.svelte";
+import { ORCA_SUPPORT_LINE_ID } from "$lib/orca/support";
 import {
   organizationRole,
   type OrganizationRole,
@@ -669,8 +670,8 @@ export const conflictReasons: readonly (readonly [message: string, th: string, e
   ],
   [
     "this account already has a higher role than the invitation",
-    "บัญชีนี้มีบทบาทสูงกว่าคำเชิญอยู่แล้ว ติดต่อทีม ORCA ถ้าต้องการเปลี่ยน",
-    "This account already has a higher role than the invitation. Ask the ORCA team if it should change.",
+    `บัญชีนี้มีบทบาทสูงกว่าคำเชิญอยู่แล้ว ติดต่อทีม ORCA ทาง LINE ${ORCA_SUPPORT_LINE_ID} ถ้าต้องการเปลี่ยน`,
+    `This account already has a higher role than the invitation. Ask the ORCA team on LINE (${ORCA_SUPPORT_LINE_ID}) if it should change.`,
   ],
   [
     "this invitation was already used, revoked or has expired",
@@ -679,8 +680,8 @@ export const conflictReasons: readonly (readonly [message: string, th: string, e
   ],
   [
     "password was set by an administrator, so it can't join another company",
-    "บัญชีนี้ใช้รหัสผ่านที่ทีม ORCA ตั้งให้ จึงเข้าบริษัทอื่นไม่ได้ เข้าร่วมด้วยบัญชี Google ของคุณแทน หรือติดต่อทีม ORCA",
-    "This account's password was set by the ORCA team, so it can't join another company. Join with your Google account instead, or ask the ORCA team.",
+    `บัญชีนี้ใช้รหัสผ่านที่ทีม ORCA ตั้งให้ จึงเข้าบริษัทอื่นไม่ได้ เข้าร่วมด้วยบัญชี Google ของคุณแทน หรือติดต่อทีม ORCA ทาง LINE ${ORCA_SUPPORT_LINE_ID}`,
+    `This account's password was set by the ORCA team, so it can't join another company. Join with your Google account instead, or ask the ORCA team on LINE (${ORCA_SUPPORT_LINE_ID}).`,
   ],
   [
     "this company already has an owner",
