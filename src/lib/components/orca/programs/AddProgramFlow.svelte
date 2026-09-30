@@ -164,9 +164,16 @@
 		if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'instant' });
 	}
 
-	/** The selection when step 3 opens: this tab's draft for the program, or the read-only start. */
+	/**
+	 * The selection when step 3 opens: this tab's draft for the program, else
+	 * the program this tab already saved from it (Back from step 4 after a
+	 * reload: its saved name, note and ticks, Codex release review 66), else the
+	 * read-only start.
+	 */
 	function applySelection(id: string, found: ProgramTool[]) {
 		const draft = readDraft(storage(), key, id);
+		const already = draft ? undefined : savedProgramFor(storage(), savedKey, id, data.connections);
+		const resumed = already ? savedSelection(found, already.toolNames ?? []) : [];
 		const base = uniqueProgramName(
 			source ? programDisplayName(source) : id,
 			data.connections.filter((item) => !item.archivedAt && !item.deletedAt).map((item) => item.name)
@@ -177,6 +184,11 @@
 			selected = savedSelection(found, draft.toolNames).filter((tool) => selectableUnder(nextPreset, found.find((item) => item.name === tool)!));
 			name = draft.name || base;
 			note = draft.note;
+		} else if (already && resumed.length) {
+			selected = resumed;
+			preset = presetFor(selected, found);
+			name = already.name;
+			note = already.scopeNote ?? '';
 		} else {
 			preset = initialPreset(found);
 			selected = initialSelection(found);
@@ -261,8 +273,10 @@
 		// Saving again after going back (the browser's Back from step 4, even
 		// after a reload) changes the same program, never adds a second one, on
 		// the version this tab saved (savedProgramFor, Codex release review 65).
-		const again =
-			savedProgramFor(storage(), savedKey, sourceID, data.connections) ?? (saved && saved.mcpID === sourceID ? saved : undefined);
+		// This page's own record of the same program is at least as new as the
+		// stored one (a storage write can fail, Codex release review 66).
+		const remembered = savedProgramFor(storage(), savedKey, sourceID, data.connections);
+		const again = saved && saved.mcpID === sourceID && (!remembered || remembered.id === saved.id) ? saved : remembered;
 		try {
 			const result = await ProgramService.save(programSaveInput({ name, note, mcpID: sourceID, selected, tools, existing: again }), again?.id);
 			if (!alive) return;

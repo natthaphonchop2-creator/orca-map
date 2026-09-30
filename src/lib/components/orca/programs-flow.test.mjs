@@ -198,6 +198,54 @@ test('saving again goes on the version this tab saved: a newer program is refuse
 	assert.equal(current, 3);
 });
 
+test('when storage stops taking writes, saving again still uses the newest version this page knows (Codex release review 66)', async (context) => {
+	const storage = memoryStorage();
+	let current = 0;
+	const writes = [];
+	const save = async (input, id) => {
+		writes.push({ input, id });
+		if (id && input.version !== current) throw Object.assign(new Error('someone else changed this program'), { status: 409 });
+		current += 1;
+		return { ...input, id: 'saved-1', version: current };
+	};
+	const { view } = await setup(context, { props: { step: 'tools' }, service: { save }, storage });
+	await view.discover('flow');
+	flush();
+	await view.save();
+	// From here on, storage reads work but writes fail.
+	storage.setItem = () => { throw new Error('quota'); };
+	current = 2;
+	view.setConnections([{ id: 'old', name: 'FlowAccount', mcpID: 'x' }, { id: 'saved-1', name: 'FlowAccount (2)', description: '', mcpID: 'flow', enabled: true, toolNames: ['list'], version: 2 }]);
+	flush();
+	await view.save();
+	assert.equal(writes[1].input.version, 1, 'refused once, as it should be');
+	await view.save();
+	assert.equal(writes[2].input.version, 2, 'then on the newest version, not the stale stored one');
+	assert.equal(current, 3);
+});
+
+test('Back to step 3 after a reload, with no draft left, starts from the program this tab saved, not the defaults (Codex release review 66)', async (context) => {
+	const storage = memoryStorage();
+	const first = await setup(context, { props: { step: 'tools' }, storage });
+	await first.view.discover('flow');
+	first.view.set({ preset: 'write', selected: ['list', 'email'], name: 'บัญชีของเรา', note: 'เฉพาะฝ่ายบัญชี' });
+	flush();
+	await first.view.save();
+	assert.equal(storage.store.has('orca.addProgram.default'), false, 'the draft is gone after the save');
+	const savedProgram = { id: 'saved-1', name: 'บัญชีของเรา', description: '', mcpID: 'flow', enabled: true, scopeNote: 'เฉพาะฝ่ายบัญชี', toolNames: ['list', 'email'], version: 1 };
+	const data = { connections: [{ id: 'old', name: 'FlowAccount', mcpID: 'x' }, savedProgram], hubs: [], members: [], platformOperator: false };
+	const back = await setup(context, { props: { step: 'tools', data }, storage });
+	await back.view.discover('flow');
+	flush();
+	assert.deepEqual([...back.view.state.selected].sort(), ['email', 'list']);
+	assert.equal(back.view.state.name, 'บัญชีของเรา');
+	assert.equal(back.view.state.note, 'เฉพาะฝ่ายบัญชี');
+	assert.equal(back.view.state.preset, 'write');
+	await back.view.save();
+	assert.equal(back.writes[0].id, 'saved-1');
+	assert.deepEqual(back.writes[0].input.toolNames, ['list', 'email'], 'nothing it saved is overwritten by the defaults');
+});
+
 test('the server\'s B3 refusal reads in Thai', async (context) => {
 	assert.equal(tools.programSaveMessage('review at least one selected tool', (th) => th), 'เลือกสิ่งที่ AI ทำได้อย่างน้อย 1 อย่าง');
 	assert.equal(tools.programSaveMessage('Review at least one selected tool', (_th, en) => en), 'Choose at least one thing AI can do.');
