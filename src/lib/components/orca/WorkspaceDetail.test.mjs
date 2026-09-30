@@ -257,6 +257,10 @@ test('ภาพรวม offers the invite message after creation and one banner
 	assert.match(html, /เพิ่มลิงก์ของพื้นที่นี้ใน AI ของคุณ/);
 	html = htmlOf(Overview, { props: { data: company({ currentUserID: 'u-admin' }), hub, tabHref } }).body;
 	assert.match(html, /เพิ่มตัวเองในพื้นที่นี้/);
+	// My AI through another workspace's own link: the banner says so, never "not connected" (B3 follow-up).
+	const source = await readFile(file('./workspace/WorkspaceOverviewTab.svelte'), 'utf8');
+	assert.match(source, /ai = aiReachesWorkspace\(apps, hub\.id\) \? 'connected' : 'none';\s*\/\/[^\n]*\n\s*const status = aiConnectionFrom\(apps, Date\.now\(\), t\);\s*elsewhere = ai === 'none' && status\.only\?\.length \? aiConnectionLine\(status, t\) : '';/);
+	assert.match(source, /\{#if elsewhere\}\s*<strong>\{t\('AI ของคุณยังใช้พื้นที่นี้ไม่ได้'/);
 });
 
 test('คน and โปรแกรม are editable only by managers; readers see who and what, without names they may not receive', async () => {

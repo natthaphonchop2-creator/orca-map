@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { workspaceToolingReady } from '$lib/orca/activation';
+	import { aiConnectionLine } from '$lib/orca/ai-connection';
+	import { aiConnectionFrom } from '$lib/orca/connect-ai';
 	import CatalogIcon from '$lib/orca/CatalogIcon.svelte';
 	import { companyPinned, currentCompany } from '$lib/orca/company';
 	import { gatewayHasMember, gatewaySources } from '$lib/orca/gateway-sources';
@@ -55,6 +57,8 @@
 	const prompt = $derived(programNames.length ? samplePrompt(programNames[0], t) : '');
 	// Whether the viewer's AI reaches this workspace (B1); unknown until it answers.
 	let ai = $state<'unknown' | 'none' | 'connected'>('unknown');
+	/** Not here, but through another workspace's own link: "Claude เชื่อมเฉพาะ ฝ่ายขาย" (B3 follow-up). */
+	let elsewhere = $state('');
 	let copied = $state<'' | 'invite' | 'prompt'>('');
 	let copyFailed = $state(false);
 	const feedback = copyFeedback((value) => {
@@ -90,6 +94,9 @@
 			void MyAIAppsService.list(controller.signal)
 				.then((apps) => {
 					ai = aiReachesWorkspace(apps, hub.id) ? 'connected' : 'none';
+					// Said as it is, never "not connected" (B3 follow-up).
+					const status = aiConnectionFrom(apps, Date.now(), t);
+					elsewhere = ai === 'none' && status.only?.length ? aiConnectionLine(status, t) : '';
 				})
 				.catch(() => {
 					// Unknown: no banner rather than a wrong one.
@@ -145,8 +152,13 @@
 	<div class="ov-banner" role="status">
 		<Sparkles size={18} aria-hidden="true" />
 		<div>
-			<strong>{t('คุณยังไม่ได้เชื่อม Claude หรือ ChatGPT กับ ORCA', "You haven't connected Claude or ChatGPT to ORCA")}</strong>
-			<p>{t('เชื่อมครั้งเดียว แล้วพื้นที่นี้จะขึ้นใน AI ของคุณเอง', 'Connect once and this workspace appears in your AI.')}</p>
+			{#if elsewhere}
+				<strong>{t('AI ของคุณยังใช้พื้นที่นี้ไม่ได้', "Your AI can't use this workspace yet")}</strong>
+				<p>{t(`${elsewhere} ใช้ลิงก์ ORCA ของบริษัท แล้วพื้นที่นี้จะขึ้นใน AI ของคุณเอง`, `${elsewhere}. Use the company's ORCA link and this workspace appears in your AI.`)}</p>
+			{:else}
+				<strong>{t('คุณยังไม่ได้เชื่อม Claude หรือ ChatGPT กับ ORCA', "You haven't connected Claude or ChatGPT to ORCA")}</strong>
+				<p>{t('เชื่อมครั้งเดียว แล้วพื้นที่นี้จะขึ้นใน AI ของคุณเอง', 'Connect once and this workspace appears in your AI.')}</p>
+			{/if}
 		</div>
 		<a class="k-button" href={localeHref('/app?view=connect-ai')}>{t('เชื่อม AI ของฉัน', 'Connect my AI')}</a>
 	</div>
