@@ -149,8 +149,10 @@ test('allows OAuth browser navigation and maps root callback without changing en
 
 // A member signed in only here returns from a provider to the backend, which
 // hands the browser back here without a Referer. The provider started the
-// redirect chain, so it arrives cross-site; the member's Lax session cookie
-// travels with the top-level GET, and the backend's completion page stays here.
+// redirect chain, so it arrives cross-site, where Safari sends no session
+// cookie. The first arrival reloads itself from here as a same-origin
+// navigation, which carries the member's session, and that reload reaches the
+// backend; its completion page stays here.
 test('finishes a source sign-in the backend hands off, with the member session', async (t) => {
   const seen = [];
   const { appURL } = await fixture(t, (req, res) => {
@@ -158,12 +160,53 @@ test('finishes a source sign-in the backend hands off, with the member session',
     res.writeHead(302, { location: '/auth/oauth/complete' });
     res.end();
   });
-  const headers = { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', cookie: 'obot_access_token=member-session' };
   const query = '?code=a%2Bb&state=c%2Fd&scope=read+write&orca_handoff=1';
-  const result = await request(appURL, '/oauth/mcp/callback' + query, { headers });
+  // Safari: the end of the cross-site chain arrives without the session.
+  const arrival = await request(appURL, '/oauth/mcp/callback' + query, { headers: { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate' } });
+  assert.equal(arrival.status, 200);
+  assert.deepEqual(seen, [], 'the backend is not asked before the session can travel');
+  const reload = '/oauth/mcp/callback' + query + '&orca_relay=1';
+  assert.ok(arrival.body.includes(`<meta http-equiv="refresh" content="0;url=${reload.replaceAll('&', '&amp;')}">`), arrival.body);
+
+  const result = await request(appURL, reload, { headers: { 'sec-fetch-site': 'same-origin', 'sec-fetch-mode': 'navigate', cookie: 'obot_access_token=member-session' } });
   assert.equal(result.status, 302);
   assert.equal(result.headers.location, '/auth/oauth/complete');
-  assert.deepEqual(seen, [{ url: '/oauth/mcp/callback' + query, cookie: 'obot_access_token=member-session' }]);
+  assert.deepEqual(seen, [{ url: reload, cookie: 'obot_access_token=member-session' }]);
+});
+
+// The reload page carries the one-time code only to its own address: no
+// Referer, no cache, no script or outside resource, never framed. Only the
+// handed-off return reloads, once, and an address with anything a URL does
+// not need is forwarded as before instead of being written into the page.
+test('the handed-off return reloads once from a sealed page', async (t) => {
+  const seen = [];
+  const { appURL } = await fixture(t, (req, res) => { seen.push(req.url); res.end('backend'); });
+  const headers = { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate' };
+  const page = await request(appURL, "/oauth/mcp/callback?code=it's&state=s&orca_handoff=1", { headers });
+  assert.equal(page.status, 200);
+  assert.equal(page.headers['content-type'], 'text/html; charset=utf-8');
+  assert.equal(page.headers['cache-control'], 'no-store');
+  assert.equal(page.headers['referrer-policy'], 'no-referrer');
+  assert.equal(page.headers['x-frame-options'], 'DENY');
+  assert.match(page.headers['content-security-policy'], /default-src 'none'/);
+  assert.ok(page.body.includes('<meta name="referrer" content="no-referrer">'));
+  assert.ok(page.body.includes('href="/oauth/mcp/callback?code=it&#39;s&amp;state=s&amp;orca_handoff=1&amp;orca_relay=1"'), page.body);
+  assert.ok(!/<script|src=|https?:\/\//i.test(page.body.replace('http-equiv', '')), 'nothing outside the page');
+  assert.deepEqual(seen, []);
+
+  for (const target of [
+    '/oauth/mcp/callback?code=c&state=s&orca_handoff=1&orca_relay=1',
+    '/oauth/mcp/callback?code=c&state=s',
+    '/oauth/mcp/callback?code=c&state=s&orca_handoff=2',
+    '/oauth/mcp/callback?code=c"><b>&state=s&orca_handoff=1',
+  ]) {
+    const forwarded = await request(appURL, target, { headers });
+    assert.equal(forwarded.status, 200, target);
+    assert.equal(forwarded.body, 'backend', target);
+  }
+  assert.equal(seen.length, 4);
+  assert.equal((await request(appURL, '/oauth/mcp/callback?code=c&state=s&orca_handoff=1', { method: 'HEAD', headers })).status, 200);
+  assert.equal(seen.length, 5, 'only a GET reloads');
 });
 
 // Production serves a static build: nothing answers a route's __data.json, so
@@ -482,6 +525,13 @@ test('Vite middleware reuses secure auth proxy while passing UI and filesystem m
   assert.equal((await request(viteURL, '/oauth2/start', { method: 'POST', headers: { origin: 'https://attacker.invalid' } })).status, 403);
   await request(viteURL, '/?code=fixture%2Bcode&state=fixture');
   assert.equal(seen.path, '/oauth2/callback?code=fixture%2Bcode&state=fixture');
+  // A handed-off source sign-in reloads from the page in development too.
+  const navigation = { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate' };
+  const arrival = await request(viteURL, '/oauth/mcp/callback?code=c&state=s&orca_handoff=1', { headers: navigation });
+  assert.ok(arrival.body.includes('content="0;url=/oauth/mcp/callback?code=c&amp;state=s&amp;orca_handoff=1&amp;orca_relay=1"'), arrival.body);
+  assert.equal(seen.path, '/oauth2/callback?code=fixture%2Bcode&state=fixture');
+  assert.equal((await request(viteURL, '/oauth/mcp/callback?code=c&state=s&orca_handoff=1&orca_relay=1', { headers: { 'sec-fetch-site': 'same-origin', 'sec-fetch-mode': 'navigate' } })).body, 'api');
+  assert.equal(seen.path, '/oauth/mcp/callback?code=c&state=s&orca_handoff=1&orca_relay=1');
 });
 
 for (const mode of ['standalone', 'vite']) {
