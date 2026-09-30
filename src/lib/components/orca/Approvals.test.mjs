@@ -237,10 +237,10 @@ test("a LINE send LINE didn't answer is retried once with the same request, neve
   try {
     await failing.view.load();
     await failing.view.retry(failing.view.items[0]);
-    assert.match(failing.view.notice, /ยังไม่สำเร็จ: LINE ไม่ตอบ/);
+    assert.match(failing.view.notice, /ยังไม่สำเร็จ: ORCA ยังไม่รู้ว่า LINE ส่งข้อความนี้ไปแล้วหรือยัง/);
     assert.deepEqual(failing.calls.toasts.at(-1), [failing.view.notice, "error"]);
   } finally { failing.stop(); }
-  const refused = mount({ data: lineData() }, { list: async () => [unknown], retry: async () => { throw new Error("เกิน 24 ชั่วโมงแล้ว ตรวจในแชต LINE OA ก่อนว่าส่งไปหรือยัง แล้วค่อยขอส่งใหม่"); } });
+  const refused = mount({ data: lineData() }, { list: async () => [unknown], retry: async () => { throw new Error("เกิน 23 ชั่วโมงหลังการส่งครั้งแรกแล้ว ลองซ้ำด้วยรหัสกันส่งซ้ำเดิมไม่ได้ ตรวจในแชต LINE OA ก่อนว่าส่งไปหรือยัง แล้วค่อยขอส่งใหม่"); } });
   try {
     await refused.view.load();
     await refused.view.retry(refused.view.items[0]);
