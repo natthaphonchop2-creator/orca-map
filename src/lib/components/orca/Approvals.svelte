@@ -378,7 +378,9 @@
   .line-send-note :global(svg) { flex: none; }
   .line-send-text { max-height: 320px; padding: 10px 12px; overflow: auto; border: 1px solid var(--orca-line); border-radius: var(--orca-radius); background: var(--orca-surface); line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }
   .line-send-warn { color: var(--orca-warn); font-size: 13.5px; font-weight: 500; }
-  .line-send-warn :global(svg) { flex: none; }
+  /* An icon line keeps its icon beside the words on a phone, not above them. */
+  .line-send p.line-send-warn, .line-send p.line-send-note { flex-wrap: nowrap; align-items: flex-start; }
+  .line-send-warn :global(svg), p.line-send-note :global(svg) { flex: none; margin-top: 3px; }
   .approval-result summary { color: var(--orca-ink); font-size: 13.5px; font-weight: 500; cursor: pointer; }
   .approval-result pre { max-height: 240px; margin: 8px 0 0; padding: 10px 12px; overflow: auto; border-radius: var(--orca-radius); background: var(--orca-surface-2); color: var(--orca-ink); font-size: 12.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .approval-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding-top: 4px; }

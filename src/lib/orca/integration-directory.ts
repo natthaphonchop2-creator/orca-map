@@ -16,6 +16,8 @@ export interface IntegrationReference {
   aliases: string[];
   guideOnly?: boolean;
   checkedOn: string;
+  /** The name a program saved from this entry shows (program-catalog.ts programDisplayName), for its icon. */
+  displayName?: string;
 }
 
 const checkedOn = '2026-09-20';
@@ -58,7 +60,7 @@ export const integrationReferences: IntegrationReference[] = [
   // ORCA's own LINE connector (pkg/mcp/orca_api_line.go), not a guide: it is
   // shown only for the backend's record (catalog.ts, apiReferenceAliases).
   {
-    id: 'orca-native-line-messaging', name: 'LINE Messaging API', protocol: 'API',
+    id: 'orca-native-line-messaging', name: 'LINE Messaging API', displayName: 'LINE OA (Messaging API)', protocol: 'API',
     categoryId: 'communication', icon: '/orca/tools/line.png', authMethods: ['secrets'], checkedOn: '2026-09-30',
     description: ["ดูสถิติเพื่อน ส่งข้อความ และเปลี่ยนริชเมนูของ LINE OA ทุกการส่งรอผู้ดูแลอนุมัติ", "See your LINE Official Account’s friend statistics, send messages and change rich menus. Every send waits for an admin’s approval."],
     requirements: [
@@ -222,7 +224,8 @@ export function integrationReference(id: string) {
 }
 
 export function integrationPresentation(name: string) {
-  const entry = integrationReferences.find((entry) => entry.name === name);
+  // A LINE program is saved as "LINE OA (Messaging API)", so its approvals and history keep the LINE icon.
+  const entry = integrationReferences.find((entry) => entry.name === name || (!!entry.displayName && entry.displayName === name));
   if (!entry) return undefined;
   return {
     categoryId: entry.categoryId,

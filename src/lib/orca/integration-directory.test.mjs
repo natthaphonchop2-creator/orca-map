@@ -3,7 +3,7 @@ import { access } from 'node:fs/promises';
 import { test } from 'node:test';
 import { importTypeScript } from './test-import.mjs';
 
-const { integrationReferences, integrationGuideSources } = await importTypeScript(new URL('./integration-directory.ts', import.meta.url));
+const { integrationReferences, integrationGuideSources, integrationPresentation } = await importTypeScript(new URL('./integration-directory.ts', import.meta.url));
 const { catalogDirectory, filterCatalog, catalogSource } = await importTypeScript(new URL('./catalog.ts', import.meta.url));
 
 test('directory guides never create executable MCP candidates or mutate the supplied candidate list', () => {
@@ -61,4 +61,10 @@ test('LINE Bot MCP stays a guide (stdio) that points to ORCA’s own LINE OA (Me
   const native = integrationReferences.find((row) => row.id === 'orca-native-line-messaging');
   assert.equal(native.guideOnly, undefined, 'the native connector is not a guide');
   assert.equal(integrationGuideSources().some((row) => row.id === native.id), false);
+});
+
+test("a LINE program saved as \"LINE OA (Messaging API)\" keeps the LINE icon on approvals and history (design §14l)", () => {
+  assert.equal(integrationPresentation('LINE OA (Messaging API)')?.icon, '/orca/tools/line.png');
+  assert.equal(integrationPresentation('LINE Messaging API')?.icon, '/orca/tools/line.png');
+  assert.equal(integrationPresentation('LINE OA (Messaging API) 2'), undefined, 'only the exact names');
 });
