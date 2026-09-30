@@ -583,11 +583,16 @@ export async function runEveryone(plan: EveryonePlan, service: EveryoneService):
 // After creation: the invite message and what to do next
 // ---------------------------------------------------------------------------
 
-/** เชื่อม AI ของฉัน for someone opening a shared link; LINE opens it in the phone's browser (critique 13). */
+/**
+ * เชื่อม AI ของฉัน for someone opening a shared link; LINE opens it in the
+ * phone's browser (critique 13). The company is always named, "default" too:
+ * someone in several companies would otherwise open the one they used last
+ * (Codex release review 68).
+ */
 export function connectAILink(origin: string, company: string): string {
 	const url = new URL('/app', origin);
 	url.searchParams.set('view', 'connect-ai');
-	if (company && company !== 'default') url.searchParams.set('org', company);
+	url.searchParams.set('org', company || 'default');
 	url.searchParams.set('openExternalBrowser', '1');
 	return url.toString();
 }

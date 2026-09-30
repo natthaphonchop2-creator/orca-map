@@ -238,7 +238,7 @@ test('ภาพรวม offers the invite message after creation and one banner
 	assert.doesNotMatch(html, /ชวนทีมเข้ามาใช้/);
 	// Later (not just created), the invite row is the way to it.
 	assert.match(htmlOf(Overview, { props: { data: company(), hub, tabHref } }).body, /ชวนทีมเข้ามาใช้/);
-	assert.match(html, /view=connect-ai&amp;openExternalBrowser=1/, 'the LINE message opens the phone browser');
+	assert.match(html, /view=connect-ai&amp;org=default&amp;openExternalBrowser=1/, 'the LINE message opens the phone browser, in this company (Codex release review 68)');
 	assert.match(html, /สิ่งที่ทำต่อได้/);
 	assert.match(html, /“สรุปใบแจ้งหนี้ที่ค้างชำระจาก FlowAccount”/);
 	assert.doesNotMatch(html, /id="connect-ai"/, 'no per-workspace link without its own sign-in');

@@ -416,7 +416,9 @@ test('my AI reaches a workspace through a sign-in, a key for every workspace or 
 });
 
 test('the invite message points to เชื่อม AI ของฉัน in the phone\'s browser, in this company', () => {
-	assert.equal(edit.connectAILink('https://orca.example.test', 'default'), 'https://orca.example.test/app?view=connect-ai&openExternalBrowser=1');
+	// The company is always named, "default" too (Codex release review 68).
+	assert.equal(edit.connectAILink('https://orca.example.test', 'default'), 'https://orca.example.test/app?view=connect-ai&org=default&openExternalBrowser=1');
+	assert.equal(edit.connectAILink('https://orca.example.test', ''), 'https://orca.example.test/app?view=connect-ai&org=default&openExternalBrowser=1');
 	const other = edit.connectAILink('https://orca.example.test/', 'org-11111111-2222-4333-8444-555555555555');
 	assert.equal(new URL(other).searchParams.get('org'), 'org-11111111-2222-4333-8444-555555555555');
 	assert.equal(new URL(other).searchParams.get('openExternalBrowser'), '1');
