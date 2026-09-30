@@ -12,6 +12,7 @@ const component = await readFile(new URL("./MemberInvitations.svelte", import.me
 const invitePage = await readFile(new URL("../../../routes/invite/[token]/+page.svelte", import.meta.url), "utf8");
 const helpers = await importTypeScript(new URL("../../orca/invitations.ts", import.meta.url));
 const { everyoneDepartment } = await importTypeScript(new URL("../../orca/workspace-edit.ts", import.meta.url));
+const { externalBrowserLink } = await importTypeScript(new URL("../../services/orca-platform.ts", import.meta.url));
 const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
   .replace(/^\s*import[^;]+;/gm, "")
   .replace("$bindable(false)", "false")
@@ -20,7 +21,7 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(testProps, dependencies) {
-  const { OrcaService, onMount, tick, untrack, canRenewInvitation, invitationLink, invitationTone, invitedByPlatform, lineShareURL, splitInvitations, everyoneDepartment, t, displayDate, memberName, orcaError, window, navigator } = dependencies;
+  const { OrcaService, onMount, tick, untrack, canRenewInvitation, invitationLink, invitationTone, invitedByPlatform, lineShareURL, splitInvitations, everyoneDepartment, externalBrowserLink, t, displayDate, memberName, orcaError, window, navigator } = dependencies;
   ${script}
   return {
     load, submit, reissue, revoke, copy, toggleUnit, closed, inviter, roleLabel, resetForm,
@@ -54,6 +55,7 @@ function mount(props, service) {
     view = harness({ ...props, onchanged: () => calls.changed++ }, {
       ...helpers,
       everyoneDepartment,
+      externalBrowserLink,
       OrcaService: {
         invitations: async () => service.list(),
         invite: async (...args) => { calls.invite.push(args); return service.invite(...args); },
@@ -101,7 +103,7 @@ test("a manager invites by email and gets a one-time link, a LINE share and a me
     assert.deepEqual(calls.invite, [["Somchai@Example.test", "admin", ["u-sales"]]]);
     assert.equal(view.issued.link, "https://orca.example.test/invite/tok_EN-123");
     assert.match(view.message, /Synthetic Co\./);
-    assert.match(view.message, /https:\/\/orca\.example\.test\/invite\/tok_EN-123$/);
+    assert.match(view.message, /https:\/\/orca\.example\.test\/invite\/tok_EN-123\?openExternalBrowser=1$/, "LINE opens it in the phone's browser, where Google works");
     assert.equal(view.items.length, 1, "the list reloads");
     assert.equal(calls.changed, 1);
     await view.copy(view.issued.link, "link");

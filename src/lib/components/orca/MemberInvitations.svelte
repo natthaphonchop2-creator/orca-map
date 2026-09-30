@@ -5,6 +5,7 @@
   import { t } from "$lib/orca/locale.svelte";
   import { everyoneDepartment } from "$lib/orca/workspace-edit";
   import { OrcaService, displayDate, memberName, orcaError, type OrcaBootstrap, type OrcaInvitation, type OrcaManagerInvitationRole } from "$lib/services/orca";
+  import { externalBrowserLink } from "$lib/services/orca-platform";
 
   // Invitation links until ORCA sends mail itself: the manager shares each link
   // by LINE or email, and the person accepts it after signing in.
@@ -59,11 +60,13 @@
     return invitedByPlatform(item, data.members.map((person) => person.id)) ? "ORCA" : "—";
   };
   const organization = $derived(data.organization.displayName || "ORCA");
+  // The message goes by LINE or email: LINE opens this link in the phone's
+  // browser, where Google sign-in works (as the owner invitations do; Codex release review 63).
   const message = $derived(
     issued
       ? t(
-          `คุณได้รับเชิญเข้าร่วม ${organization} บน ORCA ในฐานะ${roleInSentence(issued.invitation.role)} เปิดลิงก์นี้แล้วเข้าสู่ระบบด้วยอีเมล ${issued.invitation.email} (ใช้ได้ถึง ${displayDate(issued.invitation.expiresAt)})\n${issued.link}`,
-          `You're invited to join ${organization} on ORCA as ${roleInSentence(issued.invitation.role)}. Open this link and sign in with ${issued.invitation.email} (valid until ${displayDate(issued.invitation.expiresAt)}):\n${issued.link}`,
+          `คุณได้รับเชิญเข้าร่วม ${organization} บน ORCA ในฐานะ${roleInSentence(issued.invitation.role)} เปิดลิงก์นี้แล้วเข้าสู่ระบบด้วยอีเมล ${issued.invitation.email} (ใช้ได้ถึง ${displayDate(issued.invitation.expiresAt)})\n${externalBrowserLink(issued.link)}`,
+          `You're invited to join ${organization} on ORCA as ${roleInSentence(issued.invitation.role)}. Open this link and sign in with ${issued.invitation.email} (valid until ${displayDate(issued.invitation.expiresAt)}):\n${externalBrowserLink(issued.link)}`,
         )
       : "",
   );
