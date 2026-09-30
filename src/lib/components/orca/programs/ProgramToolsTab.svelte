@@ -36,8 +36,14 @@
 	let baseVersion = untrack(() => connection.version);
 	let baseline = '';
 	const draftKey = () => JSON.stringify([name, note, [...selected].sort()]);
+	// What this tab's last save returned: newer than the page's copy while the
+	// page's refresh has not brought it (it failed), so "คืนค่าเดิม" and later
+	// saves start from it, never from the older copy (Codex release review 68, 69).
+	type Saved = Pick<OrcaConnection, 'toolNames' | 'name' | 'scopeNote' | 'version'>;
+	let acknowledged: Saved | undefined;
+	const newest = (): Saved => (acknowledged && acknowledged.version > connection.version ? acknowledged : connection);
 
-	function reset(list: ProgramTool[], from: Pick<OrcaConnection, 'toolNames' | 'name' | 'scopeNote' | 'version'> = connection) {
+	function reset(list: ProgramTool[], from: Saved = newest()) {
 		selected = savedSelection(list, from.toolNames);
 		preset = presetFor(selected, list);
 		name = from.name;
@@ -89,9 +95,10 @@
 			showToast(t(`บันทึกแล้ว · AI ทำได้ ${selected.length} อย่างใน ${programName}`, `Saved · AI can do ${selected.length} things in ${programName}`));
 			await onchanged();
 			// The saved program, as it now is: the page's copy once its refresh
-			// brought it, else what the save returned, so a failed refresh never
-			// shows the older program or leaves its version (Codex release review 68).
-			if (alive) reset(tools, result.version > connection.version ? result : connection);
+			// brought it, else what the save returned (newest), so a failed refresh
+			// never shows the older program or leaves its version (Codex release review 68).
+			acknowledged = result;
+			if (alive) reset(tools);
 		} catch (cause) {
 			if (alive) error = programSaveError(cause);
 		} finally {

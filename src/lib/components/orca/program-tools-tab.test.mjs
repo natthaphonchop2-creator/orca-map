@@ -115,6 +115,12 @@ test('after a save whose refresh failed, the tab shows what was saved, on the ve
 	assert.deepEqual(view.state.selected, ['list'], 'what was saved, not the older ticks');
 	assert.equal(view.state.name, 'FlowAccount ขาย');
 	assert.equal(view.state.error, '');
+	// "คืนค่าเดิม" after another edit goes back to what was saved, not the older copy (Codex release review 69).
+	view.set({ selected: ['list', 'get', 'create'] });
+	view.reset();
+	flush();
+	assert.deepEqual(view.state.selected, ['list'], 'undo returns to the saved ticks');
+	assert.equal(view.state.name, 'FlowAccount ขาย', 'and the saved name');
 	view.set({ selected: ['list', 'get'] });
 	await view.save();
 	assert.equal(saves[1].input.version, 2, 'the next save goes on the version the first one made');
