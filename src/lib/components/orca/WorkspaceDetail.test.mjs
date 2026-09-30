@@ -370,7 +370,7 @@ test('each tab reports its unsaved changes, and pause, activate, archive and del
 	for (const name of ['./workspace/WorkspaceProgramsTab.svelte', './workspace/WorkspacePeopleTab.svelte', './views/WorkspaceSettingsView.svelte']) {
 		const source = await readFile(file(name), 'utf8');
 		assert.match(source, /\$effect\(\(\) => ondirty\?\.\((dirty|changeCount > 0) \|\| busy\)\);/, name);
-		assert.match(source, /onDestroy\(\(\) => ondirty\?\.\(false\)\);/, name);
+		assert.match(source, /let mounted = true;\s*onDestroy\(\(\) => \{\s*mounted = false;\s*ondirty\?\.\(false\);\s*\}\);/, name);
 	}
 	const settings = await readFile(file('./views/WorkspaceSettingsView.svelte'), 'utf8');
 	assert.equal(settings.match(/disabled=\{statusBusy \|\| dirty\}/g)?.length, 2, 'pause and activate');
@@ -401,11 +401,12 @@ test('a newer version replaces the tabs only while nothing is unsaved, or after 
 		assert.match(detail, new RegExp(`<${tab} [^>]*hub=\\{editorHub\\}[^>]*onchanged=\\{tabChanged\\}`), tab);
 	assert.match(detail, /<WorkspaceOverviewTab \{data\} \{hub\}/, 'ภาพรวม always reads the newest');
 	assert.match(detail, /const next = editorWorkspace\(editorHub, latest, unsaved\);/);
-	assert.match(detail, /async function tabChanged\(saved\?: OrcaHub\) \{\s*clearAdd\(\);\s*if \(saved\) editorHub = editorWorkspace\(editorHub, saved, false\);\s*await onchanged\(\);\s*\}/);
+	assert.match(detail, /async function tabChanged\(saved\?: OrcaHub, shown = true\) \{\s*clearAdd\(\);\s*if \(saved\) \{[^}]*savedHub = saved;\s*if \(shown\) editorHub = editorWorkspace\(editorHub, saved, false\);\s*\}\s*await onchanged\(\);\s*\}/);
 	assert.match(detail, /const changedElsewhere = \$derived\(hub\.version > editorHub\.version && dirty\);/, 'only a newer page copy is someone else\'s');
 });
 
-test('a save whose refresh failed keeps the tabs on what it saved, an archive elsewhere keeps a dirty ตั้งค่า, and &add= is used once (Codex release review 65, 70)', async (context) => {
+/** WorkspaceDetail's shipped script, run with reactive props (Codex release reviews 65, 70, 71). */
+async function detailHarness(context, { url = 'https://orca.example.test/app?view=hub&hub=hub-one&tab=settings&add=conn-drive', refresh } = {}) {
 	const source = await readFile(file('./WorkspaceDetail.svelte'), 'utf8');
 	const script = stripTypeScriptTypes(source.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
 		.replace(/^\s*import[^;]+;/gm, '')
@@ -427,8 +428,7 @@ test('a save whose refresh failed keeps the tabs on what it saved, an archive el
 		{ filename: 'workspace-detail-props-test.svelte.js', generate: 'client' }
 	).js.code.replaceAll('svelte/internal/client', pathToFileURL(require.resolve('svelte/internal/client')).href);
 	const { harness, reactive } = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
-	let failRefresh = false;
-	const props = reactive({ data: company(), hub, onchanged: async () => { if (failRefresh) throw new Error('refresh failed'); } });
+	const props = reactive({ data: company(), hub, onchanged: async () => refresh?.() });
 	const replaced = [];
 	let view;
 	const stop = effect_root(() => {
@@ -437,7 +437,7 @@ test('a save whose refresh failed keeps the tabs on what it saved, an archive el
 			beforeNavigate: () => {},
 			goto: async () => {},
 			replaceState: (url) => replaced.push(url),
-			page: { url: new URL('https://orca.example.test/app?view=hub&hub=hub-one&tab=settings&add=conn-drive'), state: {} },
+			page: { url: new URL(url), state: {} },
 			saveHubPatch: async () => {},
 			hubWriteService: {},
 			workspaceWriteError: (cause) => cause.message,
@@ -447,6 +447,12 @@ test('a save whose refresh failed keeps the tabs on what it saved, an archive el
 	});
 	context.after(stop);
 	flush();
+	return { view, props, replaced };
+}
+
+test('a save whose refresh failed keeps the tabs on what it saved, an archive elsewhere keeps a dirty ตั้งค่า, and &add= is used once (Codex release review 65, 70)', async (context) => {
+	let failRefresh = false;
+	const { view, props, replaced } = await detailHarness(context, { refresh: () => { if (failRefresh) throw new Error('refresh failed'); } });
 	assert.equal(view.state.addConnectionID, 'conn-drive');
 	// A tab's save whose refresh fails: the tabs are on what the save returned, at once (Codex release review 70).
 	failRefresh = true;
@@ -492,6 +498,50 @@ test('a save whose refresh failed keeps the tabs on what it saved, an archive el
 	assert.equal(view.state.editorHub, latest);
 });
 
+test('a save that comes back after its tab was left never replaces what the open tab has unsaved; its workspace waits (Codex review 71)', async (context) => {
+	// ตั้งค่า's เปิดใช้งาน on paused v4; the person moves to คน before it answers and adds someone.
+	const paused = { ...hub, status: 'paused' };
+	let failRefresh = true;
+	const { view, props } = await detailHarness(context, { url: 'https://orca.example.test/app?view=hub&hub=hub-one&tab=people', refresh: () => { if (failRefresh) throw new Error('refresh failed'); } });
+	props.hub = paused;
+	flush();
+	const typedOn = view.state.editorHub;
+	assert.equal(typedOn.version, 4);
+	view.ondirty(true);
+	flush();
+	// Activation answers v5, from ตั้งค่า, which is no longer open; the page's refresh fails.
+	const activated = { ...paused, status: 'active', version: 5 };
+	await assert.rejects(view.tabChanged(activated, false));
+	flush();
+	assert.equal(view.state.editorHub, typedOn, 'คน keeps its typed change and is not opened again');
+	assert.equal(view.state.changedElsewhere, false, 'the page copy is not newer');
+	// The refresh brings v5 later, while คน still has its change: kept, as for anyone's newer version.
+	props.hub = { ...activated };
+	flush();
+	assert.equal(view.state.editorHub, typedOn);
+	props.hub = paused;
+	flush();
+	// Cancelled: the tabs are on the activated workspace, although the page's copy is still v4.
+	view.ondirty(false);
+	flush();
+	assert.deepEqual({ ...view.state.editorHub }, activated, 'the workspace the save returned');
+	// The open tab's own save still starts it again at once, dirty or not (review 70).
+	view.ondirty(true);
+	flush();
+	const own = { ...activated, version: 6, memberIDs: [...hub.memberIDs, 'u-admin'] };
+	failRefresh = false;
+	await view.tabChanged(own);
+	flush();
+	assert.deepEqual({ ...view.state.editorHub }, own);
+	// A left tab's save while nothing is typed in the open one: the open one starts from it.
+	view.ondirty(false);
+	flush();
+	const later = { ...own, version: 7, name: 'ฝ่ายขาย 2' };
+	await view.tabChanged(later, false);
+	flush();
+	assert.deepEqual({ ...view.state.editorHub }, later);
+});
+
 test('each tab hands its save\'s answer to the page, so undoing the saved change after a failed refresh is a change to save again (Codex release review 70)', async (context) => {
 	// คน, run with its shipped script: start with two people, add ธนา, save.
 	const source = await readFile(file('./workspace/WorkspacePeopleTab.svelte'), 'utf8');
@@ -510,21 +560,25 @@ test('each tab hands its save\'s answer to the page, so undoing the saved change
 	const { harness } = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
 	const saved = { ...hub, version: 5, memberIDs: ['u-owner', 'u-emp', 'u-admin'], effectiveMemberIDs: ['u-owner', 'u-emp', 'u-admin'] };
 	const received = [];
+	let gate = Promise.resolve();
+	let destroyers = [];
 	const deps = {
 		...base,
+		onDestroy: (fn) => destroyers.push(fn),
 		OrcaLibraryService: { departments: async () => [] },
 		hubWriteService: {},
 		workspaceWriteError: (cause) => cause.message,
 		showToast: () => {},
 		saveHubPatch: async (id, patch) => {
 			assert.deepEqual(patch(hub).memberIDs, ['u-owner', 'u-emp', 'u-admin']);
+			await gate;
 			return saved;
 		}
 	};
 	const tab = (workspace) => {
 		let view;
 		const stop = effect_root(() => {
-			view = harness({ data: company(), hub: workspace, canEdit: true, onchanged: async (value) => received.push(value), ondirty: () => {} }, deps);
+			view = harness({ data: company(), hub: workspace, canEdit: true, onchanged: async (value, shown) => received.push([value, shown]), ondirty: () => {} }, deps);
 		});
 		context.after(stop);
 		flush();
@@ -535,7 +589,7 @@ test('each tab hands its save\'s answer to the page, so undoing the saved change
 	flush();
 	assert.equal(before.state.changeCount, 1);
 	await before.save();
-	assert.deepEqual(received, [saved], 'the page gets the saved workspace, whether or not its refresh then works');
+	assert.deepEqual(received, [[saved, true]], 'the page gets the saved workspace, whether or not its refresh then works');
 	// WorkspaceDetail opens the tab again on it (its version is the tab key): nothing to save,
 	// and taking ธนา off again is one change, with บันทึก.
 	const after = tab(saved);
@@ -543,14 +597,27 @@ test('each tab hands its save\'s answer to the page, so undoing the saved change
 	after.setMembers(['u-owner', 'u-emp']);
 	flush();
 	assert.equal(after.state.changeCount, 1);
+	// Left ("ออกโดยไม่บันทึก", or another tab) before the save answers: the page hears it is no
+	// longer open, so it keeps what the open tab has unsaved (Codex review 71).
+	destroyers = [];
+	const left = tab(hub);
+	left.setMembers(['u-owner', 'u-emp', 'u-admin']);
+	flush();
+	let answer;
+	gate = new Promise((resolve) => (answer = resolve));
+	const saving = left.save();
+	for (const destroy of destroyers) destroy();
+	answer();
+	await saving;
+	assert.deepEqual(received.at(-1), [saved, false]);
 	// โปรแกรม and ตั้งค่า (its บันทึก, pause and activate) do the same.
 	for (const name of ['./workspace/WorkspacePeopleTab.svelte', './workspace/WorkspaceProgramsTab.svelte', './views/WorkspaceSettingsView.svelte']) {
 		const tabSource = await readFile(file(name), 'utf8');
 		const saves = tabSource.match(/const result = await saveHubPatch\(/g)?.length ?? 0;
 		assert.equal(saves, name.includes('Settings') ? 2 : 1, name);
-		assert.equal(tabSource.match(/await onchanged\(result\);/g)?.length, saves, name);
+		assert.equal(tabSource.match(/await onchanged\(result, mounted\);/g)?.length, saves, name);
 		assert.doesNotMatch(tabSource, /^\t*await saveHubPatch\(/m, `${name}: no save drops its answer`);
-		assert.match(tabSource, /onchanged: \(saved\?: OrcaHub\) => Promise<void>;/, name);
+		assert.match(tabSource, /onchanged: \(saved\?: OrcaHub, shown\?: boolean\) => Promise<void>;/, name);
 	}
 });
 

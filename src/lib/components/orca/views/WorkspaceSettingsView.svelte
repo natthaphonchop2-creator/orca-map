@@ -29,8 +29,8 @@
 	}: {
 		data: OrcaBootstrap;
 		hub: OrcaHub;
-		/** After a save, with the workspace it returned: the tab starts again from it (Codex release review 70). */
-		onchanged: (saved?: OrcaHub) => Promise<void>;
+		/** After a save, with the workspace it returned: the tab starts again from it (Codex release review 70), if it is still open (`shown`, Codex review 71). */
+		onchanged: (saved?: OrcaHub, shown?: boolean) => Promise<void>;
 		/** Unsaved changes here, so the workspace asks before they are lost. */
 		ondirty?: (dirty: boolean) => void;
 	} = $props();
@@ -59,7 +59,13 @@
 	const patch = $derived(changedFields({ ...before, name: before.name.trim(), description: before.description.trim(), instructions: before.instructions.trim() }, trimmed));
 	const dirty = $derived(Object.keys(patch).length > 0);
 	$effect(() => ondirty?.(dirty || busy));
-	onDestroy(() => ondirty?.(false));
+	// Still open when a save comes back. One left meanwhile (another tab, or
+	// "ออกโดยไม่บันทึก") never replaces what the open tab has unsaved (Codex review 71).
+	let mounted = true;
+	onDestroy(() => {
+		mounted = false;
+		ondirty?.(false);
+	});
 	// Pause, activate, archive and delete reload the workspace, which would
 	// drop what is typed here: save or cancel first (Codex release review 63).
 	const lifecycleHint = $derived(dirty ? t('บันทึกหรือยกเลิกสิ่งที่แก้ไว้ก่อน', 'Save or cancel your changes first.') : '');
@@ -111,7 +117,7 @@
 			const result = await saveHubPatch(hub.id, () => pending as Partial<HubInput>, hubWriteService);
 			showToast(t('บันทึกการตั้งค่าแล้ว', 'Settings saved'));
 			attempted = false;
-			await onchanged(result);
+			await onchanged(result, mounted);
 		} catch (cause) {
 			conflict = cause instanceof HubConflictError;
 			error = workspaceWriteError(cause);
@@ -133,7 +139,7 @@
 			const result = await saveHubPatch(hub.id, () => ({ status }), hubWriteService);
 			pauseOpen = false;
 			showToast(status === 'active' ? t('เปิดใช้งานแล้ว', 'Activated') : t('หยุดชั่วคราวแล้ว', 'Paused'));
-			await onchanged(result);
+			await onchanged(result, mounted);
 		} catch (cause) {
 			statusError = workspaceWriteError(cause);
 			pauseOpen = false;

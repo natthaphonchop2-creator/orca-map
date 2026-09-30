@@ -23,8 +23,8 @@
 		data: OrcaBootstrap;
 		hub: OrcaHub;
 		canEdit: boolean;
-		/** After a save, with the workspace it returned: the tab starts again from it (Codex release review 70). */
-		onchanged: (saved?: OrcaHub) => Promise<void>;
+		/** After a save, with the workspace it returned: the tab starts again from it (Codex release review 70), if it is still open (`shown`, Codex review 71). */
+		onchanged: (saved?: OrcaHub, shown?: boolean) => Promise<void>;
 		/** Unsaved changes here, so the workspace asks before they are lost. */
 		ondirty?: (dirty: boolean) => void;
 	} = $props();
@@ -46,7 +46,13 @@
 	});
 	const changeCount = $derived(change.addMembers.length + change.removeMembers.length + change.addUnits.length + change.removeUnits.length);
 	$effect(() => ondirty?.(changeCount > 0 || busy));
-	onDestroy(() => ondirty?.(false));
+	// Still open when a save comes back. One left meanwhile (another tab, or
+	// "ออกโดยไม่บันทึก") never replaces what the open tab has unsaved (Codex review 71).
+	let mounted = true;
+	onDestroy(() => {
+		mounted = false;
+		ondirty?.(false);
+	});
 	const counts = $derived(Object.fromEntries(departments.map((item) => [item.unitID, item.memberIDs.length])));
 	const effective = $derived(gatewayMemberIDs(hub));
 	const known = $derived(effective.flatMap((id) => {
@@ -104,7 +110,7 @@
 				hubWriteService
 			);
 			showToast(t('บันทึกคนที่ใช้ได้แล้ว', 'People saved'));
-			await onchanged(result);
+			await onchanged(result, mounted);
 		} catch (cause) {
 			conflict = cause instanceof HubConflictError;
 			error = workspaceWriteError(cause);

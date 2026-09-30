@@ -27,8 +27,8 @@
 		data: OrcaBootstrap;
 		hub: OrcaHub;
 		canEdit: boolean;
-		/** After a save, with the workspace it returned: the tab starts again from it (Codex release review 70). */
-		onchanged: (saved?: OrcaHub) => Promise<void>;
+		/** After a save, with the workspace it returned: the tab starts again from it (Codex release review 70), if it is still open (`shown`, Codex review 71). */
+		onchanged: (saved?: OrcaHub, shown?: boolean) => Promise<void>;
 		/** Unsaved changes here, so the workspace asks before they are lost. */
 		ondirty?: (dirty: boolean) => void;
 		/** &add=: a program just connected (เพิ่มโปรแกรม step 4), turned on here and waiting for บันทึก. */
@@ -52,7 +52,13 @@
 	const toolsFor = (id: string) => current.find((source) => source.connectionID === id)?.toolNames;
 	const dirty = $derived(Object.keys(changes).length > 0);
 	$effect(() => ondirty?.(dirty || busy));
-	onDestroy(() => ondirty?.(false));
+	// Still open when a save comes back. One left meanwhile (another tab, or
+	// "ออกโดยไม่บันทึก") never replaces what the open tab has unsaved (Codex review 71).
+	let mounted = true;
+	onDestroy(() => {
+		mounted = false;
+		ondirty?.(false);
+	});
 	// Editors see every program ready to use plus the ones already here; others see what is on.
 	const shown = $derived(
 		canEdit
@@ -114,7 +120,7 @@
 				hubWriteService
 			);
 			showToast(approval ? t('บันทึกโปรแกรมแล้ว · งานที่สร้างหรือแก้ข้อมูลจะรอผู้ดูแลอนุมัติก่อน', 'Programs saved · changes to data now wait for an admin to approve') : t('บันทึกโปรแกรมแล้ว', 'Programs saved'));
-			await onchanged(result);
+			await onchanged(result, mounted);
 		} catch (cause) {
 			conflict = cause instanceof HubConflictError;
 			error = workspaceWriteError(cause);

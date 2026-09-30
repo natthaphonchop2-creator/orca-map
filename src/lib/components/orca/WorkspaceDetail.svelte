@@ -68,8 +68,11 @@
 	let activating = $state(false);
 	let activateError = $state('');
 
+	// The newest workspace a tab's save returned, while the page's copy is
+	// older (its refresh failed, or has not answered yet).
+	let savedHub = $state<OrcaHub | undefined>();
 	$effect(() => {
-		const latest = hub;
+		const latest = savedHub && savedHub.id === hub.id && savedHub.version > hub.version ? savedHub : hub;
 		const unsaved = dirty;
 		untrack(() => {
 			const next = editorWorkspace(editorHub, latest, unsaved);
@@ -81,11 +84,18 @@
 	 * the save returned, on its new version, whether or not the page's refresh
 	 * then brings it. Undoing the saved change is then a change to save again,
 	 * and the refresh's copy of the same version, or an older one, changes
-	 * nothing typed since (Codex release review 70).
+	 * nothing typed since (Codex release review 70). `shown`: the tab that
+	 * saved is still open. A save that comes back after the person moved to
+	 * another tab (ตั้งค่า's pause or activate, or "ออกโดยไม่บันทึก" during a
+	 * save) never replaces what the tab open now has unsaved: its workspace
+	 * waits until that is saved or cancelled (Codex review 71).
 	 */
-	async function tabChanged(saved?: OrcaHub) {
+	async function tabChanged(saved?: OrcaHub, shown = true) {
 		clearAdd();
-		if (saved) editorHub = editorWorkspace(editorHub, saved, false);
+		if (saved) {
+			if (saved.id === hub.id && saved.version > (savedHub?.id === saved.id ? savedHub.version : -1)) savedHub = saved;
+			if (shown) editorHub = editorWorkspace(editorHub, saved, false);
+		}
 		await onchanged();
 	}
 	function clearAdd() {
