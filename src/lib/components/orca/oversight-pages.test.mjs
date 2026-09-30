@@ -93,4 +93,9 @@ test("ตรวจสอบ keeps the chips and the person in the address, and t
   const audit = await readFile(new URL("./Audit.svelte", import.meta.url), "utf8");
   assert.match(audit, /`\/app\?view=executions\$\{hubQuery\}`/);
   assert.match(audit, /OrcaService\.audit\(id \|\| undefined\)/);
+  // The workspace chosen in a history's filter goes with the tab links (Codex release review 64).
+  assert.match(view, /const hub = \$derived\(chosenHub \? `&hub=\$\{encodeURIComponent\(chosenHub\)\}` : ''\);/);
+  assert.equal(view.match(/<Audit [^>]*onhubchange=\{\(id\) => \(chosenHub = id\)\}/g)?.length, 2);
+  assert.match(view, /\$effect\(\(\) => \{\s*chosenHub = hubID;\s*\}\);/, 'a new address still wins');
+  assert.match(audit, /\$effect\(\(\) => \{\s*onhubchange\?\.\(selectedHubID\);\s*\}\);/);
 });

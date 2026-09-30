@@ -57,6 +57,8 @@ export function filterAuditEvents(
   filters: AuditFilters = {},
   names: AuditSearchNames = {},
   now = Date.now(),
+  /** The words the page shows for an event (its tool's or action's label), searched too (Codex release review 64). */
+  shown: (event: OrcaAuditEvent) => readonly (string | undefined)[] = () => [],
 ) {
   const words = (filters.query ?? "")
     .trim()
@@ -105,6 +107,7 @@ export function filterAuditEvents(
         event.connectionID,
         names.connections?.[event.connectionID ?? ""],
         event.resourceID,
+        ...shown(event),
       ]
         .filter(Boolean)
         .join(" ")

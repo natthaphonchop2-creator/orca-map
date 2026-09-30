@@ -4,6 +4,7 @@
 	import { term } from '$lib/orca/glossary';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import type { OrcaBootstrap } from '$lib/services/orca';
+	import { untrack } from 'svelte';
 	import Approvals from '../Approvals.svelte';
 	import Audit from '../Audit.svelte';
 	import ConnectedAIApps from '../ConnectedAIApps.svelte';
@@ -27,7 +28,13 @@
 		pendingApprovals?: number;
 		onapprovalschanged?: () => void;
 	} = $props();
-	const hub = $derived(hubID ? `&hub=${encodeURIComponent(hubID)}` : '');
+	// The workspace chosen in a history's own filter goes with the tab links, so
+	// switching between the two histories keeps it (Codex release review 64).
+	let chosenHub = $state(untrack(() => hubID));
+	$effect(() => {
+		chosenHub = hubID;
+	});
+	const hub = $derived(chosenHub ? `&hub=${encodeURIComponent(chosenHub)}` : '');
 	// แอป AI ที่เชื่อมอยู่ keeps its chips in the address: &filter=stale|noexpiry&holder=<id>.
 	const appsFilterValue = $derived(appsFilter(page.url.searchParams.get('filter')));
 	const appsHolder = $derived(page.url.searchParams.get('holder') ?? '');
@@ -69,8 +76,8 @@
 	</nav>
 {/if}
 {#if view === 'approvals'}<Approvals {data} onchanged={onapprovalschanged} />
-{:else if view === 'executions'}<Audit {data} {hubID} mode="executions" showModeTabs={!data.canManage} />
-{:else if view === 'audit'}<Audit {data} {hubID} mode="administration" showModeTabs={!data.canManage} />
+{:else if view === 'executions'}<Audit {data} {hubID} mode="executions" showModeTabs={!data.canManage} onhubchange={(id) => (chosenHub = id)} />
+{:else if view === 'audit'}<Audit {data} {hubID} mode="administration" showModeTabs={!data.canManage} onhubchange={(id) => (chosenHub = id)} />
 {:else if view === 'secrets'}<ConnectedAIApps data={activeData} filter={appsFilterValue} holder={appsHolder} />
 {/if}
 

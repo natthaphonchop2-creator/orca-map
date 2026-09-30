@@ -49,12 +49,15 @@
     hubID = "",
     mode = "executions",
     showModeTabs = true,
+    onhubchange,
   }: {
     data: OrcaBootstrap;
     hubID?: string;
     mode?: AuditMode;
     /** Off under ตรวจสอบ, whose tab bar already switches between the two histories. */
     showModeTabs?: boolean;
+    /** The workspace chosen in the filter, so ตรวจสอบ's tab links keep it. */
+    onhubchange?: (hubID: string) => void;
   } = $props();
   let events = $state<OrcaAuditEvent[]>([]);
   let loading = $state(true),
@@ -182,6 +185,8 @@
       },
       names,
       loadedAt ?? Date.now(),
+      // What each row shows, e.g. "ค้นหาไฟล์" for search_files.
+      (event) => [eventLabel(event)],
     ),
   );
   const pagination = $derived(auditPage(visibleEvents, pageNumber, pageSize));
@@ -365,6 +370,9 @@
   });
   $effect(() => {
     void refresh(selectedHubID);
+  });
+  $effect(() => {
+    onhubchange?.(selectedHubID);
   });
   $effect(() => {
     if (previousMode !== mode) {

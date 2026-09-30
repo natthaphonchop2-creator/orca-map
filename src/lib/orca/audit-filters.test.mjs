@@ -274,3 +274,18 @@ test("the platform's actions show as ORCA's, under administration", async () => 
     assert.match(page, new RegExp(`"${action.replaceAll(".", "\\.")}": t\\(`), action);
   }
 });
+
+// Searching finds a row by the words it shows, e.g. the program's own label
+// for a tool, not only its identifier (Codex release review 64).
+test("search also reads what each row shows", async () => {
+  const runs = [
+    { id: "a", createdAt: "2026-09-18T10:00:00Z", action: "tools.call", toolName: "search_files", ...base },
+    { id: "b", createdAt: "2026-09-18T11:00:00Z", action: "tools.call", toolName: "list_invoices", ...base },
+  ];
+  const shown = (event) => [{ search_files: "ค้นหาไฟล์", list_invoices: "ดูใบแจ้งหนี้" }[event.toolName]];
+  assert.deepEqual(filterAuditEvents(runs, "executions", { query: "ค้นหาไฟล์" }, {}, now, shown).map((event) => event.id), ["a"]);
+  assert.deepEqual(filterAuditEvents(runs, "executions", { query: "search_files" }, {}, now, shown).map((event) => event.id), ["a"], "the identifier still works");
+  assert.deepEqual(filterAuditEvents(runs, "executions", { query: "ค้นหาไฟล์" }, {}, now).map((event) => event.id), [], "without the shown words, as before");
+  const page = await readFile(new URL("../components/orca/Audit.svelte", import.meta.url), "utf8");
+  assert.match(page, /loadedAt \?\? Date\.now\(\),\s*\/\/[^\n]*\n\s*\(event\) => \[eventLabel\(event\)\],/);
+});
