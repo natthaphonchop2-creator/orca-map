@@ -193,8 +193,33 @@ test("the domains save leaves an unsaved client edit as a draft and never sends 
     await view.save("domains");
     assert.deepEqual(saves[0], { clientID: saved.clientID, allowedDomains: ["example.co.th", "branch.example"], redirectURI: saved.redirectURI, enabled: true, version: 4 });
     assert.equal(view.state.clientID, "typed.apps.googleusercontent.com");
-    assert.equal(view.state.clientSecret, "", "a typed secret never outlives a save");
+    assert.equal(view.state.clientSecret, "draft", "the domains save sends no secret, so the card's draft stays whole (Codex release review 63)");
     assert.match(view.state.notice, /บันทึกโดเมนแล้ว/);
+    // Then the Google Cloud card: the new client with its own secret.
+    await view.save();
+    assert.deepEqual(saves[1], { clientID: "typed.apps.googleusercontent.com", clientSecret: "draft", allowedDomains: ["example.co.th", "branch.example"], redirectURI: saved.redirectURI, enabled: true, version: 5 });
+    assert.equal(view.state.clientSecret, "", "a typed secret never outlives a save that sent it");
+  } finally { stop(); }
+});
+
+test("another Client ID needs its own secret: the saved one is the old client's (Codex release review 63)", async () => {
+  const { view, saves, stop } = mount(true, saved);
+  try {
+    await view.load();
+    flush();
+    view.set({ clientID: "2-other.apps.googleusercontent.com" });
+    await view.save();
+    assert.equal(saves.length, 0, "nothing is sent");
+    assert.match(view.state.error, /Client secret ของ Client ID ใหม่/);
+    assert.equal(view.state.changingSecret, true, "the secret field opens");
+    view.set({ clientSecret: "other-secret" });
+    await view.save();
+    assert.equal(saves[0].clientID, "2-other.apps.googleusercontent.com");
+    assert.equal(saves[0].clientSecret, "other-secret");
+    // The same client with no secret keeps the saved one, as before.
+    view.set({ clientID: " 2-other.apps.googleusercontent.com " });
+    await view.save();
+    assert.equal("clientSecret" in saves[1], false);
   } finally { stop(); }
 });
 

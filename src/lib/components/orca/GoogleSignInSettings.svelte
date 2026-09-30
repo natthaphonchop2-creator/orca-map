@@ -90,6 +90,13 @@
       error = t("กรอก Client ID จาก Google Cloud ก่อนบันทึก", "Enter the Client ID from Google Cloud before saving.");
       return;
     }
+    // The saved secret is the saved client's: another Client ID needs its own
+    // (the server refuses it too), or every company's Google sign-in breaks.
+    if (scope === "all" && setting.secretConfigured && setting.clientID && clientID.trim() !== setting.clientID && !clientSecret.trim()) {
+      error = t("เปลี่ยน Client ID แล้ว ต้องใส่ Client secret ของ Client ID ใหม่ด้วย", "A new Client ID needs its own Client secret: enter it too.");
+      changingSecret = true;
+      return;
+    }
     const joining = parseDomains(domains);
     const refusal = refusedDomains(joining);
     if (refusal) {
@@ -124,7 +131,9 @@
       error = orcaError(cause);
     } finally {
       busy = false;
-      clientSecret = "";
+      // A typed secret never outlives a save that sent it. The domains save
+      // sends none, so the Google Cloud card's draft stays whole.
+      if (scope === "all") clientSecret = "";
     }
   }
 
