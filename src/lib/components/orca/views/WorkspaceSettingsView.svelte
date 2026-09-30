@@ -29,7 +29,8 @@
 	}: {
 		data: OrcaBootstrap;
 		hub: OrcaHub;
-		onchanged: () => Promise<void>;
+		/** After a save, with the workspace it returned: the tab starts again from it (Codex release review 70). */
+		onchanged: (saved?: OrcaHub) => Promise<void>;
 		/** Unsaved changes here, so the workspace asks before they are lost. */
 		ondirty?: (dirty: boolean) => void;
 	} = $props();
@@ -107,10 +108,10 @@
 		error = '';
 		const pending = $state.snapshot(patch) as Partial<Fields>;
 		try {
-			await saveHubPatch(hub.id, () => pending as Partial<HubInput>, hubWriteService);
+			const result = await saveHubPatch(hub.id, () => pending as Partial<HubInput>, hubWriteService);
 			showToast(t('บันทึกการตั้งค่าแล้ว', 'Settings saved'));
 			attempted = false;
-			await onchanged();
+			await onchanged(result);
 		} catch (cause) {
 			conflict = cause instanceof HubConflictError;
 			error = workspaceWriteError(cause);
@@ -129,10 +130,10 @@
 		statusBusy = true;
 		statusError = '';
 		try {
-			await saveHubPatch(hub.id, () => ({ status }), hubWriteService);
+			const result = await saveHubPatch(hub.id, () => ({ status }), hubWriteService);
 			pauseOpen = false;
 			showToast(status === 'active' ? t('เปิดใช้งานแล้ว', 'Activated') : t('หยุดชั่วคราวแล้ว', 'Paused'));
-			await onchanged();
+			await onchanged(result);
 		} catch (cause) {
 			statusError = workspaceWriteError(cause);
 			pauseOpen = false;

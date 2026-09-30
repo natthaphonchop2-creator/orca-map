@@ -23,7 +23,8 @@
 		data: OrcaBootstrap;
 		hub: OrcaHub;
 		canEdit: boolean;
-		onchanged: () => Promise<void>;
+		/** After a save, with the workspace it returned: the tab starts again from it (Codex release review 70). */
+		onchanged: (saved?: OrcaHub) => Promise<void>;
 		/** Unsaved changes here, so the workspace asks before they are lost. */
 		ondirty?: (dirty: boolean) => void;
 	} = $props();
@@ -94,7 +95,7 @@
 		error = '';
 		const pending = $state.snapshot(change);
 		try {
-			await saveHubPatch(
+			const result = await saveHubPatch(
 				hub.id,
 				(fresh) => ({
 					...membersPatch(fresh, { add: pending.addMembers, remove: pending.removeMembers }),
@@ -103,7 +104,7 @@
 				hubWriteService
 			);
 			showToast(t('บันทึกคนที่ใช้ได้แล้ว', 'People saved'));
-			await onchanged();
+			await onchanged(result);
 		} catch (cause) {
 			conflict = cause instanceof HubConflictError;
 			error = workspaceWriteError(cause);

@@ -27,7 +27,8 @@
 		data: OrcaBootstrap;
 		hub: OrcaHub;
 		canEdit: boolean;
-		onchanged: () => Promise<void>;
+		/** After a save, with the workspace it returned: the tab starts again from it (Codex release review 70). */
+		onchanged: (saved?: OrcaHub) => Promise<void>;
 		/** Unsaved changes here, so the workspace asks before they are lost. */
 		ondirty?: (dirty: boolean) => void;
 		/** &add=: a program just connected (เพิ่มโปรแกรม step 4), turned on here and waiting for บันทึก. */
@@ -103,7 +104,7 @@
 		const pending = $state.snapshot(changes) as Record<string, string[] | null>;
 		try {
 			let approval = false;
-			await saveHubPatch(
+			const result = await saveHubPatch(
 				hub.id,
 				(fresh) => {
 					const patch = programsSavePatch(fresh, pending, data.connections);
@@ -113,7 +114,7 @@
 				hubWriteService
 			);
 			showToast(approval ? t('บันทึกโปรแกรมแล้ว · งานที่สร้างหรือแก้ข้อมูลจะรอผู้ดูแลอนุมัติก่อน', 'Programs saved · changes to data now wait for an admin to approve') : t('บันทึกโปรแกรมแล้ว', 'Programs saved'));
-			await onchanged();
+			await onchanged(result);
 		} catch (cause) {
 			conflict = cause instanceof HubConflictError;
 			error = workspaceWriteError(cause);

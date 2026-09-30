@@ -684,12 +684,17 @@ export function savedToast(
 /** The same address without the save flags, so a reload does not show the toast again; undefined when there are none. */
 /**
  * The workspace a hub's editing tabs work on (Codex release review 64): the
- * newest one, except while a tab has unsaved changes that it did not just
- * save. Then it keeps the version those changes were made on, and a save
- * applies only what was changed on top of the newest (saveHubPatch).
+ * newest one, except while a tab has unsaved changes. Then it keeps the
+ * version those changes were made on, and a save applies only what was
+ * changed on top of the newest (saveHubPatch). Never an older version of the
+ * same workspace: after a tab's own save the tabs start from what the save
+ * returned, and a page copy from before it (its refresh failed) never takes
+ * them back (Codex release review 70).
  */
-export function editorWorkspace<T extends { id: string }>(editing: T, latest: T, unsaved: boolean, ownSave: boolean): T {
-	return latest.id !== editing.id || !unsaved || ownSave ? latest : editing;
+export function editorWorkspace<T extends { id: string; version: number }>(editing: T, latest: T, unsaved: boolean): T {
+	if (latest.id !== editing.id) return latest;
+	if (latest.version < editing.version) return editing;
+	return unsaved ? editing : latest;
 }
 
 export function withoutSavedParams(url: URL): string | undefined {

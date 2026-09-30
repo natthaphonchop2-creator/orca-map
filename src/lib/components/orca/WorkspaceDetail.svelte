@@ -7,7 +7,7 @@
 	import type { OrcaBootstrap, OrcaHub } from '$lib/services/orca';
 	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-workspaces';
 	import { ArrowUpRight, Info, LoaderCircle, Play } from '@lucide/svelte';
-	import { onMount, tick, untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import LifecycleActions from './LifecycleActions.svelte';
 	import ConfirmDialog from './ui/ConfirmDialog.svelte';
 	import PageHeader from './ui/PageHeader.svelte';
@@ -29,12 +29,11 @@
 	const ondirty = (value: boolean) => (dirty = value);
 	// The tabs edit the workspace as it was when they opened. A newer version
 	// (someone else saved, then this page refreshed) replaces them only while
-	// nothing is unsaved, or after their own save; otherwise they keep the
-	// typed changes, saved later on top of the newest version (Codex release
-	// review 64).
+	// nothing is unsaved; otherwise they keep the typed changes, saved later on
+	// top of the newest version (Codex release review 64). After their own
+	// save they start from what it returned (tabChanged).
 	let editorHub = $state(untrack(() => hub));
-	let adopt = false;
-	const changedElsewhere = $derived(editorHub.version !== hub.version && dirty);
+	const changedElsewhere = $derived(hub.version > editorHub.version && dirty);
 	// The editing tabs follow the version they edit: archived elsewhere while
 	// ตั้งค่า has unsaved text, the tab stays until that text is saved or
 	// cancelled (Codex release review 65).
@@ -73,22 +72,21 @@
 		const latest = hub;
 		const unsaved = dirty;
 		untrack(() => {
-			const next = editorWorkspace(editorHub, latest, unsaved, adopt);
-			if (next === latest) adopt = false;
+			const next = editorWorkspace(editorHub, latest, unsaved);
 			if (next !== editorHub) editorHub = next;
 		});
 	});
-	/** After a tab's own save: the next version, from this refresh only, is the one it wrote on. */
-	async function tabChanged() {
-		adopt = true;
+	/**
+	 * After a tab's own save: the tabs start again at once from the workspace
+	 * the save returned, on its new version, whether or not the page's refresh
+	 * then brings it. Undoing the saved change is then a change to save again,
+	 * and the refresh's copy of the same version, or an older one, changes
+	 * nothing typed since (Codex release review 70).
+	 */
+	async function tabChanged(saved?: OrcaHub) {
 		clearAdd();
-		try {
-			await onchanged();
-			await tick();
-		} finally {
-			// A refresh that failed adopts nothing later (Codex release review 65).
-			adopt = false;
-		}
+		if (saved) editorHub = editorWorkspace(editorHub, saved, false);
+		await onchanged();
 	}
 	function clearAdd() {
 		if (!addConnectionID) return;
