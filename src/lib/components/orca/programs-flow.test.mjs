@@ -198,6 +198,24 @@ test('saving again goes on the version this tab saved: a newer program is refuse
 	assert.equal(current, 3);
 });
 
+test('after a reload, saving again goes on the version this tab stored, so a newer program is still refused (Codex release review 65)', async (context) => {
+	const storage = memoryStorage();
+	const first = await setup(context, { props: { step: 'tools' }, storage });
+	await first.view.discover('flow');
+	flush();
+	await first.view.save();
+	assert.match(storage.store.get('orca.addProgram.saved.default'), /"version":1/);
+	// Someone else saved version 2; this tab reloads at step 3 with its draft.
+	const newer = { id: 'saved-1', name: 'FlowAccount (2)', description: '', mcpID: 'flow', enabled: true, toolNames: ['list'], version: 2 };
+	const data = { connections: [{ id: 'old', name: 'FlowAccount', mcpID: 'x' }, newer], hubs: [], members: [], platformOperator: false };
+	const reloaded = await setup(context, { props: { step: 'tools', data }, storage });
+	await reloaded.view.discover('flow');
+	flush();
+	await reloaded.view.save();
+	assert.equal(reloaded.writes[0].id, 'saved-1');
+	assert.equal(reloaded.writes[0].input.version, 1, 'the stored version, not the newest');
+});
+
 test('when storage stops taking writes, saving again still uses the newest version this page knows (Codex release review 66)', async (context) => {
 	const storage = memoryStorage();
 	let current = 0;
