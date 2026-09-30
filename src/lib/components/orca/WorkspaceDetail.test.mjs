@@ -497,3 +497,26 @@ test('the create form waits while the workspace is made and its page opens, so n
 	assert.match(submit, /await onsaved\(saved\);[\s\S]*\} finally \{\s*busy = undefined;/, 'busy until the page opened');
 	assert.match(submit, /serverError = workspaceWriteError\(cause\);\s*focusKey \+= 1;\s*busy = undefined;\s*return;/, 'a refusal frees the form at once');
 });
+
+test('the create form offers a chosen program that was archived or deleted since for removal, so Create and Save draft are never stuck (Codex release review 67)', async () => {
+	const AudiencePicker = await component('./workspace/AudiencePicker.svelte', { PersonPicker: await component('./ui/PersonPicker.svelte') });
+	const Form = await component('./workspace/WorkspaceCreateForm.svelte', { PageHeader, FormSection, ProgramToggleCard, WriteModeChoice, AudiencePicker, FormErrorSummary: await component('./ui/FormErrorSummary.svelte'), OrcaLibraryService: {}, OrcaService: {} });
+	const store = new Map();
+	const sessionStorage = { getItem: (key) => store.get(key) ?? null, setItem: (key, value) => store.set(key, value), removeItem: (key) => store.delete(key) };
+	const kept = { name: 'ฝ่ายบัญชี', description: '', instructions: '', dailyLimit: edit.DEFAULT_DAILY_LIMIT, writeMode: 'approval', programs: { 'conn-drive': ['search_files'], 'conn-archived': ['list'] }, memberIDs: ['u-owner'], accessUnitIDs: [] };
+	const before = globalThis.window;
+	globalThis.window = { sessionStorage };
+	let html;
+	try {
+		edit.saveFormDraft(sessionStorage, 'default', kept);
+		html = htmlOf(Form, { props: { data: company(), onsaved: async () => {} } }).body;
+	} finally {
+		globalThis.window = before;
+	}
+	assert.match(html, /aria-checked="true" aria-label="ใช้ Google Drive ในพื้นที่นี้"|aria-label="ใช้ Google Drive ในพื้นที่นี้"[^>]*aria-checked="true"/, 'the live one stays on');
+	assert.match(html, /class="ws-notice" role="status"[\s\S]*มี 1 โปรแกรมที่เลือกไว้ถูกลบหรือจัดเก็บไปแล้ว[\s\S]*<button type="button" class="k-link-button"[^>]*>เอาออก<\/button>/);
+	html = htmlOf(Form, { props: { data: company(), initialConnectionID: 'conn-drive', onsaved: async () => {} } }).body;
+	assert.doesNotMatch(html, /ถูกลบหรือจัดเก็บไปแล้ว/, 'nothing to remove when every chosen program is live');
+	const source = await readFile(file('./workspace/WorkspaceCreateForm.svelte'), 'utf8');
+	assert.match(source, /for \(const id of gonePrograms\) delete next\[id\];/, 'the button takes off only the vanished ones');
+});

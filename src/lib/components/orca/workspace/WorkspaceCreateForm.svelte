@@ -92,6 +92,10 @@
 
 	const form = $derived<WorkspaceForm>({ name, description, instructions, dailyLimit, writeMode, programs, memberIDs, accessUnitIDs });
 	const readyPrograms = $derived(data.connections.filter((item) => connectionReady(item) || programs[item.id]));
+	// Chosen, then archived or deleted elsewhere (or in a draft kept while a
+	// program was added): no card shows them, so they are offered for removal
+	// (Codex release review 67).
+	const gonePrograms = $derived(Object.keys(programs).filter((id) => !data.connections.some((item) => item.id === id)));
 	const errors = $derived(attempt ? workspaceFormErrors(form, data, attempt, t) : {});
 	const errorList = $derived([
 		...Object.entries(errors).map(([field, message]) => ({ field, message })),
@@ -132,6 +136,13 @@
 			delete next[id];
 			programs = next;
 		} else programs = { ...programs, [id]: allowedNames(id) };
+		edited();
+	}
+	function removeGonePrograms() {
+		if (busy) return;
+		const next = { ...programs };
+		for (const id of gonePrograms) delete next[id];
+		programs = next;
 		edited();
 	}
 	function adjust(id: string) {
@@ -222,6 +233,13 @@
 				<p class="ws-notice" role="status">
 					<Info size={15} aria-hidden="true" />
 					<span>{t('ไม่พบโปรแกรมที่ขอให้เปิด อาจถูกลบหรือจัดเก็บไปแล้ว เลือกจากรายการด้านล่างแทน', "The program you came with wasn't found. It may have been removed. Choose from the list below.")}</span>
+				</p>
+			{/if}
+			{#if gonePrograms.length}
+				<p class="ws-notice" role="status">
+					<Info size={15} aria-hidden="true" />
+					<span>{t(`มี ${gonePrograms.length} โปรแกรมที่เลือกไว้ถูกลบหรือจัดเก็บไปแล้ว`, `${gonePrograms.length} chosen program(s) were removed or archived.`)}
+						<button type="button" class="k-link-button" disabled={!!busy} onclick={removeGonePrograms}>{t('เอาออก', 'Remove')}</button></span>
 				</p>
 			{/if}
 			<div class="ws-programs" id={FORM_FIELDS.programs} tabindex="-1" role="group" aria-labelledby="ws-programs-title" aria-describedby={errors[FORM_FIELDS.programs] ? `${FORM_FIELDS.programs}-error` : undefined}>
