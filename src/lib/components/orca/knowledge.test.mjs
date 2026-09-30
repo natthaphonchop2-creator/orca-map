@@ -34,6 +34,8 @@ test('every knowledge component compiles without warnings, and none keeps the ol
 	}
 	const page = await readFile(new URL('./KnowledgeLibrary.svelte', import.meta.url), 'utf8');
 	assert.doesNotMatch(page, /LibraryDepartments|library\.css/, 'departments are edited in ทีม; the page no longer uses library.css');
+	// A workspace opened by itself stays pinned for the page, so a refresh never swaps it under a draft (Codex release review 66).
+	assert.match(page, /if \(id !== contextID\) \{\s*contextID = id;[\s\S]*?if \(id && !hubID\) remembered = id;/);
 });
 
 const PageHeader = (await serverComponent(new URL('./ui/PageHeader.svelte', import.meta.url), {})).Component;

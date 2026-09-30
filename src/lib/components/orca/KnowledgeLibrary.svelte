@@ -96,6 +96,10 @@
 		untrack(() => {
 			if (id !== contextID) {
 				contextID = id;
+				// A workspace opened by itself stays open for this page: a refresh
+				// that sorts another first never swaps it under a draft (Codex
+				// release review 66). The saved choice is not changed.
+				if (id && !hubID) remembered = id;
 				requestNumber += 1;
 				items = [];
 				members = [];

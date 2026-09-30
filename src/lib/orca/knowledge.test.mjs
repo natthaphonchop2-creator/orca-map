@@ -34,6 +34,11 @@ test('the library opens the only workspace, the remembered one, or the first act
 	assert.equal(several.hub.id, 'บัญชี');
 	assert.equal(k.libraryScope({ hubs: [draft, sales, accounts], currentUserID: 'me', canManage: false, rememberedID: sales.id }).hub.id, sales.id);
 	assert.equal(k.libraryScope({ hubs: [sales, accounts], currentUserID: 'me', canManage: false, rememberedID: 'gone' }).hub.id, 'บัญชี');
+	// The workspace the page opened by itself stays open when another sorts first:
+	// paused later, it is still one to write in (Codex release review 66).
+	const pausedSales = { ...sales, status: 'paused' };
+	assert.equal(k.libraryScope({ hubs: [pausedSales, accounts], currentUserID: 'me', canManage: false }).hub.id, 'บัญชี', 'by itself, an active one first');
+	assert.equal(k.libraryScope({ hubs: [pausedSales, accounts], currentUserID: 'me', canManage: false, rememberedID: sales.id }).hub.id, sales.id, 'pinned, it stays');
 	// Membership through a department counts (the server resolves it).
 	assert.equal(k.libraryScope({ hubs: [hub('d', { memberIDs: [], effectiveMemberIDs: ['me'] })], currentUserID: 'me', canManage: false }).kind, 'hub');
 	// Archived workspaces never open.
