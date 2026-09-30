@@ -25,6 +25,8 @@
 	let companiesError = $state('');
 	let pilotsError = $state('');
 	let googleError = $state('');
+	// The catalog only adds a to-do, but an unknown one is not "nothing waiting" (Codex release review 65).
+	let catalogFailed = $state(false);
 	let usage = $state<OrcaPlatformUsage>();
 	let usageError = $state('');
 	const counts = $derived(platformCounts(companies ?? [], pilots ?? []));
@@ -53,6 +55,7 @@
 
 	async function load() {
 		companiesError = pilotsError = googleError = '';
+		catalogFailed = false;
 		await Promise.all([
 			loadUsage(),
 			OrcaService.platformCompanies().then((items) => (companies = items), (cause) => (companiesError = orcaError(cause))),
@@ -63,7 +66,8 @@
 			OrcaService.candidates().then(
 				(items) => (catalog = items),
 				() => {
-					/* Advisory: the catalog page shows its own error. */
+					// The catalog page shows its own error; here it only holds back the all-clear.
+					catalogFailed = true;
 				}
 			)
 		]);
@@ -169,11 +173,11 @@
 				</li>
 			{/each}
 		</ul>
-	{:else if !(companiesError || pilotsError || googleError)}
+	{:else if !(companiesError || pilotsError || googleError || catalogFailed)}
 		<!-- Only when every read answered: a failed one proves nothing (Codex release review 64). -->
 		<p class="overview-clear"><Check size={17} aria-hidden="true" />{t('ไม่มีงานค้าง ทุกบริษัทมีเจ้าของและปุ่ม Google เปิดอยู่', 'Nothing waiting. Every company has an owner and Google sign-in is on.')}</p>
 	{/if}
-	{#if companiesError || pilotsError || googleError}
+	{#if companiesError || pilotsError || googleError || catalogFailed}
 		<p class="overview-error" role="alert">{t('โหลดข้อมูลบางส่วนไม่สำเร็จ', "Some of this couldn't load.")} <button type="button" class="k-link-button" onclick={load}>{t('ลองอีกครั้ง', 'Try again')}</button></p>
 	{/if}
 </section>

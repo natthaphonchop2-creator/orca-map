@@ -181,7 +181,7 @@ async function overviewHarness() {
 	const { harness } = await import(
 		'data:text/javascript;base64,' +
 			Buffer.from(
-				compileModule(`export function harness(testProps, deps) { const { ${names.join(', ')} } = deps; ${script}; return { load, loadUsage, get state() { return { tiles, usage, usageError, companiesError, googleError }; } }; }`, {
+				compileModule(`export function harness(testProps, deps) { const { ${names.join(', ')} } = deps; ${script}; return { load, loadUsage, get state() { return { tiles, usage, usageError, companiesError, googleError, catalogFailed }; } }; }`, {
 					filename: 'overview.harness.svelte.js',
 					generate: 'client'
 				}).js.code.replaceAll('svelte/internal/client', internal)
@@ -241,7 +241,9 @@ test('a usage failure leaves the overview\'s other numbers alone, a retry reload
 	const source = await readFile(files.overview, 'utf8');
 	assert.match(source, /<PlatformUsage \{usage\} error=\{usageError\} onretry=\{loadUsage\} \/>/);
 	// "Nothing waiting" only when every read answered: a failed one proves nothing (Codex release review 64).
-	assert.match(source, /\{:else if !\(companiesError \|\| pilotsError \|\| googleError\)\}\s*<!--[^>]*-->\s*<p class="overview-clear">/);
+	assert.match(source, /\{:else if !\(companiesError \|\| pilotsError \|\| googleError \|\| catalogFailed\)\}\s*<!--[^>]*-->\s*<p class="overview-clear">/);
+	assert.match(source, /\{#if companiesError \|\| pilotsError \|\| googleError \|\| catalogFailed\}\s*<p class="overview-error"/, 'and says what failed');
+	assert.match(source, /\(\) => \{\s*\/\/[^\n]*\n\s*catalogFailed = true;/);
 });
 
 test('only the newest usage load counts: an older answer that lands later changes nothing', async () => {
@@ -303,4 +305,17 @@ test('only the platform overview calls the usage service, and the platform area 
 	assert.match(view, /\{:else\}<PlatformOverview canReviewPilotRequests=/);
 	const page = await readFile(new URL('../../../routes/app/+page.svelte', import.meta.url), 'utf8');
 	assert.match(page, /\{:else if view === "platform" && data\.platformOperator\}/);
+});
+
+test('a failed catalog read holds back "nothing waiting", and a good reload clears it (Codex release review 65)', async () => {
+	let fail = true;
+	const view = (await overviewHarness())(
+		{ platformCompanies: async () => overviewCompanies, candidates: async () => { if (fail) throw new Error('catalog failed'); return []; } },
+		{ usage: async () => usageModule.platformUsage(answer) }
+	);
+	await view.load();
+	assert.equal(view.state.catalogFailed, true);
+	fail = false;
+	await view.load();
+	assert.equal(view.state.catalogFailed, false);
 });
