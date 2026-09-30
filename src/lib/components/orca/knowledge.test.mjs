@@ -252,3 +252,17 @@ test('the side: "เชื่อม AI ของฉัน" only when my AI is no
 	assert.match(on, /ถามใน Claude เพื่อเช็กว่า AI ตอบถูก/);
 	assert.doesNotMatch(render(Component, { props: { item: article, ask: false, connected: true } }).body, /ลองถาม AI/);
 });
+
+test('"ดูฉบับล่าสุด" loads the latest copy through the page, so its people, departments and articles come fresh with it (Codex release review 69)', async () => {
+	const editor = await readFile(new URL('./LibraryEditor.svelte', import.meta.url), 'utf8');
+	const review = editor.slice(editor.indexOf('async function reviewLatest()'), editor.indexOf('function useLatest()'));
+	assert.match(review, /const access = await onrecheck\(\);/, 'the page reloads its lists');
+	assert.match(review, /if \(access === 'denied'\) \{\s*ondenied\(\);/);
+	assert.match(review, /latest = items\.find\(\(item\) => item\.id === itemID && item\.canEdit\);/, 'the latest copy comes from the fresh list');
+	assert.doesNotMatch(review, /OrcaLibraryService\.load/, 'never a side read that leaves the lists stale');
+	const use = editor.slice(editor.indexOf('function useLatest()'), editor.indexOf('function keepMine()'));
+	assert.match(use, /const known = new Set\(memberIDs\);/, 'recipients are kept against the fresh member list');
+	const page = await readFile(new URL('./KnowledgeLibrary.svelte', import.meta.url), 'utf8');
+	assert.match(page, /items = result\.items;\s*members = result\.members;\s*departments = result\.departments;/, 'the page\'s recheck refreshes all three lists');
+	assert.match(page, /onrecheck=\{recheck\}/);
+});

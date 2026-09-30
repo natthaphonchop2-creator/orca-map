@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
 	import { ArrowLeft, ChevronRight, Info, TriangleAlert } from '@lucide/svelte';
-	import { getHttpStatusCode, parseErrorContent } from '$lib/errors';
+	import { parseErrorContent } from '$lib/errors';
 	import {
 		LIBRARY_CONTENT_MAX,
 		LIBRARY_SUMMARY_MAX,
@@ -253,17 +253,24 @@
 		if (!itemID || loadingLatest) return;
 		loadingLatest = true;
 		try {
-			const result = await OrcaLibraryService.load(hub.id);
-			latest = result.items.find((item) => item.id === itemID && item.canEdit);
+			// Through the page, so its people, departments and articles come
+			// fresh with the latest copy: "ใช้ฉบับล่าสุด" then keeps everyone that
+			// copy is shared with, and the articles it reads (Codex release review 69).
+			const access = await onrecheck();
+			if (access === 'denied') {
+				ondenied();
+				return;
+			}
+			if (access !== 'open') {
+				error = t('โหลดฉบับล่าสุดไม่สำเร็จ ลองอีกครั้ง', "Couldn't load the latest copy. Try again.");
+				return;
+			}
+			latest = items.find((item) => item.id === itemID && item.canEdit);
 			if (!latest) {
 				ondenied();
 				return;
 			}
 			latestOpen = true;
-		} catch (cause) {
-			const code = getHttpStatusCode(cause);
-			if (code === 403 || code === 404) ondenied();
-			else error = orcaError(cause);
 		} finally {
 			loadingLatest = false;
 		}
