@@ -240,6 +240,8 @@ test('a usage failure leaves the overview\'s other numbers alone, a retry reload
 	assert.deepEqual(view.state.tiles.map((tile) => [tile.value, tile.detail]).slice(0, 2), [['1', 'มีเจ้าของแล้ว 1'], ['5', 'รวมทุกบริษัทลูกค้า']]);
 	const source = await readFile(files.overview, 'utf8');
 	assert.match(source, /<PlatformUsage \{usage\} error=\{usageError\} onretry=\{loadUsage\} \/>/);
+	// "Nothing waiting" only when every read answered: a failed one proves nothing (Codex release review 64).
+	assert.match(source, /\{:else if !\(companiesError \|\| pilotsError \|\| googleError\)\}\s*<!--[^>]*-->\s*<p class="overview-clear">/);
 });
 
 test('only the newest usage load counts: an older answer that lands later changes nothing', async () => {

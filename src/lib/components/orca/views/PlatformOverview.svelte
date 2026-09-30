@@ -169,7 +169,8 @@
 				</li>
 			{/each}
 		</ul>
-	{:else}
+	{:else if !(companiesError || pilotsError || googleError)}
+		<!-- Only when every read answered: a failed one proves nothing (Codex release review 64). -->
 		<p class="overview-clear"><Check size={17} aria-hidden="true" />{t('ไม่มีงานค้าง ทุกบริษัทมีเจ้าของและปุ่ม Google เปิดอยู่', 'Nothing waiting. Every company has an owner and Google sign-in is on.')}</p>
 	{/if}
 	{#if companiesError || pilotsError || googleError}
