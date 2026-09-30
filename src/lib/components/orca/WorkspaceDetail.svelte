@@ -3,11 +3,11 @@
 	import { page } from '$app/state';
 	import { gatewayMemberIDs, gatewaySources } from '$lib/orca/gateway-sources';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
-	import { saveHubPatch, savedToast, withoutSavedParams } from '$lib/orca/workspace-edit';
+	import { editorWorkspace, saveHubPatch, savedToast, withoutSavedParams } from '$lib/orca/workspace-edit';
 	import type { OrcaBootstrap, OrcaHub } from '$lib/services/orca';
 	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-workspaces';
 	import { ArrowUpRight, Info, LoaderCircle, Play } from '@lucide/svelte';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import LifecycleActions from './LifecycleActions.svelte';
 	import ConfirmDialog from './ui/ConfirmDialog.svelte';
 	import PageHeader from './ui/PageHeader.svelte';
@@ -51,6 +51,28 @@
 	// the workspace or closing the page asks first (Codex release review 63).
 	let dirty = $state(false);
 	const ondirty = (value: boolean) => (dirty = value);
+	// The tabs edit the workspace as it was when they opened. A newer version
+	// (someone else saved, then this page refreshed) replaces them only while
+	// nothing is unsaved, or after their own save; otherwise they keep the
+	// typed changes, saved later on top of the newest version (Codex release
+	// review 64).
+	let editorHub = $state(untrack(() => hub));
+	let adopt = false;
+	const changedElsewhere = $derived(editorHub.version !== hub.version && dirty);
+	$effect(() => {
+		const latest = hub;
+		const unsaved = dirty;
+		untrack(() => {
+			const next = editorWorkspace(editorHub, latest, unsaved, adopt);
+			if (next === latest) adopt = false;
+			if (next !== editorHub) editorHub = next;
+		});
+	});
+	/** After a tab's own save: the next version is the one it wrote on. */
+	async function tabChanged() {
+		adopt = true;
+		await onchanged();
+	}
 	let leaveOpen = $state(false);
 	let leaveTo: URL | undefined;
 	let leaving = false;
@@ -138,10 +160,12 @@
 	<a class="hub-activity" href={localeHref(`/app?view=executions&hub=${encodeURIComponent(hub.id)}`)}>{t('ประวัติการใช้งาน', 'Activity')}<ArrowUpRight size={14} aria-hidden="true" /></a>
 </nav>
 
-{#key `${hub.id}:${hub.version}`}
-	{#if activeTab === 'programs'}<WorkspaceProgramsTab {data} {hub} {canEdit} {onchanged} {ondirty} {addConnectionID} />
-	{:else if activeTab === 'people'}<WorkspacePeopleTab {data} {hub} {canEdit} {onchanged} {ondirty} />
-	{:else if activeTab === 'settings'}<WorkspaceSettingsView {data} {hub} {onchanged} {ondirty} />
+{#if changedElsewhere}<div class="hub-note" role="status"><Info size={18} aria-hidden="true" /><p>{t('มีคนแก้พื้นที่นี้ระหว่างที่คุณแก้อยู่ สิ่งที่คุณแก้ยังอยู่ กดบันทึกแล้วจะลงบนฉบับล่าสุด หรือยกเลิกเพื่อดูฉบับล่าสุด', 'Someone changed this workspace while you were editing. Your changes are still here: save them on top of the newest version, or cancel to see it.')}</p></div>{/if}
+
+{#key `${editorHub.id}:${editorHub.version}`}
+	{#if activeTab === 'programs'}<WorkspaceProgramsTab {data} hub={editorHub} {canEdit} onchanged={tabChanged} {ondirty} {addConnectionID} />
+	{:else if activeTab === 'people'}<WorkspacePeopleTab {data} hub={editorHub} {canEdit} onchanged={tabChanged} {ondirty} />
+	{:else if activeTab === 'settings'}<WorkspaceSettingsView {data} hub={editorHub} onchanged={tabChanged} {ondirty} />
 	{:else}<WorkspaceOverviewTab {data} {hub} {created} {tabHref} />{/if}
 {/key}
 
@@ -158,7 +182,8 @@
 
 <style>
 	.hub-alert,
-	.hub-archived {
+	.hub-archived,
+	.hub-note {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
@@ -177,11 +202,13 @@
 	.hub-alert > :global(svg) {
 		color: var(--orca-deny);
 	}
-	.hub-archived > :global(svg) {
+	.hub-archived > :global(svg),
+	.hub-note > :global(svg) {
 		color: var(--orca-text-2);
 	}
 	.hub-alert p,
-	.hub-archived p {
+	.hub-archived p,
+	.hub-note p {
 		flex: 1 1 280px;
 		margin: 0;
 		font-size: 14px;

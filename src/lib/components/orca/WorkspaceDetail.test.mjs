@@ -309,7 +309,7 @@ test('a tab with unsaved changes asks before another tab, another page or closin
 	const require = createRequire(import.meta.url);
 	const code = compileModule(
 		`export function harness(testProps, deps) {
-			const { beforeNavigate, goto, replaceState, page, gatewayMemberIDs, gatewaySources, localeHref, t, saveHubPatch, savedToast, withoutSavedParams, hubWriteService, workspaceWriteError, onMount, showToast } = deps;
+			const { beforeNavigate, goto, replaceState, page, gatewayMemberIDs, gatewaySources, localeHref, t, editorWorkspace, saveHubPatch, savedToast, withoutSavedParams, hubWriteService, workspaceWriteError, onMount, untrack, showToast } = deps;
 			${script}
 			return { ondirty, leave, activate, get state() { return { dirty, leaveOpen }; } };
 		}`,
@@ -372,4 +372,21 @@ test('each tab reports its unsaved changes, and pause, activate, archive and del
 	assert.equal(settings.match(/disabled=\{statusBusy \|\| dirty\}/g)?.length, 2, 'pause and activate');
 	assert.match(settings, /<LifecycleActions [^>]*canManage=\{data\.canManage && !dirty\}/, 'archive and delete');
 	assert.match(settings, /if \(statusBusy \|\| dirty\) return;/);
+});
+
+test('a newer version replaces the tabs only while nothing is unsaved, or after their own save (Codex release review 64)', async () => {
+	const v4 = { id: 'hub-one', version: 4 };
+	const v5 = { id: 'hub-one', version: 5 };
+	const other = { id: 'hub-two', version: 1 };
+	assert.equal(edit.editorWorkspace(v4, v5, false, false), v5, 'nothing typed: the newest');
+	assert.equal(edit.editorWorkspace(v4, v5, true, false), v4, 'typed changes stay on the version they were made on');
+	assert.equal(edit.editorWorkspace(v4, v5, true, true), v5, 'after the tab\'s own save: the version it wrote');
+	assert.equal(edit.editorWorkspace(v4, other, true, false), other, 'another workspace is never kept');
+	const detail = await readFile(file('./WorkspaceDetail.svelte'), 'utf8');
+	assert.match(detail, /\{#key `\$\{editorHub\.id\}:\$\{editorHub\.version\}`\}/);
+	for (const tab of ['WorkspaceProgramsTab', 'WorkspacePeopleTab', 'WorkspaceSettingsView'])
+		assert.match(detail, new RegExp(`<${tab} [^>]*hub=\\{editorHub\\}[^>]*onchanged=\\{tabChanged\\}`), tab);
+	assert.match(detail, /<WorkspaceOverviewTab \{data\} \{hub\}/, 'ภาพรวม always reads the newest');
+	assert.match(detail, /const next = editorWorkspace\(editorHub, latest, unsaved, adopt\);/);
+	assert.match(detail, /async function tabChanged\(\) \{\s*adopt = true;\s*await onchanged\(\);/);
 });

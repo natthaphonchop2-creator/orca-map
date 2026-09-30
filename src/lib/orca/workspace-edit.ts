@@ -677,6 +677,16 @@ export function savedToast(
 }
 
 /** The same address without the save flags, so a reload does not show the toast again; undefined when there are none. */
+/**
+ * The workspace a hub's editing tabs work on (Codex release review 64): the
+ * newest one, except while a tab has unsaved changes that it did not just
+ * save. Then it keeps the version those changes were made on, and a save
+ * applies only what was changed on top of the newest (saveHubPatch).
+ */
+export function editorWorkspace<T extends { id: string }>(editing: T, latest: T, unsaved: boolean, ownSave: boolean): T {
+	return latest.id !== editing.id || !unsaved || ownSave ? latest : editing;
+}
+
 export function withoutSavedParams(url: URL): string | undefined {
 	if (!SAVED_PARAMS.some((key) => url.searchParams.has(key))) return undefined;
 	const next = new URL(url.href);
