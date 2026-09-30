@@ -167,8 +167,9 @@
 	/**
 	 * The selection when step 3 opens: this tab's draft for the program, else
 	 * the program this tab already saved from it (Back from step 4 after a
-	 * reload: its saved name, note and ticks, Codex release review 66), else the
-	 * read-only start.
+	 * reload: its saved name, note and ticks, Codex release review 66; when the
+	 * program no longer offers any of its ticks, nothing is ticked, to review,
+	 * Codex release review 67), else the read-only start.
 	 */
 	function applySelection(id: string, found: ProgramTool[]) {
 		const draft = readDraft(storage(), key, id);
@@ -184,10 +185,10 @@
 			selected = savedSelection(found, draft.toolNames).filter((tool) => selectableUnder(nextPreset, found.find((item) => item.name === tool)!));
 			name = draft.name || base;
 			note = draft.note;
-		} else if (already && resumed.length) {
+		} else if (already) {
 			selected = resumed;
 			preset = presetFor(selected, found);
-			name = already.name;
+			name = already.name || base;
 			note = already.scopeNote ?? '';
 		} else {
 			preset = initialPreset(found);
@@ -303,6 +304,10 @@
 		saved = latest;
 		selected = savedSelection(tools, latest.toolNames);
 		preset = presetFor(selected, tools);
+		// Its name and note too: saving again never puts back ones this page
+		// never showed (Codex release review 67).
+		name = latest.name;
+		note = latest.scopeNote ?? '';
 		saveError = t(
 			'มีคนแก้โปรแกรมนี้หลังจากคุณบันทึก หน้านี้แสดงฉบับล่าสุดแล้ว ตรวจแล้วบันทึกอีกครั้ง',
 			'Someone changed this program after you saved it. This shows the newest version now: check it, then save again.'

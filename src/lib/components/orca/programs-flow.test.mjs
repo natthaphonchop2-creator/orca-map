@@ -136,7 +136,7 @@ test('Back from step 4 and a reload at step 3 update the program already saved; 
 	assert.equal(first.writes[0].id, undefined, 'the first save creates the program');
 	assert.ok(storage.store.get('orca.addProgram.saved.default'), 'this tab remembers what it saved');
 	// The reload: the page's own memory is gone, the company data now has the program.
-	const savedProgram = { id: 'saved-1', name: 'FlowAccount (2)', description: '', mcpID: 'flow', enabled: true, version: 1 };
+	const savedProgram = { id: 'saved-1', name: 'FlowAccount (2)', description: '', mcpID: 'flow', enabled: true, toolNames: ['list', 'get'], version: 1 };
 	const data = { connections: [{ id: 'old', name: 'FlowAccount', mcpID: 'x' }, savedProgram], hubs: [], members: [], platformOperator: false };
 	const reloaded = await setup(context, { props: { step: 'tools', data }, storage });
 	await reloaded.view.discover('flow');
@@ -262,6 +262,61 @@ test('Back to step 3 after a reload, with no draft left, starts from the program
 	await back.view.save();
 	assert.equal(back.writes[0].id, 'saved-1');
 	assert.deepEqual(back.writes[0].input.toolNames, ['list', 'email'], 'nothing it saved is overwritten by the defaults');
+});
+
+test('Back to step 3 when the program no longer offers anything it saved: its name and note stay, nothing is ticked, and nothing is saved until reviewed (Codex release review 67)', async (context) => {
+	const storage = memoryStorage();
+	const first = await setup(context, { props: { step: 'tools' }, storage });
+	await first.view.discover('flow');
+	first.view.set({ preset: 'write', selected: ['create'], name: 'บัญชีของเรา', note: 'เฉพาะฝ่ายบัญชี' });
+	flush();
+	await first.view.save();
+	const savedProgram = { id: 'saved-1', name: 'บัญชีของเรา', description: '', mcpID: 'flow', enabled: true, scopeNote: 'เฉพาะฝ่ายบัญชี', toolNames: ['create'], version: 1 };
+	const data = { connections: [{ id: 'old', name: 'FlowAccount', mcpID: 'x' }, savedProgram], hubs: [], members: [], platformOperator: false };
+	// The provider dropped "create": only read tools are offered now.
+	const back = await setup(context, { props: { step: 'tools', data }, storage, service: { discover: async () => [definition('list', true), definition('get', true)] } });
+	await back.view.discover('flow');
+	flush();
+	assert.deepEqual(back.view.state.selected, [], 'no default ticks in place of the saved ones');
+	assert.equal(back.view.state.name, 'บัญชีของเรา');
+	assert.equal(back.view.state.note, 'เฉพาะฝ่ายบัญชี');
+	await back.view.save();
+	assert.equal(back.writes.length, 0, 'nothing saved before a tick is chosen');
+	assert.equal(back.view.state.saveError, 'ติ๊กอย่างน้อย 1 อย่าง');
+	back.view.set({ selected: ['list'] });
+	await back.view.save();
+	assert.equal(back.writes[0].id, 'saved-1');
+	assert.equal(back.writes[0].input.name, 'บัญชีของเรา');
+	assert.equal(back.writes[0].input.version, 1);
+});
+
+test('a refused save shows the newer program whole: its name and note too, so saving again never puts back ones this page never showed (Codex release review 67)', async (context) => {
+	const storage = memoryStorage();
+	let current = 0;
+	const writes = [];
+	const save = async (input, id) => {
+		writes.push({ input, id });
+		if (id && input.version !== current) throw Object.assign(new Error('someone else changed this program'), { status: 409 });
+		current += 1;
+		return { ...input, id: 'saved-1', version: current };
+	};
+	const { view } = await setup(context, { props: { step: 'tools' }, service: { save }, storage });
+	await view.discover('flow');
+	view.set({ name: 'FlowAccount บัญชี', note: 'ของเรา' });
+	flush();
+	await view.save();
+	// Another admin renames it and changes the note (version 2).
+	current = 2;
+	view.setConnections([{ id: 'old', name: 'FlowAccount', mcpID: 'x' }, { id: 'saved-1', name: 'FlowAccount ฝ่ายขาย', description: '', mcpID: 'flow', enabled: true, scopeNote: 'ฝ่ายขายเท่านั้น', toolNames: ['list'], version: 2 }]);
+	flush();
+	await view.save();
+	assert.equal(writes[1].input.version, 1, 'refused once');
+	assert.equal(view.state.name, 'FlowAccount ฝ่ายขาย', 'the newer name is shown');
+	assert.equal(view.state.note, 'ฝ่ายขายเท่านั้น', 'the newer note is shown');
+	await view.save();
+	assert.equal(writes[2].input.version, 2);
+	assert.equal(writes[2].input.name, 'FlowAccount ฝ่ายขาย', 'the other admin\'s name is kept');
+	assert.equal(writes[2].input.scopeNote, 'ฝ่ายขายเท่านั้น', 'and their note');
 });
 
 test('the server\'s B3 refusal reads in Thai', async (context) => {
