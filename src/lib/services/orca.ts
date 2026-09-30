@@ -225,6 +225,8 @@ export interface OrcaApproval {
   note?: string;
   result?: string;
   errorCategory?: string;
+  /** Runs so far: 1 at approval, one more for each retry of a LINE write (design §14l). */
+  attempts?: number;
 }
 
 /** A company's managers invite employees and admins. */
@@ -603,6 +605,8 @@ export const OrcaService = {
   approveRequest: (id: string) => doPost(orcaPath(`/approvals/${part(id)}/approve`), {}, options) as Promise<OrcaApproval>,
   rejectRequest: (id: string, note: string) =>
     doPost(orcaPath(`/approvals/${part(id)}/reject`), { note }, options) as Promise<OrcaApproval>,
+  /** Runs an approved LINE write again with the same retry key, after LINE didn't answer (design §14l). */
+  retryRequest: (id: string) => doPost(orcaPath(`/approvals/${part(id)}/retry`), {}, options) as Promise<OrcaApproval>,
   connectionHealth: () =>
     doGet(orcaPath("/connections/health"), options) as Promise<{ since: string; items: OrcaConnectionHealth[] }>,
   /** Metadata only; administrators revoke a leaver's keys and AI app sign-ins here. */

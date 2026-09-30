@@ -4,6 +4,7 @@
     auditDuration,
     type AuditErrorCategory,
   } from "$lib/orca/audit-details";
+  import { failureText } from "$lib/orca/approvals";
   import { orcaLocale, t } from "$lib/orca/locale.svelte";
   import { displayDate, type OrcaAuditEvent } from "$lib/services/orca";
   import { Copy } from "@lucide/svelte";
@@ -49,6 +50,12 @@
       "โปรแกรมตอบกลับในรูปแบบที่อ่านไม่ได้",
       "The program sent a response ORCA could not read",
     ),
+    // LINE's fixed errors read as on the approval (design §14l).
+    ...Object.fromEntries(
+      (["audit_unconfirmed", "provider_token", "provider_access", "provider_not_found", "provider_rejected", "provider_quota", "provider_rate_limited", "recipient_mismatch", "unknown_outcome", "approval_required"] as const).map(
+        (category) => [category, failureText(category, orcaLocale.value === "en" ? "en" : "th")],
+      ),
+    ) as Record<"audit_unconfirmed" | "provider_token" | "provider_access" | "provider_not_found" | "provider_rejected" | "provider_quota" | "provider_rate_limited" | "recipient_mismatch" | "unknown_outcome" | "approval_required", string>,
     unknown: t(
       "ประวัตินี้ไม่ได้บอกสาเหตุ",
       "The cause is not available in this record",

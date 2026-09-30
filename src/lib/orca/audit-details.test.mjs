@@ -96,3 +96,9 @@ test("details only expose validated hashes, numeric metadata and allowlisted err
     );
   }
 });
+test("LINE's fixed error categories keep their own name in the activity log (design §14l)", () => {
+  for (const category of ["audit_unconfirmed", "provider_token", "provider_access", "provider_not_found", "provider_rejected", "provider_quota", "provider_rate_limited", "recipient_mismatch", "unknown_outcome", "approval_required"]) {
+    assert.equal(auditDetailValues({ errorCategory: category }).errorCategory, category);
+  }
+  assert.equal(auditDetailValues({ errorCategory: "provider_something_else" }).errorCategory, "unknown");
+});
