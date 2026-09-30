@@ -152,7 +152,7 @@ export const RETRY_CATEGORIES = ['unknown_outcome', 'audit_unconfirmed', 'timeou
 export const RETRY_WINDOW_MS = 23 * 60 * 60 * 1000;
 export const MAX_RUNS = 4;
 
-type ApprovalLike = Pick<OrcaApproval, 'id' | 'connectionID' | 'toolName' | 'status'> & Partial<Pick<OrcaApproval, 'arguments' | 'decidedAt' | 'errorCategory' | 'attempts' | 'retryable' | 'sameApprovedAt'>>;
+type ApprovalLike = Pick<OrcaApproval, 'id' | 'connectionID' | 'toolName' | 'status'> & Partial<Pick<OrcaApproval, 'arguments' | 'result' | 'decidedAt' | 'errorCategory' | 'attempts' | 'retryable' | 'sameApprovedAt' | 'redacted'>>;
 type ConnectionLike = { id: string; mcpID: string };
 
 export type LineSend = {
@@ -173,9 +173,9 @@ export function isLineWrite(item: ApprovalLike, connections: readonly Connection
 	return lineWrites.includes(item.toolName) && lineConnection(item, connections);
 }
 
-/** A LINE send's message and recipient, or undefined for anything else. */
+/** A LINE send's message and recipient, or undefined for anything else, or once its details are deleted. */
 export function lineSend(item: ApprovalLike, connections: readonly ConnectionLike[]): LineSend | undefined {
-	if (!lineSends.includes(item.toolName) || !lineConnection(item, connections) || !isRecord(item.arguments)) return undefined;
+	if (approvalRedacted(item) || !lineSends.includes(item.toolName) || !lineConnection(item, connections) || !isRecord(item.arguments)) return undefined;
 	const args = item.arguments;
 	if (typeof args.text !== 'string') return undefined;
 	const silent = args.notificationDisabled === true;
@@ -188,6 +188,42 @@ export function lineSend(item: ApprovalLike, connections: readonly ConnectionLik
 		recipientShort: userId.length > 9 ? `${userId.slice(0, 5)}…${userId.slice(-4)}` : userId,
 		silent
 	};
+}
+
+// ---------------------------------------------------------------------------
+// 30 days after the decision the server deletes a request's arguments and
+// result, for every approval (design §14l, owner decision 1). The request, its
+// outcome and the activity log stay; the card says why the details are gone.
+
+/** What a card shows in place of a deleted request's message and details. */
+export const REDACTED_NOTE: readonly [string, string] = ['ลบรายละเอียดแล้วหลัง 30 วัน', 'Details deleted after 30 days'];
+
+/** The server's word that this request's details were deleted. */
+export function approvalRedacted(item: Pick<ApprovalLike, 'redacted'>): boolean {
+	return item.redacted === true;
+}
+
+export type ApprovalBody =
+	| { kind: 'redacted' }
+	| { kind: 'line'; send: LineSend }
+	| { kind: 'fields'; entries: [string, string][] }
+	| { kind: 'none' };
+
+/**
+ * What a card shows under its title: the note once the details are deleted,
+ * a LINE send as customers read it, or the arguments as labelled fields.
+ */
+export function approvalBody(item: ApprovalLike, connections: readonly ConnectionLike[], inputSchema?: unknown, locale: 'th' | 'en' = 'th'): ApprovalBody {
+	if (approvalRedacted(item)) return { kind: 'redacted' };
+	const send = lineSend(item, connections);
+	if (send) return { kind: 'line', send };
+	const entries = argumentEntries(item.arguments, inputSchema, locale);
+	return entries.length ? { kind: 'fields', entries } : { kind: 'none' };
+}
+
+/** The program's result as it answered, never once the details are deleted. */
+export function approvalResult(item: ApprovalLike): string | undefined {
+	return approvalRedacted(item) ? undefined : item.result || undefined;
 }
 
 const decided = (item: ApprovalLike) => (item.decidedAt ? Date.parse(item.decidedAt) : Number.NaN);

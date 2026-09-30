@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { approvalTone, argumentEntries, argumentLabel, canRetry, failureText, hubAsksApproval, isLineWrite, LINE_SOURCE, lineSend, pendingApprovals, sameSendApprovedAt } from "./approvals.ts";
+import { approvalBody, approvalRedacted, approvalResult, approvalTone, argumentEntries, argumentLabel, canRetry, failureText, hubAsksApproval, isLineWrite, LINE_SOURCE, lineSend, pendingApprovals, REDACTED_NOTE, sameSendApprovedAt } from "./approvals.ts";
 
 test("each status has one tone", () => {
   assert.deepEqual(["pending", "running", "succeeded", "failed", "rejected", "expired"].map(approvalTone), ["waiting", "waiting", "ok", "bad", "muted", "muted"]);
@@ -121,4 +121,35 @@ test("members see their requests wherever a LINE write waits, even in a workspac
   assert.equal(hubAsksApproval({ status: "active", writeMode: "direct", sources: [{ connectionID: "c-line", toolNames: ["line_profile_get"] }] }, line), false, "reads only");
   assert.equal(hubAsksApproval({ status: "active", writeMode: "direct", sources: [{ connectionID: "c-remote", toolNames: ["line_broadcast_text"] }] }, line), false);
   assert.equal(hubAsksApproval({ status: "archived", writeMode: "approval", sources: [] }, line), false);
+});
+
+// Owner decision 1 of design §14l: 30 days after the decision the server
+// deletes every request's arguments and result, and says so with redacted.
+test("a request whose details were deleted says so instead of its message, fields or result", () => {
+  assert.deepEqual(REDACTED_NOTE, ["ลบรายละเอียดแล้วหลัง 30 วัน", "Details deleted after 30 days"]);
+  const gone = { ...push, status: "succeeded", decidedAt: at(24 * 31), arguments: { redacted: true }, result: '{"redacted":true}', redacted: true };
+  assert.equal(approvalRedacted(gone), true);
+  assert.deepEqual(approvalBody(gone, line), { kind: "redacted" });
+  assert.equal(approvalResult(gone), undefined, "no result is shown");
+  assert.equal(lineSend(gone, line), undefined);
+  // The server's word, not the arguments' shape: even text left behind is never shown.
+  assert.deepEqual(approvalBody({ ...gone, arguments: push.arguments }, line), { kind: "redacted" });
+  assert.equal(lineSend({ ...gone, arguments: push.arguments }, line), undefined);
+  assert.equal(canRetry({ ...gone, status: "failed", errorCategory: "unknown_outcome", retryable: false, decidedAt: at(1) }, line, now), false);
+  // Without the word, a tool's own "redacted" field is an ordinary field.
+  assert.deepEqual(approvalBody({ ...push, connectionID: "c-remote", arguments: { redacted: true } }, line), { kind: "fields", entries: [["Redacted", "true"]] });
+  assert.equal(approvalRedacted({ redacted: false }), false);
+  assert.equal(approvalRedacted({}), false);
+});
+
+test("a card shows a LINE send as customers read it, other arguments as fields, and the program's result", () => {
+  const sent = { ...push, status: "succeeded", result: '{"accepted":true}' };
+  assert.equal(approvalBody(sent, line).kind, "line");
+  assert.equal(approvalBody(sent, line).send.text, push.arguments.text);
+  assert.equal(approvalResult(sent), '{"accepted":true}');
+  assert.equal(approvalResult({ ...sent, result: "" }), undefined);
+  const quote = { id: "kap-2", connectionID: "c-remote", toolName: "create_quote", status: "pending", arguments: { customer: "Synthetic Co" } };
+  assert.deepEqual(approvalBody(quote, line), { kind: "fields", entries: [["ลูกค้า", "Synthetic Co"]] });
+  assert.deepEqual(approvalBody(quote, line, undefined, "en"), { kind: "fields", entries: [["Customer", "Synthetic Co"]] });
+  assert.deepEqual(approvalBody({ ...quote, arguments: {} }, line), { kind: "none" });
 });

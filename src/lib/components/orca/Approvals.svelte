@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte";
-  import { BellOff, Check, CircleCheck, Inbox, LoaderCircle, RefreshCw, RotateCcw, TriangleAlert, X } from "@lucide/svelte";
+  import { BellOff, Check, CircleCheck, EyeOff, Inbox, LoaderCircle, RefreshCw, RotateCcw, TriangleAlert, X } from "@lucide/svelte";
   import CatalogIcon from "$lib/orca/CatalogIcon.svelte";
-  import { approvalTone, argumentEntries, canRetry, failureText, lineSend, sameSendApprovedAt } from "$lib/orca/approvals";
+  import { REDACTED_NOTE, approvalBody, approvalResult, approvalTone, canRetry, failureText, lineSend, sameSendApprovedAt } from "$lib/orca/approvals";
   import { term } from "$lib/orca/glossary";
   import { orcaLocale, t } from "$lib/orca/locale.svelte";
   import { eventToolLabel } from "$lib/orca/program-tools";
@@ -228,9 +228,10 @@
   <div class="approval-list">
     {#each items as item (item.id)}
       {@const connection = system(item.connectionID)}
-      {@const entries = argumentEntries(item.arguments, inputSchema(item), orcaLocale.value === "en" ? "en" : "th")}
-      {@const send = lineSend(item, data.connections)}
+      {@const body = approvalBody(item, data.connections, inputSchema(item), orcaLocale.value === "en" ? "en" : "th")}
+      {@const send = body.kind === "line" ? body.send : undefined}
       {@const earlier = sameSendApprovedAt(item, data.connections)}
+      {@const result = approvalResult(item)}
       <article class="approval-card" aria-labelledby={`approval-${item.id}`}>
         <header>
           <span class="approval-icon"><CatalogIcon name={connection?.name ?? ""} size={22} /></span>
@@ -241,7 +242,10 @@
           <StatusPill label={statusLabel(item.status)} tone={pillTone(item.status)} />
         </header>
         <p class="approval-meta"><span>{t(`ขอโดย ${requester(item.userID)} · ${displayDate(item.createdAt)}`, `Requested by ${requester(item.userID)} · ${displayDate(item.createdAt)}`)}</span>{#if item.status === "pending"}{" · "}<span>{t(`หมดเวลา ${displayDate(item.expiresAt)}`, `Expires ${displayDate(item.expiresAt)}`)}</span>{/if}</p>
-        {#if send}
+        {#if body.kind === "redacted"}
+          <!-- 30 days after the decision the server deleted the message and details (design §14l). -->
+          <p class="approval-redacted"><EyeOff size={15} aria-hidden="true" />{t(...REDACTED_NOTE)}</p>
+        {:else if send}
           <!-- The message as customers will read it: plain text, line breaks kept, nothing clickable. -->
           <div class="line-send">
             <p class="line-send-to">
@@ -261,9 +265,9 @@
               <p class="line-send-warn"><TriangleAlert size={15} aria-hidden="true" />{t(`ข้อความเดียวกันนี้อนุมัติไปแล้วเมื่อ ${displayDate(earlier)}`, `The same message was already approved on ${displayDate(earlier)}`)}</p>
             {/if}
           </div>
-        {:else if entries.length}
+        {:else if body.kind === "fields"}
           <dl class="approval-args">
-            {#each entries as [key, value], index (index)}<dt>{key || t("ข้อมูล", "Details")}</dt><dd>{value}</dd>{/each}
+            {#each body.entries as [key, value], index (index)}<dt>{key || t("ข้อมูล", "Details")}</dt><dd>{value}</dd>{/each}
           </dl>
         {/if}
         {#if item.status !== "pending"}
@@ -273,7 +277,7 @@
             {#if item.status === "failed"}<p class="approval-failure">{failureLabel(item.errorCategory)}</p>{/if}
             {#if item.note}<p>{t("เหตุผล", "Reason")}: {item.note}</p>{/if}
           </div>
-          {#if item.result}<details class="approval-result"><summary>{t("ผลลัพธ์จากโปรแกรม", "Result from the program")}</summary><pre>{item.result}</pre></details>{/if}
+          {#if result}<details class="approval-result"><summary>{t("ผลลัพธ์จากโปรแกรม", "Result from the program")}</summary><pre>{result}</pre></details>{/if}
         {/if}
         {#if data.canManage && canRetry(item, data.connections, now)}
           <div class="approval-actions">
@@ -371,6 +375,8 @@
   .approval-decision { display: grid; gap: 2px; }
   .approval-decision p { margin: 0; overflow-wrap: anywhere; }
   .approval-decision .approval-failure { color: var(--orca-deny); font-weight: 500; }
+  .approval-redacted { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 14px; border: 1px dashed var(--orca-line-strong); border-radius: var(--orca-radius); background: var(--orca-surface-2); color: var(--orca-muted); font-size: 14px; }
+  .approval-redacted :global(svg) { flex: none; }
   .approval-args { display: grid; grid-template-columns: minmax(90px, max-content) minmax(0, 1fr); gap: 6px 16px; margin: 0; padding: 12px 14px; border: 1px solid var(--orca-line-soft); border-radius: var(--orca-radius); background: var(--orca-surface-2); color: var(--orca-ink); font-size: 14px; }
   .approval-args dt { color: var(--orca-muted); font-size: 13px; }
   .approval-args dd { max-height: 240px; margin: 0; overflow: auto; overflow-wrap: anywhere; white-space: pre-line; }

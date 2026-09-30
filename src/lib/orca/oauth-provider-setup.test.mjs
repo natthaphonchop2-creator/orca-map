@@ -90,6 +90,10 @@ test('GitHub: the steps register ORCA as an OAuth App, name the homepage and cal
   assert.match(en, /Enter the Client ID and Client secret here yourself/);
   assert.match(en, /restricts third-party apps.*must approve ORCA/);
   assert.match(th, /Third-party access.*ต้องอนุมัติ ORCA ก่อน/);
+  // Step 4 names where the permissions come from (the backend's fake-GitHub
+  // check: ORCA asks for exactly what GitHub's MCP server lists).
+  assert.match(steps[3][1], /OAuth Apps have no permission settings: GitHub shows each member the permissions its MCP server asks for, and ORCA asks for nothing beyond that list\./);
+  assert.match(steps[3][0], /OAuth App ไม่มีหน้าตั้งสิทธิ์: GitHub แสดงสิทธิ์ที่เซิร์ฟเวอร์ MCP ของ GitHub ขอ ให้สมาชิกกดอนุญาตเอง ORCA ไม่ขอเพิ่มจากรายการนั้น/);
   // The guide never carries a callback host of its own: the page shows the installation's.
   assert.doesNotMatch(th + en, /oauth\/mcp\/callback|127\.0\.0\.1|localhost/);
 });

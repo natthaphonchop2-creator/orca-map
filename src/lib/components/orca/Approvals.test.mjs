@@ -1,12 +1,16 @@
 import { importTypeScript } from "../../orca/test-import.mjs";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createRequire, stripTypeScriptTypes } from "node:module";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 import { compile, compileModule } from "svelte/compiler";
 // eslint-disable-next-line svelte/no-svelte-internal -- Exercise the shipped component's reactive script.
 import { effect_root, flush } from "svelte/internal/client";
+import { render } from "svelte/server";
+import { serverComponent } from "./test-render.mjs";
 
 const component = await readFile(new URL("./Approvals.svelte", import.meta.url), "utf8");
 const approvals = await importTypeScript(new URL("../../orca/approvals.ts", import.meta.url));
@@ -246,6 +250,40 @@ test("a LINE send LINE didn't answer is retried once with the same request, neve
     await refused.view.retry(refused.view.items[0]);
     assert.match(refused.view.error, /ตรวจในแชต LINE OA/);
   } finally { refused.stop(); }
+});
+
+// Owner decision 1 of design §14l, rendered: 30 days after the decision the
+// card says the details were deleted, in place of the message and result.
+test("a redacted request's card reads “ลบรายละเอียดแล้วหลัง 30 วัน” instead of its message, and shows no result", async () => {
+  const gone = lineSend("apr-7", { status: "succeeded", decidedBy: "1", decidedAt: "2026-08-30T08:00:00Z", arguments: { redacted: true }, result: '{"redacted":true}', redacted: true });
+  const kept = lineSend("apr-8", { status: "succeeded", decidedBy: "1", decidedAt: "2026-09-30T08:00:00Z", result: '{"accepted":true}' });
+  const fields = waiting("apr-9", { status: "rejected", decidedBy: "1", decidedAt: "2026-08-30T08:00:00Z", note: "Wrong customer", arguments: { redacted: true }, redacted: true });
+  const seeded = component
+    .replace("let items = $state<OrcaApproval[]>([]);", `let items = $state<OrcaApproval[]>(${JSON.stringify([gone, kept, fields])});`)
+    .replace("let loaded = $state(false);", "let loaded = $state(true);")
+    .replace('let tab = $state<"pending" | "decided">("pending");', 'let tab = $state<"pending" | "decided">("decided");');
+  assert.notEqual(seeded, component);
+  const dir = await mkdtemp(join(tmpdir(), "orca-approvals-"));
+  const file = join(dir, "SeededApprovals.svelte");
+  await writeFile(file, seeded);
+  const { warnings, Component } = await serverComponent(pathToFileURL(file), {
+    ...approvals, OrcaService: {}, onMount: () => {}, onDestroy: () => {}, tick: async () => {}, orcaLocale: { value: "th" }, t: (th) => th,
+    term: (key, translate) => translate(...glossary[key]), eventToolLabel: programTools.eventToolLabel, displayDate: (value) => value ?? "—",
+    memberName: (member) => member.displayName || member.id, orcaError: (error) => error.message, showToast: () => {},
+  });
+  assert.deepEqual(warnings, []);
+  const body = render(Component, { props: { data: { ...lineData(), connections: [...lineData().connections, ...data().connections] } } }).body;
+  const cards = Object.fromEntries([...body.matchAll(/<article[^>]*aria-labelledby="approval-(apr-\d+)"[^>]*>([\s\S]*?)<\/article>/g)].map((match) => [match[1], match[2]]));
+  assert.deepEqual(Object.keys(cards), ["apr-7", "apr-8", "apr-9"]);
+  for (const id of ["apr-7", "apr-9"]) {
+    assert.match(cards[id], /class="approval-redacted[^"]*"[^>]*>[\s\S]*ลบรายละเอียดแล้วหลัง 30 วัน/, id);
+    assert.doesNotMatch(cards[id], /redacted&quot;|"redacted"|ผลลัพธ์จากโปรแกรม|approval-args|line-send/, id);
+  }
+  assert.match(cards["apr-7"], /อนุมัติโดย Owner/, "the decision stays");
+  assert.match(cards["apr-9"], /เหตุผล: Wrong customer/, "the reason stays");
+  assert.match(cards["apr-8"], /ออเดอร์พร้อมรับแล้ว/);
+  assert.match(cards["apr-8"], /ผลลัพธ์จากโปรแกรม/);
+  assert.doesNotMatch(cards["apr-8"], /ลบรายละเอียดแล้ว/);
 });
 
 test("the inbox compiles without warnings", () => {

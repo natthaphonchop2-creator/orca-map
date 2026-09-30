@@ -231,6 +231,8 @@ export interface OrcaApproval {
   retryable?: boolean;
   /** On a waiting LINE send: when a manager approved the same one in the last 24 hours. */
   sameApprovedAt?: string;
+  /** The server deleted the arguments and result 30 days after the decision (design §14l); both read {"redacted":true}. */
+  redacted?: boolean;
 }
 
 /** A company's managers invite employees and admins. */
