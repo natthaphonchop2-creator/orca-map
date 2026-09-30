@@ -259,6 +259,30 @@ test('the status view follows the role: managers see the company and its alerts,
 	assert.match(html, /href="\/app\?view=connect-ai#accounts"/);
 });
 
+test('"nothing needs attention" waits for the unused-app and changed-program checks; a failed check says so with a retry (Codex release review 67)', async () => {
+	const programTools = await importTypeScript(new URL('../../orca/program-tools.ts', import.meta.url));
+	const programCatalog = await importTypeScript(new URL('../../orca/program-catalog.ts', import.meta.url));
+	const HomeStatus = await component('./home/HomeStatus.svelte', {
+		...children, eventToolLabel: programTools.eventToolLabel, programEventOutcome: programCatalog.programEventOutcome, programStatus: programCatalog.programStatus,
+		programStatusCopy: programCatalog.programStatusCopy, displayDate: (value) => value, memberName: (member) => member.displayName
+	});
+	const data = company({ connections: [flow], hubs: [workspace] });
+	let plain = text(render(HomeStatus, { props: { data, events: [], checks: 'done' } }).body);
+	assert.match(plain, /ไม่มีเรื่องที่ต้องดูแล/, 'both checks answered and found nothing');
+	let html = render(HomeStatus, { props: { data, events: [], checks: 'loading' } }).body;
+	assert.doesNotMatch(text(html), /ไม่มีเรื่องที่ต้องดูแล/, 'not while a check is on its way');
+	assert.match(text(html), /กำลังตรวจ…/);
+	html = render(HomeStatus, { props: { data, events: [], checks: 'failed', onretrychecks() {} } }).body;
+	assert.doesNotMatch(text(html), /ไม่มีเรื่องที่ต้องดูแล/, 'never beside a failed check');
+	assert.match(html, /role="alert"[^>]*>ตรวจแอป AI ที่ไม่ได้ใช้และโปรแกรมที่เปลี่ยนไปไม่สำเร็จ[\s\S]*?>ลองอีกครั้ง<\/button>/);
+	// A failed check still shows what is known.
+	html = render(HomeStatus, { props: { data: company({ connections: [flow, { ...flow, id: 'conn-paused', enabled: false }], hubs: [workspace] }), events: [], checks: 'failed' } }).body;
+	assert.match(text(html), /โปรแกรมที่หยุดชั่วคราว 1 โปรแกรม/);
+	const dashboard = await readFile(new URL('./WorkspaceDashboard.svelte', import.meta.url), 'utf8');
+	assert.match(dashboard, /checks = results\.every\(\(result\) => result\.status === 'fulfilled'\) \? 'done' : 'failed';/, 'either read failing is a failed check');
+	assert.match(dashboard, /<HomeStatus [^>]*\{checks\}[^>]*onretrychecks=/);
+});
+
 test('Help is a short FAQ that points at Home\'s checklist, without a sign-out button', async () => {
 	const Help = await component('./views/HelpView.svelte', { ...base, PageHeader: await component('./ui/PageHeader.svelte', children) });
 	let html = render(Help, { props: { data: { canManage: true, canChangeMemberStatus: true } } }).body;

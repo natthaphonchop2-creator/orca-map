@@ -22,13 +22,21 @@
 		onretry,
 		iconName = (connection: OrcaConnection) => connection.name,
 		staleApps = 0,
-		health
+		health,
+		checks = 'done',
+		onretrychecks
 	}: {
 		data: OrcaBootstrap;
 		/** The last week's tool calls per program (managers), so a tool that changed at the provider shows here too. */
 		health?: Map<string, OrcaConnectionHealth>;
 		/** AI apps and keys unused for 30 days (managers; ตรวจสอบ's stale filter). */
 		staleApps?: number;
+		/**
+		 * The reads behind staleApps and health (managers): until both answer,
+		 * "nothing needs attention" is not known (Codex release review 67).
+		 */
+		checks?: 'loading' | 'done' | 'failed';
+		onretrychecks?: () => void;
 		/** The latest tool calls (newest first); undefined while loading. */
 		events?: OrcaAuditEvent[];
 		eventsError?: boolean;
@@ -219,8 +227,11 @@
 							<ArrowRight size={15} aria-hidden="true" />
 						</a>
 					{/if}
-					{#if setupNeeded + review + blockedSpaces + paused + staleApps === 0}
-						<p class="home-clear"><CircleCheck size={17} aria-hidden="true" />{t('ไม่มีเรื่องที่ต้องดูแล', 'Nothing needs attention')}</p>
+					{#if checks === 'failed'}
+						<p class="home-empty" role="alert">{t('ตรวจแอป AI ที่ไม่ได้ใช้และโปรแกรมที่เปลี่ยนไปไม่สำเร็จ', "Couldn't check for unused AI apps and changed programs.")}{#if onretrychecks}{' '}<button type="button" class="k-link-button" onclick={onretrychecks}>{t('ลองอีกครั้ง', 'Try again')}</button>{/if}</p>
+					{:else if setupNeeded + review + blockedSpaces + paused + staleApps === 0}
+						{#if checks === 'loading'}<p class="home-empty" role="status">{t('กำลังตรวจ…', 'Checking…')}</p>
+						{:else}<p class="home-clear"><CircleCheck size={17} aria-hidden="true" />{t('ไม่มีเรื่องที่ต้องดูแล', 'Nothing needs attention')}</p>{/if}
 					{/if}
 				</div>
 			</section>

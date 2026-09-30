@@ -67,6 +67,8 @@
 	let staleApps = $state(0);
 	/** A tool that changed at the provider: Home says ต้องตรวจใหม่ like the program list (managers). */
 	let health = $state.raw<Map<string, OrcaConnectionHealth>>();
+	/** Both reads above answered: only then can Home say nothing needs attention (Codex release review 67). */
+	let checks = $state<'loading' | 'done' | 'failed'>('loading');
 
 	// ---- Per-viewer memory (browser storage, a convenience only) ----
 	const storage = () => (typeof window === 'undefined' ? undefined : window.localStorage);
@@ -168,6 +170,23 @@
 		await refreshAIConnection();
 		if (alive) aiChecked = true;
 	}
+	// "มี N แอป AI ที่ไม่ได้ใช้เกิน 30 วัน" → ตรวจสอบ, filtered (proposal §3.6), and
+	// the programs that changed at the provider. A failed read shows no alert
+	// rather than a wrong one, and holds back "nothing needs attention".
+	let checksLoad = 0;
+	async function loadChecks() {
+		const current = ++checksLoad;
+		checks = 'loading';
+		const results = await Promise.allSettled([
+			OrcaService.secrets().then((inventory) => {
+				if (alive && current === checksLoad) staleApps = staleAIApps(inventory, Date.now());
+			}),
+			OrcaService.connectionHealth().then((result) => {
+				if (alive && current === checksLoad) health = healthByConnection(result.items);
+			})
+		]);
+		if (alive && current === checksLoad) checks = results.every((result) => result.status === 'fulfilled') ? 'done' : 'failed';
+	}
 	async function loadOptional() {
 		try {
 			const items = await OrcaService.invitations();
@@ -175,21 +194,7 @@
 		} catch {
 			/* Optional: a failed read leaves the invite step open. */
 		}
-		// "มี N แอป AI ที่ไม่ได้ใช้เกิน 30 วัน" → ตรวจสอบ, filtered (proposal §3.6).
-		void OrcaService.secrets()
-			.then((inventory) => {
-				if (alive) staleApps = staleAIApps(inventory, Date.now());
-			})
-			.catch(() => {
-				/* Optional: no alert rather than a wrong one. */
-			});
-		void OrcaService.connectionHealth()
-			.then((result) => {
-				if (alive) health = healthByConnection(result.items);
-			})
-			.catch(() => {
-				/* Advisory: statuses then follow each program's own review state. */
-			});
+		void loadChecks();
 		const hubs = usableWorkspaces(data).slice(0, 3);
 		const libraries = await Promise.allSettled(hubs.map((hub) => OrcaLibraryService.load(hub.id)));
 		if (alive)
@@ -302,7 +307,7 @@
 			<button type="button" class="k-button quiet small" onclick={() => setFlag('setup-dismissed')} aria-label={t('ซ่อน ตั้งค่าเสร็จแล้ว', 'Hide "Setup is done"')}>{t('ซ่อน', 'Hide')}</button>
 		</section>
 	{/if}
-	<HomeStatus {data} {events} {eventsError} onretry={loadActivity} {iconName} {staleApps} {health} />
+	<HomeStatus {data} {events} {eventsError} onretry={loadActivity} {iconName} {staleApps} {health} {checks} onretrychecks={() => void loadChecks()} />
 {/if}
 
 <style>
