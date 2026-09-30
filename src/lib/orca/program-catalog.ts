@@ -372,9 +372,13 @@ export function savedProgramKey(company: string): string {
 	return `orca.addProgram.saved.${company || 'default'}`;
 }
 
-export function rememberSavedProgram(storage: DraftStorage | undefined, key: string, sourceID: string, connectionID: string, now = Date.now()): void {
+/**
+ * `version` is the one this tab's save produced: saving again sends it, so a
+ * change someone else made since is refused, never overwritten (Codex release review 65).
+ */
+export function rememberSavedProgram(storage: DraftStorage | undefined, key: string, sourceID: string, connectionID: string, now = Date.now(), version?: number): void {
 	try {
-		storage?.setItem(key, JSON.stringify({ v: 1, sourceID, connectionID, at: now }));
+		storage?.setItem(key, JSON.stringify({ v: 1, sourceID, connectionID, at: now, ...(version === undefined ? {} : { version }) }));
 	} catch {
 		// Without storage only the open page remembers the save.
 	}
@@ -385,7 +389,7 @@ export function rememberSavedProgram(storage: DraftStorage | undefined, key: str
  * step 3 again changes it. Anything stale, broken, archived or for another
  * program is ignored, and step 1 forgets it (a new choice is a new program).
  */
-export function savedProgramFor<T extends Pick<OrcaConnection, 'id' | 'mcpID' | 'archivedAt' | 'deletedAt'>>(
+export function savedProgramFor<T extends Pick<OrcaConnection, 'id' | 'mcpID' | 'archivedAt' | 'deletedAt' | 'version'>>(
 	storage: DraftStorage | undefined,
 	key: string,
 	sourceID: string,
@@ -395,10 +399,12 @@ export function savedProgramFor<T extends Pick<OrcaConnection, 'id' | 'mcpID' | 
 	try {
 		const raw = storage?.getItem(key);
 		if (!raw || !sourceID) return undefined;
-		const memo = JSON.parse(raw) as { v?: unknown; sourceID?: unknown; connectionID?: unknown; at?: unknown };
+		const memo = JSON.parse(raw) as { v?: unknown; sourceID?: unknown; connectionID?: unknown; at?: unknown; version?: unknown };
 		if (memo?.v !== 1 || memo.sourceID !== sourceID || typeof memo.connectionID !== 'string' || typeof memo.at !== 'number') return undefined;
 		if (now - memo.at > DRAFT_TTL_MS || memo.at > now + 60_000) return undefined;
-		return connections.find((item) => item.id === memo.connectionID && item.mcpID === sourceID && !item.archivedAt && !item.deletedAt);
+		const found = connections.find((item) => item.id === memo.connectionID && item.mcpID === sourceID && !item.archivedAt && !item.deletedAt);
+		// The version this tab saved, not the newest: a newer one is someone else's.
+		return found && typeof memo.version === 'number' ? { ...found, version: memo.version } : found;
 	} catch {
 		return undefined;
 	}

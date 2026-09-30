@@ -50,6 +50,11 @@ export const ProgramService = {
 	save: (input: ProgramSaveInput, id?: string) => OrcaService.connection(input, id) as Promise<ProgramConnection>
 };
 
+/** A save refused because someone else saved the program since (its version moved on). */
+export function programSaveConflict(cause: unknown): boolean {
+	return parseErrorContent(cause).status === 409;
+}
+
 /** A refused program save in plain words: the server's own rules in Thai, else the general message. */
 export function programSaveError(cause: unknown): string {
 	const parsed = parseErrorContent(cause);

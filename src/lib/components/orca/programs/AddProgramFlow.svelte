@@ -22,6 +22,7 @@
 	import {
 		initialPreset,
 		initialSelection,
+		presetFor,
 		programSaveInput,
 		readOnlyAvailable,
 		saveProblem,
@@ -30,7 +31,7 @@
 		type AccessPreset
 	} from '$lib/orca/program-tools';
 	import { orcaError, type OrcaBootstrap, type OrcaCandidate, type OrcaConnection } from '$lib/services/orca';
-	import { ProgramService, programSaveError, type ProgramTool } from '$lib/services/orca-programs';
+	import { ProgramService, programSaveConflict, programSaveError, type ProgramTool } from '$lib/services/orca-programs';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import PageHeader from '../ui/PageHeader.svelte';
 	import Stepper from '../ui/Stepper.svelte';
@@ -257,24 +258,41 @@
 		}
 		saving = true;
 		saveError = '';
+		// Saving again after going back (the browser's Back from step 4, even
+		// after a reload) changes the same program, never adds a second one, on
+		// the version this tab saved (savedProgramFor, Codex release review 65).
+		const again =
+			savedProgramFor(storage(), savedKey, sourceID, data.connections) ?? (saved && saved.mcpID === sourceID ? saved : undefined);
 		try {
-			// Saving again after going back (the browser's Back from step 4, even
-			// after a reload) changes the same program, never adds a second one.
-			const again =
-				savedProgramFor(storage(), savedKey, sourceID, data.connections) ?? (saved && saved.mcpID === sourceID ? saved : undefined);
 			const result = await ProgramService.save(programSaveInput({ name, note, mcpID: sourceID, selected, tools, existing: again }), again?.id);
 			if (!alive) return;
 			clearDraft(storage(), key);
-			rememberSavedProgram(storage(), savedKey, sourceID, result.id);
+			rememberSavedProgram(storage(), savedKey, sourceID, result.id, Date.now(), result.version);
 			saved = result;
 			await onchanged();
 			if (mode === 'sheet') await oncompleted?.(result);
 			else await go('done', { connection: result.id });
 		} catch (cause) {
-			if (alive) saveError = programSaveError(cause);
+			if (!alive) return;
+			saveError = programSaveError(cause);
+			if (again && programSaveConflict(cause)) await rebase(again.id);
 		} finally {
 			if (alive) saving = false;
 		}
+	}
+	/** Someone else saved the program after this tab did: show theirs, to check and save again. */
+	async function rebase(id: string) {
+		await onchanged();
+		const latest = data.connections.find((item) => item.id === id);
+		if (!alive || !latest) return;
+		rememberSavedProgram(storage(), savedKey, sourceID, latest.id, Date.now(), latest.version);
+		saved = latest;
+		selected = savedSelection(tools, latest.toolNames);
+		preset = presetFor(selected, tools);
+		saveError = t(
+			'มีคนแก้โปรแกรมนี้หลังจากคุณบันทึก หน้านี้แสดงฉบับล่าสุดแล้ว ตรวจแล้วบันทึกอีกครั้ง',
+			'Someone changed this program after you saved it. This shows the newest version now: check it, then save again.'
+		);
 	}
 
 	function pick(id: string, existing?: string) {

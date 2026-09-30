@@ -18,7 +18,7 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 	.replace(/^\s*import[\s\S]*?from\s+'[^']+';/gm, '')
 	.replace('$props()', '$state(testProps)');
 const names = [
-	'catalogSource', 'currentCompany', 'localeHref', 't', 'orcaError', 'programSaveError', 'ProgramService', 'onDestroy', 'onMount', 'untrack',
+	'catalogSource', 'currentCompany', 'localeHref', 't', 'orcaError', 'programSaveError', 'programSaveConflict', 'ProgramService', 'onDestroy', 'onMount', 'untrack',
 	...Object.keys(catalogHelpers), ...Object.keys(tools)
 ];
 const require = createRequire(import.meta.url);
@@ -28,6 +28,7 @@ const compiled = compileModule(
 		${script}
 		return {
 			discover, accountReady, save, pick, change, loadCatalog,
+			setConnections(list) { data.connections = list; },
 			set(input) {
 				if (input.selected !== undefined) selected = input.selected;
 				if (input.name !== undefined) name = input.name;
@@ -71,6 +72,7 @@ async function setup(context, { props = {}, service = {}, storage = memoryStorag
 				...catalogHelpers, ...tools, catalogSource, untrack,
 				currentCompany: () => 'default', localeHref: (href) => href, t: (th) => th, orcaError: (cause) => cause.message,
 				programSaveError: (cause) => tools.programSaveMessage(cause.message, (th) => th) ?? cause.message,
+				programSaveConflict: (cause) => cause?.status === 409,
 				onMount: (fn) => mounts.push(fn), onDestroy: (fn) => destroys.push(fn),
 				ProgramService: {
 					candidates: async () => candidates,
@@ -160,6 +162,40 @@ test('Back from step 4 and a reload at step 3 update the program already saved; 
 	flush();
 	await fresh.view.save();
 	assert.equal(fresh.writes[0].id, undefined);
+});
+
+test('saving again goes on the version this tab saved: a newer program is refused and shown, never overwritten (Codex release review 65)', async (context) => {
+	const storage = memoryStorage();
+	let current = 0;
+	const writes = [];
+	const save = async (input, id) => {
+		writes.push({ input, id });
+		if (id && input.version !== current) throw Object.assign(new Error('someone else changed this program'), { status: 409 });
+		current += 1;
+		return { ...input, id: 'saved-1', version: current };
+	};
+	const { view, refreshes } = await setup(context, { props: { step: 'tools' }, service: { save }, storage });
+	await view.discover('flow');
+	flush();
+	await view.save();
+	assert.equal(current, 1);
+	assert.match(storage.store.get('orca.addProgram.saved.default'), /"version":1/, 'the tab remembers the version it saved');
+	// Another admin narrows the program (version 2), and this page refreshes.
+	current = 2;
+	view.setConnections([{ id: 'old', name: 'FlowAccount', mcpID: 'x' }, { id: 'saved-1', name: 'FlowAccount (2)', description: '', mcpID: 'flow', enabled: true, toolNames: ['list'], version: 2 }]);
+	flush();
+	// Back at step 3 with the old ticks: the save goes on version 1 and is refused.
+	view.set({ selected: ['list', 'get'] });
+	await view.save();
+	assert.equal(writes[1].input.version, 1, 'on the version this tab saved, not the newest');
+	assert.equal(current, 2, 'nothing overwritten');
+	assert.deepEqual(view.state.selected, ['list'], 'the page now shows the newer program');
+	assert.match(view.state.saveError, /หน้านี้แสดงฉบับล่าสุดแล้ว/);
+	assert.ok(refreshes() >= 2);
+	// Checked, saved again: now on version 2.
+	await view.save();
+	assert.equal(writes[2].input.version, 2);
+	assert.equal(current, 3);
 });
 
 test('the server\'s B3 refusal reads in Thai', async (context) => {
