@@ -7,7 +7,7 @@
 	import type { OrcaBootstrap, OrcaHub } from '$lib/services/orca';
 	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-workspaces';
 	import { ChevronDown, Info, Plus, ShieldCheck } from '@lucide/svelte';
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 	import { showToast } from '../ui/toast-store.svelte';
 	import ProgramToggleCard from './ProgramToggleCard.svelte';
 	import SaveBar from './SaveBar.svelte';
@@ -21,12 +21,15 @@
 		hub,
 		canEdit,
 		onchanged,
+		ondirty,
 		addConnectionID = ''
 	}: {
 		data: OrcaBootstrap;
 		hub: OrcaHub;
 		canEdit: boolean;
 		onchanged: () => Promise<void>;
+		/** Unsaved changes here, so the workspace asks before they are lost. */
+		ondirty?: (dirty: boolean) => void;
 		/** &add=: a program just connected (เพิ่มโปรแกรม step 4), turned on here and waiting for บันทึก. */
 		addConnectionID?: string;
 	} = $props();
@@ -47,6 +50,8 @@
 	const current = $derived(programsPatch(hub, changes).sources ?? []);
 	const toolsFor = (id: string) => current.find((source) => source.connectionID === id)?.toolNames;
 	const dirty = $derived(Object.keys(changes).length > 0);
+	$effect(() => ondirty?.(dirty || busy));
+	onDestroy(() => ondirty?.(false));
 	// Editors see every program ready to use plus the ones already here; others see what is on.
 	const shown = $derived(
 		canEdit

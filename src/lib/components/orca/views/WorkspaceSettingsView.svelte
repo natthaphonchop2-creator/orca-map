@@ -7,7 +7,7 @@
 	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-workspaces';
 	import { OrcaUserSourcesService, type OrcaUserSource } from '$lib/services/orca-user-sources';
 	import { Pause, Play } from '@lucide/svelte';
-	import { onMount, untrack } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import LifecycleActions from '../LifecycleActions.svelte';
 	import ChoiceTile from '../ui/ChoiceTile.svelte';
 	import ConfirmDialog from '../ui/ConfirmDialog.svelte';
@@ -24,11 +24,14 @@
 	let {
 		data,
 		hub,
-		onchanged
+		onchanged,
+		ondirty
 	}: {
 		data: OrcaBootstrap;
 		hub: OrcaHub;
 		onchanged: () => Promise<void>;
+		/** Unsaved changes here, so the workspace asks before they are lost. */
+		ondirty?: (dirty: boolean) => void;
 	} = $props();
 	type Fields = { name: string; description: string; instructions: string; writeMode: 'approval' | 'direct'; dailyLimit: number | undefined; userSourceID: string };
 	const savedFields = (): Fields => ({
@@ -54,6 +57,11 @@
 	const trimmed = $derived({ ...fields, name: fields.name.trim(), description: fields.description.trim(), instructions: fields.instructions.trim() });
 	const patch = $derived(changedFields({ ...before, name: before.name.trim(), description: before.description.trim(), instructions: before.instructions.trim() }, trimmed));
 	const dirty = $derived(Object.keys(patch).length > 0);
+	$effect(() => ondirty?.(dirty || busy));
+	onDestroy(() => ondirty?.(false));
+	// Pause, activate, archive and delete reload the workspace, which would
+	// drop what is typed here: save or cancel first (Codex release review 63).
+	const lifecycleHint = $derived(dirty ? t('บันทึกหรือยกเลิกสิ่งที่แก้ไว้ก่อน', 'Save or cancel your changes first.') : '');
 	const changesData = $derived(gatewaySources(hub).some((source) => sourceChangesData(data.connections.find((item) => item.id === source.connectionID), source.toolNames)));
 	const signInChoices = $derived(userSources.filter((source) => source.enabled || source.id === hub.userSourceID));
 	const showSignIn = $derived(signInChoices.length > 0 || !!hub.userSourceID);
@@ -115,7 +123,7 @@
 		await onchanged();
 	}
 	async function setStatus(status: 'active' | 'paused') {
-		if (statusBusy) return;
+		if (statusBusy || dirty) return;
 		statusBusy = true;
 		statusError = '';
 		try {
@@ -192,11 +200,12 @@
 				? t('หยุดชั่วคราว: AI ของทุกคนใช้พื้นที่นี้ไม่ได้จนกว่าจะเปิดอีกครั้ง จัดเก็บหรือลบ: ย้ายออกจากรายการ', "Pause: nobody's AI can use it until it's on again. Archive or delete: take it off the list.")
 				: t('เปิดใช้งานเมื่อพร้อม หรือจัดเก็บ / ลบถ้าไม่ใช้แล้ว', "Activate it when ready, or archive / delete it if it's not needed.")}</p>
 			{#if statusError}<p class="st-error" role="alert">{statusError}</p>{/if}
+			{#if lifecycleHint}<p class="st-hint" id="st-lifecycle-hint">{lifecycleHint}</p>{/if}
 		</div>
 		<div class="st-danger-actions">
-			{#if hub.status === 'active'}<button type="button" class="k-button" disabled={statusBusy} onclick={() => (pauseOpen = true)}><Pause size={16} aria-hidden="true" />{t('หยุดชั่วคราว', 'Pause')}</button>
-			{:else}<button type="button" class="k-button" disabled={statusBusy} onclick={() => setStatus('active')}><Play size={16} aria-hidden="true" />{t('เปิดใช้งาน', 'Activate')}</button>{/if}
-			<LifecycleActions entity={hub} kind="gateway" canManage={data.canManage} onchanged={lifecycleChanged} onreload={onchanged} />
+			{#if hub.status === 'active'}<button type="button" class="k-button" disabled={statusBusy || dirty} aria-describedby={dirty ? 'st-lifecycle-hint' : undefined} onclick={() => (pauseOpen = true)}><Pause size={16} aria-hidden="true" />{t('หยุดชั่วคราว', 'Pause')}</button>
+			{:else}<button type="button" class="k-button" disabled={statusBusy || dirty} aria-describedby={dirty ? 'st-lifecycle-hint' : undefined} onclick={() => setStatus('active')}><Play size={16} aria-hidden="true" />{t('เปิดใช้งาน', 'Activate')}</button>{/if}
+			<LifecycleActions entity={hub} kind="gateway" canManage={data.canManage && !dirty} onchanged={lifecycleChanged} onreload={onchanged} />
 		</div>
 	</section>
 </div>

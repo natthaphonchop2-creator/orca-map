@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
+import { createRequire, stripTypeScriptTypes } from 'node:module';
 import test from 'node:test';
-import { compile } from 'svelte/compiler';
+import { pathToFileURL } from 'node:url';
+import { compile, compileModule } from 'svelte/compiler';
 import { render } from 'svelte/server';
+// eslint-disable-next-line svelte/no-svelte-internal -- Exercise the shipped component's reactive script.
+import { effect_root, flush } from 'svelte/internal/client';
 import { importTypeScript } from '../../orca/test-import.mjs';
 import { serverComponent } from './test-render.mjs';
 
@@ -215,7 +219,7 @@ test('after a save the toast says สร้างแล้ว or เพิ่ม
 	assert.equal(edit.withoutSavedParams(new URL('https://orca.example.test/app?view=hub&hub=h&added=c')), '/app?view=hub&hub=h');
 	assert.equal(edit.withoutSavedParams(new URL('https://orca.example.test/app?view=hub&hub=h')), undefined);
 	const source = await readFile(file('./WorkspaceDetail.svelte'), 'utf8');
-	assert.match(source, /import \{ replaceState \} from '\$app\/navigation'/);
+	assert.match(source, /import \{ beforeNavigate, goto, replaceState \} from '\$app\/navigation'/);
 	assert.match(source, /if \(clean\) replaceState\(clean, page\.state\)/);
 	const oneClick = await readFile(file('./workspace/EveryoneOneClick.svelte'), 'utf8');
 	assert.match(oneClick, /const added = plan\.existing \? plan\.connection\.id : undefined;/);
@@ -295,4 +299,77 @@ test('every U5 screen compiles without warnings, and the retired screens are gon
 		await assert.rejects(readFile(file(`./${retired}`)), undefined, retired);
 	const page = await readFile(new URL('../../../routes/app/+page.svelte', import.meta.url), 'utf8');
 	assert.doesNotMatch(page, /WorkspaceWizard|GatewayCreated|WorkspaceReadiness/);
+});
+
+test('a tab with unsaved changes asks before another tab, another page or closing the page loses them (Codex release review 63)', async (context) => {
+	const source = await readFile(file('./WorkspaceDetail.svelte'), 'utf8');
+	const script = stripTypeScriptTypes(source.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
+		.replace(/^\s*import[^;]+;/gm, '')
+		.replace('$props()', '$state(testProps)');
+	const require = createRequire(import.meta.url);
+	const code = compileModule(
+		`export function harness(testProps, deps) {
+			const { beforeNavigate, goto, replaceState, page, gatewayMemberIDs, gatewaySources, localeHref, t, saveHubPatch, savedToast, withoutSavedParams, hubWriteService, workspaceWriteError, onMount, showToast } = deps;
+			${script}
+			return { ondirty, leave, activate, get state() { return { dirty, leaveOpen }; } };
+		}`,
+		{ filename: 'workspace-detail-test.svelte.js', generate: 'client' }
+	).js.code.replaceAll('svelte/internal/client', pathToFileURL(require.resolve('svelte/internal/client')).href);
+	const { harness } = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+	let guard;
+	const gotos = [];
+	const writes = [];
+	let view;
+	const stop = effect_root(() => {
+		view = harness({ data: company(), hub: { ...hub, status: 'draft' }, onchanged: async () => {} }, {
+			...base,
+			beforeNavigate: (fn) => (guard = fn),
+			goto: async (url) => gotos.push(url),
+			replaceState: () => {},
+			page: { url: new URL('https://orca.example.test/app?view=hub&hub=hub-one&tab=settings'), state: {} },
+			saveHubPatch: async (...args) => writes.push(args),
+			hubWriteService: {},
+			workspaceWriteError: (cause) => cause.message,
+			showToast: () => {}
+		});
+	});
+	context.after(stop);
+	flush();
+	const navigate = (type, to) => {
+		let cancelled = false;
+		guard({ type, to: to ? { url: new URL(to, 'https://orca.example.test') } : null, cancel: () => (cancelled = true) });
+		flush();
+		return cancelled;
+	};
+	assert.equal(navigate('link', '/app?view=hub&hub=hub-one&tab=people'), false, 'nothing typed: tabs move freely');
+	view.ondirty(true);
+	flush();
+	assert.equal(navigate('link', '/app?view=hub&hub=hub-one&tab=people'), true, 'another tab would drop the typed text');
+	assert.equal(view.state.leaveOpen, true, 'so it asks first');
+	await view.leave();
+	assert.deepEqual(gotos, ['/app?view=hub&hub=hub-one&tab=people'], 'leaving anyway goes where the person clicked');
+	assert.equal(view.state.dirty, false);
+	view.ondirty(true);
+	flush();
+	assert.equal(navigate('leave'), true, 'closing or reloading the page gets the browser\'s own question');
+	await view.activate();
+	assert.deepEqual(writes, [], 'activating would reload the workspace and drop the typed text: not while there is some');
+	view.ondirty(false);
+	flush();
+	await view.activate();
+	assert.equal(writes.length, 1);
+});
+
+test('each tab reports its unsaved changes, and pause, activate, archive and delete wait for a save or cancel', async () => {
+	const detail = await readFile(file('./WorkspaceDetail.svelte'), 'utf8');
+	for (const tab of ['WorkspaceProgramsTab', 'WorkspacePeopleTab', 'WorkspaceSettingsView']) assert.match(detail, new RegExp(`<${tab} [^>]*\\{ondirty\\}`), tab);
+	for (const name of ['./workspace/WorkspaceProgramsTab.svelte', './workspace/WorkspacePeopleTab.svelte', './views/WorkspaceSettingsView.svelte']) {
+		const source = await readFile(file(name), 'utf8');
+		assert.match(source, /\$effect\(\(\) => ondirty\?\.\((dirty|changeCount > 0) \|\| busy\)\);/, name);
+		assert.match(source, /onDestroy\(\(\) => ondirty\?\.\(false\)\);/, name);
+	}
+	const settings = await readFile(file('./views/WorkspaceSettingsView.svelte'), 'utf8');
+	assert.equal(settings.match(/disabled=\{statusBusy \|\| dirty\}/g)?.length, 2, 'pause and activate');
+	assert.match(settings, /<LifecycleActions [^>]*canManage=\{data\.canManage && !dirty\}/, 'archive and delete');
+	assert.match(settings, /if \(statusBusy \|\| dirty\) return;/);
 });

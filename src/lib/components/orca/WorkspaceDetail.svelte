@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { replaceState } from '$app/navigation';
+	import { beforeNavigate, goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { gatewayMemberIDs, gatewaySources } from '$lib/orca/gateway-sources';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
@@ -9,6 +9,7 @@
 	import { ArrowUpRight, Info, LoaderCircle, Play } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import LifecycleActions from './LifecycleActions.svelte';
+	import ConfirmDialog from './ui/ConfirmDialog.svelte';
 	import PageHeader from './ui/PageHeader.svelte';
 	import type { StatusTone } from './ui/StatusPill.svelte';
 	import { showToast } from './ui/toast-store.svelte';
@@ -46,6 +47,34 @@
 	let activating = $state(false);
 	let activateError = $state('');
 
+	// A tab's unsaved changes live in that tab: moving to another tab, leaving
+	// the workspace or closing the page asks first (Codex release review 63).
+	let dirty = $state(false);
+	const ondirty = (value: boolean) => (dirty = value);
+	let leaveOpen = $state(false);
+	let leaveTo: URL | undefined;
+	let leaving = false;
+	beforeNavigate((navigation) => {
+		if (leaving || !dirty) return;
+		navigation.cancel();
+		if (navigation.type === 'leave') return;
+		leaveTo = navigation.to?.url;
+		leaveOpen = true;
+	});
+	async function leave() {
+		leaveOpen = false;
+		dirty = false;
+		const target = leaveTo;
+		leaveTo = undefined;
+		if (!target) return;
+		leaving = true;
+		try {
+			await goto(target.pathname + target.search + target.hash);
+		} finally {
+			leaving = false;
+		}
+	}
+
 	function tabHref(tab: string) {
 		return localeHref(`/app?view=hub&hub=${encodeURIComponent(hub.id)}${tab === 'overview' ? '' : `&tab=${tab}`}`);
 	}
@@ -63,7 +92,7 @@
 		}
 	});
 	async function activate() {
-		if (activating || !canEdit) return;
+		if (activating || !canEdit || dirty) return;
 		activating = true;
 		activateError = '';
 		try {
@@ -86,7 +115,7 @@
 >
 	{#snippet action()}
 		{#if canEdit && hub.status !== 'active'}
-			<button type="button" class="k-button" class:primary={activeTab === 'overview'} disabled={activating} onclick={activate}>{#if activating}<LoaderCircle size={16} class="k-spin" aria-hidden="true" />{:else}<Play size={16} aria-hidden="true" />{/if}{t('เปิดใช้งาน', 'Activate')}</button>
+			<button type="button" class="k-button" class:primary={activeTab === 'overview'} disabled={activating || dirty} title={dirty ? t('บันทึกหรือยกเลิกสิ่งที่แก้ไว้ก่อน', 'Save or cancel your changes first.') : undefined} onclick={activate}>{#if activating}<LoaderCircle size={16} class="k-spin" aria-hidden="true" />{:else}<Play size={16} aria-hidden="true" />{/if}{t('เปิดใช้งาน', 'Activate')}</button>
 		{/if}
 	{/snippet}
 </PageHeader>
@@ -110,11 +139,22 @@
 </nav>
 
 {#key `${hub.id}:${hub.version}`}
-	{#if activeTab === 'programs'}<WorkspaceProgramsTab {data} {hub} {canEdit} {onchanged} {addConnectionID} />
-	{:else if activeTab === 'people'}<WorkspacePeopleTab {data} {hub} {canEdit} {onchanged} />
-	{:else if activeTab === 'settings'}<WorkspaceSettingsView {data} {hub} {onchanged} />
+	{#if activeTab === 'programs'}<WorkspaceProgramsTab {data} {hub} {canEdit} {onchanged} {ondirty} {addConnectionID} />
+	{:else if activeTab === 'people'}<WorkspacePeopleTab {data} {hub} {canEdit} {onchanged} {ondirty} />
+	{:else if activeTab === 'settings'}<WorkspaceSettingsView {data} {hub} {onchanged} {ondirty} />
 	{:else}<WorkspaceOverviewTab {data} {hub} {created} {tabHref} />{/if}
 {/key}
+
+<ConfirmDialog
+	bind:open={leaveOpen}
+	title={t('ออกโดยไม่บันทึก?', 'Leave without saving?')}
+	message={t('สิ่งที่แก้ไว้ในแท็บนี้จะหายไป', 'What you changed in this tab will be lost.')}
+	confirmLabel={t('ออกโดยไม่บันทึก', 'Leave without saving')}
+	cancelLabel={t('แก้ต่อ', 'Keep editing')}
+	tone="danger"
+	onconfirm={leave}
+	oncancel={() => (leaveTo = undefined)}
+/>
 
 <style>
 	.hub-alert,

@@ -5,7 +5,7 @@
 	import { OrcaLibraryService, type LibraryDepartment } from '$lib/services/orca-library';
 	import { memberName, memberRole, type OrcaBootstrap, type OrcaHub } from '$lib/services/orca';
 	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-workspaces';
-	import { onMount, untrack } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import { personInitial } from '../ui/person-picker';
 	import { showToast } from '../ui/toast-store.svelte';
 	import AudiencePicker from './AudiencePicker.svelte';
@@ -17,12 +17,15 @@
 		data,
 		hub,
 		canEdit,
-		onchanged
+		onchanged,
+		ondirty
 	}: {
 		data: OrcaBootstrap;
 		hub: OrcaHub;
 		canEdit: boolean;
 		onchanged: () => Promise<void>;
+		/** Unsaved changes here, so the workspace asks before they are lost. */
+		ondirty?: (dirty: boolean) => void;
 	} = $props();
 	let memberIDs = $state<string[]>(untrack(() => [...(hub.memberIDs ?? [])]));
 	let accessUnitIDs = $state<string[]>(untrack(() => [...(hub.accessUnitIDs ?? [])]));
@@ -41,6 +44,8 @@
 		removeUnits: minus(savedUnits, accessUnitIDs)
 	});
 	const changeCount = $derived(change.addMembers.length + change.removeMembers.length + change.addUnits.length + change.removeUnits.length);
+	$effect(() => ondirty?.(changeCount > 0 || busy));
+	onDestroy(() => ondirty?.(false));
 	const counts = $derived(Object.fromEntries(departments.map((item) => [item.unitID, item.memberIDs.length])));
 	const effective = $derived(gatewayMemberIDs(hub));
 	const known = $derived(effective.flatMap((id) => {
