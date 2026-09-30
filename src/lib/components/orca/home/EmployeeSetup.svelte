@@ -110,7 +110,7 @@
 				<a class="k-button primary lg" href={localeHref('/app?view=connect-ai')}>{term('connectMyAI', t)}<ArrowRight size={16} aria-hidden="true" /></a>
 				<span class="home-acts-note">{t('ใช้ลิงก์ ORCA ของบริษัท ไม่ต้องใช้คีย์', "Uses your company's ORCA link. No key needed.")}</span>
 			</div>
-			{#if merged}<p class="home-aside">{t('เชื่อมแล้ว ลองถามในขั้นที่ 3 ได้เลย ขั้นนี้จะขึ้นว่าเสร็จเมื่อคุณถามครั้งแรก', 'Connected? Try step 3. This step is marked done after your first question.')}</p>{/if}
+			{#if merged}<p class="home-aside">{t('เชื่อมแล้ว ลองถามในขั้นที่ 3 ได้เลย ขั้นนี้จะขึ้นว่าเสร็จเมื่อคุณถามครั้งแรก', 'Connected? Try step 3. This step is marked done after your first question.')}</p>{:else if ai === 'revoked'}<p class="home-aside">{t('คุณเพิ่งตัดการเชื่อม AI ขั้นนี้จะขึ้นว่าเสร็จเมื่อ ORCA ตรวจเจอ AI ที่ยังเชื่อมอยู่', 'You just disconnected your AI. This step is marked done once ORCA finds an AI that is still connected.')}</p>{/if}
 		{/snippet}
 		{#snippet action()}
 			{#if aiStep.state !== 'done'}<button type="button" class="k-button home-off" disabled>{term('connectMyAI', t)}</button>{/if}

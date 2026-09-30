@@ -3,7 +3,7 @@
 // "เชื่อม AI ของฉัน" button. Metadata only: no token ever reaches the page.
 import { parseErrorContent } from '$lib/errors';
 import { orcaPath } from '$lib/orca/company';
-import { setAIConnection } from '$lib/orca/ai-connection.svelte';
+import { markAIDisconnected, setAIConnection } from '$lib/orca/ai-connection.svelte';
 import { aiConnectionFrom } from '$lib/orca/connect-ai';
 import { t } from '$lib/orca/locale.svelte';
 import { doGet, doPost } from './http';
@@ -95,12 +95,13 @@ export function refreshAIConnection(): Promise<void> {
  * its way may still list it, so it is dropped, and the next read starts afresh.
  * Until a read answers, the pin says nothing ("unknown"), so a failed read
  * never leaves "connected" standing (Codex release review 69); the connect
- * page then sets it from its own list at once.
+ * page then sets it from its own list at once. Home then no longer counts an
+ * earlier question as a connection (markAIDisconnected, Codex release review 70).
  */
 export function aiAppsRevoked(): void {
 	revocations += 1;
 	pending = undefined;
-	setAIConnection({ state: 'unknown' });
+	markAIDisconnected();
 }
 
 let checked = false;

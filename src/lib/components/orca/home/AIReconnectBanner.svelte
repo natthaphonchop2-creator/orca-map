@@ -4,12 +4,14 @@
 
 	// Home after setup, when only the viewer's own AI sign-in lapsed (it
 	// expired, or was disconnected: home-setup's aiLapsed). One line and the
-	// way back, instead of the whole setup checklist again.
+	// way back, instead of the whole setup checklist again. `disconnected`:
+	// the viewer did it themselves on this page, so it did not expire.
+	let { disconnected = false }: { disconnected?: boolean } = $props();
 </script>
 
 <section class="home-reconnect" aria-label={t('การเชื่อม AI ของคุณ', 'Your AI connection')}>
 	<CircleAlert size={18} aria-hidden="true" />
-	<p>{t('การเชื่อม AI ของคุณหมดอายุแล้ว', 'Your AI connection has expired')}</p>
+	<p>{disconnected ? t('คุณตัดการเชื่อม AI แล้ว', 'You disconnected your AI') : t('การเชื่อม AI ของคุณหมดอายุแล้ว', 'Your AI connection has expired')}</p>
 	<a class="k-button small" href={localeHref('/app?view=connect-ai')}>{t('เชื่อมใหม่', 'Reconnect')}</a>
 </section>
 

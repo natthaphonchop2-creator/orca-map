@@ -39,7 +39,7 @@ test('Home\'s "เชื่อม AI ของฉัน" step reads the pinned b
 	const page = await readFile(new URL('../components/orca/WorkspaceDashboard.svelte', import.meta.url), 'utf8');
 	assert.match(page, /import \{ aiConnection \} from '\$lib\/orca\/ai-connection\.svelte'/);
 	assert.match(page, /import \{ refreshAIConnection \} from '\$lib\/services\/orca-ai-apps'/);
-	assert.match(page, /aiChecked \? aiConnection\.state : 'unknown'/);
+	assert.match(page, /const ai = \$derived\(homeAIState\(aiConnection, aiChecked\)\);/);
 	assert.doesNotMatch(page, /setAIConnection|MyAIAppsService/, 'Home never sets the pin on its own rules');
 	assert.equal(home.aiState, undefined);
 	assert.equal(home.activeAISession, undefined);
@@ -199,6 +199,46 @@ test('an AI sign-in that lapsed after setup keeps Home in status mode, with one 
 	assert.equal(home.aiLapsed(home.employeeChecklist('none', ['unknown'], true), 'none'), true);
 	// An employee with no usable workspace asks for access first, whatever else.
 	assert.equal(home.homeMode(home.employeeChecklist('none', ['signed-in'], true), true, true, true), 'setup');
+});
+
+test('after the viewer\'s own disconnect, an earlier question never ticks "เชื่อม AI" again (Codex release review 70)', () => {
+	const th = (thai) => thai;
+	const ready = company({ connections: [connection('conn-flow')], hubs: [hub('h')] });
+	// Home's state from the shared store: B1's answer once Home's own read is back.
+	assert.equal(home.homeAIState({ state: 'connected' }, false), 'unknown', 'before Home\'s read: not known');
+	assert.equal(home.homeAIState({ state: 'connected' }, true), 'connected');
+	assert.equal(home.homeAIState({ state: 'unknown' }, true), 'unknown', 'an older server: the first question still proves it');
+	// I disconnected one of my own AI apps on this page (ตรวจสอบ or เชื่อม AI ของฉัน).
+	assert.equal(home.homeAIState({ state: 'unknown', disconnected: true }, true), 'revoked', 'the read after it failed: only B1 can say what is left');
+	assert.equal(home.homeAIState({ state: 'unknown', disconnected: true }, false), 'revoked');
+	assert.equal(home.homeAIState({ state: 'connected', disconnected: true }, false), 'revoked', 'never an older state before Home\'s own read');
+	assert.equal(home.homeAIState({ state: 'none', disconnected: true }, true), 'none', 'B1 answered after it');
+	assert.equal(home.homeAIState({ state: 'connected', disconnected: true }, true), 'connected', 'another AI app is still connected');
+
+	// My question from before the disconnect is still in the history: it proves nothing now.
+	let list = home.ownerChecklist(ready, 'revoked', true);
+	assert.deepEqual(list.steps.map((step) => step.done), [true, true, undefined, true]);
+	assert.equal(list.steps.find((step) => step.id === 'ai').state, 'current', '"เชื่อม AI" is not ticked');
+	assert.equal(list.complete, false, 'no "ตั้งค่าเสร็จแล้ว"');
+	assert.equal(list.incomplete, false, 'not "not connected" either: that is not known');
+	assert.equal(home.employeeChecklist('revoked', ['signed-in'], true).steps[0].done, undefined);
+	assert.equal(home.employeeChecklist('revoked', ['signed-in'], true).complete, false);
+	// Setup was done before: status mode with the banner, one thing to look at.
+	assert.equal(home.aiLapsed(list, 'revoked'), true);
+	assert.equal(home.homeMode(list, false, true, true), 'status');
+	assert.deepEqual(home.homeBadge('status', true, 0, th, true), { label: 'ต้องดูแล 1 เรื่อง', tone: 'warn' });
+	assert.equal(home.aiLapsed(home.employeeChecklist('revoked', ['signed-in'], true), 'revoked'), true);
+	// Setup not done yet: the checklist, with "เชื่อม AI" open.
+	list = home.ownerChecklist(ready, 'revoked', false);
+	assert.equal(home.aiLapsed(list, 'revoked'), false);
+	assert.equal(home.homeMode(list, false, true, false), 'setup');
+	assert.equal(list.current, 'ai');
+	// Once B1 answers, it decides as before.
+	assert.equal(home.ownerChecklist(ready, 'connected', true).complete, true);
+	assert.equal(home.aiLapsed(home.ownerChecklist(ready, 'none', true), 'none'), true);
+	// The old-server fallback is separate: on a page where nothing was disconnected, asking proves it.
+	assert.equal(home.ownerChecklist(ready, 'unknown', true).complete, true);
+	assert.equal(home.aiLapsed(home.ownerChecklist(ready, 'unknown', true), 'unknown'), false);
 });
 
 test('employee checklist: AI, then a sign-in per program, then the first question', () => {

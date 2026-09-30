@@ -110,6 +110,26 @@ test('steps 3 and 4: connect my AI, then a copyable first question per program',
 	assert.match(text(html), /ตรวจไม่ได้ว่าคุณถามแล้วหรือยัง/);
 });
 
+test('after my own disconnect, step "เชื่อม AI" is open again and says why, never ticked by an earlier question (Codex release review 70)', () => {
+	const data = company({ connections: [flow], hubs: [workspace] });
+	// I asked before, then disconnected my AI in ตรวจสอบ, and the read after it failed.
+	let html = owner(data, 'revoked', true);
+	let plain = text(html);
+	assert.match(html, /<li class="home-step current[^"]*" aria-current="step"[\s\S]*?เชื่อม AI ของฉัน/);
+	assert.match(plain, /คุณเพิ่งตัดการเชื่อม AI ขั้นนี้จะขึ้นว่าเสร็จเมื่อ ORCA ตรวจเจอ AI ที่ยังเชื่อมอยู่/);
+	assert.doesNotMatch(plain, /AI ของคุณเชื่อมกับ ORCA แล้ว|เชื่อมแล้ว ลองถาม/, 'never "connected", and no promise that asking ticks it');
+	assert.match(plain, /เสร็จ 3 จาก 4/);
+	// The same for an employee.
+	const list = home.employeeChecklist('revoked', ['signed-in'], true);
+	html = render(EmployeeSetup, { props: { list, ai: 'revoked', programs: [flow], accounts: [{ id: 'default-orca-flowaccount', name: 'FlowAccount', icon: 'FlowAccount', state: 'signed-in' }] } }).body;
+	plain = text(html);
+	assert.match(plain, /คุณเพิ่งตัดการเชื่อม AI ขั้นนี้จะขึ้นว่าเสร็จเมื่อ ORCA ตรวจเจอ AI ที่ยังเชื่อมอยู่/);
+	assert.doesNotMatch(plain, /AI ของคุณเชื่อมกับ ORCA แล้ว|เชื่อมแล้ว ลองถาม/);
+	// Without a disconnect, an older server still merges the two steps, as before.
+	assert.match(text(owner(data, 'unknown', false)), /ขั้นนี้จะขึ้นว่าเสร็จเมื่อคุณถามครั้งแรก/);
+	assert.doesNotMatch(text(owner(data, 'unknown', false)), /คุณเพิ่งตัดการเชื่อม AI/);
+});
+
 test('employee: connect my AI, a sign-in row per program, then ask; or ask an admin for access', () => {
 	const list = home.employeeChecklist('none', ['signed-in', 'needed'], false);
 	let html = render(EmployeeSetup, { props: {
@@ -175,13 +195,18 @@ test('a lapsed AI sign-in after setup: one line and a way back on the status vie
 	assert.match(html, /<a class="k-button small[^"]*" href="\/app\?view=connect-ai">เชื่อมใหม่<\/a>/);
 	const english = render(await component('./home/AIReconnectBanner.svelte', { ...base, t: (_th, en) => en })).body;
 	assert.match(text(english), /Your AI connection has expired Reconnect/);
+	// I disconnected it myself on this page: it did not expire (Codex release review 70).
+	const mine = render(Banner, { props: { disconnected: true } }).body;
+	assert.match(text(mine), /คุณตัดการเชื่อม AI แล้ว เชื่อมใหม่/);
+	assert.doesNotMatch(text(mine), /หมดอายุ/);
+	assert.match(mine, /href="\/app\?view=connect-ai">เชื่อมใหม่<\/a>/);
 	// Home: the rule decides the mode and the pill, and the banner sits on the status view only.
 	const page = await readFile(new URL('./WorkspaceDashboard.svelte', import.meta.url), 'utf8');
 	assert.match(page, /const lapsed = \$derived\(aiLapsed\(list, ai\)\);/);
 	assert.match(page, /homeMode\(list, noWorkspace, loaded, lapsed\)/);
 	assert.match(page, /homeBadge\(mode, manager, attention, t, lapsed\)/);
 	const status = page.slice(page.indexOf("{:else if mode === 'loading'}"));
-	assert.match(status, /\{:else\}\s*\{#if lapsed\}<AIReconnectBanner \/>\{\/if\}/);
+	assert.match(status, /\{:else\}\s*\{#if lapsed\}<AIReconnectBanner disconnected=\{aiConnection\.disconnected\} \/>\{\/if\}/);
 	assert.equal(page.match(/<AIReconnectBanner/g)?.length, 1);
 	const banner = await readFile(new URL('./home/AIReconnectBanner.svelte', import.meta.url), 'utf8');
 	assert.doesNotMatch(banner, /#[0-9a-f]{3,6}\b|rgba?\(/i, 'tokens only');

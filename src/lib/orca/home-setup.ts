@@ -39,8 +39,24 @@ export function programAbilities(connection: Pick<OrcaConnection, 'toolNames' | 
 /**
  * The viewer's AI, as the pinned "เชื่อม AI ของฉัน" button shows it (the shared
  * store, fed by B1): `unknown` while it loads or when the server cannot say.
+ * `revoked`: unknown too, but the viewer disconnected one of their own AI apps
+ * on this page, so an earlier question proves nothing now (homeAIState).
  */
-export type AIState = AIConnectionState;
+export type AIState = AIConnectionState | 'revoked';
+
+/**
+ * Home's AI state, from the shared store: B1's answer once Home's own read is
+ * back (`checked`), else unknown. After the viewer disconnected one of their
+ * own AI apps on this page (ตรวจสอบ or เชื่อม AI ของฉัน), unknown is `revoked`:
+ * only a read of B1 says what is left, and history never ticks "เชื่อม AI" or
+ * brings back "ตั้งค่าเสร็จแล้ว" (Codex release review 70). The old-server
+ * fallback, where the first question proves the AI, stays for a page where
+ * nothing was disconnected.
+ */
+export function homeAIState(store: { state: AIConnectionState; disconnected?: boolean }, checked: boolean): AIState {
+	const state = checked ? store.state : 'unknown';
+	return store.disconnected && state === 'unknown' ? 'revoked' : state;
+}
 
 export function isToolCall(event: Pick<OrcaAuditEvent, 'action' | 'method'>): boolean {
 	return ['tools.call', 'tools/call'].includes(event.action || event.method || '');
@@ -187,11 +203,13 @@ export function ownerChecklist(
 /**
  * B1 decides when it answers: "none" means no AI is connected now, even if
  * this person asked something before (their sign-in expired or was
- * disconnected). Only while B1 is unknown does an earlier question prove it.
+ * disconnected). Only while B1 is unknown does an earlier question prove it,
+ * and never after the viewer's own disconnect (`revoked`): that is not known.
  */
 function aiDone(ai: AIState, asked: Done): Done {
 	if (ai === 'connected') return true;
 	if (ai === 'none') return false;
+	if (ai === 'revoked') return undefined;
 	return asked;
 }
 
@@ -226,16 +244,17 @@ export type HomeMode = 'setup' | 'status' | 'loading';
 
 /**
  * Setup was finished before, and only the viewer's own AI sign-in lapsed: B1
- * says no AI is connected now (it expired, or was disconnected), yet the
- * viewer has asked a first question and every other step is still done (a
- * ready program and an active workspace they use; an employee's program
- * sign-ins, when known). Home then stays in status mode with a one-line
- * "reconnect" banner instead of the whole checklist again.
+ * says no AI is connected now (it expired, or was disconnected), or the viewer
+ * just disconnected their own and B1 has not said what is left (`revoked`),
+ * yet the viewer has asked a first question and every other step is still
+ * done (a ready program and an active workspace they use; an employee's
+ * program sign-ins, when known). Home then stays in status mode with a
+ * one-line "reconnect" banner instead of the whole checklist again.
  */
 export function aiLapsed(list: Pick<Checklist, 'steps'>, ai: AIState): boolean {
-	if (ai !== 'none') return false;
+	if (ai !== 'none' && ai !== 'revoked') return false;
 	const step = (id: string) => list.steps.find((item) => item.id === id);
-	if (step('ai')?.done !== false || step('ask')?.done !== true) return false;
+	if (step('ai')?.done === true || step('ask')?.done !== true) return false;
 	// The owner's program and workspace steps are always known; an employee's
 	// sign-ins may not be (a program an admin hasn't opened yet): unknown alone never nags.
 	return list.steps.every((item) => item.id === 'ai' || item.id === 'ask' || (item.id === 'accounts' ? item.done !== false : item.done === true));

@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
-import { stripTypeScriptTypes } from 'node:module';
+import { createRequire, stripTypeScriptTypes } from 'node:module';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
+import { compileModule } from 'svelte/compiler';
 import { render } from 'svelte/server';
 import { importTypeScript } from '../../orca/test-import.mjs';
 import { serverComponent } from './test-render.mjs';
@@ -38,6 +40,18 @@ const stub = (mounted, name, body = '') => (renderer, props) => {
 	renderer.push(`<div data-child="${name}">${body}</div>`);
 };
 const common = { t: en, term, localeHref: (href) => href, orcaLocale: { value: 'en' }, untrack: (fn) => fn(), onMount: () => {}, onDestroy: () => {}, copyFeedback, copyText, ...ai, ...inApp, ...workspaceEdit };
+
+/** The shipped shared store (ai-connection.svelte.ts), compiled with its runes; a fresh copy per call. */
+let storeCopies = 0;
+async function sharedStore() {
+	const require = createRequire(import.meta.url);
+	const source = stripTypeScriptTypes(await readFile(new URL('../../orca/ai-connection.svelte.ts', import.meta.url), 'utf8')).replace(/^import[^;]+;$/gm, '');
+	const code = compileModule(source, { filename: `ai-connection-${++storeCopies}.svelte.js`, generate: 'client' }).js.code.replaceAll(
+		'svelte/internal/client',
+		pathToFileURL(require.resolve('svelte/internal/client')).href
+	);
+	return import('data:text/javascript;base64,' + Buffer.from(`${code}\n// copy ${storeCopies}`).toString('base64'));
+}
 
 async function page(props) {
 	const mounted = [];
@@ -270,19 +284,35 @@ test('the pin\'s shared read that started before a disconnect changes nothing, a
 	const source = stripTypeScriptTypes(await readFile(new URL('../../services/orca-ai-apps.ts', import.meta.url), 'utf8'))
 		.replace(/^import[^;]+;$/gm, '')
 		.replace(/^export /gm, '');
-	const make = new Function('deps', `const { parseErrorContent, orcaPath, setAIConnection, aiConnectionFrom, t, doGet, doPost } = deps;\n${source}\nreturn { refreshAIConnection, aiAppsRevoked };`);
+	const make = new Function('deps', `const { parseErrorContent, orcaPath, setAIConnection, markAIDisconnected, aiConnectionFrom, t, doGet, doPost } = deps;\n${source}\nreturn { refreshAIConnection, aiAppsRevoked };`);
 	const reads = [];
 	const states = [];
+	// The real shared store, so the test sees what the pin and Home see.
+	const store = await sharedStore();
+	const recorded = {
+		setAIConnection: (status) => {
+			store.setAIConnection(status);
+			states.push(store.aiConnection.state);
+		},
+		markAIDisconnected: () => {
+			store.markAIDisconnected();
+			states.push(store.aiConnection.state);
+		}
+	};
 	const service = make({
 		parseErrorContent: () => ({ status: 500 }), orcaPath: (path) => path, t: en, doPost: async () => ({}),
-		setAIConnection: (status) => states.push(status.state), aiConnectionFrom: ai.aiConnectionFrom,
+		...recorded, aiConnectionFrom: ai.aiConnectionFrom,
 		doGet: () => new Promise((resolve) => reads.push(resolve))
 	});
+	store.setAIConnection({ state: 'connected', app: 'Claude' });
+	assert.equal(store.aiConnection.disconnected, false);
 	const live = { sessions: [{ id: 's1', app: 'Claude', client: 'claude', createdAt: new Date(Date.now() - 60_000).toISOString(), expiresAt: new Date(Date.now() + 3_600_000).toISOString() }], keys: [] };
 	const before = service.refreshAIConnection();
 	assert.equal(service.refreshAIConnection(), before, 'calls in flight share one read');
 	service.aiAppsRevoked();
 	assert.deepEqual(states, ['unknown'], 'a disconnect clears "connected" at once (Codex release review 69)');
+	assert.equal(store.aiConnection.app, undefined);
+	assert.equal(store.aiConnection.disconnected, true, 'and Home knows an earlier question proves nothing now (Codex release review 70)');
 	const after = service.refreshAIConnection();
 	assert.notEqual(after, before, 'after a disconnect the next read starts afresh');
 	reads[0](live);
@@ -291,11 +321,12 @@ test('the pin\'s shared read that started before a disconnect changes nothing, a
 	reads[1]({ sessions: [], keys: [] });
 	await after;
 	assert.deepEqual(states, ['unknown', 'none']);
+	assert.equal(store.aiConnection.disconnected, true, 'a later read never forgets the disconnect');
 	// A fresh read that fails keeps "unknown", never the old "connected".
 	service.aiAppsRevoked();
 	const failing = make({
 		parseErrorContent: () => ({ status: 500 }), orcaPath: (path) => path, t: en, doPost: async () => ({}),
-		setAIConnection: (status) => states.push(status.state), aiConnectionFrom: ai.aiConnectionFrom,
+		...recorded, aiConnectionFrom: ai.aiConnectionFrom,
 		doGet: async () => { throw new Error('offline'); }
 	});
 	states.length = 0;
@@ -306,6 +337,24 @@ test('the pin\'s shared read that started before a disconnect changes nothing, a
 	assert.match(oversight, /await disconnectRow\(chosen\.row\);\s*if \(chosen\.group\.isViewer\) ownRevoked\(\);/, 'ตรวจสอบ: the viewer\'s own app updates the pin');
 	assert.match(oversight, /if \(chosen\.isViewer && result\.done > 0\) ownRevoked\(\);/);
 	assert.match(oversight, /function ownRevoked\(\) \{\s*aiAppsRevoked\(\);\s*void refreshAIConnection\(\);/);
+});
+
+test('the shared store: a disconnect clears the app and is remembered for the page, whatever reads come later (Codex release review 70)', async () => {
+	const store = await sharedStore();
+	assert.deepEqual({ ...store.aiConnection }, { state: 'unknown', disconnected: false });
+	store.setAIConnection({ state: 'connected', app: 'ChatGPT' });
+	assert.deepEqual({ ...store.aiConnection }, { state: 'connected', app: 'ChatGPT', disconnected: false });
+	store.markAIDisconnected();
+	assert.deepEqual({ ...store.aiConnection }, { state: 'unknown', app: undefined, disconnected: true });
+	store.setAIConnection({ state: 'connected', app: 'Claude' });
+	assert.deepEqual({ ...store.aiConnection }, { state: 'connected', app: 'Claude', disconnected: true }, 'another app still connected; the disconnect stays known');
+	store.setAIConnection({ state: 'unknown' });
+	assert.equal(store.aiConnection.disconnected, true);
+	// Every own disconnect goes through the one service call, which marks it.
+	const service = await readFile(new URL('../../services/orca-ai-apps.ts', import.meta.url), 'utf8');
+	assert.match(service, /export function aiAppsRevoked\(\): void \{\s*revocations \+= 1;\s*pending = undefined;\s*markAIDisconnected\(\);\s*\}/);
+	const view = await readFile(new URL('./views/ConnectAIView.svelte', import.meta.url), 'utf8');
+	assert.doesNotMatch(view, /markAIDisconnected/, 'the connect page disconnects through aiAppsRevoked');
 });
 
 test('step 5 says waiting, connected or asks for a manual check, and step 3 speaks each app’s menus', async () => {

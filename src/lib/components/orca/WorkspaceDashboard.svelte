@@ -17,6 +17,7 @@
 		employeeChecklist,
 		firstName,
 		homeBadge,
+		homeAIState,
 		homeFlagKey,
 		homeMode,
 		isToolCall,
@@ -84,8 +85,10 @@
 	const me = $derived(data.members.find((member) => member.id === data.currentUserID));
 	const company = $derived(data.organization.displayName || 'ORCA');
 	const iconName = (connection: OrcaConnection) => sourceNames[connection.mcpID] || connection.name;
-	// The same store the pinned "เชื่อม AI ของฉัน" button reads (B1).
-	const ai = $derived(aiChecked ? aiConnection.state : 'unknown');
+	// The same store the pinned "เชื่อม AI ของฉัน" button reads (B1). After my
+	// own disconnect on this page, an earlier question no longer counts (Codex
+	// release review 70).
+	const ai = $derived(homeAIState(aiConnection, aiChecked));
 	const aiApp = $derived(ai === 'connected' ? (aiConnection.app ?? '') : '');
 	const asked = $derived<Done>(eventsError || !events ? undefined : askedAI(events, data.currentUserID, eventsTruncated));
 	const owner = $derived(ownerChecklist(data, ai, asked));
@@ -292,7 +295,7 @@
 {:else if mode === 'loading'}
 	<p class="home-loading" role="status" aria-live="polite">{t('กำลังตรวจสถานะการตั้งค่า…', 'Checking your setup…')}</p>
 {:else}
-	{#if lapsed}<AIReconnectBanner />{/if}
+	{#if lapsed}<AIReconnectBanner disconnected={aiConnection.disconnected} />{/if}
 	{#if list.complete && !flags['setup-dismissed']}
 		<section class="home-done" aria-labelledby="home-done-title">
 			<span class="home-done-icon" aria-hidden="true"><CircleCheck size={20} /></span>

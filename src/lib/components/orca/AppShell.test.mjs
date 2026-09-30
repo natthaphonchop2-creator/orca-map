@@ -169,7 +169,7 @@ test('a server without B1 (GET me/ai-apps 404) or not read yet: a neutral pin, n
 	assert.doesNotMatch(aside, /workspace-pin-state|Not connected/);
 	// The store starts unknown, so nothing is claimed before B1 answers.
 	const store = await readFile(new URL('../../orca/ai-connection.svelte.ts', import.meta.url), 'utf8');
-	assert.match(store, /\$state<AIConnectionStatus>\(\{ state: 'unknown' \}\)/);
+	assert.match(store, /\$state<AIConnectionStatus & \{ disconnected: boolean \}>\(\{ state: 'unknown', disconnected: false \}\)/);
 });
 
 test('sub-pages keep their sidebar item lit', async () => {
