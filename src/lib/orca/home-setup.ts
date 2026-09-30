@@ -7,7 +7,7 @@ import { gatewayConnections, gatewayHasMember } from './gateway-sources';
 import { lineExternalURL } from './in-app-browser';
 import { toolChangesData } from './program-tools';
 import { secretRows } from './secrets';
-import type { AIConnectionStatus } from './ai-connection';
+import { aiConnectionAppFor, aiConnectionReaches, type AIConnectionStatus } from './ai-connection';
 import type { OrcaAuditEvent, OrcaBootstrap, OrcaConnection, OrcaHub, OrcaMember, OrcaSecrets } from '../services/orca';
 
 type Translate = (th: string, en: string) => string;
@@ -46,6 +46,9 @@ export function programAbilities(connection: Pick<OrcaConnection, 'toolNames' | 
  */
 export type AIState = AIConnectionStatus['state'] | 'revoked' | 'limited';
 
+/** The viewer's workspaces, as connectAccess splits them: on the company's link, and with their own sign-in. */
+export type HomeAccess = { usable: readonly Pick<OrcaHub, 'id'>[]; ownSignIn: readonly Pick<OrcaHub, 'id' | 'userSourceID'>[] };
+
 /**
  * Home's AI state, from the shared store: B1's answer once Home's own read is
  * back (`checked`), else unknown. After the viewer disconnected one of their
@@ -56,22 +59,48 @@ export type AIState = AIConnectionStatus['state'] | 'revoked' | 'limited';
  * nothing was disconnected. Connected only through workspaces' own links is
  * `limited` while the company's link has workspaces for the viewer
  * (`access.usable`, connectAccess; unknown counts as some). With none (every
- * workspace of theirs has its own sign-in) those links are theirs: connected
- * once one reaches a workspace they use now (`access.ownSignIn`), else `none`,
- * since a sign-in kept for a workspace they were taken out of reaches nothing
- * (Codex review 71).
+ * workspace of theirs has its own sign-in) the company's link reaches nothing
+ * of theirs: connected once their AI reaches a workspace they use now
+ * (`access.ownSignIn`, aiConnectionReaches), else `none`, since a sign-in kept
+ * for a workspace they were taken out of, or one through the company's link,
+ * reaches nothing (Codex reviews 71 and 72). With no workspace at all, the
+ * company's link or a used key counts, as before.
  */
-export function homeAIState(
-	store: AIConnectionStatus & { disconnected?: boolean },
-	checked: boolean,
-	access?: { usable: readonly Pick<OrcaHub, 'id'>[]; ownSignIn: readonly Pick<OrcaHub, 'id'>[] }
-): AIState {
+export function homeAIState(store: AIConnectionStatus & { disconnected?: boolean }, checked: boolean, access?: HomeAccess): AIState {
 	const state = checked ? store.state : 'unknown';
-	if (state === 'connected' && store.only?.length) {
-		if (!access || access.usable.length) return 'limited';
-		return store.only.some((hub) => access.ownSignIn.some((mine) => mine.id === hub.id)) ? 'connected' : 'none';
+	if (state === 'connected') {
+		const limited = !!store.only?.length;
+		if (!access || access.usable.length) return limited ? 'limited' : 'connected';
+		if (!limited && !access.ownSignIn.length) return 'connected';
+		return access.ownSignIn.some((hub) => aiConnectionReaches(store, hub)) ? 'connected' : 'none';
 	}
 	return store.disconnected && state === 'unknown' ? 'revoked' : state;
+}
+
+/**
+ * The app Home names ("Claude เชื่อมแล้ว") when its AI step is done: the
+ * company link's, or, when every workspace of the viewer's has its own
+ * sign-in, the one app whose sign-in reaches them; "" when it is not known or
+ * they differ (Codex review 72).
+ */
+export function homeAIApp(store: AIConnectionStatus, ai: AIState, access?: HomeAccess): string {
+	if (ai !== 'connected') return '';
+	if (!access || access.usable.length || !access.ownSignIn.length) return store.app?.trim() ?? '';
+	const apps = new Set(access.ownSignIn.filter((hub) => aiConnectionReaches(store, hub)).map((hub) => aiConnectionAppFor(store, hub)));
+	return apps.size === 1 ? [...apps][0] : '';
+}
+
+/**
+ * Why Home's banner shows after setup (aiLapsed): `limited` to workspaces'
+ * own links; `unreached`, a live sign-in or key that reaches none of the
+ * viewer's workspaces now (nothing expired: Codex review 72); `disconnected`
+ * by the viewer on this page; else `expired`.
+ */
+export type AILapse = 'limited' | 'unreached' | 'disconnected' | 'expired';
+export function aiLapse(store: AIConnectionStatus & { disconnected?: boolean }, ai: AIState): AILapse {
+	if (ai === 'limited') return 'limited';
+	if (ai === 'none' && store.state === 'connected') return 'unreached';
+	return store.disconnected ? 'disconnected' : 'expired';
 }
 
 export function isToolCall(event: Pick<OrcaAuditEvent, 'action' | 'method'>): boolean {

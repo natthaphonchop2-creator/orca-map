@@ -1,20 +1,49 @@
 <script lang="ts">
 	import { CircleAlert } from '@lucide/svelte';
+	import type { AILapse } from '$lib/orca/home-setup';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
+	import type { OrcaHub } from '$lib/services/orca';
 
-	// Home after setup, when only the viewer's own AI sign-in lapsed (it
-	// expired, or was disconnected: home-setup's aiLapsed). One line and the
-	// way back, instead of the whole setup checklist again. `disconnected`:
-	// the viewer did it themselves on this page, so it did not expire. `only`:
-	// it still reaches some workspaces through their own links ("เฉพาะ ฝ่ายขาย"),
-	// never the company's link (B3 follow-up).
-	let { disconnected = false, only = '' }: { disconnected?: boolean; only?: string } = $props();
+	// Home after setup, when only the viewer's own AI lapsed (home-setup's
+	// aiLapsed). One line and the way back, instead of the whole setup
+	// checklist again. Why (`lapse`, aiLapse):
+	// - `limited`: it still reaches some workspaces through their own links
+	//   (`only`: "เฉพาะ ฝ่ายขาย"), never the company's link (B3 follow-up)
+	// - `unreached`: a live sign-in reaches none of the viewer's workspaces now,
+	//   which have their own sign-in (`own`): nothing expired (Codex review 72)
+	// - `disconnected`: the viewer did it themselves on this page
+	// - `expired`: no sign-in is left
+	let {
+		lapse = 'expired',
+		only = '',
+		own = []
+	}: { lapse?: AILapse; only?: string; own?: readonly Pick<OrcaHub, 'id' | 'name'>[] } = $props();
+	const message = $derived(
+		lapse === 'limited'
+			? t(`AI ของคุณใช้ได้${only}`, `Your AI reaches ${only}`)
+			: lapse === 'unreached'
+				? t('AI ที่เชื่อมไว้ยังใช้พื้นที่ทำงานของคุณไม่ได้', "The AI you connected can't use your workspaces yet")
+				: lapse === 'disconnected'
+					? t('คุณตัดการเชื่อม AI แล้ว', 'You disconnected your AI')
+					: t('การเชื่อม AI ของคุณหมดอายุแล้ว', 'Your AI connection has expired')
+	);
+	// One workspace with its own sign-in: its link is on its overview; several: เชื่อม AI ของฉัน lists them.
+	const ownOne = $derived(lapse === 'unreached' && own.length === 1 ? own[0] : undefined);
+	const action = $derived(
+		lapse === 'limited'
+			? { href: localeHref('/app?view=connect-ai'), label: t('ใช้ลิงก์ของบริษัท', 'Use the company link') }
+			: ownOne
+				? { href: localeHref(`/app?view=hub&hub=${encodeURIComponent(ownOne.id)}&tab=overview`), label: t(`ใช้ลิงก์ของ ${ownOne.name}`, `Use ${ownOne.name}'s link`) }
+				: lapse === 'unreached'
+					? { href: localeHref('/app?view=connect-ai'), label: t('ดูลิงก์ที่ต้องใช้', 'See which link to use') }
+					: { href: localeHref('/app?view=connect-ai'), label: t('เชื่อมใหม่', 'Reconnect') }
+	);
 </script>
 
 <section class="home-reconnect" aria-label={t('การเชื่อม AI ของคุณ', 'Your AI connection')}>
 	<CircleAlert size={18} aria-hidden="true" />
-	<p>{only ? t(`AI ของคุณใช้ได้${only}`, `Your AI reaches ${only}`) : disconnected ? t('คุณตัดการเชื่อม AI แล้ว', 'You disconnected your AI') : t('การเชื่อม AI ของคุณหมดอายุแล้ว', 'Your AI connection has expired')}</p>
-	<a class="k-button small" href={localeHref('/app?view=connect-ai')}>{only ? t('ใช้ลิงก์ของบริษัท', 'Use the company link') : t('เชื่อมใหม่', 'Reconnect')}</a>
+	<p>{message}</p>
+	<a class="k-button small" href={action.href}>{action.label}</a>
 </section>
 
 <style>

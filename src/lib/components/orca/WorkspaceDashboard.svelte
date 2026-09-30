@@ -10,6 +10,7 @@
 	import {
 		AUDIT_WINDOW,
 		accessRequestText,
+		aiLapse,
 		aiLapsed,
 		accountStateFrom,
 		activeMembers,
@@ -19,6 +20,7 @@
 		employeeChecklist,
 		firstName,
 		homeBadge,
+		homeAIApp,
 		homeAIState,
 		homeFlagKey,
 		homeMode,
@@ -94,7 +96,8 @@
 	// own disconnect on this page, an earlier question no longer counts (Codex
 	// release review 70).
 	const ai = $derived(homeAIState(aiConnection, aiChecked, access));
-	const aiApp = $derived(ai === 'connected' ? (aiConnection.app ?? '') : '');
+	// The app whose sign-in reaches my workspaces, never the company link's for ones with their own sign-in (Codex review 72).
+	const aiApp = $derived(homeAIApp(aiConnection, ai, access));
 	// Connected only through workspaces' own links: where it reaches, never company-wide (B3 follow-up).
 	const aiOnly = $derived(ai === 'limited' ? onlyWorkspacesText(aiConnection.only ?? [], t) : '');
 	const asked = $derived<Done>(eventsError || !events ? undefined : askedAI(events, data.currentUserID, eventsTruncated));
@@ -305,7 +308,7 @@
 {:else if mode === 'loading'}
 	<p class="home-loading" role="status" aria-live="polite">{t('กำลังตรวจสถานะการตั้งค่า…', 'Checking your setup…')}</p>
 {:else}
-	{#if lapsed}<AIReconnectBanner disconnected={aiConnection.disconnected} only={aiOnly} />{/if}
+	{#if lapsed}<AIReconnectBanner lapse={aiLapse(aiConnection, ai)} only={aiOnly} own={access.ownSignIn} />{/if}
 	{#if list.complete && !flags['setup-dismissed']}
 		<section class="home-done" aria-labelledby="home-done-title">
 			<span class="home-done-icon" aria-hidden="true"><CircleCheck size={20} /></span>

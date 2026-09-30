@@ -212,7 +212,7 @@ test('a lapsed AI sign-in after setup: one line and a way back on the status vie
 	const english = render(await component('./home/AIReconnectBanner.svelte', { ...base, t: (_th, en) => en })).body;
 	assert.match(text(english), /Your AI connection has expired Reconnect/);
 	// I disconnected it myself on this page: it did not expire (Codex release review 70).
-	const mine = render(Banner, { props: { disconnected: true } }).body;
+	const mine = render(Banner, { props: { lapse: 'disconnected' } }).body;
 	assert.match(text(mine), /คุณตัดการเชื่อม AI แล้ว เชื่อมใหม่/);
 	assert.doesNotMatch(text(mine), /หมดอายุ/);
 	assert.match(mine, /href="\/app\?view=connect-ai">เชื่อมใหม่<\/a>/);
@@ -222,14 +222,24 @@ test('a lapsed AI sign-in after setup: one line and a way back on the status vie
 	assert.match(page, /homeMode\(list, noWorkspace, loaded, lapsed\)/);
 	assert.match(page, /homeBadge\(mode, manager, attention, t, lapsed\)/);
 	const status = page.slice(page.indexOf("{:else if mode === 'loading'}"));
-	assert.match(status, /\{:else\}\s*\{#if lapsed\}<AIReconnectBanner disconnected=\{aiConnection\.disconnected\} only=\{aiOnly\} \/>\{\/if\}/);
+	assert.match(status, /\{:else\}\s*\{#if lapsed\}<AIReconnectBanner lapse=\{aiLapse\(aiConnection, ai\)\} only=\{aiOnly\} own=\{access\.ownSignIn\} \/>\{\/if\}/);
 	// Connected only through a workspace's own link: where it reaches, and the company link (B3 follow-up).
-	const limited = render(Banner, { props: { only: 'เฉพาะ ฝ่ายขาย', disconnected: true } }).body;
+	const limited = render(Banner, { props: { lapse: 'limited', only: 'เฉพาะ ฝ่ายขาย' } }).body;
 	assert.match(text(limited), /AI ของคุณใช้ได้เฉพาะ ฝ่ายขาย ใช้ลิงก์ของบริษัท/);
 	assert.doesNotMatch(text(limited), /หมดอายุ|คุณตัดการเชื่อม/);
 	assert.match(page, /const aiOnly = \$derived\(ai === 'limited' \? onlyWorkspacesText\(aiConnection\.only \?\? \[\], t\) : ''\);/);
 	assert.equal(page.match(/^\t+\{aiOnly\}$/gm)?.length, 2, 'both setup cards get it');
 	assert.equal(page.match(/<AIReconnectBanner/g)?.length, 1);
+	// A live sign-in that reaches none of my workspaces (they have their own sign-in): nothing expired (Codex review 72).
+	const unreached = render(Banner, { props: { lapse: 'unreached', own: [{ id: 'h sso', name: 'ฝ่ายขาย' }] } }).body;
+	assert.match(text(unreached), /AI ที่เชื่อมไว้ยังใช้พื้นที่ทำงานของคุณไม่ได้ ใช้ลิงก์ของ ฝ่ายขาย/);
+	assert.match(unreached, /href="\/app\?view=hub&amp;hub=h%20sso&amp;tab=overview">ใช้ลิงก์ของ ฝ่ายขาย<\/a>/, 'its link is on its overview');
+	assert.doesNotMatch(text(unreached), /หมดอายุ|คุณตัดการเชื่อม|ลิงก์ของบริษัท/);
+	const several = render(Banner, { props: { lapse: 'unreached', own: [{ id: 'a', name: 'ฝ่ายขาย' }, { id: 'b', name: 'บัญชี' }] } }).body;
+	assert.match(text(several), /AI ที่เชื่อมไว้ยังใช้พื้นที่ทำงานของคุณไม่ได้ ดูลิงก์ที่ต้องใช้/);
+	assert.match(several, /href="\/app\?view=connect-ai">ดูลิงก์ที่ต้องใช้<\/a>/, 'เชื่อม AI ของฉัน lists each workspace\'s link');
+	const unreachedEn = render(await component('./home/AIReconnectBanner.svelte', { ...base, t: (_th, en) => en }), { props: { lapse: 'unreached', own: [{ id: 'h', name: 'Sales' }] } }).body;
+	assert.match(text(unreachedEn), /The AI you connected can't use your workspaces yet Use Sales's link/);
 	const banner = await readFile(new URL('./home/AIReconnectBanner.svelte', import.meta.url), 'utf8');
 	assert.doesNotMatch(banner, /#[0-9a-f]{3,6}\b|rgba?\(/i, 'tokens only');
 });
