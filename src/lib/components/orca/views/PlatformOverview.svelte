@@ -31,7 +31,8 @@
 	let usageError = $state('');
 	const counts = $derived(platformCounts(companies ?? [], pilots ?? []));
 	const catalogWaiting = $derived(catalog ? catalogSummary(catalog).attention.length : 0);
-	const loading = $derived((!companies && !companiesError) || (canReviewPilotRequests && !pilots && !pilotsError) || (!google && !googleError));
+	// The catalog too: its to-do may still come (Codex release review 66).
+	const loading = $derived((!companies && !companiesError) || (canReviewPilotRequests && !pilots && !pilotsError) || (!google && !googleError) || (!catalog && !catalogFailed));
 
 	// A failed reload drops the numbers it had: the tiles never show old
 	// numbers beside "โหลดไม่สำเร็จ" (Codex release review 60). Only the

@@ -181,7 +181,7 @@ async function overviewHarness() {
 	const { harness } = await import(
 		'data:text/javascript;base64,' +
 			Buffer.from(
-				compileModule(`export function harness(testProps, deps) { const { ${names.join(', ')} } = deps; ${script}; return { load, loadUsage, get state() { return { tiles, usage, usageError, companiesError, googleError, catalogFailed }; } }; }`, {
+				compileModule(`export function harness(testProps, deps) { const { ${names.join(', ')} } = deps; ${script}; return { load, loadUsage, get state() { return { tiles, usage, usageError, companiesError, googleError, catalogFailed, loading }; } }; }`, {
 					filename: 'overview.harness.svelte.js',
 					generate: 'client'
 				}).js.code.replaceAll('svelte/internal/client', internal)
@@ -315,7 +315,16 @@ test('a failed catalog read holds back "nothing waiting", and a good reload clea
 	);
 	await view.load();
 	assert.equal(view.state.catalogFailed, true);
+	assert.equal(view.state.loading, false);
 	fail = false;
 	await view.load();
 	assert.equal(view.state.catalogFailed, false);
+	// A catalog still on its way keeps the overview loading: its to-do may still come (Codex release review 66).
+	const slow = (await overviewHarness())(
+		{ platformCompanies: async () => overviewCompanies, candidates: () => new Promise(() => {}) },
+		{ usage: async () => usageModule.platformUsage(answer) }
+	);
+	void slow.load();
+	await new Promise((done) => setTimeout(done, 0));
+	assert.equal(slow.state.loading, true);
 });
