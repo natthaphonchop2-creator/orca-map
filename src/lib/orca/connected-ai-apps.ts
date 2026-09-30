@@ -38,8 +38,12 @@ type Workspace = { id: string; name: string; status?: string; memberIDs?: string
 
 export type AppReach =
 	| { kind: 'all' }
-	/** `only`: there are workspaces it cannot reach ("เฉพาะ {ws}"). */
-	| { kind: 'one'; name?: string; only: boolean }
+	/**
+	 * `only`: there are workspaces it cannot reach ("เฉพาะ {ws}"). `blocked`:
+	 * made for that workspace, which is not active now or which its holder may
+	 * no longer use, so it reaches nothing at the moment.
+	 */
+	| { kind: 'one'; name?: string; only: boolean; blocked?: boolean }
 	| { kind: 'some'; names: string[] }
 	| { kind: 'none' };
 
@@ -49,7 +53,13 @@ export type AppReach =
  * its holder may use: all of them, one ("เฉพาะ {ws}"), a few, or none yet.
  */
 export function appReach(row: Pick<SecretRow, 'userID' | 'hubID' | 'hubName'>, hubs: readonly Workspace[]): AppReach {
-	if (row.hubID) return { kind: 'one', name: row.hubName, only: true };
+	if (row.hubID) {
+		// Made for one workspace: it reaches it only while that is on and its
+		// holder may use it (Codex release review 64).
+		const bound = hubs.find((hub) => hub.id === row.hubID);
+		const usable = !bound || ((!bound.status || bound.status === 'active') && (bound.effectiveMemberIDs ?? bound.memberIDs ?? []).includes(row.userID));
+		return { kind: 'one', name: row.hubName, only: true, ...(usable ? {} : { blocked: true }) };
+	}
 	const active = hubs.filter((hub) => !hub.status || hub.status === 'active');
 	const usable = active.filter((hub) => (hub.effectiveMemberIDs ?? hub.memberIDs ?? []).includes(row.userID));
 	if (!usable.length) return { kind: 'none' };

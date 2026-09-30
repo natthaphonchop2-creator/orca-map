@@ -140,6 +140,11 @@ test("where an app pulls data from: a key's workspace, or the holder's active wo
   assert.equal(scoped.hubID, "sales");
   assert.deepEqual(appReach(scoped, hubs), { kind: "one", name: "ฝ่ายขาย", only: true });
   assert.equal(rows().find((row) => row.id === "s3").hubID, undefined, "the company's link: no workspace named");
+  // Made for a workspace that is paused now, or that its holder left: it reaches nothing at the moment (Codex release review 64).
+  const paused = [{ ...hubs[0], status: "paused" }, hubs[1]];
+  assert.deepEqual(appReach(scoped, paused), { kind: "one", name: "ฝ่ายขาย", only: true, blocked: true });
+  assert.deepEqual(appReach({ ...scoped, userID: "siri" }, hubs), { kind: "one", name: "ฝ่ายขาย", only: true, blocked: true }, "no longer one of its people");
+  assert.deepEqual(appReach(byLabel["mali:Sales report script"], hubs), { kind: "one", name: "ฝ่ายขาย", only: true }, "still on and still hers");
 });
 
 test("last use reads in days for sign-ins (renewals) and in minutes or hours for keys", () => {

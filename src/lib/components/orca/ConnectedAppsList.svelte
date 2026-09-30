@@ -57,6 +57,8 @@
 		if (reach.kind === 'some') return { lead: '', text: t(`${reach.names.length} พื้นที่ทำงาน`, `${reach.names.length} workspaces`), title: reach.names.join(', ') };
 		// A key made for a workspace that is archived or deleted reaches nothing now.
 		if (!reach.name) return { lead: '', text: t('พื้นที่ทำงานที่ปิดไปแล้ว', 'A closed workspace'), title: '' };
+		// Its workspace is paused, or its holder may no longer use it.
+		if (reach.blocked) return { lead: '', text: t(`${reach.name} · ใช้ไม่ได้ตอนนี้`, `${reach.name} · not usable now`), title: t('พื้นที่ทำงานนี้ไม่ได้เปิดใช้งาน หรือเจ้าของแอปไม่ได้อยู่ในพื้นที่นี้แล้ว', 'This workspace is not active, or the app\'s holder is no longer in it.') };
 		return { lead: reach.only ? t('เฉพาะ', 'Only') : '', text: reach.name, title: reach.name };
 	}
 </script>
