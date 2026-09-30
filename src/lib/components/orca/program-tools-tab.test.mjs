@@ -15,9 +15,9 @@ const tools = await importTypeScript(new URL('../../orca/program-tools.ts', impo
 const component = await readFile(new URL('./programs/ProgramToolsTab.svelte', import.meta.url), 'utf8');
 const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
 	.replace(/^\s*import[\s\S]*?from\s+'[^']+';/gm, '')
-	.replace(/let \{\s*connection,\s*programName,\s*onchanged\s*\}\s*=\s*\$props\(\);/, '__PROPS__')
-	.replace(/(?<![.\w])(connection|programName|onchanged)\b/g, 'props.$1')
-	.replace(/\.\.\.(connection|programName|onchanged)\b/g, '...props.$1')
+	.replace(/let \{\s*connection,\s*programName,\s*onchanged,\s*ondirty\s*\}\s*=\s*\$props\(\);/, '__PROPS__')
+	.replace(/(?<![.\w])(connection|programName|onchanged|ondirty)\b/g, 'props.$1')
+	.replace(/\.\.\.(connection|programName|onchanged|ondirty)\b/g, '...props.$1')
 	.replace('__PROPS__', 'const props = testProps;');
 assert.match(script, /const props = testProps;/, 'the props line was found');
 const require = createRequire(import.meta.url);
@@ -131,4 +131,43 @@ test('after a save whose refresh failed, the tab shows what was saved, on the ve
 	props.connection = program(3, ['list', 'get']);
 	flush();
 	assert.deepEqual([...view.state.selected].sort(), ['get', 'list']);
+});
+
+test('the tab reports unsaved changes and a save on its way, so the program page asks before they are lost (Codex release review 70)', async (context) => {
+	const reports = [];
+	let finish;
+	const props = reactive({ connection: program(1, ['list', 'get']), programName: 'FlowAccount', onchanged: async () => {}, ondirty: (value) => reports.push(value) });
+	let view;
+	const stop = effect_root(() => {
+		view = harness(props, {
+			...tools, untrack, t: (th) => th, orcaError: (cause) => cause.message, programSaveError: (cause) => cause.message,
+			onMount: () => {}, onDestroy: () => {}, showToast: () => {},
+			ProgramService: { discover: async () => offered, save: (input) => new Promise((resolve) => (finish = () => resolve({ ...props.connection, ...input, version: 2 }))) }
+		});
+	});
+	context.after(stop);
+	await view.load();
+	flush();
+	assert.equal(reports.at(-1), false, 'nothing unsaved after loading');
+	view.set({ selected: ['list'] });
+	flush();
+	assert.equal(reports.at(-1), true, 'an edit is unsaved');
+	view.set({ selected: ['get', 'list'] });
+	flush();
+	assert.equal(reports.at(-1), false, 'back to the saved ticks (in any order) is nothing unsaved');
+	view.set({ selected: ['list'] });
+	flush();
+	const saving = view.save();
+	flush();
+	assert.equal(reports.at(-1), true, 'still asks while the save is on its way');
+	finish();
+	await saving;
+	flush();
+	assert.equal(reports.at(-1), false, 'saved: nothing unsaved');
+	const page = await readFile(new URL('./programs/ProgramDetail.svelte', import.meta.url), 'utf8');
+	assert.match(page, /beforeNavigate\(\(navigation\) => \{\s*if \(leaving \|\| !dirty\) return;\s*navigation\.cancel\(\);/, 'another tab or page asks first');
+	assert.match(page, /<ProgramToolsTab [^>]*ondirty=\{\(value\) => \(dirty = value\)\}/);
+	assert.match(page, /canManage=\{data\.canManage && !dirty\}/, 'archive and delete wait for a save or undo');
+	assert.match(page, /\.\.\.\(!archived \|\| dirty \? \[\{ id: 'tools'/, 'archived elsewhere, the tab stays with its unsaved changes');
+	assert.match(page, /title=\{t\('ออกโดยไม่บันทึก\?'/);
 });

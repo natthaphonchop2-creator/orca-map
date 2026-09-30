@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ArrowRight, Folder, Info, Pause, Play, Plus } from '@lucide/svelte';
-	import { goto } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { connectionReady } from '$lib/orca/activation';
 	import { catalogSource } from '$lib/orca/catalog';
@@ -52,6 +52,33 @@
 	const programName = $derived(presented ? programDisplayName(presented) : (connection?.name ?? ''));
 	const logoName = $derived(presented?.name || connection?.name || '');
 	const archived = $derived(Boolean(connection?.archivedAt));
+	// สิ่งที่ AI ทำได้'s unsaved changes live in that tab: another tab, another
+	// page or closing the page asks first, and archive and delete wait for a
+	// save or "คืนค่าเดิม" (Codex release review 70, as WorkspaceDetail).
+	let dirty = $state(false);
+	let leaveOpen = $state(false);
+	let leaveTo: URL | undefined;
+	let leaving = false;
+	beforeNavigate((navigation) => {
+		if (leaving || !dirty) return;
+		navigation.cancel();
+		if (navigation.type === 'leave') return;
+		leaveTo = navigation.to?.url;
+		leaveOpen = true;
+	});
+	async function leave() {
+		leaveOpen = false;
+		dirty = false;
+		const target = leaveTo;
+		leaveTo = undefined;
+		if (!target) return;
+		leaving = true;
+		try {
+			await goto(target.pathname + target.search + target.hash);
+		} finally {
+			leaving = false;
+		}
+	}
 	const workspaces = $derived(data.hubs.filter((hub) => gatewayUsesConnection(hub, connectionID) && hub.status !== 'deleted'));
 	const liveWorkspaces = $derived(workspaces.filter((hub) => hub.status !== 'archived'));
 	let health = $state<OrcaConnectionHealth>();
@@ -63,7 +90,8 @@
 	const statusCopy = $derived(programStatusCopy(status));
 	const tabs = $derived([
 		{ id: 'overview', label: t('ภาพรวม', 'Overview') },
-		...(!archived ? [{ id: 'tools', label: term('whatAICanDo', t) }] : []),
+		// Archived elsewhere while it has unsaved changes: the tab stays with them until saved or undone.
+		...(!archived || dirty ? [{ id: 'tools', label: term('whatAICanDo', t) }] : []),
 		...(!archived && data.canManage ? [{ id: 'members', label: t('คนที่เชื่อมบัญชีแล้ว', 'People signed in') }] : []),
 		{ id: 'workspaces', label: t('พื้นที่ทำงาน', 'Workspaces'), count: liveWorkspaces.length },
 		{ id: 'activity', label: t('ประวัติ', 'History') }
@@ -178,7 +206,7 @@
 			</div>
 			<p>{connection.description || (presented ? t(...programLine(presented)) : '')}</p>
 		</div>
-		{#if data.canManage}<div class="pd-actions"><LifecycleActions entity={connection} kind="server" {archived} canManage={data.canManage} affectedGateways={workspaces} onchanged={lifecycleChanged} onreload={onchanged} /></div>{/if}
+		{#if data.canManage}<div class="pd-actions"><LifecycleActions entity={connection} kind="server" {archived} canManage={data.canManage && !dirty} affectedGateways={workspaces} onchanged={lifecycleChanged} onreload={onchanged} /></div>{/if}
 	</header>
 
 	{#if changedAtProgram}<p class="pd-banner"><Info size={16} aria-hidden="true" />{t(`บางอย่างใน ${programName} เปลี่ยนไปหลังตรวจครั้งล่าสุด AI จะใช้สิ่งที่เปลี่ยนไม่ได้จนกว่าจะตรวจใหม่ที่แท็บสิ่งที่ AI ทำได้`, `Something in ${programName} changed since the last review. AI can't use it until you review it again under What AI can do.`)}</p>{/if}
@@ -191,7 +219,7 @@
 	</nav>
 
 	{#if tab === 'tools' && data.canManage}
-		{#key connection.id}<ProgramToolsTab {connection} {programName} {onchanged} />{/key}
+		{#key connection.id}<ProgramToolsTab {connection} {programName} {onchanged} ondirty={(value) => (dirty = value)} />{/key}
 	{:else if tab === 'members' && data.canManage}
 		<ConnectionMembers {data} connectionID={connection.id} />
 	{:else if tab === 'workspaces'}
@@ -306,6 +334,17 @@
 		{#if pauseError}<p class="pd-note error" role="alert">{pauseError}</p>{/if}
 	</ConfirmDialog>
 {/if}
+
+<ConfirmDialog
+	bind:open={leaveOpen}
+	title={t('ออกโดยไม่บันทึก?', 'Leave without saving?')}
+	message={t('สิ่งที่แก้ไว้ในแท็บนี้จะหายไป', 'What you changed in this tab will be lost.')}
+	confirmLabel={t('ออกโดยไม่บันทึก', 'Leave without saving')}
+	cancelLabel={t('แก้ต่อ', 'Keep editing')}
+	tone="danger"
+	onconfirm={leave}
+	oncancel={() => (leaveTo = undefined)}
+/>
 
 <style>
 	.pd-back {

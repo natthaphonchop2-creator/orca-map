@@ -14,8 +14,15 @@
 	let {
 		connection,
 		programName,
-		onchanged
-	}: { connection: OrcaConnection; programName: string; onchanged: () => Promise<void> } = $props();
+		onchanged,
+		ondirty
+	}: {
+		connection: OrcaConnection;
+		programName: string;
+		onchanged: () => Promise<void>;
+		/** Unsaved changes here (or a save on its way), so the program page asks before they are lost (Codex release review 70). */
+		ondirty?: (dirty: boolean) => void;
+	} = $props();
 
 	let tools = $state.raw<ProgramTool[]>([]);
 	let loading = $state(true);
@@ -34,8 +41,10 @@
 	// overwritten; "คืนค่าเดิม" takes the newer one. An untouched draft follows
 	// a newer program by itself.
 	let baseVersion = untrack(() => connection.version);
-	let baseline = '';
+	let baseline = $state('');
 	const draftKey = () => JSON.stringify([name, note, [...selected].sort()]);
+	$effect(() => ondirty?.((!loading && draftKey() !== baseline) || saving));
+	onDestroy(() => ondirty?.(false));
 	// What this tab's last save returned: newer than the page's copy while the
 	// page's refresh has not brought it (it failed), so "คืนค่าเดิม" and later
 	// saves start from it, never from the older copy (Codex release review 68, 69).
