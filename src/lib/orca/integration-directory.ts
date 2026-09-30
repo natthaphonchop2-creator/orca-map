@@ -16,6 +16,8 @@ export interface IntegrationReference {
   aliases: string[];
   guideOnly?: boolean;
   checkedOn: string;
+  /** The name a program saved from this entry shows (program-catalog.ts programDisplayName), for its icon. */
+  displayName?: string;
 }
 
 const checkedOn = '2026-09-20';
@@ -49,23 +51,26 @@ export const integrationReferences: IntegrationReference[] = [
     description: ["ส่งข้อความและจัดการ LINE OA ผ่าน MCP ของ LINE", "Send messages and manage LINE Official Accounts through LINE’s MCP server."],
     requirements: [
       ['เปิด Messaging API สำหรับ LINE Official Account และออก Channel access token', 'Enable the Messaging API for your LINE Official Account and issue a channel access token.'],
-      ['ติดตั้ง @line/line-bot-mcp-server บน Node.js รุ่น 22 ขึ้นไป รุ่นทางการทำงานผ่าน stdio', 'Install @line/line-bot-mcp-server on Node.js 22 or later. The official server uses stdio.'],
-      ['ORCA รุ่นปัจจุบันกำหนดให้ผู้ดูแลระบบจัดทำตัวเชื่อม HTTP MCP ที่แยกโทเคนตามบัญชีและควบคุมสิทธิ์', 'This ORCA release requires an administrator-managed HTTP MCP bridge with per-account credentials and access control.'],
+      ['ติดตั้ง @line/line-bot-mcp-server บน Node.js รุ่น 22 ขึ้นไป รุ่นทางการทำงานผ่าน stdio บนเครื่องของคนที่ใช้ ORCA จึงเปิดให้ทั้งทีมใช้ไม่ได้', 'Install @line/line-bot-mcp-server on Node.js 22 or later. The official server runs over stdio on the user’s own computer, so ORCA can’t host it for a team.'],
+      ['ถ้าจะให้ทีมใช้ LINE OA ผ่าน ORCA ให้เลือกโปรแกรม LINE OA (Messaging API) ซึ่ง ORCA เชื่อมให้เองและให้ผู้ดูแลอนุมัติทุกการส่ง', 'For your team to use LINE OA through ORCA, choose the LINE OA (Messaging API) program: ORCA connects it itself, and an admin approves every send.'],
     ],
-    scope: ["ทีมไอทีต้องเปิดใช้งาน MCP ของ LINE ก่อน แล้วจึงเพิ่ม URL ใน ORCA ใช้ได้กับ LINE OA ของธุรกิจ", "Your IT team must run the LINE MCP server first, then add its URL to ORCA. It works with business LINE Official Accounts."],
+    scope: ["สำหรับทีมไอทีที่ใช้ MCP ของ LINE บนเครื่องตัวเอง ถ้าจะใช้ผ่าน ORCA ให้เลือก LINE OA (Messaging API)", "For IT teams running LINE’s MCP server on their own computer. To use LINE through ORCA, choose LINE OA (Messaging API)."],
     docs: [{ label: 'LINE Developers Thailand', url: 'https://linedevth.line.me/th/knowledge-api/mcp' }, { label: 'LINE Bot MCP · GitHub', url: 'https://github.com/line/line-bot-mcp-server' }], aliases: ['ไลน์', 'LINE OA', 'Messaging', 'ข้อความ', 'chat'],
   },
+  // ORCA's own LINE connector (pkg/mcp/orca_api_line.go), not a guide: it is
+  // shown only for the backend's record (catalog.ts, apiReferenceAliases).
   {
-    id: 'guide-line-messaging-api', name: 'LINE Messaging API', protocol: 'API', guideOnly: true,
-    categoryId: 'communication', icon: '/orca/tools/line.png', authMethods: ['secrets'], checkedOn,
-    description: ["อ่านข้อมูลบัญชี LINE OA และตรวจสอบโควตาข้อความ", "Read your LINE Official Account details and check message quotas."],
+    id: 'orca-native-line-messaging', name: 'LINE Messaging API', displayName: 'LINE OA (Messaging API)', protocol: 'API',
+    categoryId: 'communication', icon: '/orca/tools/line.png', authMethods: ['secrets'], checkedOn: '2026-09-30',
+    description: ["ดูสถิติเพื่อน ส่งข้อความ และเปลี่ยนริชเมนูของ LINE OA ทุกการส่งรอผู้ดูแลอนุมัติ", "See your LINE Official Account’s friend statistics, send messages and change rich menus. Every send waits for an admin’s approval."],
     requirements: [
-      ['เปิด Messaging API ในบัญชี LINE OA แล้วออก Channel access token จาก LINE Developers', 'Enable the Messaging API for your LINE Official Account and issue a channel access token in LINE Developers.'],
-      ['กรอกโทเคนนี้ใน ORCA เพื่ออ่านข้อมูลบอต โควตาข้อความรายเดือน และจำนวนข้อความที่ใช้แล้ว', 'Enter that token in ORCA to read bot details, the monthly message quota, and messages used.'],
-      ['การเชื่อมต่อนี้ไม่ต้องตั้งค่า Webhook สำหรับรับข้อความ เนื่องจากยังไม่มีเครื่องมือรับหรือส่งข้อความ', 'This connection needs no incoming-message webhook because receiving and sending messages are not included.'],
+      ['เปิด Messaging API ในบัญชี LINE OA แล้วออก Channel access token (long-lived) จาก LINE Developers', 'Enable the Messaging API for your LINE Official Account and issue a long-lived channel access token in LINE Developers.'],
+      ['กรอกคีย์นี้ใน ORCA แล้วเลือกสิ่งที่ AI ทำได้ เช่น ดูโควตาและสถิติเพื่อน ส่งข้อความถึงลูกค้า 1 คน บรอดแคสต์ถึงเพื่อนทุกคน หรือเปลี่ยนริชเมนู', 'Enter that token in ORCA, then choose what AI can do: read the quota and friend statistics, message one customer, broadcast to every friend, or change rich menus.'],
+      ['การส่งข้อความและการเปลี่ยนริชเมนูรอผู้ดูแลอนุมัติใน ORCA ทุกครั้ง การส่งถึงลูกค้า 1 คนใช้รหัสผู้ใช้ LINE ที่ขึ้นต้นด้วย U จากระบบแชทหรือ CRM ของธุรกิจ', 'Every send and rich menu change waits for an admin’s approval in ORCA. Messaging one customer needs their LINE user ID (starting with U) from your chat tool or CRM.'],
+      ['ORCA เห็นเฉพาะริชเมนูที่สร้างผ่าน Messaging API ริชเมนูที่สร้างใน LINE OA Manager ใช้ผ่าน ORCA ไม่ได้', 'ORCA sees only rich menus made with the Messaging API. Menus made in LINE OA Manager can’t be used through ORCA.'],
     ],
-    scope: ["ใช้กับ LINE OA ของธุรกิจ การเชื่อมต่อนี้อ่านข้อมูลเท่านั้น และไม่ส่งข้อความถึงลูกค้า", "For business LINE Official Accounts. This connection reads information without sending messages to customers."],
-    docs: [{ label: 'LINE Messaging API', url: 'https://developers.line.biz/en/docs/messaging-api/overview/' }], aliases: ['ไลน์', 'LINE OA', 'webhook', 'chat'],
+    scope: ["ใช้กับ LINE OA ของธุรกิจ ORCA เชื่อม Messaging API ให้เอง ไม่ต้องตั้งเซิร์ฟเวอร์ MCP หรือ Webhook", "For business LINE Official Accounts. ORCA connects to the Messaging API itself, with no MCP server or webhook to set up."],
+    docs: [{ label: 'LINE Messaging API', url: 'https://developers.line.biz/en/reference/messaging-api/' }], aliases: ['ไลน์', 'LINE OA', 'LINE Official Account', 'Messaging API', 'ข้อความ', 'บรอดแคสต์', 'broadcast', 'ริชเมนู', 'rich menu', 'chat'],
   },
   {
     id: 'guide-shopee-seller-api', name: 'Shopee Seller API', protocol: 'API', guideOnly: true,
@@ -219,7 +224,8 @@ export function integrationReference(id: string) {
 }
 
 export function integrationPresentation(name: string) {
-  const entry = integrationReferences.find((entry) => entry.name === name);
+  // A LINE program is saved as "LINE OA (Messaging API)", so its approvals and history keep the LINE icon.
+  const entry = integrationReferences.find((entry) => entry.name === name || (!!entry.displayName && entry.displayName === name));
   if (!entry) return undefined;
   return {
     categoryId: entry.categoryId,

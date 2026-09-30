@@ -9,6 +9,18 @@ const categories = [
   "upstream_error",
   "tool_error",
   "invalid_response",
+  // A native connector's fixed errors (design §14l); none carries a provider's words.
+  "audit_unconfirmed",
+  "provider_token",
+  "provider_access",
+  "provider_not_found",
+  "provider_rejected",
+  "provider_quota",
+  "provider_rate_limited",
+  "recipient_mismatch",
+  "unknown_outcome",
+  "approval_required",
+  "account_changed",
 ] as const;
 export type AuditErrorCategory = (typeof categories)[number] | "unknown";
 

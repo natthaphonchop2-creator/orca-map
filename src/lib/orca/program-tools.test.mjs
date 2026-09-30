@@ -149,3 +149,69 @@ test('an AI call is named by its program’s title everywhere (Home, ตรว�
 	assert.equal(tools.eventToolLabel(connections, 'conn-slack', 'search_messages'), 'Search messages in channels you can read');
 	assert.equal(tools.eventToolLabel([], 'gone', 'get_invoice'), tools.toolCopy({ name: 'get_invoice' }).label, 'a removed program still gets a readable name');
 });
+
+// LINE Messaging API v2 (C4 §14l): the tools exactly as the backend lists them.
+const { lineTools, lineReadNames, lineWriteNames } = await import(new URL('./line-messaging-tools.fixture.mjs', import.meta.url).href);
+
+test('LINE v2: step 3 puts the ten reads under ดูข้อมูล and the six sends and rich menu changes under สร้าง / แก้ไข / ลบ', () => {
+	assert.equal(lineTools.length, 16);
+	const groups = groupTools(lineTools);
+	assert.deepEqual(groups.read.map((item) => item.name), lineReadNames);
+	assert.deepEqual(groups.change.map((item) => item.name), lineWriteNames);
+	assert.deepEqual(groups.change.map((item) => item.name), [
+		'line_push_text', 'line_broadcast_text', 'line_default_richmenu_set', 'line_default_richmenu_clear', 'line_user_richmenu_link', 'line_user_richmenu_unlink'
+	]);
+	// Every write states its hints (destructiveHint), so none is tagged ผู้ให้บริการไม่ได้ระบุ.
+	assert.deepEqual(groups.unspecified, []);
+});
+
+test('LINE v2: the read-only preset ticks only the ten reads, never a send; "ทั้งหมด" ticks all 16 and saves as not read-only', () => {
+	assert.equal(initialPreset(lineTools), 'read');
+	assert.deepEqual(initialSelection(lineTools), lineReadNames);
+	assert.deepEqual(presetSelection(lineTools, 'read'), lineReadNames);
+	for (const name of lineWriteNames) {
+		assert.equal(presetSelection(lineTools, 'read').includes(name), false, name);
+		assert.equal(selectableUnder('read', lineTools.find((item) => item.name === name)), false, name);
+	}
+	assert.deepEqual(presetSelection(lineTools, 'write'), lineTools.map((item) => item.name));
+	const readSave = programSaveInput({ name: 'LINE OA (Messaging API)', note: '', mcpID: 'default-orca-api-line-messaging', selected: presetSelection(lineTools, 'read'), tools: lineTools });
+	assert.equal(readSave.reviewedReadOnly, true);
+	const withPush = programSaveInput({ name: 'LINE OA (Messaging API)', note: '', mcpID: 'default-orca-api-line-messaging', selected: [...lineReadNames, 'line_push_text'], tools: lineTools });
+	assert.equal(withPush.reviewedReadOnly, false, 'a send is never saved as read-only');
+	assert.equal(presetFor(['line_bot_get', 'line_broadcast_text'], lineTools), 'write');
+	// A v1 program (three reads) that gets the new tools keeps its three and stays read-only until one is ticked.
+	assert.deepEqual(savedSelection(lineTools, ['line_bot_get', 'line_message_quota_get', 'line_message_usage_get']), lineReadNames.slice(0, 3));
+	assert.equal(selectionReadOnly(lineReadNames.slice(0, 3), lineTools), true);
+});
+
+test('LINE v2: only the six writes carry "ต้องอนุมัติทุกครั้ง", read from the reviewed definition’s _meta', () => {
+	const { toolAlwaysApproved, ALWAYS_APPROVED_META } = tools;
+	assert.equal(ALWAYS_APPROVED_META, 'orca.invalid/approval');
+	assert.deepEqual(lineTools.filter(toolAlwaysApproved).map((item) => item.name), lineWriteNames);
+	// Only the exact value on the definition counts: not on the tool itself, not another value, not a string definition gone bad.
+	assert.equal(toolAlwaysApproved({ name: 'x', _meta: { 'orca.invalid/approval': 'always' }, definition: { name: 'x' } }), false);
+	assert.equal(toolAlwaysApproved({ name: 'x', definition: { _meta: { 'orca.invalid/approval': 'sometimes' } } }), false);
+	assert.equal(toolAlwaysApproved({ name: 'x', definition: { _meta: ['always'] } }), false);
+	assert.equal(toolAlwaysApproved({ name: 'x', definition: JSON.stringify({ _meta: { 'orca.invalid/approval': 'always' } }) }), true);
+	assert.equal(toolAlwaysApproved({ name: 'x', definition: '{broken' }), false);
+	// The mark never makes a tool a read: the split stays the backend's (orcaToolChangesData).
+	assert.equal(toolChangesData({ name: 'r', definition: { annotations: { readOnlyHint: true }, _meta: { 'orca.invalid/approval': 'always' } } }), false);
+});
+
+test('LINE v2: step 3 names every LINE tool in Thai with a Thai line, and in English by its own title', () => {
+	const thai = lineTools.map((item) => toolCopy(item, 'th'));
+	assert.deepEqual(thai.map((copy) => copy.label), [
+		'ดูข้อมูลบัญชี LINE OA', 'ดูโควตาข้อความ LINE OA', 'ดูยอดข้อความ LINE OA เดือนนี้',
+		'ดูจำนวนเพื่อนและคนที่บล็อก', 'ดูเพศ อายุ และพื้นที่ของเพื่อน', 'ดูจำนวนข้อความที่ส่งในแต่ละวัน', 'ดูสถิติการเปิดอ่านและคลิกของบรอดแคสต์',
+		'ดูชื่อ LINE ของลูกค้า', 'ดูริชเมนูทั้งหมด', 'ดูริชเมนูที่ลูกค้าคนหนึ่งเห็น',
+		'ส่งข้อความถึงลูกค้า 1 คน', 'ส่งข้อความถึงเพื่อนทุกคน (บรอดแคสต์)', 'เปลี่ยนริชเมนูหลักของทุกคน', 'ยกเลิกริชเมนูหลักที่ตั้งผ่าน API',
+		'ตั้งริชเมนูให้ลูกค้า 1 คน', 'ให้ลูกค้า 1 คนกลับไปเห็นริชเมนูหลัก'
+	]);
+	for (const copy of thai) assert.match(copy.description, /[฀-๿]/, `${copy.label} has a Thai line`);
+	assert.match(thai[11].description, /ยกเลิกไม่ได้/, 'the broadcast says it cannot be taken back');
+	assert.match(thai[8].description, /LINE OA Manager/, 'rich menus made in LINE OA Manager are not visible');
+	const english = lineTools.map((item) => toolCopy(item, 'en'));
+	assert.deepEqual(english.slice(3).map((copy) => copy.label), lineTools.slice(3).map((item) => item.definition.title));
+	assert.equal(english[10].description, lineTools[10].description);
+	assert.equal(tools.eventToolLabel([{ id: 'conn-line', tools: lineTools }], 'conn-line', 'line_push_text'), 'ส่งข้อความถึงลูกค้า 1 คน', 'approvals and ตรวจสอบ name the send the same way');
+});

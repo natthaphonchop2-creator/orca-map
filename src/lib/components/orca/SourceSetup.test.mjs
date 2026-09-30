@@ -1621,6 +1621,67 @@ test('provider instructions follow the current source and never a lookalike disp
 });
 
 
+// C4 §14l: the setups exactly as the backend answers for ORCA's GitHub entry
+// and for Obot's token entry (TestOrcaGitHubEntrySetupNeedsORCAsOAuthAppAndObotsTokenEntryDoesNot).
+const orcaGitHubSetup = (overrides = {}) => source('default-orca-github', {
+  name: 'GitHub', endpointHost: 'api.githubcopilot.com', configured: false, oauthSupported: true,
+  oauthClientRequired: true, oauthClientConfigured: false, oauthClientCanConfigure: true,
+  oauthRedirectURL: 'https://orca.example.test/oauth/mcp/callback', setupStatus: 'admin_setup_required', setupReason: 'oauth_client_missing',
+  ...overrides,
+});
+const obotGitHubSetup = () => source('default-github-0f1e2d3c', {
+  name: 'GitHub', configured: false, oauthSupported: false, oauthClientRequired: false, oauthRedirectURL: '',
+  fields: [{ key: 'GITHUB_MCP_PATH', name: 'GitHub MCP Endpoint Path', required: true }, { key: 'Authorization', name: 'Personal Access Token', required: true, sensitive: true }],
+});
+
+test('GitHub: ORCA’s entry opens the GitHub OAuth App guide for the ORCA team; Obot’s token entry never shows it (C4 §14l)', async (context) => {
+  const { view } = await setupHarness(context, { sourceSetup: async () => orcaGitHubSetup() }, { sourceID: 'default-orca-github', canCreate: true, operator: true });
+  assert.equal(view.providerSetup?.key, 'github', 'matched by the host the backend reports');
+  assert.equal(view.state.clientFormOpen, true, 'the app set-up opens for the ORCA team');
+  const { view: customer } = await setupHarness(context, { sourceSetup: async () => orcaGitHubSetup({ oauthClientCanConfigure: false }) }, { sourceID: 'default-orca-github', canCreate: true });
+  assert.equal(customer.state.clientFormOpen, false, 'a company never sets up ORCA’s app');
+  const { view: token } = await setupHarness(context, { sourceSetup: async () => obotGitHubSetup() }, { sourceID: 'default-github-0f1e2d3c', canCreate: true, operator: true });
+  assert.equal(token.providerSetup, undefined, 'no host, no guide');
+  assert.equal(token.state.clientFormOpen, false);
+
+  // Rendered: the ORCA team reads GitHub's steps beside the callback to paste;
+  // Obot's token entry asks only for its fields.
+  const moduleURL = (code) => 'data:text/javascript;base64,' + Buffer.from(code).toString('base64');
+  const iconsURL = moduleURL('export const Check = () => {}, ExternalLink = () => {}, Info = () => {}, KeyRound = () => {}, Plug = () => {}, RefreshCw = () => {}, Unplug = () => {};');
+  const aliases = {
+    'svelte/internal/server': pathToFileURL(require.resolve('svelte/internal/server')).href,
+    svelte: pathToFileURL(require.resolve('svelte')).href,
+    '@lucide/svelte': iconsURL,
+    '$lib/orca/oauth-provider-setup': providerSetupURL,
+    '$lib/orca/CatalogIcon.svelte': moduleURL('export default function CatalogIcon() {}'),
+    '$lib/orca/catalog': catalogURL,
+    '$lib/orca/api-connector-setup': apiSetupURL,
+    '$lib/orca/provider-guides': new URL('../../orca/provider-guides.ts', import.meta.url).href,
+    '$lib/orca/locale.svelte': moduleURL('export const t = (_th, en) => en;'),
+    '$lib/services/orca': moduleURL('export const OrcaService = {}; export const orcaError = (error) => error.message;'),
+  };
+  const renderSeeded = async (setup, name) => {
+    const seeded = component
+      .replace('let setup = $state<OrcaSourceSetup>();', `let setup = $state<OrcaSourceSetup>(${JSON.stringify(setup)});`)
+      .replace(/let clientFormOpen = \$state\(false\);/, 'let clientFormOpen = $state(true);');
+    let code = compile(seeded, { filename: name, generate: 'server' }).js.code;
+    for (const [from, url] of Object.entries(aliases)) code = code.replaceAll(`'${from}'`, JSON.stringify(url)).replaceAll(`"${from}"`, JSON.stringify(url));
+    const { default: Seeded } = await import(moduleURL(code));
+    return render(Seeded, { props: { sourceID: setup.sourceID, canCreate: true, operator: true } }).body;
+  };
+  const guide = oauthProviderSetup('default-orca-github', 'api.githubcopilot.com');
+  const body = await renderSeeded(orcaGitHubSetup(), 'GitHubSetup.svelte');
+  assert.ok(body.includes(guide.appType));
+  assert.ok(body.includes(`href="${guide.actionURL}"`));
+  assert.ok(body.includes(`href="${guide.documentationURL}"`));
+  for (const [, en] of guide.steps) assert.ok(body.includes(en.replaceAll("'", '&#39;')) || body.includes(en), en);
+  assert.match(body, /OAuth Apps have no permission settings/);
+  assert.match(body, /value="https:\/\/orca\.example\.test\/oauth\/mcp\/callback"/, 'the callback comes from the backend, never the guide');
+  assert.match(body, /id="source-client-secret"[^>]*type="password"/);
+  const pat = await renderSeeded(obotGitHubSetup(), 'ObotGitHubSetup.svelte');
+  assert.doesNotMatch(pat, /GitHub OAuth App|github\.com\/settings\/applications\/new|source-client-secret|App setup instructions/);
+});
+
 test('opening app setup shows fields immediately only after current backend authorization', async (context) => {
   const states = [
     { oauthClientRequired: true, oauthClientCanConfigure: true, expectOpen: true },

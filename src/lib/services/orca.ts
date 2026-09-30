@@ -226,6 +226,14 @@ export interface OrcaApproval {
   note?: string;
   result?: string;
   errorCategory?: string;
+  /** Runs so far: 1 at approval, one more for each retry of a LINE write (design §14l). */
+  attempts?: number;
+  /** The server's word that a manager may run this LINE write again now, with the same retry key. */
+  retryable?: boolean;
+  /** On a waiting LINE send: when a manager approved the same one in the last 24 hours. */
+  sameApprovedAt?: string;
+  /** The server deleted the arguments and result 30 days after the decision (design §14l); both read {"redacted":true}. */
+  redacted?: boolean;
 }
 
 /** A company's managers invite employees and admins. */
@@ -604,6 +612,8 @@ export const OrcaService = {
   approveRequest: (id: string) => doPost(orcaPath(`/approvals/${part(id)}/approve`), {}, options) as Promise<OrcaApproval>,
   rejectRequest: (id: string, note: string) =>
     doPost(orcaPath(`/approvals/${part(id)}/reject`), { note }, options) as Promise<OrcaApproval>,
+  /** Runs an approved LINE write again with the same retry key, after LINE didn't answer (design §14l). */
+  retryRequest: (id: string) => doPost(orcaPath(`/approvals/${part(id)}/retry`), {}, options) as Promise<OrcaApproval>,
   connectionHealth: () =>
     doGet(orcaPath("/connections/health"), options) as Promise<{ since: string; items: OrcaConnectionHealth[] }>,
   /** Metadata only; administrators revoke a leaver's keys and AI app sign-ins here. */

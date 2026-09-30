@@ -574,6 +574,57 @@ test('แอป OAuth ของโปรแกรม sets up a program’s own a
 	assert.match(oauth, /\{:else if checking\}[\s\S]*?<SourceSetup operator sourceID=\{checking\.id\}/);
 });
 
+test('OAuth apps: a program’s own app uses its host’s guide (GitHub by api.githubcopilot.com) instead of the generic steps (C4 §14l)', async () => {
+	const { oauthApps } = await importTypeScript(new URL('../../orca/oauth-apps.ts', import.meta.url));
+	const { oauthProviderSetup } = await importTypeScript(new URL('../../orca/oauth-provider-setup.ts', import.meta.url));
+	const harness = await scriptHarness(files.oauth, ['OrcaService', 't', 'onMount', 'onDestroy', 'oauthApps', 'oauthProviderSetup'], 'vendorTarget');
+	let view;
+	const stop = effect_root(() => {
+		view = harness({ data: { canManage: true, platformOperator: true } }, { OrcaService: {}, t: (th) => th, onMount: () => {}, onDestroy: () => {}, oauthApps, oauthProviderSetup });
+	});
+	try {
+		const github = view.vendorTarget({ id: 'default-orca-github', name: 'GitHub', endpointHost: 'api.githubcopilot.com', canConfigure: true, configured: true });
+		assert.equal(github.guide?.key, 'github');
+		assert.equal(github.guide.actionURL, 'https://github.com/settings/applications/new');
+		// No host (Obot's PAT entry) or another host: the generic steps stay.
+		assert.equal(view.vendorTarget({ id: 'default-github-0f1e2d3c', name: 'GitHub', canConfigure: true, configured: true }).guide, undefined);
+		assert.equal(view.vendorTarget({ id: 'x', name: 'Company', endpointHost: 'mcp.example.test', canConfigure: true, configured: true }).guide, undefined);
+	} finally { stop(); }
+	const source = await readFile(files.oauth, 'utf8');
+	assert.match(source, /target\.guide \? target\.guide\.steps\.map\(\(step\) => t\(\.\.\.step\)\) : vendorSteps\(target\.name\)/);
+	assert.match(source, /href=\{target\.guide\.actionURL\} target="_blank" rel="noopener noreferrer"/);
+	assert.match(source, /href=\{target\.guide\.documentationURL\} target="_blank" rel="noopener noreferrer"/);
+});
+
+test('OAuth apps: the backend’s ORCA GitHub entry is listed with its GitHub guide, and Obot’s token entry is never listed (C4 §14l)', async () => {
+	const { oauthApps } = await importTypeScript(new URL('../../orca/oauth-apps.ts', import.meta.url));
+	const { oauthProviderSetup } = await importTypeScript(new URL('../../orca/oauth-provider-setup.ts', import.meta.url));
+	const harness = await scriptHarness(files.oauth, ['OrcaService', 't', 'onMount', 'onDestroy', 'oauthApps', 'oauthProviderSetup'], 'vendorTarget');
+	// The candidates exactly as the backend returns them (TestOrcaGitHubEntrySetupNeedsORCAsOAuthAppAndObotsTokenEntryDoesNot).
+	const orca = { id: 'default-orca-github', name: 'GitHub', description: 'Work with GitHub repositories, issues and pull requests. Each member signs in with their own GitHub account.',
+		endpointHost: 'api.githubcopilot.com', authMethods: ['oauth'], setupStatus: 'admin_setup_required', setupReason: 'oauth_client_missing', setupCanConfigure: true, oauthApp: 'missing' };
+	const pat = { id: 'default-github-0f1e2d3c', name: 'GitHub', description: 'Manage GitHub repositories', authMethods: ['secrets'], setupStatus: 'available' };
+	let view;
+	const stop = effect_root(() => {
+		view = harness({ data: { canManage: true, platformOperator: true } }, { OrcaService: {}, t: (th) => th, onMount: () => {}, onDestroy: () => {}, oauthApps, oauthProviderSetup });
+	});
+	try {
+		for (const configured of [false, true]) {
+			const apps = oauthApps([pat, { ...orca, oauthApp: configured ? 'configured' : 'missing', setupStatus: configured ? 'available' : orca.setupStatus }]);
+			const listed = configured ? apps.configuredCustom : apps.custom;
+			assert.deepEqual(listed.map((app) => app.id), ['default-orca-github'], 'only ORCA’s entry has an app to set up');
+			assert.deepEqual([...apps.custom, ...apps.configuredCustom].filter((app) => app.id === pat.id), [], 'Obot’s token entry has no app');
+			assert.equal(apps.probeSourceID, 'default-orca-github');
+			const target = view.vendorTarget(listed[0]);
+			assert.equal(target.guide?.key, 'github');
+			assert.equal(target.guide.appType, 'GitHub OAuth App');
+			assert.equal(target.scopeProfile, undefined, 'no Slack scope profile for GitHub');
+		}
+		// Even listed by hand, a GitHub entry without the host gets no GitHub guide.
+		assert.equal(view.vendorTarget({ id: pat.id, name: pat.name, canConfigure: true, configured: false }).guide, undefined);
+	} finally { stop(); }
+});
+
 test('OAuth apps: while a save runs, the guide and the credential fields wait, so its answer never closes a guide opened meanwhile (Codex release review 68)', async () => {
 	const source = await readFile(new URL('./OAuthApps.svelte', import.meta.url), 'utf8');
 	assert.match(source, /function openCheck\([^)]*\) \{\s*\/\/[^\n]*\n\s*if \(busy\) return;/, 'openCheck refuses during a save');

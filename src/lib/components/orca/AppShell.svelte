@@ -4,6 +4,7 @@
   import { writesInFlight } from "$lib/services/writes";
   import { activeNavigationView, platformHref, showsPlatformSwitch, type PlatformSection } from "$lib/orca/navigation";
   import { aiConnectionLine, type AIConnectionStatus } from "$lib/orca/ai-connection";
+  import { hubAsksApproval } from "$lib/orca/approvals";
   import { aiConnection } from "$lib/orca/ai-connection.svelte";
   import { term } from "$lib/orca/glossary";
   import {
@@ -123,7 +124,8 @@
   const operator = $derived(data?.platformOperator === true);
   const platformSwitch = $derived(showsPlatformSwitch(data));
   const platformMode = $derived(view === "platform" && operator);
-  const requestsApproval = $derived(!!data?.hubs.some((hub) => hub.writeMode === "approval" && hub.status !== "archived" && hub.status !== "deleted"));
+  // LINE's writes wait for a manager even in a workspace that runs at once (design §14l).
+  const requestsApproval = $derived(!!data?.hubs.some((hub) => hubAsksApproval(hub, data?.connections ?? [])));
   type NavigationItem = { id: string; label: string; href: string; icon: typeof House; count?: number };
   const platformItem = (id: PlatformSection, key: Parameters<typeof term>[0], icon: typeof House): NavigationItem => ({ id: `platform:${id}`, label: term(key, t), href: platformHref(id), icon });
   const navigationItems = $derived<NavigationItem[]>(

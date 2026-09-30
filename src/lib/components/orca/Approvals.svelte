@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte";
-  import { Check, CircleCheck, Inbox, LoaderCircle, RefreshCw, X } from "@lucide/svelte";
+  import { BellOff, Check, CircleCheck, EyeOff, Inbox, LoaderCircle, RefreshCw, RotateCcw, TriangleAlert, X } from "@lucide/svelte";
   import CatalogIcon from "$lib/orca/CatalogIcon.svelte";
-  import { approvalTone, argumentEntries } from "$lib/orca/approvals";
+  import { REDACTED_NOTE, approvalBody, approvalResult, approvalTone, canRetry, failureText, lineSend, sameSendApprovedAt } from "$lib/orca/approvals";
   import { term } from "$lib/orca/glossary";
   import { orcaLocale, t } from "$lib/orca/locale.svelte";
   import { eventToolLabel } from "$lib/orca/program-tools";
@@ -26,7 +26,10 @@
   let busyID = $state("");
   let confirming = $state("");
   let rejecting = $state("");
+  let retrying = $state("");
   let note = $state("");
+  // The retry button's 23-hour window ends while the page is open, too.
+  let now = $state(Date.now());
   // The status switch: where focus goes when the request it was on has moved.
   let bar: HTMLElement | undefined = $state();
   let alive = true;
@@ -64,14 +67,7 @@
     const when = displayDate(item.decidedAt);
     return item.status === "rejected" ? t(`ปฏิเสธโดย ${by} · ${when}`, `Rejected by ${by} · ${when}`) : t(`อนุมัติโดย ${by} · ${when}`, `Approved by ${by} · ${when}`);
   }
-  const failureLabel = (category?: string) =>
-    category === "permission_denied" ? t("คนที่ขอไม่มีสิทธิ์ทำสิ่งนี้แล้ว", "The requester is no longer allowed to do this")
-      : category === "invalid_arguments" ? t("ข้อมูลไม่ครบหรือไม่ถูกต้อง", "The details were incomplete or invalid")
-      : category === "timeout" ? t("โปรแกรมตอบช้าเกินไป", "The program took too long to answer")
-      : category === "upstream_error" ? t("โปรแกรมขัดข้อง", "The program returned an error")
-      : category === "tool_changed" ? t("ผู้ให้บริการเปลี่ยนสิ่งนี้ ต้องตรวจใหม่ก่อน", "The provider changed this; review it again first")
-      : category === "quota_exceeded" ? t("ใช้ครบจำนวนของวันนี้แล้ว", "Today's limit is used up")
-      : t("โปรแกรมแจ้งข้อผิดพลาด", "The program reported an error");
+  const failureLabel = (category?: string) => failureText(category, orcaLocale.value === "en" ? "en" : "th");
 
   async function load() {
     const current = ++request;
@@ -81,6 +77,7 @@
       const next = await OrcaService.approvals(tab, !data.canManage);
       if (!alive || current !== request) return;
       items = next;
+      now = Date.now();
       loaded = true;
     } catch (cause) {
       if (alive && current === request) error = orcaError(cause);
@@ -88,7 +85,11 @@
       if (alive && current === request) loading = false;
     }
   }
-  onMount(() => void load());
+  onMount(() => {
+    void load();
+    const clock = setInterval(() => (now = Date.now()), 60_000);
+    return () => clearInterval(clock);
+  });
   onDestroy(() => { alive = false; });
 
   /**
@@ -107,7 +108,7 @@
   function switchTab(next: "pending" | "decided") {
     if (tab === next) return;
     tab = next;
-    confirming = rejecting = notice = "";
+    confirming = rejecting = retrying = notice = "";
     void load();
   }
 
@@ -160,7 +161,40 @@
     await keepFocus();
   }
 
+  // A LINE write LINE didn't answer runs again with the same retry key: LINE
+  // sends it once or says it already has (design §14l).
+  async function retry(item: OrcaApproval) {
+    if (busyID) return;
+    busyID = item.id;
+    error = notice = "";
+    try {
+      const done = await OrcaService.retryRequest(item.id);
+      retrying = "";
+      // LINE's answer says it accepted the request, not that customers read it.
+      const earlier = /"acceptedEarlier"\s*:\s*true/.test(done.result ?? "");
+      notice = done.status !== "succeeded"
+        ? t(`ลองอีกครั้งแล้ว แต่ยังไม่สำเร็จ: ${failureLabel(done.errorCategory)}`, `Retried, but it did not complete: ${failureLabel(done.errorCategory)}`)
+        : earlier
+          ? t(`LINE รับ “${toolLabel(item)}” ไว้ตั้งแต่ครั้งก่อนแล้ว จึงไม่ได้ส่งซ้ำ`, `LINE had already accepted “${toolLabel(item)}”, so it wasn't sent again.`)
+          : t(`ลองอีกครั้งแล้ว LINE รับ “${toolLabel(item)}” แล้ว`, `Retried. LINE accepted “${toolLabel(item)}”.`);
+      showToast(notice, { tone: done.status === "succeeded" ? "ok" : "error" });
+      await load();
+    } catch (cause) {
+      const message = orcaError(cause);
+      retrying = "";
+      await load();
+      error = message;
+    } finally {
+      busyID = "";
+      onchanged?.();
+    }
+    await keepFocus();
+  }
+
   const approving = $derived(items.find((item) => item.id === confirming));
+  const rerunning = $derived(items.find((item) => item.id === retrying));
+  const rerunningSend = $derived(rerunning ? lineSend(rerunning, data.connections) : undefined);
+  const approvingSend = $derived(approving ? lineSend(approving, data.connections) : undefined);
   const declining = $derived(items.find((item) => item.id === rejecting));
 </script>
 
@@ -194,7 +228,10 @@
   <div class="approval-list">
     {#each items as item (item.id)}
       {@const connection = system(item.connectionID)}
-      {@const entries = argumentEntries(item.arguments, inputSchema(item), orcaLocale.value === "en" ? "en" : "th")}
+      {@const body = approvalBody(item, data.connections, inputSchema(item), orcaLocale.value === "en" ? "en" : "th")}
+      {@const send = body.kind === "line" ? body.send : undefined}
+      {@const earlier = sameSendApprovedAt(item, data.connections)}
+      {@const result = approvalResult(item)}
       <article class="approval-card" aria-labelledby={`approval-${item.id}`}>
         <header>
           <span class="approval-icon"><CatalogIcon name={connection?.name ?? ""} size={22} /></span>
@@ -205,9 +242,32 @@
           <StatusPill label={statusLabel(item.status)} tone={pillTone(item.status)} />
         </header>
         <p class="approval-meta"><span>{t(`ขอโดย ${requester(item.userID)} · ${displayDate(item.createdAt)}`, `Requested by ${requester(item.userID)} · ${displayDate(item.createdAt)}`)}</span>{#if item.status === "pending"}{" · "}<span>{t(`หมดเวลา ${displayDate(item.expiresAt)}`, `Expires ${displayDate(item.expiresAt)}`)}</span>{/if}</p>
-        {#if entries.length}
+        {#if body.kind === "redacted"}
+          <!-- 30 days after the decision the server deleted the message and details (design §14l). -->
+          <p class="approval-redacted"><EyeOff size={15} aria-hidden="true" />{t(...REDACTED_NOTE)}</p>
+        {:else if send}
+          <!-- The message as customers will read it: plain text, line breaks kept, nothing clickable. -->
+          <div class="line-send">
+            <p class="line-send-to">
+              {#if send.kind === "push"}
+                <span>{t("ส่งถึง", "To")}: <b>{send.recipientName}</b> <span class="line-send-id">({send.recipientShort})</span></span>
+                <span class="line-send-note">{t("ORCA ตรวจชื่อกับ LINE อีกครั้งก่อนส่ง", "ORCA checks the name with LINE again before sending")}</span>
+              {:else}
+                <span><b>{t("ส่งถึงเพื่อนทุกคน (บรอดแคสต์)", "To every friend (broadcast)")}</b></span>
+              {/if}
+            </p>
+            <div class="line-send-text" aria-label={t("ข้อความที่ลูกค้าจะเห็น", "The message customers will see")}>{send.text}</div>
+            {#if send.silent}<p class="line-send-note"><BellOff size={14} aria-hidden="true" />{t("ส่งแบบไม่มีเสียงแจ้งเตือน", "Sent without a notification sound")}</p>{/if}
+            {#if send.kind === "broadcast" && item.status === "pending"}
+              <p class="line-send-warn"><TriangleAlert size={15} aria-hidden="true" />{t("ส่งถึงเพื่อนทุกคนที่ไม่ได้บล็อก ใช้ข้อความตามจำนวนผู้รับ และยกเลิกไม่ได้", "Goes to every friend who hasn't blocked the account, uses one message per recipient, and can't be undone.")}</p>
+            {/if}
+            {#if earlier}
+              <p class="line-send-warn"><TriangleAlert size={15} aria-hidden="true" />{t(`ข้อความเดียวกันนี้อนุมัติไปแล้วเมื่อ ${displayDate(earlier)}`, `The same message was already approved on ${displayDate(earlier)}`)}</p>
+            {/if}
+          </div>
+        {:else if body.kind === "fields"}
           <dl class="approval-args">
-            {#each entries as [key, value], index (index)}<dt>{key || t("ข้อมูล", "Details")}</dt><dd>{value}</dd>{/each}
+            {#each body.entries as [key, value], index (index)}<dt>{key || t("ข้อมูล", "Details")}</dt><dd>{value}</dd>{/each}
           </dl>
         {/if}
         {#if item.status !== "pending"}
@@ -217,7 +277,12 @@
             {#if item.status === "failed"}<p class="approval-failure">{failureLabel(item.errorCategory)}</p>{/if}
             {#if item.note}<p>{t("เหตุผล", "Reason")}: {item.note}</p>{/if}
           </div>
-          {#if item.result}<details class="approval-result"><summary>{t("ผลลัพธ์จากโปรแกรม", "Result from the program")}</summary><pre>{item.result}</pre></details>{/if}
+          {#if result}<details class="approval-result"><summary>{t("ผลลัพธ์จากโปรแกรม", "Result from the program")}</summary><pre>{result}</pre></details>{/if}
+        {/if}
+        {#if data.canManage && canRetry(item, data.connections, now)}
+          <div class="approval-actions">
+            <button type="button" class="k-button approval-approve" disabled={!!busyID} onclick={() => { retrying = item.id; confirming = rejecting = ""; }}><RotateCcw size={16} aria-hidden="true" />{t("ลองอีกครั้ง (ไม่ส่งซ้ำ)", "Retry (no double send)")}</button>
+          </div>
         {/if}
         {#if data.canManage && item.status === "pending"}
           <div class="approval-actions">
@@ -235,12 +300,29 @@
   icon={CircleCheck}
   title={approving ? t(`อนุมัติ “${toolLabel(approving)}”?`, `Approve “${toolLabel(approving)}”?`) : ""}
   message={approving
-    ? t(`ORCA จะทำงานนี้ทันทีด้วยบัญชีของ ${person(approving.userID)} และแก้ข้อมูลใน ${system(approving.connectionID)?.name ?? "โปรแกรม"} จริง`, `ORCA runs this now with ${person(approving.userID)}'s account and changes real data in ${system(approving.connectionID)?.name ?? "the program"}.`)
+    ? approvingSend
+      ? approvingSend.kind === "broadcast"
+        ? t(`ORCA จะส่งข้อความนี้ถึงเพื่อนทุกคนของ LINE OA ทันที ด้วยบัญชีของ ${person(approving.userID)} ส่งแล้วยกเลิกไม่ได้`, `ORCA sends this message to every friend of the LINE OA now, with ${person(approving.userID)}'s account. It can't be undone.`)
+        : t(`ORCA จะส่งข้อความนี้ถึง ${approvingSend.recipientName} ใน LINE ทันที ด้วยบัญชีของ ${person(approving.userID)} ส่งแล้วยกเลิกไม่ได้`, `ORCA sends this message to ${approvingSend.recipientName} in LINE now, with ${person(approving.userID)}'s account. It can't be undone.`)
+      : t(`ORCA จะทำงานนี้ทันทีด้วยบัญชีของ ${person(approving.userID)} และแก้ข้อมูลใน ${system(approving.connectionID)?.name ?? "โปรแกรม"} จริง`, `ORCA runs this now with ${person(approving.userID)}'s account and changes real data in ${system(approving.connectionID)?.name ?? "the program"}.`)
     : ""}
   confirmLabel={busyID && busyID === approving?.id ? t("กำลังทำงาน…", "Running…") : t("อนุมัติและทำงาน", "Approve and run")}
   busy={!!busyID}
   onconfirm={() => { if (approving) void approve(approving); }}
   oncancel={() => (confirming = "")}
+/>
+
+<ConfirmDialog
+  open={!!rerunning}
+  icon={RotateCcw}
+  title={rerunning ? t(`ลอง “${toolLabel(rerunning)}” อีกครั้ง?`, `Retry “${toolLabel(rerunning)}”?`) : ""}
+  message={rerunningSend
+    ? t("ORCA ส่งคำขอเดิมไป LINE อีกครั้งด้วยรหัสกันส่งซ้ำเดิม จาก LINE OA บัญชีเดิม ถ้าครั้งก่อน LINE รับไว้แล้ว LINE จะไม่ส่งซ้ำ", "ORCA sends the same request to LINE again with the same retry key, from the same LINE OA. If LINE accepted it before, it won't send it again.")
+    : t("ORCA ขอให้ LINE เปลี่ยนริชเมนูแบบเดิมอีกครั้ง ทำซ้ำได้โดยผลเหมือนเดิม", "ORCA asks LINE for the same rich menu change again. Doing it twice leaves the same result.")}
+  confirmLabel={busyID && busyID === rerunning?.id ? t("กำลังทำงาน…", "Running…") : t("ลองอีกครั้ง", "Retry")}
+  busy={!!busyID}
+  onconfirm={() => { if (rerunning) void retry(rerunning); }}
+  oncancel={() => (retrying = "")}
 />
 
 <ConfirmDialog
@@ -293,9 +375,21 @@
   .approval-decision { display: grid; gap: 2px; }
   .approval-decision p { margin: 0; overflow-wrap: anywhere; }
   .approval-decision .approval-failure { color: var(--orca-deny); font-weight: 500; }
+  .approval-redacted { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 14px; border: 1px dashed var(--orca-line-strong); border-radius: var(--orca-radius); background: var(--orca-surface-2); color: var(--orca-muted); font-size: 14px; }
+  .approval-redacted :global(svg) { flex: none; }
   .approval-args { display: grid; grid-template-columns: minmax(90px, max-content) minmax(0, 1fr); gap: 6px 16px; margin: 0; padding: 12px 14px; border: 1px solid var(--orca-line-soft); border-radius: var(--orca-radius); background: var(--orca-surface-2); color: var(--orca-ink); font-size: 14px; }
   .approval-args dt { color: var(--orca-muted); font-size: 13px; }
   .approval-args dd { max-height: 240px; margin: 0; overflow: auto; overflow-wrap: anywhere; white-space: pre-line; }
+  .line-send { display: grid; gap: 8px; min-width: 0; padding: 12px 14px; border: 1px solid var(--orca-line-soft); border-radius: var(--orca-radius); background: var(--orca-surface-2); color: var(--orca-ink); font-size: 14px; }
+  .line-send p { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; }
+  .line-send-id { color: var(--orca-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .line-send-note { color: var(--orca-muted); font-size: 13px; }
+  .line-send-note :global(svg) { flex: none; }
+  .line-send-text { max-height: 320px; padding: 10px 12px; overflow: auto; border: 1px solid var(--orca-line); border-radius: var(--orca-radius); background: var(--orca-surface); line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .line-send-warn { color: var(--orca-warn); font-size: 13.5px; font-weight: 500; }
+  /* An icon line keeps its icon beside the words on a phone, not above them. */
+  .line-send p.line-send-warn, .line-send p.line-send-note { flex-wrap: nowrap; align-items: flex-start; }
+  .line-send-warn :global(svg), p.line-send-note :global(svg) { flex: none; margin-top: 3px; }
   .approval-result summary { color: var(--orca-ink); font-size: 13.5px; font-weight: 500; cursor: pointer; }
   .approval-result pre { max-height: 240px; margin: 8px 0 0; padding: 10px 12px; overflow: auto; border-radius: var(--orca-radius); background: var(--orca-surface-2); color: var(--orca-ink); font-size: 12.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .approval-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding-top: 4px; }
