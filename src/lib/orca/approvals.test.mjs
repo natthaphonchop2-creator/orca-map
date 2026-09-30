@@ -37,3 +37,19 @@ test("the approval card never shows raw English keys: the provider's titles, kno
 test("only waiting requests count as pending", () => {
   assert.deepEqual(pendingApprovals([{ status: "pending" }, { status: "running" }, { status: "expired" }]).length, 1);
 });
+
+test("a LINE send reads in Thai on the approval card: the user ID, recipient name, text and the silent switch", async () => {
+  const { lineTools } = await import(new URL("./line-messaging-tools.fixture.mjs", import.meta.url).href);
+  const push = lineTools.find((tool) => tool.name === "line_push_text");
+  const args = { userId: "U0123456789abcdef0123456789abcdef", recipientName: "ลูกค้าตัวอย่าง", text: "สวัสดีค่ะ\nโปรโมชันเดือนนี้", notificationDisabled: true };
+  assert.deepEqual(argumentEntries(args, push.inputSchema), [
+    ["รหัสผู้ใช้ LINE", "U0123456789abcdef0123456789abcdef"],
+    ["ชื่อผู้รับ", "ลูกค้าตัวอย่าง"],
+    ["ข้อความ", "สวัสดีค่ะ\nโปรโมชันเดือนนี้"],
+    ["ส่งแบบไม่มีเสียงแจ้งเตือน", "true"],
+  ]);
+  assert.deepEqual(argumentEntries(args, push.inputSchema, "en").map(([label]) => label), ["LINE user ID", "Recipient name", "Text", "Send without a notification sound"]);
+  const link = lineTools.find((tool) => tool.name === "line_user_richmenu_link");
+  assert.deepEqual(argumentEntries({ userId: "U0123456789abcdef0123456789abcdef", richMenuId: "richmenu-0123456789abcdef0123456789abcdef" }, link.inputSchema).map(([label]) => label), ["รหัสผู้ใช้ LINE", "รหัสริชเมนู"]);
+  assert.equal(argumentLabel("requestId"), "รหัสคำขอของ LINE");
+});

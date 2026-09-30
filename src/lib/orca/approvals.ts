@@ -37,7 +37,11 @@ const knownFields: Record<string, readonly [string, string]> = {
 	phone: ['โทรศัพท์', 'Phone'], address: ['ที่อยู่', 'Address'], city: ['เมือง', 'City'], zip: ['รหัสไปรษณีย์', 'Postcode'],
 	channel: ['ช่อง', 'Channel'], status: ['สถานะ', 'Status'], id: ['รหัส', 'ID'], reference: ['เลขอ้างอิง', 'Reference'],
 	query: ['คำค้น', 'Search'], file: ['ไฟล์', 'File'], file_name: ['ชื่อไฟล์', 'File name'], folder: ['โฟลเดอร์', 'Folder'],
-	tags: ['แท็ก', 'Tags'], category: ['หมวดหมู่', 'Category']
+	tags: ['แท็ก', 'Tags'], category: ['หมวดหมู่', 'Category'],
+	// LINE Messaging API v2 (design §14l).
+	user_id: ['รหัสผู้ใช้ LINE', 'LINE user ID'], recipient_name: ['ชื่อผู้รับ', 'Recipient name'],
+	rich_menu_id: ['รหัสริชเมนู', 'Rich menu ID'], notification_disabled: ['ส่งแบบไม่มีเสียงแจ้งเตือน', 'Send without a notification sound'],
+	request_id: ['รหัสคำขอของ LINE', 'LINE request ID']
 };
 
 type Schema = { title?: unknown; properties?: Record<string, unknown>; items?: unknown };

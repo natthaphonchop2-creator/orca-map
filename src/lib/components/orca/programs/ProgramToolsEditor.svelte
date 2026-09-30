@@ -10,6 +10,7 @@
 		selectionReadOnly,
 		toggleGroup,
 		toggleTool,
+		toolAlwaysApproved,
 		toolCopy,
 		toolHintText,
 		type AccessPreset,
@@ -57,6 +58,8 @@
 	const groups = $derived(groupTools(tools));
 	const readNames = $derived(groups.read.map((tool) => tool.name));
 	const changeNames = $derived(groups.change.map((tool) => tool.name));
+	// "ต้องอนุมัติทุกครั้ง": held for an admin whatever the workspace (LINE's sends and changes, design §14l).
+	const alwaysApproved = $derived(groups.change.some((tool) => toolAlwaysApproved(tool)));
 	const canReadOnly = $derived(readOnlyAvailable(tools));
 	const readOnly = $derived(selectionReadOnly(selected, tools));
 	const full = $derived(selected.length >= MAX_PROGRAM_TOOLS);
@@ -94,7 +97,7 @@
 			onchange={() => toggle(tool.name)}
 		/>
 		<span class="opt-copy">
-			<span class="opt-label">{copy.label}{#if unspecified}<span class="opt-warn">{t('ผู้ให้บริการไม่ได้ระบุ', 'Not stated by the provider')}</span>{/if}</span>
+			<span class="opt-label">{copy.label}{#if unspecified}<span class="opt-warn">{t('ผู้ให้บริการไม่ได้ระบุ', 'Not stated by the provider')}</span>{/if}{#if toolAlwaysApproved(tool)}<span class="opt-held"><ShieldCheck size={12} aria-hidden="true" />{t('ต้องอนุมัติทุกครั้ง', 'Always needs approval')}</span>{/if}</span>
 			{#if copy.description}<span class="opt-desc">{copy.description}</span>{/if}
 		</span>
 	</label>
@@ -177,6 +180,12 @@
 				<div class="opts">
 					{#each groups.change as tool (tool.name)}{@render option(tool, selectableUnder(preset, tool), groups.unspecified.includes(tool.name))}{/each}
 				</div>
+				{#if alwaysApproved}
+					<div class="grp-foot held">
+						<ShieldCheck size={15} aria-hidden="true" />
+						<span><b>{t('ต้องอนุมัติทุกครั้ง', 'Always needs approval')}</b> {t('คือ ORCA พักงานนั้นไว้ให้ผู้ดูแลอนุมัติก่อนทุกครั้ง แม้พื้นที่ทำงานจะตั้งไว้ว่า “ทำได้เลย”', 'means ORCA holds it for an admin to approve every time, even in a workspace set to “Run at once”.')}</span>
+					</div>
+				{/if}
 				{#if groups.unspecified.length}
 					<div class="grp-foot">
 						<Info size={15} aria-hidden="true" />
@@ -557,6 +566,19 @@
 		font-weight: 600;
 		white-space: nowrap;
 	}
+	.opt-held {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		padding: 1px 8px;
+		border: 1px solid var(--orca-line);
+		border-radius: 999px;
+		background: var(--orca-secondary);
+		color: var(--orca-text-2);
+		font-size: 12px;
+		font-weight: 600;
+		white-space: nowrap;
+	}
 	.grp-foot {
 		display: flex;
 		align-items: flex-start;
@@ -571,6 +593,9 @@
 		flex: none;
 		margin-top: 2px;
 		color: var(--orca-warn);
+	}
+	.grp-foot.held :global(svg) {
+		color: var(--orca-text-2);
 	}
 	.grp-foot b {
 		color: var(--orca-text-2);

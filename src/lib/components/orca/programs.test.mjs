@@ -51,7 +51,7 @@ test('step titles keep the page contract (at most 4 words, one short line)', () 
 	for (const title of ['คุณใช้โปรแกรมอะไรในบริษัท?', 'เชื่อมบัญชี', 'เลือกสิ่งที่ AI ทำได้', 'โปรแกรมที่เชื่อม', 'Choose a program', 'Connect your account', 'What AI can do']) {
 		assert.ok(contract.titleWithinContract(title), title);
 	}
-	assert.ok(contract.subtitleWithinContract('เลือกว่า AI ของทีมทำอะไรใน LINE Official Account ได้บ้าง เปลี่ยนภายหลังได้เสมอ'));
+	assert.ok(contract.subtitleWithinContract('เลือกว่า AI ของทีมทำอะไรใน LINE OA (Messaging API) ได้บ้าง เปลี่ยนภายหลังได้เสมอ'));
 });
 
 test('step 3 starts read-only: change tools are off, unannotated ones are tagged, one primary "อนุญาต N อย่างนี้"', async () => {
@@ -72,6 +72,34 @@ test('step 3 starts read-only: change tools are off, unannotated ones are tagged
 	// "สำหรับนักพัฒนา" holds the jargon, collapsed.
 	assert.match(html, /<details class="dev[^"]*">/);
 	assert.doesNotMatch(html, /<details class="dev[^"]*"[^>]* open/);
+});
+
+test('step 3 for LINE (C4 §14l): ten reads, six changes marked "ต้องอนุมัติทุกครั้ง", Thai names, and read-only ticks no send', async () => {
+	const { lineTools, lineReadNames } = await import(new URL('../../orca/line-messaging-tools.fixture.mjs', import.meta.url).href);
+	const { Component } = await serverComponent(new URL('./programs/ProgramToolsEditor.svelte', import.meta.url), base);
+	const props = { tools: lineTools, programName: 'LINE OA (Messaging API)', mcpID: 'default-orca-api-line-messaging', name: 'LINE OA (Messaging API)', onsave() {} };
+	const readOnly = text(render(Component, { props: { ...props, selected: tools.presetSelection(lineTools, 'read'), preset: 'read' } }).body);
+	assert.match(readOnly, /ดูข้อมูล <em[^>]*>\(10\)/);
+	assert.match(readOnly, /สร้าง \/ แก้ไข \/ ลบ <em[^>]*>\(6\)/);
+	assert.match(readOnly, /AI จะทำได้ 10 อย่าง · อ่านอย่างเดียว/);
+	assert.equal((readOnly.match(/class="opt-held[^"]*">/g) ?? []).length, 6, 'each of the six writes carries the badge');
+	assert.equal((readOnly.match(/ต้องอนุมัติทุกครั้ง/g) ?? []).length, 7, 'six badges and the group note');
+	assert.match(readOnly, /แม้พื้นที่ทำงานจะตั้งไว้ว่า “ทำได้เลย”/);
+	assert.doesNotMatch(readOnly, /ผู้ให้บริการไม่ได้ระบุ/, 'every LINE tool states its hints');
+	for (const label of ['ดูจำนวนเพื่อนและคนที่บล็อก', 'ส่งข้อความถึงลูกค้า 1 คน', 'ส่งข้อความถึงเพื่อนทุกคน (บรอดแคสต์)', 'ให้ลูกค้า 1 คนกลับไปเห็นริชเมนูหลัก']) assert.ok(readOnly.includes(label), label);
+	assert.doesNotMatch(readOnly, />Send a text message to one customer</, 'the English title is not the Thai label');
+	// Under read-only every send and rich menu change is off; each read is ticked.
+	for (const label of ['ส่งข้อความถึงลูกค้า 1 คน', 'ส่งข้อความถึงเพื่อนทุกคน (บรอดแคสต์)', 'เปลี่ยนริชเมนูหลักของทุกคน']) {
+		const box = readOnly.match(new RegExp(`<input[^>]*>(?=\\s*<span class="opt-copy[^"]*">\\s*<span class="opt-label[^"]*">${label.replace(/[()]/g, '\\$&')})`));
+		assert.ok(box && /disabled/.test(box[0]) && !/checked/.test(box[0]), label);
+	}
+	assert.equal(lineReadNames.length, 10);
+	// The read group alone, with no write offered, never shows the note.
+	const readsOnly = text(render(Component, { props: { ...props, tools: lineTools.slice(0, 10), selected: lineReadNames, preset: 'read' } }).body);
+	assert.doesNotMatch(readsOnly, /ต้องอนุมัติทุกครั้ง/);
+	// On a phone the program strip wraps "LINE OA (Messaging API)" instead of cutting it off.
+	const flow = await readFile(new URL('./programs/AddProgramFlow.svelte', import.meta.url), 'utf8');
+	assert.match(flow, /@media \(max-width: 720px\) \{[\s\S]*?\.ap-strip-name \{\s*white-space: normal;/);
 });
 
 test('with nothing read-only the read-only preset is off, and a locked editor changes nothing', async () => {
@@ -107,7 +135,8 @@ test('step 1: four recommended cards, เชื่อมแล้ว opens the p
 	assert.equal((customer.match(/class="pick-feat[ "]/g) ?? []).length, 4);
 	assert.match(customer, /href="\/app\?view=add-program&amp;source=default-orca-flowaccount&amp;step=connect"/);
 	assert.match(customer, /href="\/app\?view=servers&amp;connection=conn-drive"/);
-	assert.match(customer, /LINE Official Account/);
+	assert.match(customer, /LINE OA \(Messaging API\)/);
+	assert.match(customer, /ดูสถิติเพื่อน ส่งข้อความ ตั้งริชเมนู ทุกการส่งรอผู้ดูแลอนุมัติ/);
 	assert.doesNotMatch(customer, /source=outlook/, 'Outlook is not clickable for a customer');
 	assert.match(text(customer), /Microsoft Outlook.*เร็วๆ นี้/);
 	assert.match(customer, /แจ้งทีม ORCA/);

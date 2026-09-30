@@ -56,6 +56,21 @@ export function toolUnspecified(tool: ProgramToolLike): boolean {
 	return !annotations || (absent(annotations.readOnlyHint) && absent(annotations.destructiveHint));
 }
 
+/** The backend's mark for a tool it always holds for approval (OrcaApprovalMetaKey, pkg/mcp/orca_api_line.go). */
+export const ALWAYS_APPROVED_META = 'orca.invalid/approval';
+
+/**
+ * "ต้องอนุมัติทุกครั้ง": the reviewed definition marks the tool as always held
+ * for an admin's approval, whatever the workspace's write mode (design §14l).
+ * Presentation only: the server holds it either way. It does not decide the
+ * read/change split, which stays the backend's own (toolChangesData); LINE's
+ * six marked writes carry no readOnlyHint, so they are changes anyway.
+ */
+export function toolAlwaysApproved(tool: ProgramToolLike): boolean {
+	const meta = object(toolDefinition(tool)?._meta);
+	return !!meta && meta[ALWAYS_APPROVED_META] === 'always';
+}
+
 export type ToolGroups<T extends ProgramToolLike> = {
 	/** ดูข้อมูล: annotated read-only and not destructive. */
 	read: T[];

@@ -605,5 +605,10 @@
 			margin-bottom: 24px;
 			padding: 12px;
 		}
+		/* A long name such as "LINE OA (Messaging API)" wraps on a phone instead of losing its end. */
+		.ap-strip-name {
+			white-space: normal;
+			overflow-wrap: anywhere;
+		}
 	}
 </style>

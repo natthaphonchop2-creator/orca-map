@@ -19,7 +19,13 @@ test('directory guides never create executable MCP candidates or mutate the supp
 
 test('MCP and API references remain distinct and searchable by work and common brand aliases', () => {
   const rows = catalogDirectory([]);
-  assert.deepEqual(filterCatalog(rows, 'LINE').filter((row) => row.name.startsWith('LINE')).map((row) => row.protocol).sort(), ['API', 'MCP']);
+  // LINE: ORCA's own Messaging API connector (from the backend) beside the LINE Bot MCP guide.
+  const line = { id: 'default-orca-api-line-messaging', name: 'LINE Messaging API', protocol: 'API', managedProvider: 'line-messaging', authMethods: ['secrets'] };
+  assert.deepEqual(filterCatalog(catalogDirectory([line]), 'LINE').filter((row) => row.name.startsWith('LINE')).map((row) => row.protocol).sort(), ['API', 'MCP']);
+  assert.deepEqual(filterCatalog(rows, 'LINE').filter((row) => row.name.startsWith('LINE')).map((row) => row.name), ['LINE Bot MCP']);
+  for (const query of ['LINE OA', 'Messaging API', 'LINE Official Account', 'บรอดแคสต์', 'ริชเมนู', 'ไลน์']) {
+    assert.ok(filterCatalog(catalogDirectory([line]), query).some((row) => row.id === line.id), query);
+  }
   assert.equal(filterCatalog(rows, 'IG', 'social-media').some((row) => row.name === 'Instagram API'), true);
   assert.equal(filterCatalog(rows, 'Shopee', 'ecommerce').some((row) => row.protocol === 'API'), true);
   assert.equal(filterCatalog(rows, 'Shopee', 'communication').length, 0);
@@ -42,4 +48,17 @@ test('each reference has bilingual setup scope, an official documentation link a
     }
     await access(new URL(`../../../static${row.icon}`, import.meta.url));
   }
+});
+
+test('LINE Bot MCP stays a guide (stdio) that points to ORCA’s own LINE OA (Messaging API), with no bridge to build', () => {
+  const guide = integrationReferences.find((row) => row.id === 'guide-line-bot-mcp');
+  assert.equal(guide.guideOnly, true);
+  const copy = [...guide.requirements.flat(), ...guide.scope].join(' ');
+  assert.doesNotMatch(copy, /bridge|ตัวเชื่อม HTTP MCP|ผู้ดูแลระบบจัดทำ/);
+  assert.match(copy, /LINE OA \(Messaging API\)/);
+  assert.match(copy, /stdio/);
+  assert.equal(integrationReferences.some((row) => row.id === 'guide-line-messaging-api'), false);
+  const native = integrationReferences.find((row) => row.id === 'orca-native-line-messaging');
+  assert.equal(native.guideOnly, undefined, 'the native connector is not a guide');
+  assert.equal(integrationGuideSources().some((row) => row.id === native.id), false);
 });
