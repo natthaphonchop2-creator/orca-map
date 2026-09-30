@@ -31,7 +31,7 @@ const localeHref = (path) => `${path}${path.includes('?') ? '&' : '?'}lang=th`;
 const local = { id: 'local-auth-provider', name: 'Local', namespace: 'default' };
 const text = (html) => html.replace(/<!--[^>]*-->/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
-async function loginPage(url, data) {
+async function loginPage(url, data, translate = th) {
 	const notices = [];
 	const { warnings, Component } = await serverComponent(files.login, {
 		...google,
@@ -42,7 +42,7 @@ async function loginPage(url, data) {
 		initializeLocale: () => {},
 		localeHref,
 		orcaLocale: { value: 'th' },
-		t: th,
+		t: translate,
 		onMount: () => {}
 	});
 	assert.deepEqual(warnings, []);
@@ -78,6 +78,18 @@ test('an ordinary sign-in keeps its own return and shows nothing of AI mode', as
 test('a signed-in visitor back from a refused Google sign-in returns to the hand-off page, not the rd', async () => {
 	const { html } = await loginPage('/login?rd=%2Flogin%2Fai%3Fsigned%3D1&error=google_member', { rd: '/login/ai?signed=1', ai: true, signedIn: true });
 	assert.match(html, /<a class="o-link" href="\/login\/ai">กลับไปหน้าเดิม<\/a>/);
+});
+
+test('a Google sign-in that timed out or began in another window says to choose the Google button again', async () => {
+	// localauth's lost flow (backend B1): /login?rd=%2F&error=google_expired.
+	const alert = (html) => text(html.match(/<div class="o-alert" role="alert">([\s\S]*?)<\/div>/)[1]).trim();
+	const thai = await loginPage('/login?rd=%2F&error=google_expired', { rd: '/', ai: false });
+	assert.equal(alert(thai.html), 'การเข้าสู่ระบบด้วย Google หมดเวลา หรือเริ่มจากหน้าต่างอื่น กด "เข้าสู่ระบบด้วย Google" อีกครั้ง');
+	// The button it names is the one on the page.
+	assert.match(thai.html, /<a class="o-button outline o-google" href="[^"]+">[\s\S]*?<\/svg>เข้าสู่ระบบด้วย Google<\/a>/);
+	const english = await loginPage('/login?rd=%2F&error=google_expired', { rd: '/', ai: false }, (_thai, en) => en);
+	assert.equal(alert(english.html), 'Your Google sign-in timed out or was started in another window. Choose "Sign in with Google" again.');
+	assert.match(english.html, /<\/svg>Sign in with Google<\/a>/);
 });
 
 // ---------------------------------------------------------------------------

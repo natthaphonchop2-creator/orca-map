@@ -42,7 +42,7 @@
     return {
       off: t("ตอนนี้ยังเข้าสู่ระบบด้วย Google ไม่ได้ ใช้อีเมลและรหัสผ่านถ้ามี หรือแจ้งทีม ORCA", "Google sign-in isn't on right now. Use an email and password if you have one, or tell the ORCA team."),
       unreachable: t("ติดต่อ Google ไม่ได้ตอนนี้ ลองอีกครั้ง", "Google couldn't be reached. Try again."),
-      expired: t("การเข้าสู่ระบบหมดเวลา หรือเริ่มจากหน้าต่างอื่น ลองอีกครั้ง", "The sign-in timed out or started in another window. Try again."),
+      expired: t('การเข้าสู่ระบบด้วย Google หมดเวลา หรือเริ่มจากหน้าต่างอื่น กด "เข้าสู่ระบบด้วย Google" อีกครั้ง', 'Your Google sign-in timed out or was started in another window. Choose "Sign in with Google" again.'),
       cancelled: t("ยกเลิกการเข้าสู่ระบบด้วย Google แล้ว", "Google sign-in was cancelled."),
       unverified: t("อีเมลของบัญชี Google นี้ยังไม่ได้ยืนยัน", "This Google account's email is not verified."),
       domain: t("อีเมลโดเมนนี้ยังเข้าสู่ระบบ ORCA นี้ไม่ได้ ขอลิงก์เชิญจากผู้ดูแลบริษัท", "This email's domain can't sign in here yet. Ask your company admin for an invite link."),
