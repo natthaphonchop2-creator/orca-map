@@ -319,6 +319,36 @@ test('a refused save shows the newer program whole: its name and note too, so sa
 	assert.equal(writes[2].input.scopeNote, 'ฝ่ายขายเท่านั้น', 'and their note');
 });
 
+test('a refused save whose refresh failed takes nothing: the page keeps its edits and says to save again (Codex release review 68)', async (context) => {
+	const storage = memoryStorage();
+	let current = 0;
+	const writes = [];
+	const save = async (input, id) => {
+		writes.push({ input, id });
+		if (id && input.version !== current) throw Object.assign(new Error('someone else changed this program'), { status: 409 });
+		current += 1;
+		return { ...input, id: 'saved-1', version: current };
+	};
+	const { view } = await setup(context, { props: { step: 'tools' }, service: { save }, storage });
+	await view.discover('flow');
+	flush();
+	await view.save();
+	// Someone else saves version 2; this page's refresh fails, so its data still has version 1.
+	current = 2;
+	view.setConnections([{ id: 'old', name: 'FlowAccount', mcpID: 'x' }, { id: 'saved-1', name: 'FlowAccount (2)', description: '', mcpID: 'flow', enabled: true, scopeNote: '', toolNames: ['list', 'get'], version: 1 }]);
+	flush();
+	view.set({ selected: ['list'], name: 'ของฉัน' });
+	await view.save();
+	assert.equal(writes[1].input.version, 1, 'refused');
+	assert.deepEqual(view.state.selected, ['list'], 'the edits stay');
+	assert.equal(view.state.name, 'ของฉัน');
+	assert.match(view.state.saveError, /ยังโหลดฉบับล่าสุดไม่ได้/);
+	assert.doesNotMatch(view.state.saveError, /หน้านี้แสดงฉบับล่าสุดแล้ว/, 'never claims to show the newest');
+	await view.save();
+	assert.equal(writes[2].input.version, 1, 'still on the version it saved: refused again, nothing overwritten');
+	assert.equal(current, 2);
+});
+
 test('the server\'s B3 refusal reads in Thai', async (context) => {
 	assert.equal(tools.programSaveMessage('review at least one selected tool', (th) => th), 'เลือกสิ่งที่ AI ทำได้อย่างน้อย 1 อย่าง');
 	assert.equal(tools.programSaveMessage('Review at least one selected tool', (_th, en) => en), 'Choose at least one thing AI can do.');

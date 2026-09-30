@@ -54,7 +54,7 @@ test('a draft saves on the version it was made on, so a refresh never lets it ov
 			ProgramService: {
 				discover: async () => offered,
 				// The server's own rule: a save on an older version is refused.
-				save: async (input, id) => { saves.push({ input, id }); if (input.version !== props.connection.version) throw new Error('someone else changed this program'); }
+				save: async (input, id) => { saves.push({ input, id }); if (input.version !== props.connection.version) throw new Error('someone else changed this program'); return { ...props.connection, ...input, version: input.version + 1 }; }
 			}
 		});
 	});
@@ -83,4 +83,44 @@ test('a draft saves on the version it was made on, so a refresh never lets it ov
 	view.set({ selected: ['list', 'get'] });
 	await view.save();
 	assert.equal(saves[1].input.version, 3);
+});
+
+test('after a save whose refresh failed, the tab shows what was saved, on the version the save made (Codex release review 68)', async (context) => {
+	const saves = [];
+	let server = 1;
+	const props = reactive({ connection: program(1, ['list', 'get', 'create']), programName: 'FlowAccount', onchanged: async () => {} });
+	let view;
+	const stop = effect_root(() => {
+		view = harness(props, {
+			...tools, untrack, t: (th) => th, orcaError: (cause) => cause.message, programSaveError: (cause) => cause.message,
+			onMount: () => {}, onDestroy: () => {}, showToast: () => {},
+			ProgramService: {
+				discover: async () => offered,
+				save: async (input, id) => {
+					saves.push({ input, id });
+					if (input.version !== server) throw new Error('someone else changed this program');
+					server += 1;
+					return { ...props.connection, ...input, version: server };
+				}
+			}
+		});
+	});
+	context.after(stop);
+	await view.load();
+	flush();
+	// The page's refresh fails (its data stays at version 1): the tab still shows the save.
+	view.set({ selected: ['list'], name: 'FlowAccount ขาย' });
+	await view.save();
+	flush();
+	assert.deepEqual(view.state.selected, ['list'], 'what was saved, not the older ticks');
+	assert.equal(view.state.name, 'FlowAccount ขาย');
+	assert.equal(view.state.error, '');
+	view.set({ selected: ['list', 'get'] });
+	await view.save();
+	assert.equal(saves[1].input.version, 2, 'the next save goes on the version the first one made');
+	assert.equal(view.state.error, '', 'and is not refused');
+	// A refresh that brings the saved program: the page's copy is used.
+	props.connection = program(3, ['list', 'get']);
+	flush();
+	assert.deepEqual([...view.state.selected].sort(), ['get', 'list']);
 });

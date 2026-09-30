@@ -37,13 +37,13 @@
 	let baseline = '';
 	const draftKey = () => JSON.stringify([name, note, [...selected].sort()]);
 
-	function reset(list: ProgramTool[]) {
-		selected = savedSelection(list, connection.toolNames);
+	function reset(list: ProgramTool[], from: Pick<OrcaConnection, 'toolNames' | 'name' | 'scopeNote' | 'version'> = connection) {
+		selected = savedSelection(list, from.toolNames);
 		preset = presetFor(selected, list);
-		name = connection.name;
-		note = connection.scopeNote;
+		name = from.name;
+		note = from.scopeNote;
 		error = '';
-		baseVersion = connection.version;
+		baseVersion = from.version;
 		baseline = draftKey();
 	}
 	$effect(() => {
@@ -84,12 +84,14 @@
 		saving = true;
 		error = '';
 		try {
-			await ProgramService.save(programSaveInput({ name, note, mcpID: connection.mcpID, selected, tools, existing: { ...connection, version: baseVersion } }), connection.id);
+			const result = await ProgramService.save(programSaveInput({ name, note, mcpID: connection.mcpID, selected, tools, existing: { ...connection, version: baseVersion } }), connection.id);
 			if (!alive) return;
 			showToast(t(`บันทึกแล้ว · AI ทำได้ ${selected.length} อย่างใน ${programName}`, `Saved · AI can do ${selected.length} things in ${programName}`));
 			await onchanged();
-			// The saved program, as it now is.
-			if (alive) reset(tools);
+			// The saved program, as it now is: the page's copy once its refresh
+			// brought it, else what the save returned, so a failed refresh never
+			// shows the older program or leaves its version (Codex release review 68).
+			if (alive) reset(tools, result.version > connection.version ? result : connection);
 		} catch (cause) {
 			if (alive) error = programSaveError(cause);
 		} finally {

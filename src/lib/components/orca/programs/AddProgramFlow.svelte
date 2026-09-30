@@ -290,16 +290,25 @@
 		} catch (cause) {
 			if (!alive) return;
 			saveError = programSaveError(cause);
-			if (again && programSaveConflict(cause)) await rebase(again.id);
+			if (again && programSaveConflict(cause)) await rebase(again.id, again.version);
 		} finally {
 			if (alive) saving = false;
 		}
 	}
 	/** Someone else saved the program after this tab did: show theirs, to check and save again. */
-	async function rebase(id: string) {
+	async function rebase(id: string, refused: number) {
 		await onchanged();
 		const latest = data.connections.find((item) => item.id === id);
 		if (!alive || !latest) return;
+		// The refresh failed, or brought nothing newer than the refused save:
+		// nothing is taken, and what the page shows stays (Codex release review 68).
+		if (latest.version <= refused) {
+			saveError = t(
+				'มีคนแก้โปรแกรมนี้หลังจากคุณบันทึก แต่ยังโหลดฉบับล่าสุดไม่ได้ ลองบันทึกอีกครั้งเพื่อโหลดใหม่',
+				"Someone changed this program after you saved it, but the newest version couldn't be loaded. Save again to load it."
+			);
+			return;
+		}
 		rememberSavedProgram(storage(), savedKey, sourceID, latest.id, Date.now(), latest.version);
 		saved = latest;
 		selected = savedSelection(tools, latest.toolNames);
