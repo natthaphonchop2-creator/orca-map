@@ -11,7 +11,9 @@ const code = stripTypeScriptTypes(await readFile(new URL('../services/orca.ts', 
 	.replace(/^import[^;]+;/gm, '')
 	.replace(/^export /gm, '');
 const companyURL = await typescriptModuleURL(new URL('./company.ts', import.meta.url));
+const supportURL = await typescriptModuleURL(new URL('./support.ts', import.meta.url));
 const { service, setPageCompany } = await import('data:text/javascript;base64,' + Buffer.from(`import { orcaPath, setPageCompany } from ${JSON.stringify(companyURL)};
+import { ORCA_SUPPORT_LINE_ID } from ${JSON.stringify(supportURL)};
 export { setPageCompany };
 export function service(stubs) {
 	const { doDelete, doGet, doPatch, doPost, doPut, doWithBody, parseErrorContent, t, orcaLocale } = stubs;

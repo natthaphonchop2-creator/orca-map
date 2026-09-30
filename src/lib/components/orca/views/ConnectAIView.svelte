@@ -40,6 +40,7 @@
 	import ProgramSignIns from '../connect-ai/ProgramSignIns.svelte';
 	import CopyField from '../ui/CopyField.svelte';
 	import PageHeader from '../ui/PageHeader.svelte';
+	import SupportContact from '../ui/SupportContact.svelte';
 	import { copyFeedback, copyText } from '../ui/copy';
 
 	// view=connect-ai, "เชื่อม AI ของฉัน" (proposal §3.1, the approved mockup):
@@ -286,10 +287,10 @@
 		/>{/if}
 	</div>
 
+	<!-- The ORCA team's LINE and email come from $lib/orca/support (SupportContact). -->
 	<p class="ca-help">
 		{t('ติดขั้นไหน?', 'Stuck on a step?')}
-		<a href={localeHref('/app?view=help')}>{t('ดูคำตอบในหน้าช่วยเหลือ', 'See the Help page')}</a>
-		{#if !data.canManage}{t('หรือถามผู้ดูแลบริษัท', 'or ask a company admin')}{/if}
+		<a href={localeHref('/app?view=help')}>{t('ดูคำตอบในหน้าช่วยเหลือ', 'See the Help page')}</a>{#if data.canManage}{t(' หรือ', ' or ')}{:else}{t(' ถามผู้ดูแลบริษัท หรือ', ', ask a company admin, or ')}{/if}<SupportContact midSentence />
 	</p>
 </div>
 
@@ -421,14 +422,12 @@
 	.ca-more > :global(*) {
 		min-width: 0;
 	}
+	/* One sentence that wraps as text, so "หรือ" and the commas stay with their words. */
 	.ca-help {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 4px 8px;
 		margin: 22px 0 0;
 		color: var(--orca-muted);
 		font-size: 13px;
+		line-height: 1.7;
 	}
 	.ca-help a {
 		color: var(--orca-ink);

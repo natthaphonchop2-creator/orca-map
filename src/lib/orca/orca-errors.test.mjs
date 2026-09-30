@@ -10,7 +10,9 @@ const code = stripTypeScriptTypes(await readFile(new URL('../services/orca.ts', 
 	.replace(/^import[^;]+;/gm, '')
 	.replace(/^export /gm, '');
 const companyURL = await typescriptModuleURL(new URL('./company.ts', import.meta.url));
+const supportURL = await typescriptModuleURL(new URL('./support.ts', import.meta.url));
 const { errors } = await import('data:text/javascript;base64,' + Buffer.from(`import { orcaPath } from ${JSON.stringify(companyURL)};
+import { ORCA_SUPPORT_LINE_ID } from ${JSON.stringify(supportURL)};
 export function errors(stubs) {
 	const { doDelete, doGet, doPatch, doPost, doPut, doWithBody, parseErrorContent, t, orcaLocale } = stubs;
 	${code};
@@ -24,7 +26,13 @@ test('invitation conflicts say what happened and the next step, never "reload an
 	assert.match(orcaError(refusal(409, 'this email already belongs to a member')), /เป็นสมาชิกของบริษัทอยู่แล้ว.*แท็บ สมาชิก/);
 	assert.match(orcaError(refusal(409, 'an invitation for this email is already waiting')), /รออยู่แล้ว.*สร้างลิงก์ใหม่/);
 	assert.match(orcaError(refusal(409, 'this person is suspended or removed; restore them instead')), /กู้คืน/);
-	assert.match(orcaError(refusal(409, "this account already has a higher role than the invitation; ask the ORCA team")), /บทบาทสูงกว่า/);
+	assert.match(orcaError(refusal(409, "this account already has a higher role than the invitation; ask the ORCA team")), /บทบาทสูงกว่า.*ติดต่อทีม ORCA ทาง LINE @147njpwd/);
+	// "ติดต่อทีม ORCA" names the team's LINE, from $lib/orca/support, in both languages.
+	for (const [, thai, english] of conflictReasons.filter(([, thai]) => thai.includes('ติดต่อทีม ORCA'))) {
+		assert.match(thai, /ติดต่อทีม ORCA ทาง LINE @147njpwd/);
+		assert.match(english, /the ORCA team on LINE \(@147njpwd\)/);
+	}
+	assert.equal(conflictReasons.filter(([, thai]) => thai.includes('ติดต่อทีม ORCA')).length, 2);
 	for (const [message] of conflictReasons) assert.doesNotMatch(orcaError(refusal(409, message)), /มีคนเปลี่ยนข้อมูลนี้/, message);
 	// A version conflict is still one.
 	assert.match(orcaError(refusal(409, 'conflict')), /มีคนเปลี่ยนข้อมูลนี้ไปแล้ว/);

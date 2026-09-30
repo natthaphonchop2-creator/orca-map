@@ -16,7 +16,10 @@ const { aiConnectionLine } = await importTypeScript(new URL('../../orca/ai-conne
 const { copyFeedback, copyText } = await importTypeScript(new URL('./ui/copy.ts', import.meta.url));
 const inApp = await importTypeScript(new URL('../../orca/in-app-browser.ts', import.meta.url));
 const workspaceEdit = await importTypeScript(new URL('../../orca/workspace-edit.ts', import.meta.url));
+const support = await importTypeScript(new URL('../../orca/support.ts', import.meta.url));
 const en = (_th, english) => english;
+const { Component: SupportContact } = await serverComponent(new URL('./ui/SupportContact.svelte', import.meta.url), { t: en, ...support });
+const plain = (html) => html.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
 const url = (name) => new URL(`./connect-ai/${name}.svelte`, import.meta.url);
 const NOW = Date.parse('2026-09-28T10:30:00+07:00');
 const ago = (minutes) => new Date(NOW - minutes * 60_000).toISOString();
@@ -75,6 +78,7 @@ async function page(props) {
 			p.children(renderer);
 			renderer.push('</li>');
 		},
+		SupportContact,
 		...Object.fromEntries(['AccessStrip', 'AIAppPicker', 'AppSteps', 'ConnectResult', 'ConnectedAIList', 'ConsentDrawing', 'DeveloperKeys', 'ProgramSignIns', 'CopyField'].map((name) => [name, stub(mounted, name)]))
 	});
 	const html = render(Component, { props }).body;
@@ -103,6 +107,10 @@ test('the page follows the mockup: access strip, five steps, then the person’s
 	const keys = find('DeveloperKeys')[0];
 	assert.deepEqual(keys.hubs.map((item) => item.id), ['sales'], 'a key for one workspace only among those the person can use');
 	assert.equal(keys.canManage, true);
+	// The help line ends with the ORCA team's LINE and email ($lib/orca/support).
+	assert.match(plain(html), /Stuck on a step\? See the Help page or message the ORCA team on LINE @147njpwd \(opens in a new tab\) · email natthaphon\.chop@gmail\.com/);
+	assert.match(html, /<a href="https:\/\/line\.me\/R\/ti\/p\/@147njpwd" target="_blank" rel="noopener noreferrer"/);
+	assert.match(html, /<a href="mailto:natthaphon\.chop@gmail\.com"/);
 	assert.equal(find('ProgramSignIns').length, 1);
 	assert.equal(find('ConnectedAIList')[0].legacy, false);
 	assert.doesNotMatch(html, /MCP|OAuth|Bearer/, 'no jargon outside the developer parts');
@@ -115,7 +123,7 @@ test('with no workspace the steps stay visible but dimmed and inert, and keys ar
 	assert.deepEqual(find('ConnectStep').map((step) => step.state), ['upcoming', 'upcoming', 'upcoming', 'upcoming', 'upcoming']);
 	assert.equal(find('ConnectResult')[0].status, 'idle');
 	assert.equal(find('DeveloperKeys').length, 0);
-	assert.match(html, /or ask a company admin/);
+	assert.match(plain(html), /See the Help page, ask a company admin, or message the ORCA team on LINE @147njpwd/);
 });
 
 test('without a usable company link nothing is fabricated', async () => {

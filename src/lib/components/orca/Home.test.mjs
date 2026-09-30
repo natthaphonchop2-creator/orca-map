@@ -18,9 +18,10 @@ const connectedApps = await importTypeScript(new URL('../../orca/connected-ai-ap
 const secrets = await importTypeScript(new URL('../../orca/secrets.ts', import.meta.url));
 const connectAI = await importTypeScript(new URL('../../orca/connect-ai.ts', import.meta.url));
 const aiConnection = await importTypeScript(new URL('../../orca/ai-connection.ts', import.meta.url));
+const support = await importTypeScript(new URL('../../orca/support.ts', import.meta.url));
 
 const th = (thai) => thai;
-const base = { ...home, ...activation, ...gateway, ...inApp, ...copy, TEAM_INVITE_HREF: navigation.TEAM_INVITE_HREF, connectedAppsHref: connectedApps.connectedAppsHref, STALE_DAYS: secrets.STALE_DAYS, term: glossary.term, t: th, localeHref: (path) => path, orcaLocale: { value: 'th' } };
+const base = { ...home, ...activation, ...gateway, ...inApp, ...copy, ...support, TEAM_INVITE_HREF: navigation.TEAM_INVITE_HREF, connectedAppsHref: connectedApps.connectedAppsHref, STALE_DAYS: secrets.STALE_DAYS, term: glossary.term, t: th, localeHref: (path) => path, orcaLocale: { value: 'th' } };
 const component = async (path, deps) => {
 	const { warnings, Component } = await serverComponent(new URL(path, import.meta.url), deps);
 	assert.deepEqual(warnings, [], path);
@@ -28,6 +29,7 @@ const component = async (path, deps) => {
 };
 const StatusPill = await component('./ui/StatusPill.svelte', base);
 const children = { ...base, StatusPill };
+children.SupportContact = await component('./ui/SupportContact.svelte', base);
 children.SetupStep = await component('./home/SetupStep.svelte', children);
 children.SetupCard = await component('./home/SetupCard.svelte', children);
 children.PromptList = await component('./home/PromptList.svelte', children);
@@ -176,7 +178,10 @@ test('Home picks its mode from the viewer\'s own data: setup at once, else a sho
 	assert.match(text(html), /ยังตั้งค่าไม่เสร็จ/);
 	assert.match(text(html), /ตั้งค่า ORCA ให้ บริษัท ตัวอย่าง · 4 ขั้นตอน ประมาณ 10 นาที/);
 	assert.match(html, /id="setup"/);
-	assert.match(html, /href="\/home\?to=start"/);
+	// A manager of a company already on ORCA reaches the ORCA team on LINE or by email, not through the trial-request form.
+	assert.match(html, /ติดตรงไหน <span class="orca-support[^"]*">(?:<!--[^>]*-->)*<a href="https:\/\/line\.me\/R\/ti\/p\/@147njpwd" target="_blank" rel="noopener noreferrer"/);
+	assert.match(html, /href="mailto:natthaphon\.chop@gmail\.com"/);
+	assert.doesNotMatch(html, /\/home\?to=start/);
 	assert.doesNotMatch(html, /พร้อมใช้งาน/);
 
 	// Steps 1 and 2 done; whether I connected AI and asked is still loading:
@@ -334,6 +339,15 @@ test('Help is a short FAQ that points at Home\'s checklist, without a sign-out b
 	assert.match(html, /href="\/app\?view=members"/);
 	assert.match(html, /href="\/app\?view=secrets"/);
 	assert.doesNotMatch(html, /sign_out|ออกจากระบบ/);
+	// "ยังติดอยู่": the ORCA team's LINE (a new tab) and email, never the trial-request form, which is for companies not on ORCA yet.
+	const stillStuck = (page) => page.slice(page.indexOf('ยังติดอยู่'));
+	const MarkedHelp = await component('./views/HelpView.svelte', { ...base, localeHref: (path) => `${path}#via-locale`, PageHeader: await component('./ui/PageHeader.svelte', children) });
+	for (const data of [{ canManage: true, canChangeMemberStatus: true }, { canManage: false }]) {
+		const answer = stillStuck(render(MarkedHelp, { props: { data } }).body);
+		assert.match(answer, /<a href="https:\/\/line\.me\/R\/ti\/p\/@147njpwd" target="_blank" rel="noopener noreferrer"[^>]*>ส่งข้อความหาทีม ORCA ทาง LINE <span[^>]*>@147njpwd<\/span>/);
+		assert.match(answer, /<a href="mailto:natthaphon\.chop@gmail\.com"[^>]*>อีเมล <span[^>]*>natthaphon\.chop@gmail\.com<\/span>/);
+		assert.doesNotMatch(answer, /\/home\?to=start|#via-locale/, 'the contact links are not passed through localeHref');
+	}
 	// Without the right to suspend, the answer names only what they can do.
 	html = render(Help, { props: { data: { canManage: true, canChangeMemberStatus: false } } }).body;
 	assert.doesNotMatch(html, /href="\/app\?view=members"/);

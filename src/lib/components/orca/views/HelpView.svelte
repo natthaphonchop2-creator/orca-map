@@ -1,15 +1,20 @@
 <script lang="ts">
-	import { ArrowRight, ChevronDown, ListChecks } from '@lucide/svelte';
+	import { ArrowRight, ChevronDown, ExternalLink, ListChecks, Mail } from '@lucide/svelte';
 	import { term } from '$lib/orca/glossary';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
+	import { ORCA_SUPPORT_LINE_REL, supportLinks, type SupportLink } from '$lib/orca/support';
 	import type { OrcaBootstrap } from '$lib/services/orca';
 	import PageHeader from '../ui/PageHeader.svelte';
 
 	// view=help: a short FAQ. The setup steps live in one place, Home's
 	// checklist; this page points there instead of repeating them.
+	// "ยังติดอยู่" gives the ORCA team's LINE and email ($lib/orca/support) to
+	// everyone in a company on ORCA; the trial-request form (/home?to=start) is
+	// for companies not on ORCA yet, so it is not offered here.
 	let { data }: { data: Pick<OrcaBootstrap, 'canManage' | 'canChangeMemberStatus'> } = $props();
 	const manager = $derived(data.canManage);
-	type Link = { href: string; label: string };
+	type Link = { href: string; label: string; support?: SupportLink };
+	const contact = $derived<Link[]>(supportLinks(t).map((link) => ({ href: link.href, label: link.label, support: link })));
 	type Item = { q: string; a: string; links?: Link[] };
 	const items = $derived<Item[]>([
 		{
@@ -83,9 +88,12 @@
 		{
 			q: t('ยังติดอยู่ ติดต่อใคร', 'Still stuck? Who can help?'),
 			a: manager
-				? t('ทีม ORCA ช่วยตั้งค่าให้ได้ ส่งคำถามมาได้เลย', 'The ORCA team can help you set up. Send us your question.')
-				: t('ถามผู้ดูแลบริษัทของคุณก่อน เขาเปิดสิทธิ์และตั้งค่าโปรแกรมให้ได้', 'Ask your company admin first: they can give access and set up programs.'),
-			links: manager ? [{ href: '/home?to=start', label: t('คุยกับทีม ORCA', 'Talk to the ORCA team') }] : []
+				? t('ทีม ORCA ช่วยตั้งค่าให้ได้ ส่งคำถามมาทาง LINE หรืออีเมลได้เลย', 'The ORCA team can help you set up. Send us your question on LINE or by email.')
+				: t(
+						'ถามผู้ดูแลบริษัทของคุณก่อน เขาเปิดสิทธิ์และตั้งค่าโปรแกรมให้ได้ ถ้ายังติดอยู่ ส่งข้อความหาทีม ORCA ทาง LINE หรืออีเมลได้',
+						'Ask your company admin first: they can give access and set up programs. Still stuck? Message the ORCA team on LINE or by email.'
+					),
+			links: contact
 		}
 	]);
 </script>
@@ -115,7 +123,10 @@
 					<p>{item.a}</p>
 					{#if item.links?.length}
 						<p class="help-links">
-							{#each item.links as link (link.href)}<a href={localeHref(link.href)}>{link.label}<ArrowRight size={14} aria-hidden="true" /></a>{/each}
+							{#each item.links as link (link.href)}{#if link.support?.newTab}<a href={link.href} target="_blank" rel={ORCA_SUPPORT_LINE_REL}
+										>{link.label} <span class="help-handle">{link.support.handle}</span><ExternalLink size={14} aria-hidden="true" /><span class="help-hidden">{t(' (เปิดในแท็บใหม่)', ' (opens in a new tab)')}</span></a
+									>{:else if link.support}<a href={link.href}>{link.label} <span class="help-handle">{link.support.handle}</span><Mail size={14} aria-hidden="true" /></a
+									>{:else}<a href={localeHref(link.href)}>{link.label}<ArrowRight size={14} aria-hidden="true" /></a>{/if}{/each}
 						</p>
 					{/if}
 				</div>
@@ -231,6 +242,17 @@
 		text-decoration: underline;
 		text-decoration-color: var(--orca-line-strong);
 		text-underline-offset: 3px;
+	}
+	.help-handle {
+		white-space: nowrap;
+	}
+	.help-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 	@media (max-width: 720px) {
 		.help-setup {
