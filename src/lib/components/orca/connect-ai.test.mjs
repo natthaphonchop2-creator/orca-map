@@ -253,6 +253,14 @@ test('step 5 says waiting, connected or asks for a manual check, and step 3 spea
 	assert.match(show({ status: 'connected', when: 'just now' }), /Claude connected[\s\S]* · just now/);
 	assert.equal(show({ status: 'connected' }).match(/<li/g)?.length, 2);
 	assert.match(show({ status: 'unknown' }), /Ask Claude whether it sees ORCA/);
+	// The check itself failed: never "Waiting… Checked for you" (Codex release review 63).
+	const failed = show({ status: 'error', onretry: () => {} });
+	assert.match(failed, /Can't check right now[\s\S]*tries again by itself, or ask Claude whether it sees ORCA/);
+	assert.match(failed, /<button type="button" class="k-link-button">Try again<\/button>/);
+	assert.doesNotMatch(failed, /Waiting for Claude|Checked for you/);
+	const view = await readFile(new URL('./views/ConnectAIView.svelte', import.meta.url), 'utf8');
+	assert.match(view, /appsState === 'unavailable' \? 'unknown' : appsState === 'error' \? 'error' : 'waiting'/);
+	assert.match(view, /<ConnectResult [^>]*onretry=\{\(\) => void poller\?\.poke\(\)\}/);
 	assert.doesNotMatch(show({ status: 'idle' }), /<li/);
 
 	const steps = await serverComponent(url('AppSteps'), { ...common, localGatewayEndpoint: () => false });

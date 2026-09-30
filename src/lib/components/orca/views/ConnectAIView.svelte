@@ -172,7 +172,8 @@
 	const sessions = $derived(liveSessions(apps, checkedAt));
 	const keys = $derived(appsState === 'unavailable' ? legacyKeys : liveKeys(apps, checkedAt));
 	const prompts = $derived(examplePrompts(usableProgramNames(access.usable, data.connections), t));
-	const result = $derived(session ? 'connected' : !ready ? 'idle' : appsState === 'unavailable' ? 'unknown' : 'waiting');
+	// A failed first check is not "waiting": it says so and offers a retry (Codex release review 63).
+	const result = $derived(session ? 'connected' : !ready ? 'idle' : appsState === 'unavailable' ? 'unknown' : appsState === 'error' ? 'error' : 'waiting');
 	function stepState(step: number): 'done' | 'current' | 'upcoming' {
 		if (session) return 'done';
 		if (!ready) return 'upcoming';
@@ -244,7 +245,7 @@
 
 		<ConnectStep number={5} state={stepState(5)} id="ca-step-5" title={t('ตรวจผล', 'Check it worked')}>
 			{#snippet lead()}{#if result === 'unknown'}{t('หน้านี้ยังตรวจให้อัตโนมัติไม่ได้ ลองถามดูเอง', 'This page cannot check for you yet. Ask it yourself.')}{:else}{t('กดอนุญาตแล้ว หน้านี้จะขึ้นว่า', 'Once you allow, this page shows')} <b>{t('เชื่อมแล้ว', 'connected')}</b> {t('เอง', 'by itself')}{/if}{/snippet}
-			<ConnectResult app={name} status={result} when={session ? relativeWhen(session.createdAt, checkedAt, t, lang) : ''} {prompts} />
+			<ConnectResult app={name} status={result} when={session ? relativeWhen(session.createdAt, checkedAt, t, lang) : ''} {prompts} onretry={() => void poller?.poke()} />
 		</ConnectStep>
 	</ol>
 

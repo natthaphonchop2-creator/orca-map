@@ -1,22 +1,25 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import { Check, Copy, MessageSquare } from '@lucide/svelte';
+	import { Check, Copy, MessageSquare, TriangleAlert } from '@lucide/svelte';
 	import { t } from '$lib/orca/locale.svelte';
 	import { copyFeedback, copyText } from '../ui/copy';
 
 	// Step 5: "กำลังรอ…" while the page checks every few seconds, "เชื่อม
-	// Claude แล้ว" once a sign-in arrives, or a plain hint when this server
-	// cannot tell (no B1 yet).
+	// Claude แล้ว" once a sign-in arrives, a plain hint when this server
+	// cannot tell (no B1 yet), or, when the check itself failed, says so and
+	// offers to try again (Codex release review 63).
 	let {
 		app,
 		status,
 		when = '',
-		prompts
+		prompts,
+		onretry
 	}: {
 		app: string;
-		status: 'waiting' | 'connected' | 'unknown' | 'idle';
+		status: 'waiting' | 'connected' | 'unknown' | 'error' | 'idle';
 		when?: string;
 		prompts: string[];
+		onretry?: () => void;
 	} = $props();
 	const shown = $derived(status === 'connected' ? prompts : prompts.slice(0, 1));
 
@@ -44,6 +47,12 @@
 		{:else if status === 'waiting'}
 			<span class="ca-spin" aria-hidden="true"></span>
 			<div><b>{t(`กำลังรอการเชื่อมต่อจาก ${app}…`, `Waiting for ${app} to connect…`)}</b><small>{t('ตรวจให้อัตโนมัติ ไม่ต้องรีเฟรชหน้า', 'Checked for you. No need to reload.')}</small></div>
+		{:else if status === 'error'}
+			<span class="ca-dot" aria-hidden="true"><TriangleAlert size={15} /></span>
+			<div>
+				<b>{t('ตรวจผลให้ไม่ได้ตอนนี้', "Can't check right now")}</b><small>{t(`ORCA ยังไม่ตอบ หน้านี้จะลองอีกเอง หรือถาม ${app} ว่าเห็น ORCA หรือยัง`, `ORCA isn't answering. This page tries again by itself, or ask ${app} whether it sees ORCA.`)}</small>
+				{#if onretry}<button type="button" class="k-link-button" onclick={onretry}>{t('ลองอีกครั้ง', 'Try again')}</button>{/if}
+			</div>
 		{:else if status === 'unknown'}
 			<span class="ca-dot" aria-hidden="true"><MessageSquare size={15} /></span>
 			<div><b>{t(`ถาม ${app} ว่าเห็น ORCA หรือยัง`, `Ask ${app} whether it sees ORCA`)}</b><small>{t('ถ้าตอบพร้อมรายชื่อพื้นที่ทำงานของคุณ แสดงว่าเชื่อมแล้ว', 'If it answers with your workspaces, you are connected.')}</small></div>
