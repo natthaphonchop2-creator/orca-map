@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { render } from 'svelte/server';
 import { importTypeScript } from '../../orca/test-import.mjs';
@@ -54,4 +55,19 @@ test('ConfirmDialog and Sheet are labelled modal dialogs with a cancel and a clo
 	assert.ok(descriptionID);
 	assert.match(withDescription, new RegExp(`<p id="${descriptionID}"[^>]*>Use your own account.</p>`));
 	assert.doesNotMatch(panel, /inside/, 'the content mounts only while open');
+});
+
+test('Esc or a click outside a confirmation runs ondismiss when given, never the cancel button\'s choice; the knowledge conflict keeps its version (Codex release review 68)', async () => {
+	const dialog = await readFile(new URL('./ui/ConfirmDialog.svelte', import.meta.url), 'utf8');
+	assert.match(dialog, /oncancel=\{\(event\) => \{\s*event\.preventDefault\(\);\s*dismiss\(\);/, 'Esc dismisses');
+	assert.match(dialog, /if \(event\.target === dialog\) dismiss\(\);/, 'a click outside dismisses');
+	assert.match(dialog, /bind:this=\{cancelButton\} disabled=\{busy\} onclick=\{cancel\}/, 'the cancel button cancels');
+	assert.match(dialog, /function dismiss\(\) \{\s*if \(busy\) return;\s*open = false;\s*\(ondismiss \?\? oncancel\)\?\.\(\);/, 'other dialogs keep Esc as cancel');
+	const editor = await readFile(new URL('./LibraryEditor.svelte', import.meta.url), 'utf8');
+	const latest = editor.slice(editor.indexOf('bind:open={latestOpen}'), editor.indexOf('</ConfirmDialog>', editor.indexOf('bind:open={latestOpen}')));
+	assert.match(latest, /oncancel=\{keepMine\}/, '"Keep my text" is the button');
+	const dismiss = latest.match(/ondismiss=\{([\s\S]*?)\}\s*>/)?.[1] ?? '';
+	assert.ok(dismiss, 'the conflict dialog has its own dismiss');
+	assert.doesNotMatch(dismiss.replace(/\/\/.*$/gm, ''), /keepMine|useLatest|version\s*=|conflict\s*=|latestOpen\s*=/, 'dismissing changes neither the version nor the conflict');
+	assert.match(editor, /disabled=\{saving \|\| conflict\} onclick=\{\(\) => save\('draft'\)\}/, 'no save while the conflict stands');
 });

@@ -17,7 +17,8 @@
 		icon: Icon,
 		children,
 		onconfirm,
-		oncancel
+		oncancel,
+		ondismiss
 	}: {
 		open?: boolean;
 		title: string;
@@ -29,7 +30,13 @@
 		icon?: LucideIcon;
 		children?: Snippet;
 		onconfirm: () => void | Promise<void>;
+		/** The cancel button; also Esc and a click outside, unless ondismiss is given. */
 		oncancel?: () => void;
+		/**
+		 * Esc or a click outside, when that must not count as the cancel button
+		 * (the knowledge editor's "Keep my text", Codex release review 68).
+		 */
+		ondismiss?: () => void;
 	} = $props();
 	let dialog: HTMLDialogElement | undefined = $state();
 	let cancelButton: HTMLButtonElement | undefined = $state();
@@ -54,6 +61,11 @@
 		open = false;
 		oncancel?.();
 	}
+	function dismiss() {
+		if (busy) return;
+		open = false;
+		(ondismiss ?? oncancel)?.();
+	}
 	function closed() {
 		open = false;
 		const back = restore;
@@ -70,12 +82,12 @@
 	aria-describedby={message ? messageID : undefined}
 	oncancel={(event) => {
 		event.preventDefault();
-		cancel();
+		dismiss();
 	}}
 	onclose={closed}
 	onkeydown={(event) => trapTab(event, dialog)}
 	onclick={(event) => {
-		if (event.target === dialog) cancel();
+		if (event.target === dialog) dismiss();
 	}}
 >
 	<div class="orca-confirm-body">

@@ -438,6 +438,9 @@
 	cancelLabel={t('เก็บข้อความของฉัน', 'Keep my text')}
 	onconfirm={useLatest}
 	oncancel={keepMine}
+	ondismiss={() => {
+		// Esc or a click outside chooses nothing: the conflict stays, on the version it had.
+	}}
 >
 	{#if latest}
 		<div class="latest">
