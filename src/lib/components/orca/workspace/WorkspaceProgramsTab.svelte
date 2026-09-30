@@ -58,7 +58,14 @@
 			? data.connections.filter((item) => !item.archivedAt && !item.deletedAt && (connectionReady(item) || saved.some((source) => source.connectionID === item.id)))
 			: data.connections.filter((item) => saved.some((source) => source.connectionID === item.id))
 	);
-	const missing = $derived(saved.filter((source) => !data.connections.some((item) => item.id === source.connectionID)));
+	// Still here, but deleted or archived since: offered for removal, since no
+	// card shows them (Codex release review 66).
+	const missing = $derived(
+		saved.filter((source) => {
+			const item = data.connections.find((connection) => connection.id === source.connectionID);
+			return !item || !!item.archivedAt || !!item.deletedAt;
+		})
+	);
 	const narrowConnection = $derived(data.connections.find((item) => item.id === narrowID));
 	// The owner's safety default: the first change action here turns approval on (shown before บันทึก).
 	const approvalOn = $derived(approvalTurnsOn(hub, current, data.connections));
@@ -159,7 +166,7 @@
 	{:else}<p class="pg-empty">{t('ยังไม่ได้เปิดโปรแกรมในพื้นที่นี้', 'No programs are on here yet.')}</p>{/if}
 	{#if missing.length && canEdit}
 		{@const gone = missing.filter((source) => changes[source.connectionID] !== null)}
-		{#if gone.length}<p class="pg-missing">{t(`มี ${gone.length} โปรแกรมที่ถูกลบไปแล้วแต่ยังอยู่ในพื้นที่นี้`, `${gone.length} removed program(s) are still listed here.`)} <button type="button" class="k-link-button" disabled={busy} onclick={() => gone.forEach((source) => setProgram(source.connectionID, null))}>{t('เอาออก', 'Remove')}</button></p>{/if}
+		{#if gone.length}<p class="pg-missing">{t(`มี ${gone.length} โปรแกรมที่ถูกลบหรือจัดเก็บไปแล้วแต่ยังอยู่ในพื้นที่นี้`, `${gone.length} removed or archived program(s) are still listed here.`)} <button type="button" class="k-link-button" disabled={busy} onclick={() => gone.forEach((source) => setProgram(source.connectionID, null))}>{t('เอาออก', 'Remove')}</button></p>{/if}
 	{/if}
 
 	{#if saved.length}
