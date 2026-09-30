@@ -20,6 +20,7 @@ const categories = [
   "recipient_mismatch",
   "unknown_outcome",
   "approval_required",
+  "account_changed",
 ] as const;
 export type AuditErrorCategory = (typeof categories)[number] | "unknown";
 

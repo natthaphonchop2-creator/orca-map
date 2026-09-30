@@ -227,6 +227,10 @@ export interface OrcaApproval {
   errorCategory?: string;
   /** Runs so far: 1 at approval, one more for each retry of a LINE write (design §14l). */
   attempts?: number;
+  /** The server's word that a manager may run this LINE write again now, with the same retry key. */
+  retryable?: boolean;
+  /** On a waiting LINE send: when a manager approved the same one in the last 24 hours. */
+  sameApprovedAt?: string;
 }
 
 /** A company's managers invite employees and admins. */

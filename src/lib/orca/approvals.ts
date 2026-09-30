@@ -129,7 +129,8 @@ const failures: Record<string, readonly [string, string]> = {
 	provider_rate_limited: ['LINE จำกัดจำนวนครั้งต่อชั่วโมง (สถิติและบรอดแคสต์ได้ 60 ครั้งต่อชั่วโมง) รอสักครู่แล้วลองใหม่ ยังไม่มีอะไรถูกส่ง', 'LINE is limiting how often this can be called (statistics and broadcasts allow 60 an hour). Wait and try again. Nothing was sent.'],
 	recipient_mismatch: ['ชื่อผู้รับที่อนุมัติไม่ตรงกับชื่อใน LINE ตอนนี้ ORCA จึงไม่ส่ง ให้ AI ตรวจชื่อลูกค้าใหม่แล้วขออนุมัติอีกครั้ง', "The approved recipient name no longer matches the customer's LINE name, so ORCA sent nothing. Have the AI look the customer up again and ask for a new approval."],
 	unknown_outcome: ['LINE ไม่ตอบ ORCA จึงยังไม่รู้ว่าส่งแล้วหรือยัง อย่าขอส่งใหม่ กด “ลองอีกครั้ง (ไม่ส่งซ้ำ)” ได้ภายใน 23 ชั่วโมง ORCA ใช้รหัสกันส่งซ้ำเดิม ลูกค้าจะไม่ได้รับซ้ำ', "LINE didn't answer, so ORCA doesn't know whether it was sent. Don't ask to send it again: choose “Retry (no double send)” within 23 hours. ORCA reuses the same retry key, so customers never get it twice."],
-	approval_required: ['การส่งหรือการเปลี่ยนใน LINE ต้องให้ผู้ดูแลอนุมัติใน ORCA ก่อน ยังไม่มีอะไรถูกส่ง', "Sending or changing anything in LINE needs a manager's approval in ORCA first. Nothing was sent."]
+	approval_required: ['การส่งหรือการเปลี่ยนใน LINE ต้องให้ผู้ดูแลอนุมัติใน ORCA ก่อน ยังไม่มีอะไรถูกส่ง', "Sending or changing anything in LINE needs a manager's approval in ORCA first. Nothing was sent."],
+	account_changed: ['คีย์ LINE ที่บันทึกใน ORCA ตอนนี้เป็นของ LINE OA อื่น ไม่ใช่บัญชีที่ส่งครั้งแรก ORCA จึงไม่ส่งครั้งนี้ ตรวจแชตของบัญชีเดิมใน LINE OA Manager', "The LINE token saved in ORCA now belongs to another LINE OA than the one this first ran on, so ORCA didn't send it this time. Check the original account's chats in LINE OA Manager."]
 };
 
 export function failureText(category?: string, locale: 'th' | 'en' = 'th'): string {
@@ -149,9 +150,8 @@ export const RETRY_CATEGORIES = ['unknown_outcome', 'audit_unconfirmed', 'timeou
 /** An hour inside the 24 that LINE keeps a retry key, and 4 runs in all, as the backend allows. */
 export const RETRY_WINDOW_MS = 23 * 60 * 60 * 1000;
 export const MAX_RUNS = 4;
-const RECENT_MS = 24 * 60 * 60 * 1000;
 
-type ApprovalLike = Pick<OrcaApproval, 'id' | 'connectionID' | 'toolName' | 'status'> & Partial<Pick<OrcaApproval, 'arguments' | 'decidedAt' | 'errorCategory' | 'attempts'>>;
+type ApprovalLike = Pick<OrcaApproval, 'id' | 'connectionID' | 'toolName' | 'status'> & Partial<Pick<OrcaApproval, 'arguments' | 'decidedAt' | 'errorCategory' | 'attempts' | 'retryable' | 'sameApprovedAt'>>;
 type ConnectionLike = { id: string; mcpID: string };
 
 export type LineSend = {
@@ -192,36 +192,21 @@ export function lineSend(item: ApprovalLike, connections: readonly ConnectionLik
 const decided = (item: ApprovalLike) => (item.decidedAt ? Date.parse(item.decidedAt) : Number.NaN);
 
 /**
- * "ลองอีกครั้ง (ไม่ส่งซ้ำ)": a LINE write whose outcome is unknown, within 23
- * hours of its first run and under 4 runs. The backend checks all of it again.
+ * "ลองอีกครั้ง (ไม่ส่งซ้ำ)": the server says this LINE write may run again
+ * (its outcome is unknown, or its run stopped midway), and on this page's
+ * clock it is still within 23 hours of its first run and under 4 runs. The
+ * backend checks all of it again on the click.
  */
 export function canRetry(item: ApprovalLike, connections: readonly ConnectionLike[], now = Date.now()): boolean {
 	const first = decided(item);
-	return item.status === 'failed' && RETRY_CATEGORIES.includes(item.errorCategory ?? '') && isLineWrite(item, connections) &&
+	const state = item.status === 'running' || (item.status === 'failed' && RETRY_CATEGORIES.includes(item.errorCategory ?? ''));
+	return item.retryable === true && state && isLineWrite(item, connections) &&
 		Number.isFinite(first) && now - first < RETRY_WINDOW_MS && (item.attempts ?? 1) < MAX_RUNS;
 }
 
-/** JSON with sorted keys, so the same arguments compare equal in any order. */
-function canonical(value: unknown): string {
-	if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
-	if (isRecord(value)) return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
-	return JSON.stringify(value ?? null);
-}
-
-/**
- * The same LINE send (same connection, tool and arguments) that a manager
- * approved in the last 24 hours and that may have reached customers: a new
- * request is a new decision and would send it again.
- */
-export function sameSendApproved(item: ApprovalLike, others: readonly ApprovalLike[], connections: readonly ConnectionLike[], now = Date.now()): ApprovalLike | undefined {
-	if (!lineSend(item, connections)) return undefined;
-	const key = canonical(item.arguments);
-	return others.find((other) => {
-		const when = decided(other);
-		const reached = other.status === 'succeeded' || other.status === 'running' || (other.status === 'failed' && RETRY_CATEGORIES.includes(other.errorCategory ?? ''));
-		return other.id !== item.id && other.connectionID === item.connectionID && other.toolName === item.toolName && reached &&
-			Number.isFinite(when) && now - when < RECENT_MS && canonical(other.arguments) === key;
-	});
+/** When the same LINE send was approved in the last 24 hours (the server matches it), on a waiting send only. */
+export function sameSendApprovedAt(item: ApprovalLike, connections: readonly ConnectionLike[]): string | undefined {
+	return item.status === 'pending' && lineSend(item, connections) && item.sameApprovedAt ? item.sameApprovedAt : undefined;
 }
 
 type HubLike = { status?: string; writeMode?: string; connectionID?: string; toolNames?: string[]; sources?: { connectionID: string; toolNames: string[] }[] };

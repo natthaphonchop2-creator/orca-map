@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { approvalTone, argumentEntries, argumentLabel, canRetry, failureText, hubAsksApproval, isLineWrite, LINE_SOURCE, lineSend, pendingApprovals, sameSendApproved } from "./approvals.ts";
+import { approvalTone, argumentEntries, argumentLabel, canRetry, failureText, hubAsksApproval, isLineWrite, LINE_SOURCE, lineSend, pendingApprovals, sameSendApprovedAt } from "./approvals.ts";
 
 test("each status has one tone", () => {
   assert.deepEqual(["pending", "running", "succeeded", "failed", "rejected", "expired"].map(approvalTone), ["waiting", "waiting", "ok", "bad", "muted", "muted"]);
@@ -76,7 +76,7 @@ test("a LINE send reads as its message and recipient, only on ORCA's own LINE co
 });
 
 test("LINE's answers read in plain words; an unknown category keeps the general sentence", () => {
-  for (const category of ["provider_token", "provider_access", "provider_not_found", "provider_rejected", "provider_quota", "provider_rate_limited", "recipient_mismatch", "unknown_outcome", "approval_required", "audit_unconfirmed"]) {
+  for (const category of ["provider_token", "provider_access", "provider_not_found", "provider_rejected", "provider_quota", "provider_rate_limited", "recipient_mismatch", "unknown_outcome", "approval_required", "audit_unconfirmed", "account_changed"]) {
     assert.notEqual(failureText(category), failureText("something_new"), category);
     assert.notEqual(failureText(category, "en"), failureText("something_new", "en"), category);
   }
@@ -87,15 +87,19 @@ test("LINE's answers read in plain words; an unknown category keeps the general 
   assert.equal(failureText("constructor"), "โปรแกรมแจ้งข้อผิดพลาด", "only the table's own keys");
 });
 
-test("retry (no double send) is offered only for a LINE write whose outcome is unknown, within 23 hours and 4 runs", () => {
-  const failed = { ...push, status: "failed", errorCategory: "unknown_outcome", decidedAt: at(1), attempts: 1 };
+test("retry (no double send) is offered only when the server says so, for a LINE write, within 23 hours and 4 runs", () => {
+  const failed = { ...push, status: "failed", errorCategory: "unknown_outcome", decidedAt: at(1), attempts: 1, retryable: true };
   assert.equal(canRetry(failed, line, now), true);
+  assert.equal(canRetry({ ...failed, retryable: false }, line, now), false, "the server's word first");
+  assert.equal(canRetry({ ...failed, retryable: undefined }, line, now), false);
   for (const category of ["audit_unconfirmed", "timeout", "canceled"]) assert.equal(canRetry({ ...failed, errorCategory: category }, line, now), true, category);
+  assert.equal(canRetry({ ...failed, status: "running", errorCategory: undefined }, line, now), true, "a run that stopped midway");
   assert.equal(canRetry({ ...failed, errorCategory: "provider_rate_limited" }, line, now), false, "a final answer is not retried");
   assert.equal(canRetry({ ...failed, errorCategory: "recipient_mismatch" }, line, now), false);
   assert.equal(canRetry({ ...failed, status: "succeeded" }, line, now), false);
-  assert.equal(canRetry({ ...failed, decidedAt: at(23) }, line, now), false, "23 hours after the first run");
+  assert.equal(canRetry({ ...failed, decidedAt: at(23) }, line, now), false, "23 hours after the first run, on this page's clock");
   assert.equal(canRetry({ ...failed, decidedAt: at(22.9) }, line, now), true);
+  assert.equal(canRetry(failed, line, now + 23 * hour), false, "a page left open past the window hides it");
   assert.equal(canRetry({ ...failed, attempts: 4 }, line, now), false);
   assert.equal(canRetry({ ...failed, attempts: 3 }, line, now), true);
   assert.equal(canRetry({ ...failed, decidedAt: undefined }, line, now), false);
@@ -103,17 +107,11 @@ test("retry (no double send) is offered only for a LINE write whose outcome is u
   assert.equal(canRetry({ ...failed, toolName: "line_profile_get" }, line, now), false);
 });
 
-test("the same LINE send approved in the last 24 hours is flagged, whatever the key order", () => {
-  const reordered = { text: push.arguments.text, notificationDisabled: true, recipientName: "สมชาย", userId: push.arguments.userId };
-  const sent = { id: "kap-0", connectionID: "c-line", toolName: "line_push_text", status: "succeeded", decidedAt: at(2), arguments: reordered };
-  assert.equal(sameSendApproved(push, [sent], line, now), sent);
-  assert.equal(sameSendApproved(push, [{ ...sent, status: "failed", errorCategory: "unknown_outcome" }], line, now)?.id, "kap-0", "it may have been sent");
-  assert.equal(sameSendApproved(push, [{ ...sent, status: "failed", errorCategory: "provider_rate_limited" }], line, now), undefined, "nothing was sent");
-  assert.equal(sameSendApproved(push, [{ ...sent, status: "rejected" }], line, now), undefined);
-  assert.equal(sameSendApproved(push, [{ ...sent, decidedAt: at(25) }], line, now), undefined, "older than a day");
-  assert.equal(sameSendApproved(push, [{ ...sent, arguments: { ...reordered, text: "อีกข้อความ" } }], line, now), undefined);
-  assert.equal(sameSendApproved(push, [{ ...sent, connectionID: "c-other" }], line, now), undefined);
-  assert.equal(sameSendApproved(push, [{ ...push, status: "succeeded", decidedAt: at(1) }], line, now), undefined, "not itself");
+test("the same-send warning is the server's match, shown on a waiting LINE send", () => {
+  assert.equal(sameSendApprovedAt({ ...push, sameApprovedAt: at(2) }, line), at(2));
+  assert.equal(sameSendApprovedAt(push, line), undefined);
+  assert.equal(sameSendApprovedAt({ ...push, status: "succeeded", sameApprovedAt: at(2) }, line), undefined, "waiting sends only");
+  assert.equal(sameSendApprovedAt({ ...push, connectionID: "c-remote", sameApprovedAt: at(2) }, line), undefined);
 });
 
 test("members see their requests wherever a LINE write waits, even in a workspace that runs at once", () => {

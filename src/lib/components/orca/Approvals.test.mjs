@@ -18,7 +18,7 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(testProps, dependencies) {
-  const { OrcaService, onMount, onDestroy, tick, approvalTone, argumentEntries, canRetry, failureText, lineSend, sameSendApproved, orcaLocale, t, term, eventToolLabel, displayDate, memberName, orcaError, showToast } = dependencies;
+  const { OrcaService, onMount, onDestroy, tick, approvalTone, argumentEntries, canRetry, failureText, lineSend, sameSendApprovedAt, orcaLocale, t, term, eventToolLabel, displayDate, memberName, orcaError, showToast } = dependencies;
   ${script}
   return {
     load, approve, reject, retry, switchTab, toolLabel, person, requester, inputSchema, workspace, statusLabel, failureLabel, decisionLine,
@@ -26,7 +26,7 @@ const code = compileModule(
     get busyID() { return busyID; }, get loaded() { return loaded; }, get tab() { return tab; },
     get confirming() { return confirming; }, get rejecting() { return rejecting; }, get retrying() { return retrying; },
     get approving() { return approving; }, get declining() { return declining; }, get rerunning() { return rerunning; }, get approvingSend() { return approvingSend; },
-    get recent() { return recent; }, pillTone,
+    get now() { return now; }, pillTone,
     setRejecting(id, value) { rejecting = id; note = value; }, setConfirming(id) { confirming = id; }, setRetrying(id) { retrying = id; },
   };
 }`,
@@ -189,39 +189,21 @@ test("switching tabs ignores the slower earlier answer", async () => {
 const lineData = () => ({ ...data(), connections: [{ id: "khc-line", name: "LINE OA (Messaging API)", mcpID: "default-orca-api-line-messaging", tools: [] }] });
 const lineSend = (id, extra = {}) => waiting(id, { connectionID: "khc-line", toolName: "line_push_text", arguments: { userId: "U0123456789abcdef0123456789abcdef", recipientName: "สมชาย", text: "ออเดอร์พร้อมรับแล้ว" }, ...extra });
 
-test("a waiting LINE send is checked against what managers approved lately, and says what it sends", async () => {
-  const sent = lineSend("apr-0", { status: "succeeded", decidedBy: "1", decidedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString() });
-  const { view, calls, stop } = mount({ data: lineData() }, { list: async (status) => (status === "pending" ? [lineSend("apr-1")] : [sent]) });
+test("a waiting LINE send says what it sends, and the list alone tells whether it repeats an approved one", async () => {
+  const again = lineSend("apr-1", { sameApprovedAt: "2026-09-30T08:00:00Z" });
+  const { view, calls, stop } = mount({ data: lineData() }, { list: async () => [again, lineSend("apr-2")] });
   try {
     await view.load();
-    assert.deepEqual(calls.list, [["pending", false], ["decided", undefined]], "decided requests load only for a waiting LINE send");
-    assert.deepEqual(view.recent.map((item) => item.id), ["apr-0"]);
+    assert.deepEqual(calls.list, [["pending", false]], "the server matches the same send; no second list, no limit");
+    assert.equal(view.items.length, 2);
     view.setConfirming("apr-1");
     flush();
     assert.equal(view.approvingSend?.recipientName, "สมชาย", "the confirm dialog names who gets it");
   } finally { stop(); }
-  // Anything else, and a member's own list, makes no second request.
-  const other = mount({ data: data() }, { list: async () => [waiting("apr-2")] });
-  try {
-    await other.view.load();
-    assert.deepEqual(other.calls.list, [["pending", false]]);
-  } finally { other.stop(); }
-  const member = mount({ data: { ...lineData(), canManage: false } }, { list: async () => [lineSend("apr-3")] });
-  try {
-    await member.view.load();
-    assert.deepEqual(member.calls.list, [["pending", true]]);
-  } finally { member.stop(); }
-  // A failing second list only leaves the warning out.
-  const flaky = mount({ data: lineData() }, { list: async (status) => { if (status === "decided") throw new Error("offline"); return [lineSend("apr-4")]; } });
-  try {
-    await flaky.view.load();
-    assert.equal(flaky.view.error, "");
-    assert.equal(flaky.view.items.length, 1);
-  } finally { flaky.stop(); }
 });
 
 test("a LINE send LINE didn't answer is retried once with the same request, never re-requested", async () => {
-  const unknown = lineSend("apr-5", { status: "failed", errorCategory: "unknown_outcome", decidedBy: "1", decidedAt: new Date().toISOString(), attempts: 1 });
+  const unknown = lineSend("apr-5", { status: "failed", errorCategory: "unknown_outcome", decidedBy: "1", decidedAt: new Date().toISOString(), attempts: 1, retryable: true });
   let release;
   const { view, calls, stop } = mount({ data: lineData() }, {
     list: async () => [unknown],
@@ -240,10 +222,17 @@ test("a LINE send LINE didn't answer is retried once with the same request, neve
     await first;
     flush();
     assert.equal(view.retrying, "");
-    assert.match(view.notice, /ได้รับครั้งเดียว/);
+    assert.match(view.notice, /รับ .* ไว้ตั้งแต่ครั้งก่อนแล้ว จึงไม่ได้ส่งซ้ำ/, "LINE's 409: accepted before, not sent again");
     assert.deepEqual(calls.toasts.at(-1), [view.notice, "ok"]);
     assert.equal(calls.changed, 1);
   } finally { stop(); }
+  const accepted = mount({ data: lineData() }, { list: async () => [unknown], retry: async () => ({ ...unknown, status: "succeeded", attempts: 2, result: '{"accepted":true,"acceptedEarlier":false}' }) });
+  try {
+    await accepted.view.load();
+    await accepted.view.retry(accepted.view.items[0]);
+    assert.match(accepted.view.notice, /LINE รับ .* แล้ว$/, "accepted, not \"customers received it\"");
+    assert.doesNotMatch(accepted.view.notice, /ลูกค้าได้รับ/);
+  } finally { accepted.stop(); }
   const failing = mount({ data: lineData() }, { list: async () => [unknown], retry: async () => ({ ...unknown, errorCategory: "unknown_outcome", attempts: 2 }) });
   try {
     await failing.view.load();

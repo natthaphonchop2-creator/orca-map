@@ -2,7 +2,7 @@
   import { onDestroy, onMount, tick } from "svelte";
   import { BellOff, Check, CircleCheck, Inbox, LoaderCircle, RefreshCw, RotateCcw, TriangleAlert, X } from "@lucide/svelte";
   import CatalogIcon from "$lib/orca/CatalogIcon.svelte";
-  import { approvalTone, argumentEntries, canRetry, failureText, lineSend, sameSendApproved } from "$lib/orca/approvals";
+  import { approvalTone, argumentEntries, canRetry, failureText, lineSend, sameSendApprovedAt } from "$lib/orca/approvals";
   import { term } from "$lib/orca/glossary";
   import { orcaLocale, t } from "$lib/orca/locale.svelte";
   import { eventToolLabel } from "$lib/orca/program-tools";
@@ -28,8 +28,8 @@
   let rejecting = $state("");
   let retrying = $state("");
   let note = $state("");
-  // Recently decided requests, for "the same LINE send was approved already".
-  let recent = $state<OrcaApproval[]>([]);
+  // The retry button's 23-hour window ends while the page is open, too.
+  let now = $state(Date.now());
   // The status switch: where focus goes when the request it was on has moved.
   let bar: HTMLElement | undefined = $state();
   let alive = true;
@@ -76,16 +76,8 @@
     try {
       const next = await OrcaService.approvals(tab, !data.canManage);
       if (!alive || current !== request) return;
-      // A waiting LINE send is checked against what managers approved lately
-      // ("the same message was approved already"); a failure there only
-      // leaves the warning out.
-      let decided: OrcaApproval[] = [];
-      if (tab === "pending" && data.canManage && next.some((item) => lineSend(item, data.connections))) {
-        decided = await OrcaService.approvals("decided").catch(() => []);
-        if (!alive || current !== request) return;
-      }
       items = next;
-      recent = decided;
+      now = Date.now();
       loaded = true;
     } catch (cause) {
       if (alive && current === request) error = orcaError(cause);
@@ -93,7 +85,11 @@
       if (alive && current === request) loading = false;
     }
   }
-  onMount(() => void load());
+  onMount(() => {
+    void load();
+    const clock = setInterval(() => (now = Date.now()), 60_000);
+    return () => clearInterval(clock);
+  });
   onDestroy(() => { alive = false; });
 
   /**
@@ -174,9 +170,13 @@
     try {
       const done = await OrcaService.retryRequest(item.id);
       retrying = "";
-      notice = done.status === "succeeded"
-        ? t(`ลองอีกครั้งแล้ว “${toolLabel(item)}” สำเร็จ ลูกค้าได้รับครั้งเดียว`, `Retried. “${toolLabel(item)}” went through, once.`)
-        : t(`ลองอีกครั้งแล้ว แต่ยังไม่สำเร็จ: ${failureLabel(done.errorCategory)}`, `Retried, but it did not complete: ${failureLabel(done.errorCategory)}`);
+      // LINE's answer says it accepted the request, not that customers read it.
+      const earlier = /"acceptedEarlier"\s*:\s*true/.test(done.result ?? "");
+      notice = done.status !== "succeeded"
+        ? t(`ลองอีกครั้งแล้ว แต่ยังไม่สำเร็จ: ${failureLabel(done.errorCategory)}`, `Retried, but it did not complete: ${failureLabel(done.errorCategory)}`)
+        : earlier
+          ? t(`LINE รับ “${toolLabel(item)}” ไว้ตั้งแต่ครั้งก่อนแล้ว จึงไม่ได้ส่งซ้ำ`, `LINE had already accepted “${toolLabel(item)}”, so it wasn't sent again.`)
+          : t(`ลองอีกครั้งแล้ว LINE รับ “${toolLabel(item)}” แล้ว`, `Retried. LINE accepted “${toolLabel(item)}”.`);
       showToast(notice, { tone: done.status === "succeeded" ? "ok" : "error" });
       await load();
     } catch (cause) {
@@ -193,6 +193,7 @@
 
   const approving = $derived(items.find((item) => item.id === confirming));
   const rerunning = $derived(items.find((item) => item.id === retrying));
+  const rerunningSend = $derived(rerunning ? lineSend(rerunning, data.connections) : undefined);
   const approvingSend = $derived(approving ? lineSend(approving, data.connections) : undefined);
   const declining = $derived(items.find((item) => item.id === rejecting));
 </script>
@@ -229,7 +230,7 @@
       {@const connection = system(item.connectionID)}
       {@const entries = argumentEntries(item.arguments, inputSchema(item), orcaLocale.value === "en" ? "en" : "th")}
       {@const send = lineSend(item, data.connections)}
-      {@const earlier = item.status === "pending" ? sameSendApproved(item, recent, data.connections) : undefined}
+      {@const earlier = sameSendApprovedAt(item, data.connections)}
       <article class="approval-card" aria-labelledby={`approval-${item.id}`}>
         <header>
           <span class="approval-icon"><CatalogIcon name={connection?.name ?? ""} size={22} /></span>
@@ -257,7 +258,7 @@
               <p class="line-send-warn"><TriangleAlert size={15} aria-hidden="true" />{t("ส่งถึงเพื่อนทุกคนที่ไม่ได้บล็อก ใช้ข้อความตามจำนวนผู้รับ และยกเลิกไม่ได้", "Goes to every friend who hasn't blocked the account, uses one message per recipient, and can't be undone.")}</p>
             {/if}
             {#if earlier}
-              <p class="line-send-warn"><TriangleAlert size={15} aria-hidden="true" />{t(`ข้อความเดียวกันนี้อนุมัติไปแล้วเมื่อ ${displayDate(earlier.decidedAt)}`, `The same message was already approved on ${displayDate(earlier.decidedAt)}`)}</p>
+              <p class="line-send-warn"><TriangleAlert size={15} aria-hidden="true" />{t(`ข้อความเดียวกันนี้อนุมัติไปแล้วเมื่อ ${displayDate(earlier)}`, `The same message was already approved on ${displayDate(earlier)}`)}</p>
             {/if}
           </div>
         {:else if entries.length}
@@ -274,7 +275,7 @@
           </div>
           {#if item.result}<details class="approval-result"><summary>{t("ผลลัพธ์จากโปรแกรม", "Result from the program")}</summary><pre>{item.result}</pre></details>{/if}
         {/if}
-        {#if data.canManage && canRetry(item, data.connections)}
+        {#if data.canManage && canRetry(item, data.connections, now)}
           <div class="approval-actions">
             <button type="button" class="k-button approval-approve" disabled={!!busyID} onclick={() => { retrying = item.id; confirming = rejecting = ""; }}><RotateCcw size={16} aria-hidden="true" />{t("ลองอีกครั้ง (ไม่ส่งซ้ำ)", "Retry (no double send)")}</button>
           </div>
@@ -311,7 +312,9 @@
   open={!!rerunning}
   icon={RotateCcw}
   title={rerunning ? t(`ลอง “${toolLabel(rerunning)}” อีกครั้ง?`, `Retry “${toolLabel(rerunning)}”?`) : ""}
-  message={t("ORCA ส่งคำขอเดิมไป LINE อีกครั้งด้วยรหัสกันส่งซ้ำเดิม ถ้าครั้งก่อน LINE ส่งไปแล้ว LINE จะไม่ส่งซ้ำ ลูกค้าจึงได้รับครั้งเดียว", "ORCA sends the same request to LINE again with the same retry key. If LINE sent it before, it won't send it again, so customers get it once.")}
+  message={rerunningSend
+    ? t("ORCA ส่งคำขอเดิมไป LINE อีกครั้งด้วยรหัสกันส่งซ้ำเดิม จาก LINE OA บัญชีเดิม ถ้าครั้งก่อน LINE รับไว้แล้ว LINE จะไม่ส่งซ้ำ", "ORCA sends the same request to LINE again with the same retry key, from the same LINE OA. If LINE accepted it before, it won't send it again.")
+    : t("ORCA ขอให้ LINE เปลี่ยนริชเมนูแบบเดิมอีกครั้ง ทำซ้ำได้โดยผลเหมือนเดิม", "ORCA asks LINE for the same rich menu change again. Doing it twice leaves the same result.")}
   confirmLabel={busyID && busyID === rerunning?.id ? t("กำลังทำงาน…", "Running…") : t("ลองอีกครั้ง", "Retry")}
   busy={!!busyID}
   onconfirm={() => { if (rerunning) void retry(rerunning); }}
