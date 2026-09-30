@@ -187,6 +187,18 @@ test('a lapsed AI sign-in after setup: one line and a way back on the status vie
 	assert.doesNotMatch(banner, /#[0-9a-f]{3,6}\b|rgba?\(/i, 'tokens only');
 });
 
+test('back on Home with setup open, the checklist checks again by itself, without blanking what it shows (Codex release review 63)', async () => {
+	const page = await readFile(new URL('./WorkspaceDashboard.svelte', import.meta.url), 'utf8');
+	const recheck = page.slice(page.indexOf('async function recheck()'), page.indexOf('async function loadAIApps()'));
+	assert.match(recheck, /if \(!alive \|\| mode !== 'setup' \|\| document\.visibilityState === 'hidden'\) return;/, 'only while setup is open and the page is seen');
+	assert.match(recheck, /Date\.now\(\) - lastRecheck < 10_000/, 'at most every 10 seconds');
+	assert.match(recheck, /await OrcaService\.audit\(\)/);
+	assert.match(recheck, /await refreshAIConnection\(\)/);
+	assert.doesNotMatch(recheck, /events = undefined/, 'the steps stay on screen while it checks');
+	assert.match(page, /document\.addEventListener\('visibilitychange', onReturn\);\s*window\.addEventListener\('focus', onReturn\);/);
+	assert.match(page, /onDestroy\(\(\) => \{\s*alive = false;\s*stopRechecks\(\);/);
+});
+
 test('the status view follows the role: managers see the company and its alerts, employees their own part', async () => {
 	const programTools = await importTypeScript(new URL('../../orca/program-tools.ts', import.meta.url));
 	const programCatalog = await importTypeScript(new URL('../../orca/program-catalog.ts', import.meta.url));

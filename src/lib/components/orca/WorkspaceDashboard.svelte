@@ -143,6 +143,25 @@
 			if (alive) eventsError = true;
 		}
 	}
+	// Back on Home from Claude or ChatGPT with setup still open: check again, so
+	// the first question or a new sign-in ticks its step by itself, as the page
+	// promises. What is shown stays until the new answer (Codex release review 63).
+	let lastRecheck = 0;
+	async function recheck() {
+		if (!alive || mode !== 'setup' || document.visibilityState === 'hidden') return;
+		if (Date.now() - lastRecheck < 10_000) return;
+		lastRecheck = Date.now();
+		try {
+			const result = await OrcaService.audit();
+			if (!alive) return;
+			eventsTruncated = result.length >= AUDIT_WINDOW;
+			events = result.filter(isToolCall).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+			eventsError = false;
+		} catch {
+			/* Keeps what it has; the retry on the card still works. */
+		}
+		await refreshAIConnection();
+	}
 	async function loadAIApps() {
 		// A fresh read for Home; an older server without B1 leaves it unknown, and
 		// connecting AI is then proven by the first question.
@@ -191,6 +210,14 @@
 		for (const flag of Object.keys(flags) as HomeFlag[]) flags[flag] = readHomeFlag(storage, flagKey(flag));
 		void loadActivity();
 		void loadAIApps();
+		lastRecheck = Date.now();
+		const onReturn = () => void recheck();
+		document.addEventListener('visibilitychange', onReturn);
+		window.addEventListener('focus', onReturn);
+		stopRechecks = () => {
+			document.removeEventListener('visibilitychange', onReturn);
+			window.removeEventListener('focus', onReturn);
+		};
 		if (untrack(() => data.canManage)) {
 			void loadOptional();
 			// The catalog's names pick the right logos; managers only.
@@ -205,8 +232,10 @@
 			reader.replace(untrack(() => sources).filter((source) => source.canReadSetup).map((source) => source.sourceID));
 		}
 	});
+	let stopRechecks = () => {};
 	onDestroy(() => {
 		alive = false;
+		stopRechecks();
 		reader.dispose();
 	});
 </script>
