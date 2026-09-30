@@ -5,7 +5,7 @@
 	import { term } from '$lib/orca/glossary';
 	import { t } from '$lib/orca/locale.svelte';
 	import { OrcaService, displayDate, memberName, memberRole, orcaError, type OrcaBootstrap, type OrcaBreakGlassLogin } from '$lib/services/orca';
-	import { passwordAccounts, type PasswordAccountRow, type PasswordAccountState } from '$lib/services/orca-platform';
+	import { passwordAccounts, passwordListCurrent, type PasswordAccountRow, type PasswordAccountState } from '$lib/services/orca-platform';
 	import PageHeader from '../ui/PageHeader.svelte';
 	import Sheet from '../ui/Sheet.svelte';
 	import StatusPill, { type StatusTone } from '../ui/StatusPill.svelte';
@@ -32,6 +32,7 @@
 	let saving = $state(false);
 	let formError = $state('');
 	const rows = $derived(passwordAccounts(accounts, data.members, data.currentUserID));
+	const current = $derived(passwordListCurrent(accounts));
 	/** Resetting your own password signs this page out too. */
 	const resettingSelf = $derived(!!resetting?.self);
 
@@ -140,6 +141,16 @@
 	{:else if !loaded}
 		<p class="breakglass-loading" role="status"><LoaderCircle size={18} class="k-spin" aria-hidden="true" />{t('กำลังโหลดบัญชี…', 'Loading accounts…')}</p>
 	{:else if rows.length}
+		{#if !current}
+			<div class="breakglass-callout" role="status">
+				<Info size={17} aria-hidden="true" />
+				<div>
+					<strong>{t('ORCA กำลังอัปเดต', 'ORCA is updating')}</strong>
+					<p>{t('รายการนี้ยังเป็นแบบเดิม ซึ่งรวมบัญชี Google ของลูกค้าด้วย ตั้งรหัสผ่านใหม่ได้เมื่ออัปเดตเสร็จ', "This list is still the old one, which includes customers' Google accounts. Password resets come back once the update is done.")}</p>
+				</div>
+				<button type="button" class="k-link-button" disabled={loading} onclick={refresh}>{t('โหลดใหม่', 'Reload')}</button>
+			</div>
+		{/if}
 		<section class="breakglass-list" aria-labelledby="breakglass-list-title">
 			<h2 id="breakglass-list-title" class="breakglass-sr">{t('บัญชีรหัสผ่าน', 'Password accounts')}</h2>
 			<table class="breakglass-table">

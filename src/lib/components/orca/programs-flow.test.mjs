@@ -167,6 +167,9 @@ test('the server\'s B3 refusal reads in Thai', async (context) => {
 	assert.equal(tools.programSaveMessage('Review at least one selected tool', (_th, en) => en), 'Choose at least one thing AI can do.');
 	assert.match(tools.programSaveMessage('the scope note is too long', (th) => th), /หมายเหตุยาวเกินไป/);
 	assert.equal(tools.programSaveMessage('something else', (th) => th), undefined);
+	// Backend 1956664 (before B3), during the workspace-first deploy: the note, not the tools (Codex release review 63).
+	assert.match(tools.programSaveMessage('review at least one selected tool and describe the actual upstream data scope', (th) => th), /ยังต้องใส่หมายเหตุ/);
+	assert.doesNotMatch(tools.programSaveMessage('review at least one selected tool and describe the actual upstream data scope', (th) => th), /เลือกสิ่งที่ AI ทำได้/);
 	const { view } = await setup(context, { props: { step: 'tools' }, service: { save: async () => { throw new Error('review at least one selected tool'); } } });
 	await view.discover('flow');
 	flush();

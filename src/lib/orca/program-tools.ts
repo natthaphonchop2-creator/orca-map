@@ -167,6 +167,14 @@ export function saveProblem(input: { name: string; selected: readonly string[] }
  */
 export function programSaveMessage(message: string, t: (th: string, en: string) => string): string | undefined {
 	const text = message.toLowerCase();
+	// A server from before B3 still needs the note (it says so in one message with
+	// the tools, which the form never sends empty): only while ORCA updates, as
+	// the workspace deploys before the backend (Codex release review 63).
+	if (text.includes('describe the actual upstream data scope'))
+		return t(
+			'ORCA กำลังอัปเดต ช่วงนี้ยังต้องใส่หมายเหตุ ใส่สั้น ๆ ว่า AI เห็นข้อมูลอะไร แล้วบันทึกอีกครั้ง',
+			'ORCA is updating and still needs the note for now. Add a short note on what data AI sees, then save again.'
+		);
 	if (text.includes('review at least one selected tool')) return t('เลือกสิ่งที่ AI ทำได้อย่างน้อย 1 อย่าง', 'Choose at least one thing AI can do.');
 	if (text.includes('the scope note is too long')) return t('หมายเหตุยาวเกินไป ย่อให้สั้นลงแล้วบันทึกอีกครั้ง', 'The note is too long. Shorten it and save again.');
 	return undefined;

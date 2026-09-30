@@ -165,6 +165,14 @@ test('password accounts are listed exactly as the server sends them, labelled by
 	assert.equal(u2.passwordAccounts([{ id: '13', created: '', email: 'ops@example.com' }], members, '1')[0].self, false);
 	assert.equal(u2.passwordAccounts([accounts[0]], members, '')[0].self, false);
 	assert.equal(u2.passwordAccounts([{ ...accounts[0], userID: '' }], members, '')[0].self, false);
+	// Backend 1956664 (before B6), while the workspace deploys first: every Local login, no origin, account or
+	// status. Nothing can be read as the ORCA team's, so no row offers a reset (Codex release review 63).
+	const old = [{ id: '12', created: '', email: 'ops@example.com' }, { id: '20', created: '', email: 'customer@example.com' }];
+	assert.equal(u2.passwordListCurrent(old), false);
+	assert.deepEqual(u2.passwordAccounts(old, members, '1').map((row) => row.canReset), [false, false]);
+	assert.equal(u2.passwordListCurrent(accounts), true);
+	assert.equal(u2.passwordListCurrent([]), true);
+	assert.equal(u2.passwordListCurrent([...accounts, old[1]]), false, 'one old row is enough');
 });
 
 test('a LINE message link opens in the phone browser', () => {
@@ -279,7 +287,7 @@ test('the platform pages use tokens, not hard-coded label colours, and compile w
 
 const breakGlassHarness = await scriptHarness(
 	files.breakglass,
-	['OrcaService', 'orcaError', 't', 'onMount', 'onDestroy', 'LOCAL_AUTH_MIN_PASSWORD_LENGTH', 'passwordAccounts', 'showToast', 'term', 'displayDate', 'memberName', 'memberRole'],
+	['OrcaService', 'orcaError', 't', 'onMount', 'onDestroy', 'LOCAL_AUTH_MIN_PASSWORD_LENGTH', 'passwordAccounts', 'passwordListCurrent', 'showToast', 'term', 'displayDate', 'memberName', 'memberRole'],
 	'refresh, start, save, stateLabel, originLabel, get state() { return { allowed, accounts, loaded, available, availabilityError, sheetOpen, resetting, resettingSelf, email, password, formError, rows }; }, set(values) { if ("email" in values) email = values.email; if ("password" in values) password = values.password; }'
 );
 
@@ -301,6 +309,7 @@ function breakGlass(data, service = {}) {
 				onDestroy: () => {},
 				LOCAL_AUTH_MIN_PASSWORD_LENGTH: 12,
 				passwordAccounts: u2.passwordAccounts,
+				passwordListCurrent: u2.passwordListCurrent,
 				showToast: (message) => calls.toasts.push(message)
 			}
 		);
@@ -397,7 +406,7 @@ test('บัญชีฉุกเฉิน marks your own account, and names eac
 
 test('บัญชีฉุกเฉิน renders nothing for a customer and its header for the ORCA team', async () => {
 	const PageHeader = (renderer, props) => { renderer.push(`<h1>${props.title}</h1>`); props.action?.(renderer); };
-	const { Component } = await serverComponent(files.breakglass, { t: (_th, en) => en, term: (_key, t) => t('บัญชีฉุกเฉิน', 'Break-glass accounts'), passwordAccounts: u2.passwordAccounts, PageHeader, LOCAL_AUTH_MIN_PASSWORD_LENGTH: 12 });
+	const { Component } = await serverComponent(files.breakglass, { t: (_th, en) => en, term: (_key, t) => t('บัญชีฉุกเฉิน', 'Break-glass accounts'), passwordAccounts: u2.passwordAccounts, passwordListCurrent: u2.passwordListCurrent, PageHeader, LOCAL_AUTH_MIN_PASSWORD_LENGTH: 12 });
 	const customer = render(Component, { props: { data: { canManage: true, platformOperator: false, currentUserID: 'me', members: people }, onchanged: async () => {} } }).body;
 	assert.doesNotMatch(customer, /Break-glass|password|Password/);
 	const team = render(Component, { props: { data: { canManage: true, platformOperator: true, currentUserID: 'me', members: people }, onchanged: async () => {} } }).body;

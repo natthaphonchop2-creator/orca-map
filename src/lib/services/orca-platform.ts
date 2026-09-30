@@ -216,6 +216,7 @@ export type PasswordAccountRow = {
  * whatever its password.
  */
 export function passwordAccounts(accounts: readonly OrcaBreakGlassLogin[], members: readonly OrcaMember[], currentUserID: string): PasswordAccountRow[] {
+	const current = passwordListCurrent(accounts);
 	return accounts.map((account) => {
 		const state: PasswordAccountState = !account.userID ? 'waiting' : account.status === 'suspended' ? 'suspended' : account.status === 'removed' ? 'removed' : 'active';
 		return {
@@ -223,9 +224,20 @@ export function passwordAccounts(accounts: readonly OrcaBreakGlassLogin[], membe
 			member: account.userID ? members.find((member) => member.id === account.userID) : undefined,
 			state,
 			self: !!account.userID && account.userID === currentUserID,
-			canReset: state === 'active' || state === 'waiting'
+			canReset: current && (state === 'active' || state === 'waiting')
 		};
 	});
+}
+
+/**
+ * Whether the list is B6's: every row says who chose its password. A server
+ * from before B6 (while ORCA updates, the workspace first) lists every Local
+ * login, customers' Google-only ones too, with no account, role or status, so
+ * its rows can't be read as the ORCA team's and are offered no reset (Codex
+ * release review 63).
+ */
+export function passwordListCurrent(accounts: readonly OrcaBreakGlassLogin[]): boolean {
+	return accounts.every((account) => account.passwordOrigin === 'admin' || account.passwordOrigin === 'self');
 }
 
 // ---------------------------------------------------------------------------
