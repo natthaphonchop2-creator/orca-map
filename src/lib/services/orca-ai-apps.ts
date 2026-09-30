@@ -93,10 +93,14 @@ export function refreshAIConnection(): Promise<void> {
 /**
  * The viewer disconnected one of their own AI apps: a shared read already on
  * its way may still list it, so it is dropped, and the next read starts afresh.
+ * Until a read answers, the pin says nothing ("unknown"), so a failed read
+ * never leaves "connected" standing (Codex release review 69); the connect
+ * page then sets it from its own list at once.
  */
 export function aiAppsRevoked(): void {
 	revocations += 1;
 	pending = undefined;
+	setAIConnection({ state: 'unknown' });
 }
 
 let checked = false;

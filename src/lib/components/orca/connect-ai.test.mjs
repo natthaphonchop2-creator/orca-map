@@ -282,14 +282,26 @@ test('the pin\'s shared read that started before a disconnect changes nothing, a
 	const before = service.refreshAIConnection();
 	assert.equal(service.refreshAIConnection(), before, 'calls in flight share one read');
 	service.aiAppsRevoked();
+	assert.deepEqual(states, ['unknown'], 'a disconnect clears "connected" at once (Codex release review 69)');
 	const after = service.refreshAIConnection();
 	assert.notEqual(after, before, 'after a disconnect the next read starts afresh');
 	reads[0](live);
 	await before;
-	assert.deepEqual(states, [], 'the read from before the disconnect changes nothing');
+	assert.deepEqual(states, ['unknown'], 'the read from before the disconnect changes nothing');
 	reads[1]({ sessions: [], keys: [] });
 	await after;
-	assert.deepEqual(states, ['none']);
+	assert.deepEqual(states, ['unknown', 'none']);
+	// A fresh read that fails keeps "unknown", never the old "connected".
+	service.aiAppsRevoked();
+	const failing = make({
+		parseErrorContent: () => ({ status: 500 }), orcaPath: (path) => path, t: en, doPost: async () => ({}),
+		setAIConnection: (status) => states.push(status.state), aiConnectionFrom: ai.aiConnectionFrom,
+		doGet: async () => { throw new Error('offline'); }
+	});
+	states.length = 0;
+	failing.aiAppsRevoked();
+	await failing.refreshAIConnection();
+	assert.deepEqual(states, ['unknown'], 'a failed read after a disconnect leaves the pin neutral');
 	const oversight = await readFile(new URL('./ConnectedAIApps.svelte', import.meta.url), 'utf8');
 	assert.match(oversight, /await disconnectRow\(chosen\.row\);\s*if \(chosen\.group\.isViewer\) ownRevoked\(\);/, 'ตรวจสอบ: the viewer\'s own app updates the pin');
 	assert.match(oversight, /if \(chosen\.isViewer && result\.done > 0\) ownRevoked\(\);/);
