@@ -373,6 +373,10 @@ test('เชื่อม AI ของฉัน names where each sign-in reaches,
 	assert.match(shell, /const aiConnected = \$derived\(\(aiStatus \?\? aiConnection\)\?\.state === "connected" && !\(aiStatus \?\? aiConnection\)\?\.only\?\.length\);/);
 	const library = await readFile(new URL('./KnowledgeLibrary.svelte', import.meta.url), 'utf8');
 	assert.match(library, /const connected = \$derived\(aiConnectionReaches\(aiConnection, hub\?\.id\)\);/);
+	// "ถามใน …" names the app that reaches this workspace, never one limited to another (Codex review 71).
+	assert.match(library, /const aiApp = \$derived\(aiConnectionAppFor\(aiConnection, hub\?\.id\)\);/);
+	assert.equal(library.match(/app=\{aiApp\}/g)?.length, 2, 'the list and the detail');
+	assert.doesNotMatch(library, /aiConnection\.app/);
 });
 
 test('step 5 says waiting, connected or asks for a manual check, and step 3 speaks each app’s menus', async () => {

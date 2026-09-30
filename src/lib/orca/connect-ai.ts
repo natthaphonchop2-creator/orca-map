@@ -2,7 +2,7 @@
 // Svelte so they are tested on their own. Proposal §3.1, critique 5, 10, 11, 13.
 import type { OrcaBootstrap, OrcaHub } from '../services/orca';
 import type { MyAIApps, MyAIKey, MyAISession } from '../services/orca-ai-apps';
-import type { AIConnectionStatus } from './ai-connection';
+import type { AIConnectionStatus, AIOnlyWorkspace } from './ai-connection';
 import type { AIApp, ClientNames, GatewayClient } from './client-config';
 import { connectionReady, workspaceToolingReady } from './activation';
 import { AI_APPS, clientNames, gatewayClientCommands, gatewayClientConfig, gatewayInstallLink } from './client-config';
@@ -237,8 +237,12 @@ export function aiConnectionFrom(apps: MyAIApps | undefined, now: number, t: Tra
 	if (session) return { state: 'connected', app: sessionLabel(session, t) };
 	if (liveKeys(apps, now).some((key) => !!key.lastUsedAt)) return { state: 'connected' };
 	if (live.length) {
-		const only = new Map(live.map((item) => [item.hubID!, { id: item.hubID!, name: item.hubName?.trim() ?? '' }]));
-		return { state: 'connected', app: sessionLabel(live[0], t), only: [...only.values()] };
+		// Each workspace with the app of its newest sign-in. Named apart, the
+		// pin names no app: "เชื่อมเฉพาะ 2 พื้นที่ทำงาน" (Codex review 71).
+		const only = new Map<string, AIOnlyWorkspace>();
+		for (const item of live) if (!only.has(item.hubID!)) only.set(item.hubID!, { id: item.hubID!, name: item.hubName?.trim() ?? '', app: sessionLabel(item, t) });
+		const apps = new Set([...only.values()].map((hub) => hub.app));
+		return { state: 'connected', ...(apps.size === 1 ? { app: [...apps][0] } : {}), only: [...only.values()] };
 	}
 	return { state: 'none' };
 }

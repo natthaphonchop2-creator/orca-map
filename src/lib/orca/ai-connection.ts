@@ -4,8 +4,12 @@
 // pin must never claim "ยังไม่ได้เชื่อม" when it cannot tell.
 
 export type AIConnectionState = 'unknown' | 'none' | 'connected';
-/** A workspace one of the person's sign-ins is limited to (its own link); `name` is "" when they cannot see it. */
-export type AIOnlyWorkspace = { id: string; name: string };
+/**
+ * A workspace one of the person's sign-ins is limited to (its own link);
+ * `name` is "" when they cannot see it, and `app` names the AI app signed in
+ * there (its newest sign-in), e.g. "ChatGPT".
+ */
+export type AIOnlyWorkspace = { id: string; name: string; app?: string };
 export type AIConnectionStatus = {
 	state: AIConnectionState;
 	/** e.g. "Claude" */
@@ -32,6 +36,17 @@ export function onlyWorkspacesText(only: readonly AIOnlyWorkspace[], t: Translat
 export function aiConnectionReaches(status: AIConnectionStatus | undefined, hubID: string | undefined): boolean {
 	if (status?.state !== 'connected') return false;
 	return !status.only?.length || (!!hubID && status.only.some((hub) => hub.id === hubID));
+}
+
+/**
+ * The AI app to name for the workspace `hubID`: the one that reaches it ("" when
+ * none does, or it is not known). Limited sign-ins name their own workspace's
+ * app, never another's (Codex review 71).
+ */
+export function aiConnectionAppFor(status: AIConnectionStatus | undefined, hubID: string | undefined): string {
+	if (!status || !aiConnectionReaches(status, hubID)) return '';
+	if (!status.only?.length) return status.app?.trim() ?? '';
+	return status.only.find((hub) => hub.id === hubID)?.app?.trim() ?? '';
 }
 
 /** The line under the pin; "" when unknown (a neutral pin). */

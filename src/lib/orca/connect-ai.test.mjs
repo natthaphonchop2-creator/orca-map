@@ -134,15 +134,30 @@ test('a sign-in through one workspace\'s own link is never the company link: ste
 	assert.equal(ai.companyLinkSession({ hubID: 'hub-sales' }), false);
 	// The pin: the company link first, then a used key, and only then "เฉพาะ …".
 	assert.deepEqual(ai.aiConnectionFrom(both, NOW, en), { state: 'connected', app: 'Claude' });
-	assert.deepEqual(ai.aiConnectionFrom(onlyOwn, NOW, en), { state: 'connected', app: 'Claude', only: [{ id: 'hub-sales', name: 'ฝ่ายขาย' }] });
+	assert.deepEqual(ai.aiConnectionFrom(onlyOwn, NOW, en), { state: 'connected', app: 'Claude', only: [{ id: 'hub-sales', name: 'ฝ่ายขาย', app: 'Claude' }] });
 	const usedKey = { id: 1, name: 'n8n', hubID: '', createdAt: ago(9), lastUsedAt: ago(3) };
 	assert.deepEqual(ai.aiConnectionFrom({ ...onlyOwn, keys: [usedKey] }, NOW, en), { state: 'connected' });
 	const two = { sessions: [own('a', 'hub-sales', 'ฝ่ายขาย', 1), own('b', 'hub-acc', '', 2, 'chatgpt', 'ChatGPT'), own('c', 'hub-sales', 'ฝ่ายขาย', 3)], keys: [] };
-	assert.deepEqual(ai.aiConnectionFrom(two, NOW, en), { state: 'connected', app: 'Claude', only: [{ id: 'hub-sales', name: 'ฝ่ายขาย' }, { id: 'hub-acc', name: '' }] }, 'each workspace once, newest app');
+	// Each workspace once, with its newest sign-in's app; two apps apart name no app (Codex review 71).
+	assert.deepEqual(ai.aiConnectionFrom(two, NOW, en), { state: 'connected', only: [{ id: 'hub-sales', name: 'ฝ่ายขาย', app: 'Claude' }, { id: 'hub-acc', name: '', app: 'ChatGPT' }] }, 'each workspace once, its own app');
+	const twoClaude = { sessions: [own('a', 'hub-sales', 'ฝ่ายขาย', 1), own('b', 'hub-acc', 'บัญชี', 2)], keys: [] };
+	assert.deepEqual(ai.aiConnectionFrom(twoClaude, NOW, en), { state: 'connected', app: 'Claude', only: [{ id: 'hub-sales', name: 'ฝ่ายขาย', app: 'Claude' }, { id: 'hub-acc', name: 'บัญชี', app: 'Claude' }] }, 'one app: named');
 	assert.deepEqual(ai.aiConnectionFrom({ sessions: [own('x', 'hub-sales', 'ฝ่ายขาย', 5, 'claude', 'Claude')].map((item) => ({ ...item, expiresAt: ago(1) })), keys: [] }, NOW), { state: 'none' }, 'an expired one is nothing');
 	assert.equal(connection_.aiConnectionLine(ai.aiConnectionFrom(onlyOwn, NOW, th), th), 'Claude เชื่อมเฉพาะ ฝ่ายขาย');
 	assert.equal(connection_.aiConnectionLine(ai.aiConnectionFrom(onlyOwn, NOW, en), en), 'Claude: only ฝ่ายขาย');
-	assert.equal(connection_.aiConnectionLine(ai.aiConnectionFrom(two, NOW, th), th), 'Claude เชื่อมเฉพาะ 2 พื้นที่ทำงาน');
+	assert.equal(connection_.aiConnectionLine(ai.aiConnectionFrom(two, NOW, th), th), 'เชื่อมเฉพาะ 2 พื้นที่ทำงาน', 'never "Claude" for ChatGPT\'s workspace');
+	assert.equal(connection_.aiConnectionLine(ai.aiConnectionFrom(two, NOW, en), en), 'Connected, only 2 workspaces');
+	assert.equal(connection_.aiConnectionLine(ai.aiConnectionFrom(twoClaude, NOW, th), th), 'Claude เชื่อมเฉพาะ 2 พื้นที่ทำงาน');
+	// คลังความรู้'s "ถามใน …": the app that reaches that workspace (Codex review 71).
+	const limited = ai.aiConnectionFrom(two, NOW, en);
+	assert.equal(connection_.aiConnectionAppFor(limited, 'hub-acc'), 'ChatGPT');
+	assert.equal(connection_.aiConnectionAppFor(limited, 'hub-sales'), 'Claude');
+	assert.equal(connection_.aiConnectionAppFor(limited, 'hub-other'), '', 'none reaches it');
+	assert.equal(connection_.aiConnectionAppFor(limited, undefined), '');
+	assert.equal(connection_.aiConnectionAppFor({ state: 'connected', app: 'Claude' }, 'hub-acc'), 'Claude', 'the company link reaches every workspace');
+	assert.equal(connection_.aiConnectionAppFor({ state: 'connected' }, 'hub-acc'), '', 'a used key names no app');
+	assert.equal(connection_.aiConnectionAppFor({ state: 'none', app: 'Claude' }, 'hub-acc'), '');
+	assert.equal(connection_.aiConnectionAppFor(undefined, 'hub-acc'), '');
 	assert.equal(connection_.aiConnectionLine({ state: 'connected', only: [{ id: 'h', name: '' }] }, th), 'เชื่อมเฉพาะพื้นที่ทำงานเดียว', 'a workspace they cannot see is not named');
 	assert.doesNotMatch(connection_.aiConnectionLine(ai.aiConnectionFrom(two, NOW, th), th), /เชื่อมแล้ว/);
 	// Whether it reaches a workspace (คลังความรู้): the company link reaches all, a limited one only its own.

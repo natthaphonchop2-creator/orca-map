@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { getHttpStatusCode, parseErrorContent } from '$lib/errors';
 	import { connectionReady } from '$lib/orca/activation';
-	import { aiConnectionReaches } from '$lib/orca/ai-connection';
+	import { aiConnectionAppFor, aiConnectionReaches } from '$lib/orca/ai-connection';
 	import { aiConnection } from '$lib/orca/ai-connection.svelte';
 	import { currentCompany } from '$lib/orca/company';
 	import { term } from '$lib/orca/glossary';
@@ -90,6 +90,8 @@
 	});
 	// Through the company's link, or a sign-in limited to this workspace; not one limited to another (B3 follow-up).
 	const connected = $derived(aiConnectionReaches(aiConnection, hub?.id));
+	// "ถามใน Claude": the app that reaches this workspace, never one limited to another (Codex review 71).
+	const aiApp = $derived(aiConnectionAppFor(aiConnection, hub?.id));
 
 	let contextID = '';
 	$effect(() => {
@@ -412,7 +414,7 @@
 				currentUserID={data.currentUserID}
 				{now}
 				{connected}
-				app={aiConnection.app ?? ''}
+				app={aiApp}
 				onback={() => show({ name: 'list' })}
 				onedit={() => show({ name: 'editor', kind: selected!.kind, id: selected!.id })}
 				onarchived={archived}
@@ -435,7 +437,7 @@
 			loaded={loadedHub === hub!.id}
 			{error}
 			{connected}
-			app={aiConnection.app ?? ''}
+			app={aiApp}
 			{now}
 			onchoose={chooseWorkspace}
 			oncreate={(next, title) => openEditor(next, title)}
