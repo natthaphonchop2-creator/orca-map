@@ -344,6 +344,28 @@ export function retokenFields(text: string, before: readonly LibraryParameter[],
 	});
 }
 
+/**
+ * The editor's text with a new field's chip put in place of the selection,
+ * after the fields changed from `before` to `after` (the new one added):
+ * the text before and after the selection is re-shown on its own, so the chip
+ * lands where the caret was even when other chips change length (Codex
+ * release review 64). `caret` is just after the chip.
+ */
+export function insertField(
+	text: string,
+	start: number,
+	end: number,
+	before: readonly LibraryParameter[],
+	after: readonly LibraryParameter[],
+	name: string
+) {
+	const from = Math.max(0, Math.min(start, text.length));
+	const to = Math.max(from, Math.min(end, text.length));
+	const head = retokenFields(text.slice(0, from), before, after);
+	const chip = `{{${fieldTokens(after).get(name) ?? name}}}`;
+	return { text: head + chip + retokenFields(text.slice(to), before, after), caret: head.length + chip.length };
+}
+
 /** Text with `insert` put in place of the selection; `caret` is just after it. */
 export function insertText(text: string, start: number, end: number, insert: string) {
 	const from = Math.max(0, Math.min(start, text.length));

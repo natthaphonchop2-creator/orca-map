@@ -177,6 +177,22 @@ test('fields with one label, or named like another field\'s label, save back exa
 	assert.equal(k.retokenFields(shown, twins, twins.slice(1)), ' to {{Date}}');
 });
 
+test('a new field\'s chip lands at the caret even when other chips change (Codex release review 64)', () => {
+	// The field named customer is labelled field_1; the new field is named field_1 too,
+	// so the old chip now shows by its name and gets longer before the caret.
+	const before = [{ name: 'customer', label: 'field_1', required: true }];
+	const after = [...before, { name: 'field_1', label: 'Amount', required: true }];
+	const text = '{{field_1}} and';
+	const caret = '{{field_1}}'.length;
+	const next = k.insertField(text, caret, caret, before, after, 'field_1');
+	assert.equal(next.text, '{{customer}}{{Amount}} and');
+	assert.equal(next.caret, '{{customer}}{{Amount}}'.length);
+	assert.deepEqual(k.contentForSaving(next.text, after), { content: '{{customer}}{{field_1}} and', unknown: [] });
+	// A plain insert replaces the selection, and the selection is clamped.
+	assert.deepEqual(k.insertField('ab', 1, 2, [], [{ name: 'field_1', label: 'X', required: true }], 'field_1'), { text: 'a{{X}}', caret: 6 });
+	assert.deepEqual(k.insertField('ab', 9, 9, [], [{ name: 'field_1', label: 'X', required: true }], 'field_1').text, 'ab{{X}}');
+});
+
 test('audience mismatch: who could use the prompt but cannot read an article', () => {
 	const context = { departments, personName: (id) => ({ c: 'ใจดี', b: 'บี' })[id] ?? id, departmentName: (id) => departments.find((d) => d.unitID === id)?.name ?? id };
 	const template = { ownerID: 'me', unitIDs: ['sales', 'acc'], memberIDs: [] };

@@ -6,9 +6,8 @@
 		TEMPLATE_FIELDS_MAX,
 		cleanFieldLabel,
 		fieldLabelTaken,
-		fieldTokens,
 		fieldsInUse,
-		insertText,
+		insertField,
 		nextFieldName,
 		retokenFields,
 		tokenRuns
@@ -70,9 +69,8 @@
 		const name = nextFieldName(parameters);
 		const before = parameters;
 		parameters = [...parameters, { name, label: clean, required }];
-		// The new label may be shown by name if another field is named like it.
-		text = retokenFields(text, before, parameters);
-		const next = insertText(text, selection.start, selection.end, `{{${fieldTokens(parameters).get(name) ?? name}}}`);
+		// Other chips may change (a new name spelled like another's label): the chip still lands at the caret.
+		const next = insertField(text, selection.start, selection.end, before, parameters, name);
 		text = next.text;
 		dialogOpen = false;
 		await tick();
