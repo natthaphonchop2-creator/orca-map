@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
+import { stripTypeScriptTypes } from 'node:module';
 import test from 'node:test';
 import { render } from 'svelte/server';
 import { importTypeScript } from '../../orca/test-import.mjs';
@@ -122,7 +123,7 @@ test('the pinned state is loaded once when the workspace opens, and the page can
 	assert.match(service, /if \(checked\) return pending \?\? Promise\.resolve\(\);/);
 	// A server without B1 (404) or without it for this person (403): a neutral pin, never "ยังไม่ได้เชื่อม".
 	assert.match(service, /status === 404 \|\| status === 403/);
-	assert.match(service, /if \(aiAppsUnavailable\(cause\)\) setAIConnection\(\{ state: 'unknown' \}\)/);
+	assert.match(service, /if \(started === revocations && aiAppsUnavailable\(cause\)\) setAIConnection\(\{ state: 'unknown' \}\)/);
 	// One B1 client: nothing else in the app reads GET …/me/ai-apps itself.
 	const root = new URL('../../', import.meta.url);
 	const files = (await readdir(root, { recursive: true })).filter((name) => /\.(ts|svelte)$/.test(name) && !/\.test\./.test(name));
@@ -259,10 +260,40 @@ test('a disconnect leaves the list and the pin at once, and a read that started 
 	assert.equal(ai.withoutRevoked(apps, new Set()), apps, 'nothing disconnected: the same list');
 	const view = await readFile(new URL('./views/ConnectAIView.svelte', import.meta.url), 'utf8');
 	assert.match(view, /const result = withoutRevoked\(await MyAIAppsService\.list\(\), revoked\);/, 'every read drops what was disconnected here');
-	assert.match(view, /revoked\.add\(revokedKey\(item\.kind, item\.id\)\);\s*if \(apps\) \{\s*apps = withoutRevoked\(apps, revoked\);\s*setAIConnection\(aiConnectionFrom\(apps, checkedAt, t\)\);/);
+	assert.match(view, /revoked\.add\(revokedKey\(item\.kind, item\.id\)\);[\s\S]{0,120}?aiAppsRevoked\(\);\s*if \(apps\) \{\s*apps = withoutRevoked\(apps, revoked\);\s*setAIConnection\(aiConnectionFrom\(apps, checkedAt, t\)\);/);
 	assert.match(view, /<ConnectedAIList [^>]*onchanged=\{disconnected\}/);
 	const list = await readFile(url('ConnectedAIList'), 'utf8');
 	assert.match(list, /await onchanged\(\{ kind: chosen\.kind, id: chosen\.item\.id \}\);/);
+});
+
+test('the pin\'s shared read that started before a disconnect changes nothing, and the next read starts afresh (Codex release review 68)', async () => {
+	const source = stripTypeScriptTypes(await readFile(new URL('../../services/orca-ai-apps.ts', import.meta.url), 'utf8'))
+		.replace(/^import[^;]+;$/gm, '')
+		.replace(/^export /gm, '');
+	const make = new Function('deps', `const { parseErrorContent, orcaPath, setAIConnection, aiConnectionFrom, t, doGet, doPost } = deps;\n${source}\nreturn { refreshAIConnection, aiAppsRevoked };`);
+	const reads = [];
+	const states = [];
+	const service = make({
+		parseErrorContent: () => ({ status: 500 }), orcaPath: (path) => path, t: en, doPost: async () => ({}),
+		setAIConnection: (status) => states.push(status.state), aiConnectionFrom: ai.aiConnectionFrom,
+		doGet: () => new Promise((resolve) => reads.push(resolve))
+	});
+	const live = { sessions: [{ id: 's1', app: 'Claude', client: 'claude', createdAt: new Date(Date.now() - 60_000).toISOString(), expiresAt: new Date(Date.now() + 3_600_000).toISOString() }], keys: [] };
+	const before = service.refreshAIConnection();
+	assert.equal(service.refreshAIConnection(), before, 'calls in flight share one read');
+	service.aiAppsRevoked();
+	const after = service.refreshAIConnection();
+	assert.notEqual(after, before, 'after a disconnect the next read starts afresh');
+	reads[0](live);
+	await before;
+	assert.deepEqual(states, [], 'the read from before the disconnect changes nothing');
+	reads[1]({ sessions: [], keys: [] });
+	await after;
+	assert.deepEqual(states, ['none']);
+	const oversight = await readFile(new URL('./ConnectedAIApps.svelte', import.meta.url), 'utf8');
+	assert.match(oversight, /await disconnectRow\(chosen\.row\);\s*if \(chosen\.group\.isViewer\) ownRevoked\(\);/, 'ตรวจสอบ: the viewer\'s own app updates the pin');
+	assert.match(oversight, /if \(chosen\.isViewer && result\.done > 0\) ownRevoked\(\);/);
+	assert.match(oversight, /function ownRevoked\(\) \{\s*aiAppsRevoked\(\);\s*void refreshAIConnection\(\);/);
 });
 
 test('step 5 says waiting, connected or asks for a manual check, and step 3 speaks each app’s menus', async () => {

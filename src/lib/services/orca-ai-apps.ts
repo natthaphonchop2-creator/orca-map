@@ -65,22 +65,38 @@ export function aiAppsUnavailable(error: unknown): boolean {
 }
 
 let pending: Promise<void> | undefined;
+let revocations = 0;
 /**
  * Reads B1 once more and updates the shared store (the pin, Home). Calls made
  * while one is in flight share it. Unavailable → "unknown" (a neutral pin); any
- * other failure keeps what was known.
+ * other failure keeps what was known. A read that started before a disconnect
+ * (aiAppsRevoked) changes nothing (Codex release review 68).
  */
 export function refreshAIConnection(): Promise<void> {
-	pending ??= (async () => {
+	if (pending) return pending;
+	const started = revocations;
+	let run: Promise<void> | undefined = undefined;
+	run = (async () => {
 		try {
-			setAIConnection(aiConnectionFrom(await MyAIAppsService.list(), Date.now(), t));
+			const apps = await MyAIAppsService.list();
+			if (started === revocations) setAIConnection(aiConnectionFrom(apps, Date.now(), t));
 		} catch (cause) {
-			if (aiAppsUnavailable(cause)) setAIConnection({ state: 'unknown' });
+			if (started === revocations && aiAppsUnavailable(cause)) setAIConnection({ state: 'unknown' });
 		} finally {
-			pending = undefined;
+			if (pending === run) pending = undefined;
 		}
 	})();
-	return pending;
+	pending = run;
+	return run;
+}
+
+/**
+ * The viewer disconnected one of their own AI apps: a shared read already on
+ * its way may still list it, so it is dropped, and the next read starts afresh.
+ */
+export function aiAppsRevoked(): void {
+	revocations += 1;
+	pending = undefined;
 }
 
 let checked = false;

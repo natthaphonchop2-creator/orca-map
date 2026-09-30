@@ -17,6 +17,7 @@
 	import { organizationRole } from '$lib/orca/member-access';
 	import { STALE_DAYS, secretRows, type SecretRow } from '$lib/orca/secrets';
 	import { OrcaService, orcaError, type OrcaBootstrap, type OrcaSecrets } from '$lib/services/orca';
+	import { aiAppsRevoked, refreshAIConnection } from '$lib/services/orca-ai-apps';
 	import AIAppTile from './AIAppTile.svelte';
 	import ConnectedAppsList from './ConnectedAppsList.svelte';
 	import ConfirmDialog from './ui/ConfirmDialog.svelte';
@@ -123,6 +124,12 @@
 		if (active && active !== document.body && active.isConnected) return;
 		bar?.querySelector<HTMLElement>('.cx-chip.chosen')?.focus();
 	}
+	// The viewer's own sign-in or key: the pinned "เชื่อม AI ของฉัน" follows at
+	// once, and a read of it already on its way is dropped (Codex release review 68).
+	function ownRevoked() {
+		aiAppsRevoked();
+		void refreshAIConnection();
+	}
 	const disconnectRow = (row: SecretRow) =>
 		row.kind === 'session' ? OrcaService.revokeSecretSession(row.id) : OrcaService.revokeSecretKey(row.keyID!);
 
@@ -133,6 +140,7 @@
 		dialogError = '';
 		try {
 			await disconnectRow(chosen.row);
+			if (chosen.group.isViewer) ownRevoked();
 			if (!alive) return;
 			singleOpen = false;
 			showToast(
@@ -170,6 +178,7 @@
 		const result = await disconnectEach(items, disconnectRow, (attempted, total) => {
 			if (alive) progress = { attempted, total };
 		});
+		if (chosen.isViewer && result.done > 0) ownRevoked();
 		if (!alive) return;
 		busy = false;
 		if (!result.failed.length) {

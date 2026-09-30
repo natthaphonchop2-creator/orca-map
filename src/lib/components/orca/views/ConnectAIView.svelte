@@ -27,7 +27,7 @@
 	import { term } from '$lib/orca/glossary';
 	import { localeHref, orcaLocale, t } from '$lib/orca/locale.svelte';
 	import { OrcaService, type OrcaBootstrap } from '$lib/services/orca';
-	import { MyAIAppsService, aiAppsUnavailable, type MyAIApps, type MyAIKey } from '$lib/services/orca-ai-apps';
+	import { MyAIAppsService, aiAppsRevoked, aiAppsUnavailable, type MyAIApps, type MyAIKey } from '$lib/services/orca-ai-apps';
 	import InAppBrowserNotice from '../InAppBrowserNotice.svelte';
 	import AccessStrip from '../connect-ai/AccessStrip.svelte';
 	import AIAppPicker from '../connect-ai/AIAppPicker.svelte';
@@ -97,6 +97,8 @@
 	function disconnected(item?: { kind: 'session' | 'key'; id: string | number }) {
 		if (item) {
 			revoked.add(revokedKey(item.kind, item.id));
+			// The pin's own read, if one is on its way, says nothing about now.
+			aiAppsRevoked();
 			if (apps) {
 				apps = withoutRevoked(apps, revoked);
 				setAIConnection(aiConnectionFrom(apps, checkedAt, t));
