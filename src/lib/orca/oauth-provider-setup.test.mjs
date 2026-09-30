@@ -17,6 +17,7 @@ test('each audited static OAuth provider has a concrete official action and app 
     ['default-salesforce-f032ecc7', '', 'External Client App', 'developer.salesforce.com'],
     ['default-snowflake-823eb1a7', '', 'OAuth Security Integration · Confidential client', 'docs.snowflake.com'],
     ['default-github-enterprise-cloud-c720e58d', '', 'GitHub OAuth App / GitHub App', 'docs.github.com'],
+    ['', 'api.githubcopilot.com', 'GitHub OAuth App', 'github.com'],
   ];
   for (const [id, host, appType, actionHost] of providers) {
     const setup = oauthProviderSetup(id, host);
@@ -51,4 +52,44 @@ test('instructions are matched to exact endpoints or curated tenant entries, nev
 test('legacy Dropbox help stays tied to its catalog entry, leaving other Dropbox endpoints alone', () => {
   assert.equal(oauthProviderSetup('default-dropbox-8dc6ea2b', 'mcp.dropbox.com').key, 'dropbox');
   assert.equal(oauthProviderSetup('custom-dropbox', 'mcp.dropbox.com'), undefined);
+});
+
+test('GitHub: the guide follows the entry’s remote host api.githubcopilot.com, never a catalog ID', () => {
+  const setup = oauthProviderSetup('default-orca-github', 'api.githubcopilot.com');
+  assert.equal(setup.key, 'github');
+  assert.equal(setup.appType, 'GitHub OAuth App');
+  // Fixed official links only.
+  assert.equal(setup.actionURL, 'https://github.com/settings/applications/new');
+  assert.equal(setup.documentationURL, 'https://github.com/github/github-mcp-server');
+  assert.deepEqual(setup.action, ['เปิดหน้าลงทะเบียน OAuth App ของ GitHub', "Open GitHub's new OAuth App page"]);
+  // Any case, and whatever the synced catalog ID is.
+  assert.equal(oauthProviderSetup('default-github-0f1e2d3c', 'API.GitHubCopilot.com').key, 'github');
+  assert.equal(oauthProviderSetup('', 'api.githubcopilot.com').key, 'github');
+  // A GitHub catalog entry with no host (Obot's PAT entry, a URL template) gets no guide, nor do lookalike hosts.
+  for (const id of ['default-orca-github', 'default-github-0f1e2d3c', 'obot-github', 'github']) assert.equal(oauthProviderSetup(id, ''), undefined, id);
+  for (const host of ['api.githubcopilot.com.evil.test', 'https://api.githubcopilot.com', 'api.githubcopilot.com:443', 'github.com', 'api.github.com', 'copilot-api.githubcopilot.com']) {
+    assert.equal(oauthProviderSetup('default-orca-github', host), undefined, host);
+  }
+  // The enterprise tenant entry keeps its own guide.
+  assert.equal(oauthProviderSetup('default-github-enterprise-cloud-c720e58d', '').key, 'github-enterprise');
+});
+
+test('GitHub: the steps register ORCA as an OAuth App, name the homepage and callback, and leave the secret to the owner', () => {
+  const { steps } = oauthProviderSetup('', 'api.githubcopilot.com');
+  assert.equal(steps.length, 5);
+  assert.ok(steps.every(([th, en]) => /[\u0E00-\u0E7F]/.test(th) && en && !/[\u0E00-\u0E7F]/.test(en)));
+  const [th, en] = [steps.map((step) => step[0]).join(' '), steps.map((step) => step[1]).join(' ')];
+  assert.match(en, /Register ORCA as a GitHub OAuth App/);
+  assert.match(th, /Homepage URL เป็น https:\/\/orca-0w10\.onrender\.com\//);
+  assert.match(en, /Homepage URL to https:\/\/orca-0w10\.onrender\.com\//);
+  assert.match(en, /Paste the Callback URL below into Authorization callback URL/);
+  assert.match(th, /Callback URL ด้านล่าง/);
+  assert.match(en, /Generate a new client secret/);
+  assert.match(en, /GitHub shows the secret only once/);
+  assert.match(th, /ใส่ Client ID และ Client secret ที่นี่ด้วยตัวเอง/);
+  assert.match(en, /Enter the Client ID and Client secret here yourself/);
+  assert.match(en, /restricts third-party apps.*must approve ORCA/);
+  assert.match(th, /Third-party access.*ต้องอนุมัติ ORCA ก่อน/);
+  // The guide never carries a callback host of its own: the page shows the installation's.
+  assert.doesNotMatch(th + en, /oauth\/mcp\/callback|127\.0\.0\.1|localhost/);
 });

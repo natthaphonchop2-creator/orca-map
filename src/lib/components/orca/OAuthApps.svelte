@@ -6,6 +6,7 @@
   import { localeHref, t } from "$lib/orca/locale.svelte";
   import { platformHref } from "$lib/orca/navigation";
   import { oauthApps, type CustomOAuthApp, type ManagedOAuthApp, type OAuthAppProvider } from "$lib/orca/oauth-apps";
+  import { oauthProviderSetup, type OAuthProviderSetup } from "$lib/orca/oauth-provider-setup";
   import { OrcaService, type OrcaBootstrap, type OrcaCandidate, type OrcaSourceSetup } from "$lib/services/orca";
   import PlatformBadge from "./platform/PlatformBadge.svelte";
   import SourceSetup from "./SourceSetup.svelte";
@@ -20,6 +21,8 @@
     sourceID: string;
     name: string;
     provider?: OAuthAppProvider;
+    /** A program's own app: the provider's guide, matched by its host (GitHub, Slack…), as on the program's setup page. */
+    guide?: OAuthProviderSetup;
     replace: boolean;
     scopes: string[];
     scopeProfile?: OrcaSourceSetup["oauthScopeProfile"];
@@ -92,6 +95,7 @@
     key: app.id,
     sourceID: app.id,
     name: app.name,
+    guide: oauthProviderSetup(app.id, app.endpointHost ?? ""),
     replace: true,
     scopes: [],
     scopeProfile: app.endpointHost === "mcp.slack.com" ? "slack-public-read-v1" : undefined,
@@ -366,9 +370,15 @@
       {#if target.replace}
         <p class="replace-note"><CircleAlert size={16} aria-hidden="true" />{t("ถ้าแค่เปลี่ยน Client secret ของแอปเดิม ทุกคนยังเชื่อมอยู่เหมือนเดิม ถ้าใช้ Client ID ใหม่ ทุกคนต้องเชื่อมบัญชีอีกครั้ง", "Rotating the secret of the same app keeps everyone connected. A new Client ID asks everyone to connect again.")}</p>
       {/if}
-      <ol class="setup-steps">{#each target.provider ? providerSteps(target.provider) : vendorSteps(target.name) as step, index (step)}<li><span class="setup-step-number" aria-hidden="true">{index + 1}</span><span>{step}</span></li>{/each}</ol>
+      <ol class="setup-steps">{#each target.provider ? providerSteps(target.provider) : target.guide ? target.guide.steps.map((step) => t(...step)) : vendorSteps(target.name) as step, index (step)}<li><span class="setup-step-number" aria-hidden="true">{index + 1}</span><span>{step}</span></li>{/each}</ol>
       {#if target.provider}
         <a class="k-button console-link" href={providerConsole(target.provider)} target="_blank" rel="noopener noreferrer">{target.provider === "google" ? t("เปิด Google Auth Platform", "Open Google Auth Platform") : t("เปิด Microsoft Entra", "Open Microsoft Entra")}<ExternalLink size={14} aria-hidden="true" /></a>
+      {:else if target.guide}
+        <!-- The guide's fixed official links (oauth-provider-setup.ts), never catalog data. -->
+        <div class="guide-links">
+          <a class="k-button console-link" href={target.guide.actionURL} target="_blank" rel="noopener noreferrer">{t(...target.guide.action)}<ExternalLink size={14} aria-hidden="true" /></a>
+          <a class="guide-doc" href={target.guide.documentationURL} target="_blank" rel="noopener noreferrer">{t("คู่มือจากผู้ให้บริการ", "Provider documentation")}<ExternalLink size={13} aria-hidden="true" /></a>
+        </div>
       {:else}
         <button type="button" class="k-button console-link" disabled={busy} onclick={() => openCheck({ id: target.sourceID, name: target.name })}>{t("ดูวิธีตั้งค่าแอปของโปรแกรมนี้", "View this program's app guide")}<ArrowRight size={14} aria-hidden="true" /></button>
       {/if}
@@ -464,6 +474,8 @@
   .setup-steps li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; }
   .setup-step-number { display: grid; place-items: center; width: 24px; height: 24px; border: 1.5px solid var(--orca-ink); border-radius: 50%; color: var(--orca-ink); font-size: 12px; font-weight: 700; }
   .console-link { justify-self: start; gap: 6px; text-decoration: none; }
+  .guide-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+  .guide-doc { display: inline-flex; align-items: center; gap: 5px; color: var(--orca-ink); font-size: 13.5px; font-weight: 600; text-decoration: underline; text-decoration-color: var(--orca-line-strong); text-underline-offset: 3px; }
   .setup-field { display: grid; gap: 6px; min-width: 0; }
   .setup-field label, .field-label-row span { font-size: 14px; font-weight: 600; }
   .field-label-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

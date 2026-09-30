@@ -24,7 +24,7 @@ const google = (key: string, service: string, api: string, documentationURL: str
 });
 
 // Provider actions are fixed official links. Never derive them from a display
-// name or carry credentials to a provider URL. Reviewed 2026-09-21.
+// name or carry credentials to a provider URL. Reviewed 2026-09-21; GitHub 2026-09-30.
 const providers: Record<string, OAuthProviderSetup> = {
   slack: {
     key: "slack", appType: "Slack App · MCP enabled",
@@ -103,6 +103,22 @@ const providers: Record<string, OAuthProviderSetup> = {
       ["เตรียม URL ที่ระบุ account, database, schema และชื่อ MCP server หากองค์กรใช้ External OAuth ให้ทำตามขั้นตอนของผู้ให้บริการยืนยันตัวตน (identity provider) ในคู่มือ", "Prepare the account, database, schema and MCP server URL. If your org uses External OAuth, follow the identity-provider setup in the guide."],
     ],
   },
+  // GitHub's remote MCP server (api.githubcopilot.com) takes no automatic
+  // registration, so ORCA brings its own OAuth App (design §14l). Matched by
+  // host only: synced catalog IDs change, and a PAT entry has no host.
+  github: {
+    key: "github", appType: "GitHub OAuth App",
+    action: ["เปิดหน้าลงทะเบียน OAuth App ของ GitHub", "Open GitHub's new OAuth App page"],
+    actionURL: "https://github.com/settings/applications/new",
+    documentationURL: "https://github.com/github/github-mcp-server",
+    steps: [
+      ["ลงทะเบียน ORCA เป็น OAuth App ของ GitHub ตั้ง Application name เป็น ORCA และ Homepage URL เป็น https://orca-0w10.onrender.com/ (ถ้า ORCA มีองค์กรบน GitHub สร้างใน Settings ขององค์กร → Developer settings → OAuth Apps ได้ แอปจะไม่ผูกกับบัญชีของคนใดคนหนึ่ง)", "Register ORCA as a GitHub OAuth App: set Application name to ORCA and Homepage URL to https://orca-0w10.onrender.com/. (If ORCA has a GitHub organization, create it under that organization's Settings → Developer settings → OAuth Apps, so it isn't tied to one person's account.)"],
+      ["วาง Callback URL ด้านล่างในช่อง Authorization callback URL ไม่ต้องเลือก Enable Device Flow แล้วกด Register application", "Paste the Callback URL below into Authorization callback URL, leave Enable Device Flow off, and choose Register application."],
+      ["กด Generate a new client secret แล้วคัดลอก Client ID และ Client secret GitHub แสดง secret ครั้งเดียว", "Choose Generate a new client secret, then copy the Client ID and Client secret. GitHub shows the secret only once."],
+      ["ใส่ Client ID และ Client secret ที่นี่ด้วยตัวเอง แล้วบันทึก จากนั้นสมาชิกแต่ละคนเชื่อมบัญชี GitHub ของตัวเอง", "Enter the Client ID and Client secret here yourself and save. Each member then connects their own GitHub account."],
+      ["ถ้าองค์กรบน GitHub ของสมาชิกจำกัดแอปของบุคคลที่สาม (Third-party access) ผู้ดูแลองค์กรนั้นต้องอนุมัติ ORCA ก่อน ORCA จึงเข้าถึงข้อมูลขององค์กรนั้นได้", "If a member's GitHub organization restricts third-party apps (Third-party access), an owner of that organization must approve ORCA before ORCA can reach its data."],
+    ],
+  },
   "github-enterprise": {
     key: "github-enterprise", appType: "GitHub OAuth App / GitHub App",
     action: ["เปิดวิธีตั้งค่า GitHub Enterprise", "Open GitHub Enterprise setup"],
@@ -162,6 +178,7 @@ const hostProviders: Record<string, string> = {
   "bigquery.googleapis.com": "bigquery",
   "run.googleapis.com": "cloud-run",
   "compute.googleapis.com": "compute",
+  "api.githubcopilot.com": "github",
 };
 
 // These entries need an org-specific URL, so no endpoint host exists yet.

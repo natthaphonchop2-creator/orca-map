@@ -574,6 +574,28 @@ test('แอป OAuth ของโปรแกรม sets up a program’s own a
 	assert.match(oauth, /\{:else if checking\}[\s\S]*?<SourceSetup operator sourceID=\{checking\.id\}/);
 });
 
+test('OAuth apps: a program’s own app uses its host’s guide (GitHub by api.githubcopilot.com) instead of the generic steps (C4 §14l)', async () => {
+	const { oauthApps } = await importTypeScript(new URL('../../orca/oauth-apps.ts', import.meta.url));
+	const { oauthProviderSetup } = await importTypeScript(new URL('../../orca/oauth-provider-setup.ts', import.meta.url));
+	const harness = await scriptHarness(files.oauth, ['OrcaService', 't', 'onMount', 'onDestroy', 'oauthApps', 'oauthProviderSetup'], 'vendorTarget');
+	let view;
+	const stop = effect_root(() => {
+		view = harness({ data: { canManage: true, platformOperator: true } }, { OrcaService: {}, t: (th) => th, onMount: () => {}, onDestroy: () => {}, oauthApps, oauthProviderSetup });
+	});
+	try {
+		const github = view.vendorTarget({ id: 'default-orca-github', name: 'GitHub', endpointHost: 'api.githubcopilot.com', canConfigure: true, configured: true });
+		assert.equal(github.guide?.key, 'github');
+		assert.equal(github.guide.actionURL, 'https://github.com/settings/applications/new');
+		// No host (Obot's PAT entry) or another host: the generic steps stay.
+		assert.equal(view.vendorTarget({ id: 'default-github-0f1e2d3c', name: 'GitHub', canConfigure: true, configured: true }).guide, undefined);
+		assert.equal(view.vendorTarget({ id: 'x', name: 'Company', endpointHost: 'mcp.example.test', canConfigure: true, configured: true }).guide, undefined);
+	} finally { stop(); }
+	const source = await readFile(files.oauth, 'utf8');
+	assert.match(source, /target\.guide \? target\.guide\.steps\.map\(\(step\) => t\(\.\.\.step\)\) : vendorSteps\(target\.name\)/);
+	assert.match(source, /href=\{target\.guide\.actionURL\} target="_blank" rel="noopener noreferrer"/);
+	assert.match(source, /href=\{target\.guide\.documentationURL\} target="_blank" rel="noopener noreferrer"/);
+});
+
 test('OAuth apps: while a save runs, the guide and the credential fields wait, so its answer never closes a guide opened meanwhile (Codex release review 68)', async () => {
 	const source = await readFile(new URL('./OAuthApps.svelte', import.meta.url), 'utf8');
 	assert.match(source, /function openCheck\([^)]*\) \{\s*\/\/[^\n]*\n\s*if \(busy\) return;/, 'openCheck refuses during a save');
