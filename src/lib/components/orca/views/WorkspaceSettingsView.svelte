@@ -122,6 +122,8 @@
 		cancel();
 		await onchanged();
 	}
+	// While pause or activate runs, the fields wait: its reload replaces this
+	// tab, so nothing typed meanwhile could be kept (Codex release review 65).
 	async function setStatus(status: 'active' | 'paused') {
 		if (statusBusy || dirty) return;
 		statusBusy = true;
@@ -147,11 +149,11 @@
 <div class="st">
 	{#if attempted && hasErrors}<FormErrorSummary errors={errors} {focusKey} />{/if}
 	<FormSection id="ws-settings-name-title" title={t('ชื่อพื้นที่ทำงาน', 'Workspace name')} hint={t('ทีมและ AI จะเห็นชื่อนี้', 'Your team and AI see this name.')}>
-		<input id="ws-settings-name" class="st-input st-name" bind:value={fields.name} maxlength="120" autocomplete="off" aria-labelledby="ws-settings-name-title" aria-invalid={errors['ws-settings-name'] ? 'true' : undefined} disabled={busy} oninput={edited} />
+		<input id="ws-settings-name" class="st-input st-name" bind:value={fields.name} maxlength="120" autocomplete="off" aria-labelledby="ws-settings-name-title" aria-invalid={errors['ws-settings-name'] ? 'true' : undefined} disabled={busy || statusBusy} oninput={edited} />
 		{#if errors['ws-settings-name']}<p class="st-error">{errors['ws-settings-name']}</p>{/if}
 	</FormSection>
 	<FormSection id="ws-settings-description-title" title={t('คำอธิบาย', 'Description')} hint={t('บอกทีมว่าพื้นที่นี้ใช้ทำอะไร', 'Tell your team what it is for.')}>
-		<textarea id="ws-settings-description" class="st-input" rows="3" maxlength="4000" bind:value={fields.description} aria-labelledby="ws-settings-description-title" placeholder={t('เช่น ดูใบแจ้งหนี้และเอกสารของฝ่ายบัญชี', 'e.g. Invoices and documents for accounting')} disabled={busy} oninput={edited}></textarea>
+		<textarea id="ws-settings-description" class="st-input" rows="3" maxlength="4000" bind:value={fields.description} aria-labelledby="ws-settings-description-title" placeholder={t('เช่น ดูใบแจ้งหนี้และเอกสารของฝ่ายบัญชี', 'e.g. Invoices and documents for accounting')} disabled={busy || statusBusy} oninput={edited}></textarea>
 		{#if errors['ws-settings-description']}<p class="st-error">{errors['ws-settings-description']}</p>{/if}
 	</FormSection>
 	<FormSection id="ws-settings-write-title" quiet={!changesData} title={t('เมื่อ AI จะสร้างหรือแก้ข้อมูล', 'When AI would create or change data')} hint={t('เลือกว่าต้องรอผู้ดูแลอนุมัติก่อนหรือไม่', 'Whether it waits for an admin to approve.')}>
@@ -161,19 +163,19 @@
 			quiet={!changesData}
 			noteTitle={gatewaySources(hub).length ? t('ไม่มีผลตอนนี้ เพราะทุกโปรแกรมอ่านอย่างเดียว', 'No effect now: every program only reads') : t('ยังไม่มีผล', 'No effect yet')}
 			note={t('จะใช้เมื่อเปิดโปรแกรมที่ AI แก้ข้อมูลได้', 'It applies once a program that can change data is on.')}
-			disabled={busy}
+			disabled={busy || statusBusy}
 			onchange={edited}
 		/>
 		<p class="st-hint"><a class="k-link-button" href={localeHref('/app?view=approvals')}>{t('ดูคำขอที่รออนุมัติ', 'See requests waiting')}</a></p>
 	</FormSection>
 	<FormSection id="ws-settings-instructions-title" title={t('คำแนะนำสำหรับ AI', 'Guidance for AI')} hint={t('ส่งให้ AI ทุกครั้งที่ใช้พื้นที่นี้ ไม่เพิ่มสิทธิ์ใด ๆ', 'Sent to AI each time; it never adds access.')}>
-		<textarea id="ws-settings-instructions" class="st-input" rows="5" maxlength="4000" bind:value={fields.instructions} aria-labelledby="ws-settings-instructions-title" placeholder={t('เช่น ตอบเป็นภาษาไทย อ้างเลขที่เอกสารทุกครั้ง และสรุปยอดเป็นบาท', 'e.g. Reply in Thai, cite document numbers, total in baht.')} disabled={busy} oninput={edited}></textarea>
+		<textarea id="ws-settings-instructions" class="st-input" rows="5" maxlength="4000" bind:value={fields.instructions} aria-labelledby="ws-settings-instructions-title" placeholder={t('เช่น ตอบเป็นภาษาไทย อ้างเลขที่เอกสารทุกครั้ง และสรุปยอดเป็นบาท', 'e.g. Reply in Thai, cite document numbers, total in baht.')} disabled={busy || statusBusy} oninput={edited}></textarea>
 		<p class="st-count">{fields.instructions.length.toLocaleString('th-TH')}/4,000</p>
 		{#if errors['ws-settings-instructions']}<p class="st-error">{errors['ws-settings-instructions']}</p>{/if}
 	</FormSection>
 	<FormSection id="ws-settings-limit-title" title={t('จำกัดการใช้ต่อวัน', 'Daily limit')} hint={t('ทุกคนในพื้นที่นี้ใช้ร่วมกัน เริ่มนับใหม่ทุกวันตามเวลาประเทศไทย', 'Shared by everyone here; resets daily, Bangkok time.')}>
 		<div class="st-limit">
-			<input id="ws-settings-limit" class="st-input" type="number" min="1" max={MAX_DAILY_LIMIT} step="1" inputmode="numeric" bind:value={fields.dailyLimit} aria-labelledby="ws-settings-limit-title" aria-invalid={errors['ws-settings-limit'] ? 'true' : undefined} disabled={busy} oninput={edited} />
+			<input id="ws-settings-limit" class="st-input" type="number" min="1" max={MAX_DAILY_LIMIT} step="1" inputmode="numeric" bind:value={fields.dailyLimit} aria-labelledby="ws-settings-limit-title" aria-invalid={errors['ws-settings-limit'] ? 'true' : undefined} disabled={busy || statusBusy} oninput={edited} />
 			<span>{t(`ครั้งต่อวัน · วันนี้ใช้ไป ${(hub.usedToday ?? 0).toLocaleString('th-TH')} ครั้ง`, `a day · ${(hub.usedToday ?? 0).toLocaleString('en-GB')} used today`)}</span>
 		</div>
 		{#if errors['ws-settings-limit']}<p class="st-error">{errors['ws-settings-limit']}</p>{/if}
@@ -181,9 +183,9 @@
 	{#if showSignIn}
 		<FormSection id="ws-settings-signin-title" title={t('วิธีเข้าสู่ระบบ', 'Sign-in')} hint={t('พื้นที่ที่ใช้ SSO ของบริษัทจะมีลิงก์ของตัวเองในแท็บภาพรวม', 'A workspace using company SSO gets its own link on Overview.')}>
 			<div class="st-choices" id="ws-settings-signin" role="radiogroup" aria-labelledby="ws-settings-signin-title">
-				<ChoiceTile name="workspace-sign-in" value="" bind:selected={fields.userSourceID} title={t('บัญชี ORCA', 'ORCA account')} description={t('ใช้ลิงก์ ORCA ของบริษัทเหมือนพื้นที่อื่น', "Uses your company's ORCA link like the others.")} badge={t('แนะนำ', 'Recommended')} disabled={busy} onselect={edited} />
+				<ChoiceTile name="workspace-sign-in" value="" bind:selected={fields.userSourceID} title={t('บัญชี ORCA', 'ORCA account')} description={t('ใช้ลิงก์ ORCA ของบริษัทเหมือนพื้นที่อื่น', "Uses your company's ORCA link like the others.")} badge={t('แนะนำ', 'Recommended')} disabled={busy || statusBusy} onselect={edited} />
 				{#each signInChoices as source (source.id)}
-					<ChoiceTile name="workspace-sign-in" value={source.id} bind:selected={fields.userSourceID} title={source.name} description={source.enabled ? t('SSO ของบริษัท', 'Company SSO') : t('ปิดใช้อยู่', 'Turned off')} disabled={busy || (!source.enabled && source.id !== hub.userSourceID)} onselect={edited} />
+					<ChoiceTile name="workspace-sign-in" value={source.id} bind:selected={fields.userSourceID} title={source.name} description={source.enabled ? t('SSO ของบริษัท', 'Company SSO') : t('ปิดใช้อยู่', 'Turned off')} disabled={busy || statusBusy || (!source.enabled && source.id !== hub.userSourceID)} onselect={edited} />
 				{/each}
 				{#if hub.userSourceID && !signInChoices.some((source) => source.id === hub.userSourceID)}
 					<ChoiceTile name="workspace-sign-in" value={hub.userSourceID} bind:selected={fields.userSourceID} title={t('SSO ของบริษัท (เดิม)', 'Company SSO (previous)')} disabled />

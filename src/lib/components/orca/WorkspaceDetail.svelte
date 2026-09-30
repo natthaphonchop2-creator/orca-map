@@ -7,7 +7,7 @@
 	import type { OrcaBootstrap, OrcaHub } from '$lib/services/orca';
 	import { hubWriteService, workspaceWriteError } from '$lib/services/orca-workspaces';
 	import { ArrowUpRight, Info, LoaderCircle, Play } from '@lucide/svelte';
-	import { onMount, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import LifecycleActions from './LifecycleActions.svelte';
 	import ConfirmDialog from './ui/ConfirmDialog.svelte';
 	import PageHeader from './ui/PageHeader.svelte';
@@ -23,30 +23,6 @@
 	let { data, hub, onchanged }: { data: OrcaBootstrap; hub: OrcaHub; onchanged: () => Promise<void> } = $props();
 	const archived = $derived(hub.status === 'archived' || hub.status === 'deleted');
 	const canEdit = $derived(data.canManage && !archived);
-	const aliases: Record<string, string> = { tools: 'programs', access: 'people' };
-	const requested = $derived(aliases[page.url.searchParams.get('tab') ?? ''] ?? page.url.searchParams.get('tab') ?? 'overview');
-	const tabs = $derived([
-		{ id: 'overview', label: t('ภาพรวม', 'Overview') },
-		{ id: 'programs', label: t('โปรแกรม', 'Programs'), count: gatewaySources(hub).length },
-		{ id: 'people', label: t('คน', 'People'), count: gatewayMemberIDs(hub).length },
-		...(canEdit ? [{ id: 'settings', label: t('ตั้งค่า', 'Settings') }] : [])
-	]);
-	const activeTab = $derived(tabs.some((tab) => tab.id === requested) ? requested : 'overview');
-	const created = $derived(page.url.searchParams.get('created') === '1');
-	// &add=<program>: from เพิ่มโปรแกรม's "เพิ่มลงพื้นที่ทำงาน…", turned on in โปรแกรม, waiting for บันทึก.
-	const addConnectionID = $derived(page.url.searchParams.get('add') ?? '');
-	const status = $derived<{ label: string; tone: StatusTone }>(
-		hub.status === 'active'
-			? { label: t('เปิดใช้งาน', 'Active'), tone: 'ok' }
-			: hub.status === 'paused'
-				? { label: t('หยุดชั่วคราว', 'Paused'), tone: 'warn' }
-				: hub.status === 'draft'
-					? { label: t('ฉบับร่าง', 'Draft'), tone: 'neutral' }
-					: { label: t('จัดเก็บแล้ว', 'Archived'), tone: 'neutral' }
-	);
-	let activating = $state(false);
-	let activateError = $state('');
-
 	// A tab's unsaved changes live in that tab: moving to another tab, leaving
 	// the workspace or closing the page asks first (Codex release review 63).
 	let dirty = $state(false);
@@ -59,6 +35,40 @@
 	let editorHub = $state(untrack(() => hub));
 	let adopt = false;
 	const changedElsewhere = $derived(editorHub.version !== hub.version && dirty);
+	// The editing tabs follow the version they edit: archived elsewhere while
+	// ตั้งค่า has unsaved text, the tab stays until that text is saved or
+	// cancelled (Codex release review 65).
+	const tabsEditable = $derived(data.canManage && !(editorHub.status === 'archived' || editorHub.status === 'deleted'));
+	const aliases: Record<string, string> = { tools: 'programs', access: 'people' };
+	const requested = $derived(aliases[page.url.searchParams.get('tab') ?? ''] ?? page.url.searchParams.get('tab') ?? 'overview');
+	const tabs = $derived([
+		{ id: 'overview', label: t('ภาพรวม', 'Overview') },
+		{ id: 'programs', label: t('โปรแกรม', 'Programs'), count: gatewaySources(hub).length },
+		{ id: 'people', label: t('คน', 'People'), count: gatewayMemberIDs(hub).length },
+		...(tabsEditable ? [{ id: 'settings', label: t('ตั้งค่า', 'Settings') }] : [])
+	]);
+	const activeTab = $derived(tabs.some((tab) => tab.id === requested) ? requested : 'overview');
+	const created = $derived(page.url.searchParams.get('created') === '1');
+	// &add=<program>: from เพิ่มโปรแกรม's "เพิ่มลงพื้นที่ทำงาน…", turned on in โปรแกรม, waiting for บันทึก,
+	// once. After a tab's save it was saved, or
+	// turned off by the person, so a remount never turns it on again (Codex
+	// release review 65); a new address with &add= brings it back.
+	let addConnectionID = $state(untrack(() => page.url.searchParams.get('add') ?? ''));
+	$effect(() => {
+		addConnectionID = page.url.searchParams.get('add') ?? '';
+	});
+	const status = $derived<{ label: string; tone: StatusTone }>(
+		hub.status === 'active'
+			? { label: t('เปิดใช้งาน', 'Active'), tone: 'ok' }
+			: hub.status === 'paused'
+				? { label: t('หยุดชั่วคราว', 'Paused'), tone: 'warn' }
+				: hub.status === 'draft'
+					? { label: t('ฉบับร่าง', 'Draft'), tone: 'neutral' }
+					: { label: t('จัดเก็บแล้ว', 'Archived'), tone: 'neutral' }
+	);
+	let activating = $state(false);
+	let activateError = $state('');
+
 	$effect(() => {
 		const latest = hub;
 		const unsaved = dirty;
@@ -68,10 +78,28 @@
 			if (next !== editorHub) editorHub = next;
 		});
 	});
-	/** After a tab's own save: the next version is the one it wrote on. */
+	/** After a tab's own save: the next version, from this refresh only, is the one it wrote on. */
 	async function tabChanged() {
 		adopt = true;
-		await onchanged();
+		clearAdd();
+		try {
+			await onchanged();
+			await tick();
+		} finally {
+			// A refresh that failed adopts nothing later (Codex release review 65).
+			adopt = false;
+		}
+	}
+	function clearAdd() {
+		if (!addConnectionID) return;
+		addConnectionID = '';
+		const url = new URL(page.url.href);
+		url.searchParams.delete('add');
+		try {
+			replaceState(url.pathname + url.search + url.hash, page.state);
+		} catch {
+			// Before the router starts: the address keeps it, the page does not.
+		}
 	}
 	let leaveOpen = $state(false);
 	let leaveTo: URL | undefined;
@@ -160,11 +188,13 @@
 	<a class="hub-activity" href={localeHref(`/app?view=executions&hub=${encodeURIComponent(hub.id)}`)}>{t('ประวัติการใช้งาน', 'Activity')}<ArrowUpRight size={14} aria-hidden="true" /></a>
 </nav>
 
-{#if changedElsewhere}<div class="hub-note" role="status"><Info size={18} aria-hidden="true" /><p>{t('มีคนแก้พื้นที่นี้ระหว่างที่คุณแก้อยู่ สิ่งที่คุณแก้ยังอยู่ กดบันทึกแล้วจะลงบนฉบับล่าสุด หรือยกเลิกเพื่อดูฉบับล่าสุด', 'Someone changed this workspace while you were editing. Your changes are still here: save them on top of the newest version, or cancel to see it.')}</p></div>{/if}
+{#if changedElsewhere}<div class="hub-note" role="status"><Info size={18} aria-hidden="true" /><p>{archived
+	? t('มีคนจัดเก็บพื้นที่นี้ระหว่างที่คุณแก้อยู่ สิ่งที่คุณพิมพ์ยังอยู่ให้คัดลอกไว้ กดยกเลิกเพื่อดูฉบับล่าสุด', 'Someone archived this workspace while you were editing. What you typed is still here to copy; cancel to see the newest version.')
+	: t('มีคนแก้พื้นที่นี้ระหว่างที่คุณแก้อยู่ สิ่งที่คุณแก้ยังอยู่ กดบันทึกแล้วจะลงบนฉบับล่าสุด หรือยกเลิกเพื่อดูฉบับล่าสุด', 'Someone changed this workspace while you were editing. Your changes are still here: save them on top of the newest version, or cancel to see it.')}</p></div>{/if}
 
 {#key `${editorHub.id}:${editorHub.version}`}
-	{#if activeTab === 'programs'}<WorkspaceProgramsTab {data} hub={editorHub} {canEdit} onchanged={tabChanged} {ondirty} {addConnectionID} />
-	{:else if activeTab === 'people'}<WorkspacePeopleTab {data} hub={editorHub} {canEdit} onchanged={tabChanged} {ondirty} />
+	{#if activeTab === 'programs'}<WorkspaceProgramsTab {data} hub={editorHub} canEdit={tabsEditable} onchanged={tabChanged} {ondirty} {addConnectionID} />
+	{:else if activeTab === 'people'}<WorkspacePeopleTab {data} hub={editorHub} canEdit={tabsEditable} onchanged={tabChanged} {ondirty} />
 	{:else if activeTab === 'settings'}<WorkspaceSettingsView {data} hub={editorHub} onchanged={tabChanged} {ondirty} />
 	{:else}<WorkspaceOverviewTab {data} {hub} {created} {tabHref} />{/if}
 {/key}

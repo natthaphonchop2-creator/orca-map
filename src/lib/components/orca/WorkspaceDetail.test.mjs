@@ -372,6 +372,9 @@ test('each tab reports its unsaved changes, and pause, activate, archive and del
 	assert.equal(settings.match(/disabled=\{statusBusy \|\| dirty\}/g)?.length, 2, 'pause and activate');
 	assert.match(settings, /<LifecycleActions [^>]*canManage=\{data\.canManage && !dirty\}/, 'archive and delete');
 	assert.match(settings, /if \(statusBusy \|\| dirty\) return;/);
+	// While pause or activate runs the fields wait, so nothing typed then is lost to its reload (Codex release review 65).
+	assert.doesNotMatch(settings, /disabled=\{busy\}/);
+	assert.equal(settings.match(/disabled=\{busy \|\| statusBusy/g)?.length, 7);
 });
 
 test('a newer version replaces the tabs only while nothing is unsaved, or after their own save (Codex release review 64)', async () => {
@@ -388,5 +391,73 @@ test('a newer version replaces the tabs only while nothing is unsaved, or after 
 		assert.match(detail, new RegExp(`<${tab} [^>]*hub=\\{editorHub\\}[^>]*onchanged=\\{tabChanged\\}`), tab);
 	assert.match(detail, /<WorkspaceOverviewTab \{data\} \{hub\}/, 'ภาพรวม always reads the newest');
 	assert.match(detail, /const next = editorWorkspace\(editorHub, latest, unsaved, adopt\);/);
-	assert.match(detail, /async function tabChanged\(\) \{\s*adopt = true;\s*await onchanged\(\);/);
+	assert.match(detail, /async function tabChanged\(\) \{\s*adopt = true;\s*clearAdd\(\);\s*try \{\s*await onchanged\(\);\s*await tick\(\);\s*\} finally \{[^}]*adopt = false;/);
+});
+
+test('a failed refresh adopts nothing later, an archive elsewhere keeps a dirty ตั้งค่า, and &add= is used once (Codex release review 65)', async (context) => {
+	const source = await readFile(file('./WorkspaceDetail.svelte'), 'utf8');
+	const script = stripTypeScriptTypes(source.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
+		.replace(/^\s*import[^;]+;/gm, '')
+		.replace(/let \{ data, hub, onchanged \}\s*=\s*\$props\(\);/, '__PROPS__')
+		.replace(/(?<![.\w])(data|hub|onchanged)\b/g, 'props.$1')
+		.replace('__PROPS__', 'const props = testProps;');
+	assert.match(script, /const props = testProps;/);
+	const require = createRequire(import.meta.url);
+	const code = compileModule(
+		`export function harness(testProps, deps) {
+			const { beforeNavigate, goto, replaceState, page, gatewayMemberIDs, gatewaySources, localeHref, t, editorWorkspace, saveHubPatch, savedToast, withoutSavedParams, hubWriteService, workspaceWriteError, onMount, untrack, tick, showToast } = deps;
+			${script}
+			return { ondirty, tabChanged, get state() { return { dirty, editorHub, activeTab, tabsEditable, changedElsewhere, addConnectionID, adopt }; } };
+		}
+		export function reactive(value) {
+			const proxy = $state(value);
+			return proxy;
+		}`,
+		{ filename: 'workspace-detail-props-test.svelte.js', generate: 'client' }
+	).js.code.replaceAll('svelte/internal/client', pathToFileURL(require.resolve('svelte/internal/client')).href);
+	const { harness, reactive } = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+	let failRefresh = false;
+	const props = reactive({ data: company(), hub, onchanged: async () => { if (failRefresh) throw new Error('refresh failed'); } });
+	const replaced = [];
+	let view;
+	const stop = effect_root(() => {
+		view = harness(props, {
+			...base,
+			beforeNavigate: () => {},
+			goto: async () => {},
+			replaceState: (url) => replaced.push(url),
+			page: { url: new URL('https://orca.example.test/app?view=hub&hub=hub-one&tab=settings&add=conn-drive'), state: {} },
+			saveHubPatch: async () => {},
+			hubWriteService: {},
+			workspaceWriteError: (cause) => cause.message,
+			showToast: () => {},
+			tick: async () => flush()
+		});
+	});
+	context.after(stop);
+	flush();
+	assert.equal(view.state.addConnectionID, 'conn-drive');
+	// A tab's save whose refresh fails: nothing is adopted later.
+	failRefresh = true;
+	await assert.rejects(view.tabChanged());
+	assert.equal(view.state.adopt, false);
+	assert.equal(view.state.addConnectionID, '', '&add= was used');
+	assert.deepEqual(replaced, ['/app?view=hub&hub=hub-one&tab=settings'], 'and leaves the address');
+	view.ondirty(true);
+	flush();
+	props.hub = { ...hub, version: 5, instructions: 'someone else' };
+	flush();
+	assert.equal(view.state.editorHub.version, 4, 'the typed changes keep their version');
+	assert.equal(view.state.changedElsewhere, true);
+	// Archived elsewhere while ตั้งค่า has unsaved text: the tab stays.
+	props.hub = { ...hub, version: 6, status: 'archived' };
+	flush();
+	assert.equal(view.state.activeTab, 'settings');
+	assert.equal(view.state.tabsEditable, true);
+	assert.equal(view.state.editorHub.version, 4);
+	// Cancelled: the newest version, and ตั้งค่า goes with the archive.
+	view.ondirty(false);
+	flush();
+	assert.equal(view.state.editorHub.version, 6);
+	assert.equal(view.state.activeTab, 'overview');
 });
