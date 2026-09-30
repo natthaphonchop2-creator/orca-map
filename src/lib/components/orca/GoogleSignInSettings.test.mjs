@@ -184,6 +184,30 @@ test("the switch: off asks first, then saves only what is already saved; on need
   } finally { blank.stop(); }
 });
 
+test("the domains save keeps the saved address: a pending \"use this page's address\" waits for the Google Cloud card's save (Codex release review 67)", async () => {
+  const moved = { ...saved, redirectURI: "https://old-workspace.example/oauth2/callback" };
+  const { view, saves, stop } = mount(true, moved);
+  try {
+    await view.load();
+    flush();
+    assert.equal(view.state.movedOrigin, true);
+    view.set({ useSuggested: true, domains: "example.co.th, branch.example" });
+    flush();
+    assert.equal(view.state.redirectURI, "https://orca-workspace.example/oauth2/callback", "the card shows the pending choice");
+    await view.save("domains");
+    assert.equal(saves[0].redirectURI, "https://old-workspace.example/oauth2/callback", "the domains save never sends the unsaved address");
+    assert.deepEqual(saves[0].allowedDomains, ["example.co.th", "branch.example"]);
+    assert.equal(saves[0].enabled, true);
+    flush();
+    assert.equal(view.state.redirectURI, "https://orca-workspace.example/oauth2/callback", "the choice stays pending on the card");
+    // The Google Cloud card's own save then takes it.
+    await view.save();
+    assert.equal(saves[1].redirectURI, "https://orca-workspace.example/oauth2/callback");
+  } finally {
+    stop();
+  }
+});
+
 test("the domains save leaves an unsaved client edit as a draft and never sends a secret", async () => {
   const { view, saves, stop } = mount(true, saved);
   try {

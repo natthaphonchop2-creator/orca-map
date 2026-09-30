@@ -80,7 +80,8 @@
 
   /**
    * "all" saves the Google Cloud card as typed; "domains" saves only the joining
-   * domains, beside what is already saved, so an unsaved client edit stays a draft.
+   * domains, beside what is already saved (the client, the address and the
+   * switch), so an unsaved client edit or address choice stays a draft.
    */
   async function save(scope: "all" | "domains" = "all") {
     if (busy || !owner || !setting) return;
@@ -112,8 +113,10 @@
         clientID: scope === "all" ? clientID.trim() : setting.clientID,
         ...(secret ? { clientSecret: secret } : {}),
         allowedDomains: joining,
-        redirectURI,
-        enabled,
+        // The domains save keeps the saved address: "use this page's address"
+        // waits for the Google Cloud card's own save (Codex release review 67).
+        redirectURI: scope === "all" ? redirectURI : setting.redirectURI || suggested,
+        enabled: scope === "all" ? enabled : setting.enabled,
         version: setting.version,
       });
       if (scope === "all") fill(saved);
