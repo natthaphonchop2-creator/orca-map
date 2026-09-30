@@ -19,8 +19,10 @@
 		liveSessions,
 		relativeWhen,
 		rememberedApp,
+		revokedKey,
 		usableProgramNames,
-		validConnectLink
+		validConnectLink,
+		withoutRevoked
 	} from '$lib/orca/connect-ai';
 	import { term } from '$lib/orca/glossary';
 	import { localeHref, orcaLocale, t } from '$lib/orca/locale.svelte';
@@ -88,11 +90,26 @@
 	const waiting = $derived(ready && linkOK && appsState !== 'unavailable' && !session);
 	let generation = 0;
 	let destroyed = false;
+	// Disconnected here: gone from the list and the pin at once, and never back
+	// from a read that started before, or when the next read fails (Codex
+	// release review 67).
+	const revoked = new Set<string>();
+	function disconnected(item?: { kind: 'session' | 'key'; id: string | number }) {
+		if (item) {
+			revoked.add(revokedKey(item.kind, item.id));
+			if (apps) {
+				apps = withoutRevoked(apps, revoked);
+				setAIConnection(aiConnectionFrom(apps, checkedAt, t));
+			}
+			if (item.kind === 'key') legacyKeys = legacyKeys.filter((key) => key.id !== item.id);
+		}
+		return refreshApps();
+	}
 
 	async function load(): Promise<'continue' | 'stop'> {
 		const request = ++generation;
 		try {
-			const result = await MyAIAppsService.list();
+			const result = withoutRevoked(await MyAIAppsService.list(), revoked);
 			if (request === generation && !destroyed) {
 				apps = result;
 				appsState = 'ready';
@@ -119,7 +136,9 @@
 		try {
 			const keys = await OrcaService.orcaKeys();
 			if (!destroyed)
-				legacyKeys = keys.map((key) => ({ id: key.id, name: key.name, hubID: '', createdAt: key.createdAt, lastUsedAt: key.lastUsedAt, expiresAt: key.expiresAt }));
+				legacyKeys = keys
+					.filter((key) => !revoked.has(revokedKey('key', key.id)))
+					.map((key) => ({ id: key.id, name: key.name, hubID: '', createdAt: key.createdAt, lastUsedAt: key.lastUsedAt, expiresAt: key.expiresAt }));
 		} catch {
 			// The list stays empty; creating a key still works.
 		}
@@ -252,7 +271,7 @@
 	<div class="ca-sep"></div>
 
 	<div class="ca-more">
-		<ConnectedAIList {sessions} {keys} hubs={data.hubs} now={checkedAt} legacy={appsState === 'unavailable'} onchanged={refreshApps} />
+		<ConnectedAIList {sessions} {keys} hubs={data.hubs} now={checkedAt} legacy={appsState === 'unavailable'} onchanged={disconnected} />
 		<ProgramSignIns {data} onshown={() => requestAnimationFrame(revealAccounts)} />
 		{#if ready}<DeveloperKeys
 			hubs={access.usable}

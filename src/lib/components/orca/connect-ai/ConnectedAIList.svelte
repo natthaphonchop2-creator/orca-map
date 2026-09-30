@@ -25,7 +25,8 @@
 		hubs: Pick<OrcaHub, 'id' | 'name'>[];
 		now: number;
 		legacy?: boolean;
-		onchanged: () => void | Promise<void>;
+		/** After a disconnect: which one went, so the page drops it at once (Codex release review 67). */
+		onchanged: (revoked?: { kind: 'session' | 'key'; id: string | number }) => void | Promise<void>;
 	} = $props();
 
 	type Target = { kind: 'session'; item: MyAISession; label: string } | { kind: 'key'; item: MyAIKey; label: string };
@@ -52,7 +53,7 @@
 			else await MyAIAppsService.revokeKey(chosen.item.id);
 			confirmOpen = false;
 			showToast(t(`ตัดการเชื่อมต่อ ${chosen.label} แล้ว`, `Disconnected ${chosen.label}`));
-			await onchanged();
+			await onchanged({ kind: chosen.kind, id: chosen.item.id });
 		} catch (cause) {
 			error = orcaError(cause);
 		} finally {

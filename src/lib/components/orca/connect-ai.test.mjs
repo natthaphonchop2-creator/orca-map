@@ -244,6 +244,27 @@ test('your connected AI: sign-ins show their last renewal, keys their reach, eac
 	assert.equal(render(Component, { props: { ...props, sessions: [], keys: [] } }).body.includes('AI you connected'), false);
 });
 
+test('a disconnect leaves the list and the pin at once, and a read that started before it never brings it back (Codex release review 67)', async () => {
+	const apps = {
+		sessions: [{ id: 's1', app: 'Claude', client: 'claude', createdAt: ago(60), lastRefreshedAt: ago(5), expiresAt: ago(-60) }],
+		keys: [{ id: 7, name: 'n8n', hubID: 'sales', createdAt: ago(60), lastUsedAt: ago(10), expiresAt: ago(-600) }]
+	};
+	const revoked = new Set([ai.revokedKey('session', 's1')]);
+	const left = ai.withoutRevoked(apps, revoked);
+	assert.deepEqual(left.sessions, [], 'the sign-in is gone');
+	assert.equal(left.keys.length, 1, 'the key stays');
+	assert.deepEqual(ai.aiConnectionFrom(left, NOW, en), { state: 'connected' }, 'the pin follows what is left (a used key)');
+	revoked.add(ai.revokedKey('key', 7));
+	assert.deepEqual(ai.aiConnectionFrom(ai.withoutRevoked(apps, revoked), NOW, en), { state: 'none' });
+	assert.equal(ai.withoutRevoked(apps, new Set()), apps, 'nothing disconnected: the same list');
+	const view = await readFile(new URL('./views/ConnectAIView.svelte', import.meta.url), 'utf8');
+	assert.match(view, /const result = withoutRevoked\(await MyAIAppsService\.list\(\), revoked\);/, 'every read drops what was disconnected here');
+	assert.match(view, /revoked\.add\(revokedKey\(item\.kind, item\.id\)\);\s*if \(apps\) \{\s*apps = withoutRevoked\(apps, revoked\);\s*setAIConnection\(aiConnectionFrom\(apps, checkedAt, t\)\);/);
+	assert.match(view, /<ConnectedAIList [^>]*onchanged=\{disconnected\}/);
+	const list = await readFile(url('ConnectedAIList'), 'utf8');
+	assert.match(list, /await onchanged\(\{ kind: chosen\.kind, id: chosen\.item\.id \}\);/);
+});
+
 test('step 5 says waiting, connected or asks for a manual check, and step 3 speaks each app’s menus', async () => {
 	const result = await serverComponent(url('ConnectResult'), { ...common });
 	assert.deepEqual(result.warnings, []);

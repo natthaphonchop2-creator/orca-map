@@ -146,6 +146,24 @@ export function liveSessions(apps: MyAIApps | undefined, now: number): MyAISessi
 	return (apps?.sessions ?? []).filter((session) => later(session.expiresAt, now)).sort(newestFirst);
 }
 
+/** One sign-in or key disconnected on this page, as withoutRevoked keeps it. */
+export function revokedKey(kind: 'session' | 'key', id: string | number): string {
+	return `${kind}:${id}`;
+}
+
+/**
+ * The list without what was disconnected on this page: gone at once, and never
+ * back from a read that started before the disconnect (Codex release review 67).
+ */
+export function withoutRevoked(apps: MyAIApps, revoked: ReadonlySet<string>): MyAIApps {
+	if (!revoked.size) return apps;
+	return {
+		...apps,
+		sessions: apps.sessions.filter((item) => !revoked.has(revokedKey('session', item.id))),
+		keys: apps.keys.filter((item) => !revoked.has(revokedKey('key', item.id)))
+	};
+}
+
 /** Keys that have not expired, newest first. */
 export function liveKeys(apps: MyAIApps | undefined, now: number): MyAIKey[] {
 	return (apps?.keys ?? []).filter((key) => later(key.expiresAt, now)).sort(newestFirst);
