@@ -200,6 +200,8 @@ export interface OrcaSecretSession {
   id: string;
   app: string;
   userID: string;
+  /** The workspace a sign-in through that workspace's own link reaches; absent for the company's link. */
+  hubID?: string;
   createdAt: string;
   lastRefreshedAt: string;
   expiresAt: string;

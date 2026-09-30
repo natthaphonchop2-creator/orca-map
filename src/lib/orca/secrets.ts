@@ -51,6 +51,9 @@ export function secretRows(
 			label: session.app,
 			userID: session.userID,
 			...holder(session.userID),
+			// A sign-in through one workspace's own link reaches only it (Codex release review 63).
+			hubID: session.hubID || undefined,
+			hubName: session.hubID ? hubNames.get(session.hubID) : undefined,
 			createdAt: session.createdAt,
 			lastActiveAt: session.lastRefreshedAt,
 			expiresAt: session.expiresAt,

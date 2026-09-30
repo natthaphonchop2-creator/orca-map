@@ -135,6 +135,11 @@ test("where an app pulls data from: a key's workspace, or the holder's active wo
   assert.deepEqual(appReach({ userID: "owner" }, [hubs[0], hubs[1], { id: "x", name: "X", status: "active", memberIDs: [] }]), { kind: "some", names: ["ฝ่ายขาย", "ฝ่ายบัญชี"] });
   assert.deepEqual(appReach({ userID: "mali" }, [hubs[0]]), { kind: "one", name: "ฝ่ายขาย", only: false }, "the only workspace is not 'only'");
   assert.deepEqual(appReach({ userID: "mali", hubID: "gone" }, hubs), { kind: "one", name: undefined, only: true });
+  // A sign-in through one workspace's own link reaches only it, whatever else its holder may use (Codex release review 63).
+  const scoped = secretRows({ sessions: [{ id: "s9", app: "Claude", userID: "owner", hubID: "sales", createdAt: ago(60), lastRefreshedAt: ago(60), expiresAt: ahead(29) }], keys: [] }, members, hubs, now, isOwner).sessions[0];
+  assert.equal(scoped.hubID, "sales");
+  assert.deepEqual(appReach(scoped, hubs), { kind: "one", name: "ฝ่ายขาย", only: true });
+  assert.equal(rows().find((row) => row.id === "s3").hubID, undefined, "the company's link: no workspace named");
 });
 
 test("last use reads in days for sign-ins (renewals) and in minutes or hours for keys", () => {
