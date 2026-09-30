@@ -13,6 +13,7 @@ export function setAIConnection(status: AIConnectionStatus) {
 	aiConnection.state = status.state;
 	aiConnection.app = status.app;
 	aiConnection.only = status.only;
+	aiConnection.reach = status.reach;
 }
 
 /**
@@ -25,5 +26,6 @@ export function markAIDisconnected() {
 	aiConnection.state = 'unknown';
 	aiConnection.app = undefined;
 	aiConnection.only = undefined;
+	aiConnection.reach = undefined;
 	aiConnection.disconnected = true;
 }

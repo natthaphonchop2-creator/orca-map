@@ -2,7 +2,7 @@
 // Svelte so they are tested on their own. Proposal §3.1, critique 5, 10, 11, 13.
 import type { OrcaBootstrap, OrcaHub } from '../services/orca';
 import type { MyAIApps, MyAIKey, MyAISession } from '../services/orca-ai-apps';
-import type { AIConnectionStatus, AIOnlyWorkspace } from './ai-connection';
+import type { AIConnectionStatus, AIOnlyWorkspace, AIReach } from './ai-connection';
 import type { AIApp, ClientNames, GatewayClient } from './client-config';
 import { connectionReady, workspaceToolingReady } from './activation';
 import { AI_APPS, clientNames, gatewayClientCommands, gatewayClientConfig, gatewayInstallLink } from './client-config';
@@ -230,21 +230,26 @@ export function connectedSession(apps: MyAIApps | undefined, app: AIApp, now: nu
  * The pinned button's state: a live sign-in through the company's link, or a
  * key that has been used. Sign-ins through workspaces' own links alone make
  * it connected `only` to those workspaces, never company-wide (B3 follow-up).
+ * `reach` keeps what reaches which workspace beside it, so a workspace with
+ * its own sign-in is named with its own sign-in's app, never the company
+ * link's (Codex review 72).
  */
 export function aiConnectionFrom(apps: MyAIApps | undefined, now: number, t: Translate = (th) => th): AIConnectionStatus {
 	const live = liveSessions(apps, now);
 	const session = live.find(companyLinkSession);
-	if (session) return { state: 'connected', app: sessionLabel(session, t) };
-	if (liveKeys(apps, now).some((key) => !!key.lastUsedAt)) return { state: 'connected' };
-	if (live.length) {
-		// Each workspace with the app of its newest sign-in. Named apart, the
-		// pin names no app: "เชื่อมเฉพาะ 2 พื้นที่ทำงาน" (Codex review 71).
-		const only = new Map<string, AIOnlyWorkspace>();
-		for (const item of live) if (!only.has(item.hubID!)) only.set(item.hubID!, { id: item.hubID!, name: item.hubName?.trim() ?? '', app: sessionLabel(item, t) });
-		const apps = new Set([...only.values()].map((hub) => hub.app));
-		return { state: 'connected', ...(apps.size === 1 ? { app: [...apps][0] } : {}), only: [...only.values()] };
-	}
-	return { state: 'none' };
+	// Each workspace a sign-in is limited to, with the app of its newest sign-in there (Codex review 71).
+	const hubs = new Map<string, AIOnlyWorkspace>();
+	for (const item of live)
+		if (!companyLinkSession(item) && !hubs.has(item.hubID!)) hubs.set(item.hubID!, { id: item.hubID!, name: item.hubName?.trim() ?? '', app: sessionLabel(item, t) });
+	const keys = liveKeys(apps, now).filter((key) => !!key.lastUsedAt).map((key) => key.hubID ?? '');
+	if (!session && !keys.length && !hubs.size) return { state: 'none' };
+	const reach: AIReach = { ...(session ? { company: sessionLabel(session, t) } : {}), hubs: [...hubs.values()], keys };
+	// A server from before B3's follow-up sends no hubID, so a sign-in's reach is not known: the summary alone, as before.
+	if (session) return { state: 'connected', app: reach.company, ...(live.every((item) => item.hubID !== undefined) ? { reach } : {}) };
+	if (keys.length) return { state: 'connected', reach };
+	// Named apart, the pin names no app: "เชื่อมเฉพาะ 2 พื้นที่ทำงาน" (Codex review 71).
+	const named = new Set(reach.hubs.map((hub) => hub.app));
+	return { state: 'connected', ...(named.size === 1 ? { app: [...named][0] } : {}), only: [...reach.hubs], reach };
 }
 
 // ---------- Dates ----------

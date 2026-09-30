@@ -4,6 +4,7 @@
 	import { term } from '$lib/orca/glossary';
 	import { askPrompt } from '$lib/orca/knowledge';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
+	import type { OrcaHub } from '$lib/services/orca';
 	import type { LibraryItem } from '$lib/services/orca-library';
 	import { copyFeedback, copyText } from '../ui/copy';
 	import { showToast } from '../ui/toast-store.svelte';
@@ -15,14 +16,18 @@
 		item,
 		connected = false,
 		app = '',
+		workspace,
 		legend = true,
 		ask = true
 	}: {
 		/** The item to ask about: the open one, or the newest published article. */
 		item?: LibraryItem;
+		/** The viewer's AI reaches this workspace (aiConnectionReaches). */
 		connected?: boolean;
-		/** The AI app the viewer connected, e.g. "Claude". */
+		/** The AI app whose sign-in reaches this workspace, e.g. "Claude" (aiConnectionAppFor). */
 		app?: string;
+		/** The library's workspace: one with its own sign-in (SSO) is connected with its own link. */
+		workspace?: Pick<OrcaHub, 'id' | 'userSourceID'>;
 		legend?: boolean;
 		/** Whether to show "ลองถาม AI" at all. */
 		ask?: boolean;
@@ -41,7 +46,14 @@
 </script>
 
 <aside class="rail" aria-label={t('ลองใช้กับ AI', 'Try it with AI')}>
-	{#if !connected}
+	{#if !connected && workspace?.userSourceID}
+		<!-- Its own sign-in (SSO): the company's link and เชื่อม AI ของฉัน don't reach it; its own link on the overview does (Codex review 72). -->
+		<div class="kn-card connect">
+			<div class="connect-h"><span class="ask-ic" aria-hidden="true"><Sparkles size={16} /></span><b>{t('AI ของคุณยังใช้พื้นที่นี้ไม่ได้', "Your AI can't use this workspace yet")}</b></div>
+			<p>{t('พื้นที่นี้ใช้ SSO ของบริษัท ลิงก์ ORCA ของบริษัทจึงไม่รวมพื้นที่นี้ เพิ่มลิงก์ของพื้นที่นี้ใน Claude หรือ ChatGPT แล้วเข้าสู่ระบบด้วย SSO ของบริษัท', "It uses company SSO, so your company's ORCA link doesn't include it. Add this workspace's link in Claude or ChatGPT and sign in with company SSO.")}</p>
+			<a class="k-button" href={localeHref(`/app?view=hub&hub=${encodeURIComponent(workspace.id)}&tab=overview`)}>{t('ดูลิงก์ของพื้นที่นี้', "See this workspace's link")}<ArrowRight size={15} aria-hidden="true" /></a>
+		</div>
+	{:else if !connected}
 		<div class="kn-card connect">
 			<div class="connect-h"><span class="ask-ic" aria-hidden="true"><Sparkles size={16} /></span><b>{t('ยังไม่ได้เชื่อม AI ของคุณ', 'Your AI is not connected')}</b></div>
 			<p>{t('เชื่อมครั้งเดียว แล้ว Claude หรือ ChatGPT จะตอบจากคลังนี้ได้', 'Connect once and Claude or ChatGPT can answer from this library.')}</p>

@@ -79,6 +79,7 @@ test('the library home: title, one primary action, counts, two kinds (no แผ�
 	assert.equal(scopes.length, 0, 'one workspace: no scope chip');
 	assert.equal(rails.length, 1);
 	assert.equal(rails[0].item.id, 'a', 'try-it asks about a published article');
+	assert.equal(rails[0].workspace.id, 'sales', 'the side knows its workspace, for one with its own sign-in (Codex review 72)');
 	const several = await list({ choices: [hub('sales'), hub('acc')] });
 	assert.equal(several.scopes.length, 1, 'several workspaces: the scope chip');
 });
@@ -139,6 +140,7 @@ test('the detail: its author sees who can use it and which supporting articles s
 	});
 	const items = [item('a', { title: 'นโยบายคืนสินค้า' }), item('old', { title: 'เงื่อนไขเดิม', status: 'archived' }), prompt];
 	const mine = await detail({ item: prompt, items });
+	assert.equal(mine.rails[0].workspace.id, 'sales', 'the side knows its workspace (Codex review 72)');
 	assert.match(mine.html, /1 เรื่องเลิกเผยแพร่แล้ว หรือคุณอ่านไม่ได้แล้ว/);
 	assert.equal(mine.html.match(/ใช้ไม่ได้แล้ว/g)?.length, 1, 'only the archived article is tagged');
 	assert.match(mine.html, /<mark[^>]*>ชื่อลูกค้า<\/mark>/, 'fields show by their Thai label');
@@ -251,6 +253,18 @@ test('the side: "เชื่อม AI ของฉัน" only when my AI is no
 	assert.doesNotMatch(on, /เชื่อม AI ของฉัน|สถานะหมายถึงอะไร/);
 	assert.match(on, /ถามใน Claude เพื่อเช็กว่า AI ตอบถูก/);
 	assert.doesNotMatch(render(Component, { props: { item: article, ask: false, connected: true } }).body, /ลองถาม AI/);
+	// A workspace with its own sign-in (SSO) that nothing reaches: its own link, never "เชื่อม AI ของฉัน" (Codex review 72).
+	const sso = hub('hub h', { userSourceID: 'sso-1' });
+	const own = render(Component, { props: { item: article, workspace: sso } }).body;
+	assert.match(own, /AI ของคุณยังใช้พื้นที่นี้ไม่ได้/);
+	assert.match(own, /พื้นที่นี้ใช้ SSO ของบริษัท ลิงก์ ORCA ของบริษัทจึงไม่รวมพื้นที่นี้/);
+	assert.match(own, /<a class="k-button[^"]*" href="\/app\?view=hub&amp;hub=hub%20h&amp;tab=overview">ดูลิงก์ของพื้นที่นี้/);
+	assert.doesNotMatch(own, /ยังไม่ได้เชื่อม AI ของคุณ|view=connect-ai/);
+	assert.match(own, /ถามใน Claude หรือ ChatGPT เพื่อเช็กว่า AI ตอบถูก/, 'no app is named');
+	const ownOn = render(Component, { props: { item: article, workspace: sso, connected: true, app: 'ChatGPT' } }).body;
+	assert.doesNotMatch(ownOn, /ยังใช้พื้นที่นี้ไม่ได้|ยังไม่ได้เชื่อม/);
+	assert.match(ownOn, /ถามใน ChatGPT เพื่อเช็กว่า AI ตอบถูก/);
+	assert.match(render(Component, { props: { item: article, workspace: hub('sales') } }).body, /ยังไม่ได้เชื่อม AI ของคุณ/, 'on the company link: เชื่อม AI ของฉัน, as before');
 });
 
 test('"ดูฉบับล่าสุด" loads the latest copy through the page, so its people, departments and articles come fresh with it (Codex release review 69)', async () => {

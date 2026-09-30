@@ -10,6 +10,16 @@ export type AIConnectionState = 'unknown' | 'none' | 'connected';
  * there (its newest sign-in), e.g. "ChatGPT".
  */
 export type AIOnlyWorkspace = { id: string; name: string; app?: string };
+/**
+ * What reaches which workspace, kept beside the pin's summary (Codex review 72):
+ * - `company`: the app of the newest live sign-in through the company's link, when there is one
+ * - `hubs`: each workspace a live sign-in is limited to (its own link), with its newest sign-in's app
+ * - `keys`: where the used keys reach, "" for every workspace of the person's
+ * The company's link skips a workspace with its own sign-in (SSO, `userSourceID`):
+ * only a sign-in limited to it, or a key, reaches that one (the backend's
+ * orcaOAuthHubCheck).
+ */
+export type AIReach = { company?: string; hubs: AIOnlyWorkspace[]; keys: string[] };
 export type AIConnectionStatus = {
 	state: AIConnectionState;
 	/** e.g. "Claude" */
@@ -19,7 +29,11 @@ export type AIConnectionStatus = {
 	 * follow-up): the workspaces each is limited to. Never company-wide.
 	 */
 	only?: AIOnlyWorkspace[];
+	/** Absent when only the summary above is known: the company's link then reaches every workspace, as before. */
+	reach?: AIReach;
 };
+/** A workspace as reach needs it: with its own sign-in (`userSourceID`), the company's link skips it. */
+export type AIWorkspace = { id: string; userSourceID?: string };
 type Translate = (th: string, en: string) => string;
 
 /** "เฉพาะ ฝ่ายขาย", "เฉพาะ 2 พื้นที่ทำงาน", or "เฉพาะพื้นที่ทำงานเดียว" when its name is not known. */
@@ -29,24 +43,48 @@ export function onlyWorkspacesText(only: readonly AIOnlyWorkspace[], t: Translat
 	return name ? t(`เฉพาะ ${name}`, `only ${name}`) : t('เฉพาะพื้นที่ทำงานเดียว', 'one workspace only');
 }
 
+const NOT_REACHED = { reaches: false, app: '' };
+
 /**
- * Whether the person's AI reaches the workspace `hubID`: connected through
- * the company's link (or a used key), or through a sign-in limited to it.
+ * Whether the person's AI reaches `hub`, and the app to name there ("" when it
+ * is not known, e.g. a key). A sign-in limited to this workspace first, since
+ * it was made with the workspace's own link, then the company's link (never
+ * for a workspace with its own sign-in), then a used key for every workspace
+ * or for this one. Without `hub`, whether it reaches workspaces at large.
  */
-export function aiConnectionReaches(status: AIConnectionStatus | undefined, hubID: string | undefined): boolean {
-	if (status?.state !== 'connected') return false;
-	return !status.only?.length || (!!hubID && status.only.some((hub) => hub.id === hubID));
+function reachFor(status: AIConnectionStatus | undefined, hub: AIWorkspace | undefined): { reaches: boolean; app: string } {
+	if (status?.state !== 'connected') return NOT_REACHED;
+	const reach = status.reach;
+	if (!reach) {
+		// Only the summary: the company's link (or a used key) reaches all, a limited sign-in its own.
+		if (!status.only?.length) return { reaches: true, app: status.app?.trim() ?? '' };
+		const own = hub ? status.only.find((item) => item.id === hub.id) : undefined;
+		return own ? { reaches: true, app: own.app?.trim() ?? '' } : NOT_REACHED;
+	}
+	const own = hub ? reach.hubs.find((item) => item.id === hub.id) : undefined;
+	if (own) return { reaches: true, app: own.app?.trim() ?? '' };
+	if (reach.company !== undefined && !hub?.userSourceID) return { reaches: true, app: reach.company.trim() };
+	if (reach.keys.some((id) => !id || id === hub?.id)) return { reaches: true, app: '' };
+	return NOT_REACHED;
 }
 
 /**
- * The AI app to name for the workspace `hubID`: the one that reaches it ("" when
- * none does, or it is not known). Limited sign-ins name their own workspace's
- * app, never another's (Codex review 71).
+ * Whether the person's AI reaches the workspace `hub`: through the company's
+ * link (not for a workspace with its own sign-in), a sign-in limited to it, or
+ * a used key for every workspace or for this one (Codex review 72).
  */
-export function aiConnectionAppFor(status: AIConnectionStatus | undefined, hubID: string | undefined): string {
-	if (!status || !aiConnectionReaches(status, hubID)) return '';
-	if (!status.only?.length) return status.app?.trim() ?? '';
-	return status.only.find((hub) => hub.id === hubID)?.app?.trim() ?? '';
+export function aiConnectionReaches(status: AIConnectionStatus | undefined, hub: AIWorkspace | undefined): boolean {
+	return reachFor(status, hub).reaches;
+}
+
+/**
+ * The AI app to name for the workspace `hub`: one whose sign-in reaches it (""
+ * when none does, or it is not known). A sign-in limited to another workspace,
+ * or the company's link for a workspace with its own sign-in, is never named
+ * (Codex reviews 71 and 72).
+ */
+export function aiConnectionAppFor(status: AIConnectionStatus | undefined, hub: AIWorkspace | undefined): string {
+	return reachFor(status, hub).app;
 }
 
 /** The line under the pin; "" when unknown (a neutral pin). */

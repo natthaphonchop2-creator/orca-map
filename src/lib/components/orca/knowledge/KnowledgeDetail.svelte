@@ -290,7 +290,7 @@
 					{/if}
 				{/if}
 			</section>
-			<KnowledgeRail item={item} ask={item.status === 'published'} {connected} {app} legend={false} />
+			<KnowledgeRail item={item} ask={item.status === 'published'} {connected} {app} workspace={hub} legend={false} />
 		</div>
 	</div>
 </div>

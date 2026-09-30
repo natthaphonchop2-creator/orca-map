@@ -249,7 +249,7 @@
 			{/if}
 		</div>
 
-		<KnowledgeRail item={ask} ask={counted} {connected} {app} />
+		<KnowledgeRail item={ask} ask={counted} {connected} {app} workspace={hub} />
 	</div>
 </div>
 

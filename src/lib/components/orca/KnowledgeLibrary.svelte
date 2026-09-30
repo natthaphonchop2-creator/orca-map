@@ -88,10 +88,11 @@
 		const id = screenID(screen);
 		return id ? items.find((item) => item.id === id) : undefined;
 	});
-	// Through the company's link, or a sign-in limited to this workspace; not one limited to another (B3 follow-up).
-	const connected = $derived(aiConnectionReaches(aiConnection, hub?.id));
-	// "ถามใน Claude": the app that reaches this workspace, never one limited to another (Codex review 71).
-	const aiApp = $derived(aiConnectionAppFor(aiConnection, hub?.id));
+	// Through the company's link, or a sign-in limited to this workspace; not one limited to another (B3 follow-up),
+	// and not the company's link for a workspace with its own sign-in (Codex review 72).
+	const connected = $derived(aiConnectionReaches(aiConnection, hub));
+	// "ถามใน Claude": the app whose sign-in reaches this workspace, never another's (Codex reviews 71 and 72).
+	const aiApp = $derived(aiConnectionAppFor(aiConnection, hub));
 
 	let contextID = '';
 	$effect(() => {

@@ -276,7 +276,7 @@ test('a disconnect leaves the list and the pin at once, and a read that started 
 	const left = ai.withoutRevoked(apps, revoked);
 	assert.deepEqual(left.sessions, [], 'the sign-in is gone');
 	assert.equal(left.keys.length, 1, 'the key stays');
-	assert.deepEqual(ai.aiConnectionFrom(left, NOW, en), { state: 'connected' }, 'the pin follows what is left (a used key)');
+	assert.deepEqual(ai.aiConnectionFrom(left, NOW, en), { state: 'connected', reach: { hubs: [], keys: ['sales'] } }, 'the pin follows what is left (a used key, for its own workspace)');
 	revoked.add(ai.revokedKey('key', 7));
 	assert.deepEqual(ai.aiConnectionFrom(ai.withoutRevoked(apps, revoked), NOW, en), { state: 'none' });
 	assert.equal(ai.withoutRevoked(apps, new Set()), apps, 'nothing disconnected: the same list');
@@ -350,12 +350,16 @@ test('the pin\'s shared read that started before a disconnect changes nothing, a
 test('the shared store: a disconnect clears the app and is remembered for the page, whatever reads come later (Codex release review 70)', async () => {
 	const store = await sharedStore();
 	assert.deepEqual({ ...store.aiConnection }, { state: 'unknown', disconnected: false });
-	store.setAIConnection({ state: 'connected', app: 'ChatGPT', only: [{ id: 'hub-sales', name: 'ฝ่ายขาย' }] });
-	assert.deepEqual({ ...store.aiConnection, only: [...store.aiConnection.only].map((hub) => ({ ...hub })) }, { state: 'connected', app: 'ChatGPT', only: [{ id: 'hub-sales', name: 'ฝ่ายขาย' }], disconnected: false }, 'where a limited sign-in reaches is kept (B3 follow-up)');
+	const sales = { id: 'hub-sales', name: 'ฝ่ายขาย', app: 'ChatGPT' };
+	store.setAIConnection({ state: 'connected', app: 'ChatGPT', only: [sales], reach: { hubs: [sales], keys: [] } });
+	const plain = (value) => JSON.parse(JSON.stringify(value));
+	assert.deepEqual(plain(store.aiConnection), { state: 'connected', app: 'ChatGPT', only: [sales], reach: { hubs: [sales], keys: [] }, disconnected: false }, 'where a limited sign-in reaches is kept (B3 follow-up), and what reaches which workspace (Codex review 72)');
 	store.markAIDisconnected();
-	assert.deepEqual({ ...store.aiConnection }, { state: 'unknown', app: undefined, only: undefined, disconnected: true });
+	assert.deepEqual({ ...store.aiConnection }, { state: 'unknown', app: undefined, only: undefined, reach: undefined, disconnected: true });
+	store.setAIConnection({ state: 'connected', app: 'Claude', reach: { company: 'Claude', hubs: [], keys: [] } });
+	assert.deepEqual(plain(store.aiConnection), { state: 'connected', app: 'Claude', reach: { company: 'Claude', hubs: [], keys: [] }, disconnected: true }, 'another app still connected; the disconnect stays known');
 	store.setAIConnection({ state: 'connected', app: 'Claude' });
-	assert.deepEqual({ ...store.aiConnection }, { state: 'connected', app: 'Claude', only: undefined, disconnected: true }, 'another app still connected; the disconnect stays known');
+	assert.equal(store.aiConnection.reach, undefined, 'a read without it leaves no older reach behind');
 	store.setAIConnection({ state: 'unknown' });
 	assert.equal(store.aiConnection.disconnected, true);
 	// Every own disconnect goes through the one service call, which marks it.
@@ -380,9 +384,10 @@ test('เชื่อม AI ของฉัน names where each sign-in reaches,
 	const shell = await readFile(new URL('./AppShell.svelte', import.meta.url), 'utf8');
 	assert.match(shell, /const aiConnected = \$derived\(\(aiStatus \?\? aiConnection\)\?\.state === "connected" && !\(aiStatus \?\? aiConnection\)\?\.only\?\.length\);/);
 	const library = await readFile(new URL('./KnowledgeLibrary.svelte', import.meta.url), 'utf8');
-	assert.match(library, /const connected = \$derived\(aiConnectionReaches\(aiConnection, hub\?\.id\)\);/);
+	// The workspace itself: one with its own sign-in is not on the company's link (Codex review 72).
+	assert.match(library, /const connected = \$derived\(aiConnectionReaches\(aiConnection, hub\)\);/);
 	// "ถามใน …" names the app that reaches this workspace, never one limited to another (Codex review 71).
-	assert.match(library, /const aiApp = \$derived\(aiConnectionAppFor\(aiConnection, hub\?\.id\)\);/);
+	assert.match(library, /const aiApp = \$derived\(aiConnectionAppFor\(aiConnection, hub\)\);/);
 	assert.equal(library.match(/app=\{aiApp\}/g)?.length, 2, 'the list and the detail');
 	assert.doesNotMatch(library, /aiConnection\.app/);
 });
