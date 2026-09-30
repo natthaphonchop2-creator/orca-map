@@ -45,7 +45,17 @@
 				detail: memberActive(member) ? memberRole(member.role) : t('ถูกระงับ', 'Suspended')
 			}))
 	);
-	const departments = $derived(units.filter((unit) => departmentActive(unit) || accessUnitIDs.includes(unit.id)).filter((unit) => unit.kind === 'department'));
+	// A department chosen here and deleted since is no longer in the company's
+	// list: it still shows, chosen, so it can be taken off (Codex release review 66).
+	const gone = $derived(
+		accessUnitIDs
+			.filter((unitID) => !units.some((unit) => unit.id === unitID))
+			.map((unitID): OrcaUnit => ({ id: unitID, name: t('แผนกที่ถูกลบแล้ว', 'Deleted department'), kind: 'department', parentID: '', version: 0, deletedAt: 'deleted' }))
+	);
+	const departments = $derived([
+		...units.filter((unit) => departmentActive(unit) || accessUnitIDs.includes(unit.id)).filter((unit) => unit.kind === 'department'),
+		...gone
+	]);
 	const meIn = $derived(memberIDs.includes(currentUserID));
 	const canAddMe = $derived(memberActive(members.find((member) => member.id === currentUserID)));
 
@@ -85,7 +95,7 @@
 					{@const chosen = accessUnitIDs.includes(unit.id)}
 					<button type="button" class="audience-chip" class:chosen aria-pressed={chosen} {disabled} onclick={() => toggleDepartment(unit)}>
 						{#if chosen}<Check size={15} aria-hidden="true" />{:else}<Plus size={15} aria-hidden="true" />{/if}{unit.name}
-						{#if !departmentActive(unit)}<em>· {t('จัดเก็บแล้ว', 'archived')}</em>{:else if departmentCounts?.[unit.id] !== undefined}<em>· {t(`${departmentCounts[unit.id]} คน`, `${departmentCounts[unit.id]}`)}</em>{/if}
+						{#if unit.deletedAt}<em>· {t('เอาออกได้', 'remove it')}</em>{:else if !departmentActive(unit)}<em>· {t('จัดเก็บแล้ว', 'archived')}</em>{:else if departmentCounts?.[unit.id] !== undefined}<em>· {t(`${departmentCounts[unit.id]} คน`, `${departmentCounts[unit.id]}`)}</em>{/if}
 					</button>
 				{/each}
 			</div>
