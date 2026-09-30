@@ -15,9 +15,11 @@ export type AIOnlyWorkspace = { id: string; name: string; app?: string };
  * - `company`: the app of the newest live sign-in through the company's link, when there is one
  * - `hubs`: each workspace a live sign-in is limited to (its own link), with its newest sign-in's app
  * - `keys`: where the used keys reach, "" for every workspace of the person's
- * The company's link skips a workspace with its own sign-in (SSO, `userSourceID`):
- * only a sign-in limited to it, or a key, reaches that one (the backend's
- * orcaOAuthHubCheck).
+ * The server lets a sign-in into a workspace only when it used that
+ * workspace's way in: an ORCA account, or its SSO (`userSourceID`, the
+ * backend's orcaOAuthHubCheck). The company's link offers both, and the list
+ * does not say which one each sign-in used, so reachFor counts what may reach
+ * and names an app only where the list shows it (Codex review 73).
  */
 export type AIReach = { company?: string; hubs: AIOnlyWorkspace[]; keys: string[] };
 export type AIConnectionStatus = {
@@ -32,7 +34,7 @@ export type AIConnectionStatus = {
 	/** Absent when only the summary above is known: the company's link then reaches every workspace, as before. */
 	reach?: AIReach;
 };
-/** A workspace as reach needs it: with its own sign-in (`userSourceID`), the company's link skips it. */
+/** A workspace as reach needs it: `userSourceID` when it has its own sign-in (SSO). */
 export type AIWorkspace = { id: string; userSourceID?: string };
 type Translate = (th: string, en: string) => string;
 
@@ -47,10 +49,17 @@ const NOT_REACHED = { reaches: false, app: '' };
 
 /**
  * Whether the person's AI reaches `hub`, and the app to name there ("" when it
- * is not known, e.g. a key). A sign-in limited to this workspace first, since
- * it was made with the workspace's own link, then the company's link (never
- * for a workspace with its own sign-in), then a used key for every workspace
- * or for this one. Without `hub`, whether it reaches workspaces at large.
+ * is not known, e.g. a key). Without `hub`, whether it reaches workspaces at
+ * large. The list does not say whether a sign-in used an ORCA account or an
+ * SSO, which is what the server checks, so (Codex review 73):
+ * - a workspace with its own sign-in (SSO): a sign-in made with its own link
+ *   used that SSO, so it reaches it and is named. One through the company's
+ *   link reaches it only if that sign-in chose this SSO: counted, never named.
+ * - any other workspace: the company's link (with an ORCA account) or a
+ *   sign-in made with its own link. Either may be from a different way in (an
+ *   SSO sign-in on the company's link, or one from before the workspace
+ *   changed its sign-in), so an app is named only when they agree.
+ * - then a used key for every workspace or for this one, which names no app.
  */
 function reachFor(status: AIConnectionStatus | undefined, hub: AIWorkspace | undefined): { reaches: boolean; app: string } {
 	if (status?.state !== 'connected') return NOT_REACHED;
@@ -62,16 +71,23 @@ function reachFor(status: AIConnectionStatus | undefined, hub: AIWorkspace | und
 		return own ? { reaches: true, app: own.app?.trim() ?? '' } : NOT_REACHED;
 	}
 	const own = hub ? reach.hubs.find((item) => item.id === hub.id) : undefined;
-	if (own) return { reaches: true, app: own.app?.trim() ?? '' };
-	if (reach.company !== undefined && !hub?.userSourceID) return { reaches: true, app: reach.company.trim() };
+	const ownApp = own ? (own.app?.trim() ?? '') : undefined;
+	const company = reach.company?.trim();
+	if (hub?.userSourceID) {
+		if (ownApp !== undefined) return { reaches: true, app: ownApp };
+		if (company !== undefined) return { reaches: true, app: '' };
+	} else if (ownApp !== undefined || company !== undefined) {
+		const apps = new Set([ownApp, company].filter((app): app is string => app !== undefined));
+		return { reaches: true, app: apps.size === 1 ? [...apps][0] : '' };
+	}
 	if (reach.keys.some((id) => !id || id === hub?.id)) return { reaches: true, app: '' };
 	return NOT_REACHED;
 }
 
 /**
- * Whether the person's AI reaches the workspace `hub`: through the company's
- * link (not for a workspace with its own sign-in), a sign-in limited to it, or
- * a used key for every workspace or for this one (Codex review 72).
+ * Whether the person's AI may reach the workspace `hub`: a sign-in limited to
+ * it, the company's link, or a used key for every workspace or for this one.
+ * Never a sign-in limited to another workspace (reachFor, Codex reviews 72 and 73).
  */
 export function aiConnectionReaches(status: AIConnectionStatus | undefined, hub: AIWorkspace | undefined): boolean {
 	return reachFor(status, hub).reaches;
@@ -79,9 +95,9 @@ export function aiConnectionReaches(status: AIConnectionStatus | undefined, hub:
 
 /**
  * The AI app to name for the workspace `hub`: one whose sign-in reaches it (""
- * when none does, or it is not known). A sign-in limited to another workspace,
- * or the company's link for a workspace with its own sign-in, is never named
- * (Codex reviews 71 and 72).
+ * when none does, or the list cannot say which). A sign-in limited to another
+ * workspace, or the company's link for a workspace with its own sign-in, is
+ * never named (Codex reviews 71 to 73).
  */
 export function aiConnectionAppFor(status: AIConnectionStatus | undefined, hub: AIWorkspace | undefined): string {
 	return reachFor(status, hub).app;

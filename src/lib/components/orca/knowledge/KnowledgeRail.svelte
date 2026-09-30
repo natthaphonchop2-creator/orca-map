@@ -47,7 +47,7 @@
 
 <aside class="rail" aria-label={t('ลองใช้กับ AI', 'Try it with AI')}>
 	{#if !connected && workspace?.userSourceID}
-		<!-- Its own sign-in (SSO): the company's link and เชื่อม AI ของฉัน don't reach it; its own link on the overview does (Codex review 72). -->
+		<!-- Its own sign-in (SSO) and nothing of mine reaches it: its own link on the overview, not เชื่อม AI ของฉัน (Codex review 72). -->
 		<div class="kn-card connect">
 			<div class="connect-h"><span class="ask-ic" aria-hidden="true"><Sparkles size={16} /></span><b>{t('AI ของคุณยังใช้พื้นที่นี้ไม่ได้', "Your AI can't use this workspace yet")}</b></div>
 			<p>{t('พื้นที่นี้ใช้ SSO ของบริษัท ลิงก์ ORCA ของบริษัทจึงไม่รวมพื้นที่นี้ เพิ่มลิงก์ของพื้นที่นี้ใน Claude หรือ ChatGPT แล้วเข้าสู่ระบบด้วย SSO ของบริษัท', "It uses company SSO, so your company's ORCA link doesn't include it. Add this workspace's link in Claude or ChatGPT and sign in with company SSO.")}</p>

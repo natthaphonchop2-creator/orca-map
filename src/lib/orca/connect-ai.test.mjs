@@ -181,7 +181,7 @@ test('a sign-in through one workspace\'s own link is never the company link: ste
 	assert.equal(ai.sessionScope({ hubID: 'hub-gone', hubName: '' }, hubs, en), 'One workspace');
 });
 
-test('a workspace with its own sign-in is reached only by a sign-in limited to it or a key, and named with that sign-in\'s app (Codex review 72)', () => {
+test('a workspace with its own sign-in is named with the app of a sign-in limited to it; the list cannot say which way in a sign-in used, so what may reach counts and is named only where the list shows it (Codex reviews 72 and 73)', () => {
 	const own = (id, hubID, created, client, app) => session(id, client, app, created, { hubID, hubName: '' });
 	const sso = { id: 'hub-h', userSourceID: 'sso-1' };
 	const plain = { id: 'hub-s' };
@@ -189,39 +189,64 @@ test('a workspace with its own sign-in is reached only by a sign-in limited to i
 	const status = ai.aiConnectionFrom({ sessions: [own('gpt', 'hub-h', 1, 'chatgpt', 'ChatGPT'), own('co', '', 60, 'claude', 'Claude')], keys: [] }, NOW, en);
 	assert.equal(connection_.aiConnectionLine(status, th), 'Claude เชื่อมแล้ว', 'the pin still names the company link');
 	assert.equal(connection_.aiConnectionReaches(status, sso), true);
-	assert.equal(connection_.aiConnectionAppFor(status, sso), 'ChatGPT', 'never "ถามใน Claude" for H: the company link does not reach it');
+	assert.equal(connection_.aiConnectionAppFor(status, sso), 'ChatGPT', 'never "ถามใน Claude" for H: its own link\'s sign-in is the one shown to reach it');
 	assert.equal(connection_.aiConnectionAppFor(status, plain), 'Claude', 'a workspace on the company link');
-	assert.equal(connection_.aiConnectionReaches(status, { id: 'hub-h2', userSourceID: 'sso-1' }), false, 'another SSO workspace: nothing reaches it');
-	assert.equal(connection_.aiConnectionAppFor(status, { id: 'hub-h2', userSourceID: 'sso-1' }), '');
-	// The company's link alone never reaches a workspace with its own sign-in.
+	// Another SSO workspace: the company's link reaches it if that sign-in chose its SSO, which the list does not say (Codex review 73).
+	assert.equal(connection_.aiConnectionReaches(status, { id: 'hub-h2', userSourceID: 'sso-1' }), true, 'counted: never "not connected" for what may work');
+	assert.equal(connection_.aiConnectionAppFor(status, { id: 'hub-h2', userSourceID: 'sso-1' }), '', 'not named');
+	// The company's link alone: an SSO sign-in there reaches an SSO workspace (backend orcaOAuthHubCheck), an ORCA account the others.
 	const company = ai.aiConnectionFrom({ sessions: [own('co', '', 5, 'claude', 'Claude')], keys: [] }, NOW, en);
-	assert.equal(connection_.aiConnectionReaches(company, sso), false);
-	assert.equal(connection_.aiConnectionAppFor(company, sso), '');
+	assert.equal(connection_.aiConnectionReaches(company, sso), true);
+	assert.equal(connection_.aiConnectionAppFor(company, sso), '', 'not named: it may have used an ORCA account');
 	assert.equal(connection_.aiConnectionReaches(company, plain), true);
+	assert.equal(connection_.aiConnectionAppFor(company, plain), 'Claude');
 	assert.equal(connection_.aiConnectionReaches(company, undefined), true, 'workspaces at large');
+	assert.equal(connection_.aiConnectionAppFor(company, undefined), 'Claude');
+	// Only sign-ins limited to other workspaces: nothing reaches H.
+	const elsewhere = ai.aiConnectionFrom({ sessions: [own('gpt', 'hub-x', 1, 'chatgpt', 'ChatGPT')], keys: [] }, NOW, en);
+	assert.equal(connection_.aiConnectionReaches(elsewhere, sso), false);
+	assert.equal(connection_.aiConnectionReaches(elsewhere, plain), false);
+	assert.equal(connection_.aiConnectionAppFor(elsewhere, sso), '');
 	// A server without hubID cannot say: every sign-in counts, as before.
 	const older = ai.aiConnectionFrom({ sessions: [session('old', 'claude', 'Claude')], keys: [] }, NOW, en);
 	assert.equal(older.reach, undefined);
 	assert.equal(connection_.aiConnectionAppFor(older, sso), 'Claude');
-	// A sign-in made with this workspace's own link comes first, even beside a newer company one.
+	// A workspace on the company link with its own link's sign-in beside it: either may be from another way in
+	// (an SSO sign-in on the company's link, or one from before it left SSO), so two apps name none (Codex review 73).
 	const mixed = ai.aiConnectionFrom({ sessions: [own('co', '', 1, 'claude', 'Claude'), own('gpt', 'hub-s', 30, 'chatgpt', 'ChatGPT')], keys: [] }, NOW, en);
-	assert.equal(connection_.aiConnectionAppFor(mixed, plain), 'ChatGPT');
+	assert.equal(connection_.aiConnectionReaches(mixed, plain), true);
+	assert.equal(connection_.aiConnectionAppFor(mixed, plain), '', 'never ChatGPT\'s old sign-in over the working company Claude');
 	assert.equal(connection_.aiConnectionAppFor(mixed, { id: 'hub-t' }), 'Claude');
+	const same = ai.aiConnectionFrom({ sessions: [own('co', '', 1, 'claude', 'Claude'), own('cl', 'hub-s', 30, 'claude', 'Claude')], keys: [] }, NOW, en);
+	assert.equal(connection_.aiConnectionAppFor(same, plain), 'Claude', 'one app: named');
+	const ownOnly = ai.aiConnectionFrom({ sessions: [own('gpt', 'hub-s', 30, 'chatgpt', 'ChatGPT')], keys: [] }, NOW, en);
+	assert.equal(connection_.aiConnectionAppFor(ownOnly, plain), 'ChatGPT', 'only its own link\'s sign-in: named');
 	// A used key reaches every workspace (SSO too) or its own one, and names no app.
 	const key = (hubID, used = true) => ({ id: hubID.length + 1, name: 'n8n', hubID, createdAt: ago(9), ...(used ? { lastUsedAt: ago(3) } : {}) });
 	const anyKey = ai.aiConnectionFrom({ sessions: [], keys: [key('')] }, NOW, en);
 	assert.equal(connection_.aiConnectionReaches(anyKey, sso), true);
 	assert.equal(connection_.aiConnectionAppFor(anyKey, sso), '');
+	assert.equal(connection_.aiConnectionAppFor(anyKey, plain), '');
 	const hKey = ai.aiConnectionFrom({ sessions: [own('co', '', 5, 'claude', 'Claude')], keys: [key('hub-h')] }, NOW, en);
 	assert.deepEqual(hKey.reach, { company: 'Claude', hubs: [], keys: ['hub-h'] });
 	assert.equal(connection_.aiConnectionReaches(hKey, sso), true, 'a key for H');
-	assert.equal(connection_.aiConnectionAppFor(hKey, sso), '', 'the key names no app, and Claude does not reach H');
+	assert.equal(connection_.aiConnectionAppFor(hKey, sso), '', 'the key names no app, and Claude is not shown to reach H');
 	const otherKey = ai.aiConnectionFrom({ sessions: [], keys: [key('hub-x')] }, NOW, en);
 	assert.equal(connection_.aiConnectionReaches(otherKey, sso), false, 'a key for another workspace');
 	assert.equal(connection_.aiConnectionReaches(otherKey, plain), false);
 	assert.equal(connection_.aiConnectionReaches(otherKey, { id: 'hub-x' }), true);
 	assert.equal(connection_.aiConnectionReaches(otherKey, undefined), false);
-	assert.equal(connection_.aiConnectionReaches(ai.aiConnectionFrom({ sessions: [own('co', '', 5, 'claude', 'Claude')], keys: [key('', false)] }, NOW, en), sso), false, 'an unused key reaches nothing');
+	const elsewhereKey = ai.aiConnectionFrom({ sessions: [own('gpt', 'hub-x', 1, 'chatgpt', 'ChatGPT')], keys: [key('hub-x'), key('', false)] }, NOW, en);
+	assert.equal(connection_.aiConnectionReaches(elsewhereKey, sso), false, 'an unused key reaches nothing');
+	assert.equal(connection_.aiConnectionReaches(elsewhereKey, { id: 'hub-x' }), true);
+	// A used key for every workspace beside a sign-in limited to another: it reaches them, never named with that sign-in's ChatGPT.
+	const keyAndElsewhere = ai.aiConnectionFrom({ sessions: [own('gpt', 'hub-x', 1, 'chatgpt', 'ChatGPT')], keys: [key('')] }, NOW, en);
+	assert.deepEqual(keyAndElsewhere.reach, { hubs: [{ id: 'hub-x', name: '', app: 'ChatGPT' }], keys: [''] });
+	assert.equal(connection_.aiConnectionAppFor(keyAndElsewhere, { id: 'hub-x' }), 'ChatGPT', 'its own workspace');
+	for (const hub of [sso, plain]) {
+		assert.equal(connection_.aiConnectionReaches(keyAndElsewhere, hub), true);
+		assert.equal(connection_.aiConnectionAppFor(keyAndElsewhere, hub), '', 'a key names no app');
+	}
 });
 
 test('the pin: connected names the app, none says so, unknown (no B1 on this server) says nothing', () => {

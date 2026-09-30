@@ -59,11 +59,11 @@ export type HomeAccess = { usable: readonly Pick<OrcaHub, 'id'>[]; ownSignIn: re
  * nothing was disconnected. Connected only through workspaces' own links is
  * `limited` while the company's link has workspaces for the viewer
  * (`access.usable`, connectAccess; unknown counts as some). With none (every
- * workspace of theirs has its own sign-in) the company's link reaches nothing
- * of theirs: connected once their AI reaches a workspace they use now
- * (`access.ownSignIn`, aiConnectionReaches), else `none`, since a sign-in kept
- * for a workspace they were taken out of, or one through the company's link,
- * reaches nothing (Codex reviews 71 and 72). With no workspace at all, the
+ * workspace of theirs has its own sign-in): connected once their AI may reach
+ * a workspace they use now (`access.ownSignIn`, aiConnectionReaches: a sign-in
+ * limited to it, the company's link, which may have used its SSO, or a used
+ * key), else `none`, since a sign-in kept for a workspace they were taken out
+ * of reaches nothing (Codex reviews 71 to 73). With no workspace at all, the
  * company's link or a used key counts, as before.
  */
 export function homeAIState(store: AIConnectionStatus & { disconnected?: boolean }, checked: boolean, access?: HomeAccess): AIState {
@@ -80,13 +80,14 @@ export function homeAIState(store: AIConnectionStatus & { disconnected?: boolean
 /**
  * The app Home names ("Claude เชื่อมแล้ว") when its AI step is done: the
  * company link's, or, when every workspace of the viewer's has its own
- * sign-in, the one app whose sign-in reaches them; "" when it is not known or
- * they differ (Codex review 72).
+ * sign-in, the one app whose sign-in is shown to reach them (aiConnectionAppFor;
+ * one that may reach them names none); "" when none is or they differ (Codex
+ * reviews 72 and 73).
  */
 export function homeAIApp(store: AIConnectionStatus, ai: AIState, access?: HomeAccess): string {
 	if (ai !== 'connected') return '';
 	if (!access || access.usable.length || !access.ownSignIn.length) return store.app?.trim() ?? '';
-	const apps = new Set(access.ownSignIn.filter((hub) => aiConnectionReaches(store, hub)).map((hub) => aiConnectionAppFor(store, hub)));
+	const apps = new Set(access.ownSignIn.filter((hub) => aiConnectionReaches(store, hub)).map((hub) => aiConnectionAppFor(store, hub)).filter(Boolean));
 	return apps.size === 1 ? [...apps][0] : '';
 }
 

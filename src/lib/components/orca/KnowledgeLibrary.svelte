@@ -88,8 +88,8 @@
 		const id = screenID(screen);
 		return id ? items.find((item) => item.id === id) : undefined;
 	});
-	// Through the company's link, or a sign-in limited to this workspace; not one limited to another (B3 follow-up),
-	// and not the company's link for a workspace with its own sign-in (Codex review 72).
+	// Through the company's link, or a sign-in limited to this workspace; not one limited to another (B3 follow-up).
+	// For a workspace with its own sign-in the company's link may have used its SSO: counted, not named (Codex reviews 72 and 73).
 	const connected = $derived(aiConnectionReaches(aiConnection, hub));
 	// "ถามใน Claude": the app whose sign-in reaches this workspace, never another's (Codex reviews 71 and 72).
 	const aiApp = $derived(aiConnectionAppFor(aiConnection, hub));

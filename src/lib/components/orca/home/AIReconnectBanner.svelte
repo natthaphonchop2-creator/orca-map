@@ -70,7 +70,14 @@
 		font-size: 14.5px;
 		font-weight: 600;
 	}
+	/* A long workspace name ("ใช้ลิงก์ของ …") wraps inside the button on a phone instead of overflowing (Codex review 73). */
 	.home-reconnect .k-button {
-		flex: none;
+		flex: 0 1 auto;
+		min-width: 0;
+		max-width: 100%;
+		padding-block: 6px;
+		white-space: normal;
+		overflow-wrap: anywhere;
+		text-align: center;
 	}
 </style>

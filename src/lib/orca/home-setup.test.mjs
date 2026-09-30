@@ -269,7 +269,7 @@ test('an AI connected only through workspaces\' own links never ticks "เชื
 	assert.equal(home.employeeChecklist('limited', ['signed-in'], true).steps[0].done, false);
 });
 
-test('Home counts and names only an AI that reaches a workspace of mine, and its banner never says expired when nothing did (Codex review 72)', async () => {
+test('Home counts an AI that may reach a workspace of mine, names only one shown to, and its banner never says expired when nothing did (Codex reviews 72 and 73)', async () => {
 	const ai = await importTypeScript(new URL('./connect-ai.ts', import.meta.url));
 	const ahead = new Date(NOW + 20 * 86_400_000).toISOString();
 	const signIn = (id, hubID, created, client, app) => ({ id, app, client, hubID, hubName: '', createdAt: ago(created), lastRefreshedAt: ago(1), expiresAt: ahead });
@@ -281,11 +281,13 @@ test('Home counts and names only an AI that reaches a workspace of mine, and its
 	assert.equal(home.homeAIApp(both, 'connected', { usable: [S], ownSignIn: [H] }), 'Claude', 'the company link reaches S');
 	assert.equal(home.homeAIState(both, true, { usable: [], ownSignIn: [H] }), 'connected');
 	assert.equal(home.homeAIApp(both, 'connected', { usable: [], ownSignIn: [H] }), 'ChatGPT', 'only H is mine: never "Claude เชื่อมแล้ว"');
-	assert.equal(home.homeAIApp(both, 'connected', { usable: [], ownSignIn: [H, { id: 'h-sso-3', userSourceID: 'sso-1' }] }), 'ChatGPT', 'a workspace nothing reaches adds no app');
-	// The company's link alone reaches no workspace with its own sign-in.
+	assert.equal(home.homeAIApp(both, 'connected', { usable: [], ownSignIn: [H, { id: 'h-sso-3', userSourceID: 'sso-1' }] }), 'ChatGPT', 'a workspace the company link may reach adds no app');
+	// The company's link alone: a sign-in there may have used their SSO (backend orcaOAuthHubCheck), so it completes the step, naming no app (Codex review 73).
 	const company = ai.aiConnectionFrom({ sessions: [signIn('co', '', 5, 'claude', 'Claude')], keys: [] }, NOW);
-	assert.equal(home.homeAIState(company, true, { usable: [], ownSignIn: [H] }), 'none');
+	assert.equal(home.homeAIState(company, true, { usable: [], ownSignIn: [H] }), 'connected');
+	assert.equal(home.homeAIApp(company, 'connected', { usable: [], ownSignIn: [H] }), '', 'not "Claude เชื่อมแล้ว": it may have used an ORCA account');
 	assert.equal(home.homeAIState(company, true, { usable: [S], ownSignIn: [H] }), 'connected');
+	assert.equal(home.homeAIApp(company, 'connected', { usable: [S], ownSignIn: [H] }), 'Claude');
 	assert.equal(home.homeAIState(company, true, { usable: [], ownSignIn: [] }), 'connected', 'no workspace of mine at all: as before');
 	assert.equal(home.homeAIState({ state: 'connected', app: 'Claude' }, true, { usable: [], ownSignIn: [H] }), 'connected', 'a server without hubID cannot say: as before');
 	// A used key reaches them; it names no app.
@@ -304,7 +306,9 @@ test('Home counts and names only an AI that reaches a workspace of mine, and its
 	const stateLeft = home.homeAIState(left, true, { usable: [], ownSignIn: [H] });
 	assert.equal(stateLeft, 'none');
 	assert.equal(home.aiLapse(left, stateLeft), 'unreached');
-	assert.equal(home.aiLapse(company, home.homeAIState(company, true, { usable: [], ownSignIn: [H] })), 'unreached');
+	const elsewhereKey = ai.aiConnectionFrom({ sessions: [signIn('gpt', 'h-gone', 1, 'chatgpt', 'ChatGPT')], keys: [{ id: 2, name: 'n8n', hubID: 'h-gone', createdAt: ago(9), lastUsedAt: ago(3) }] }, NOW);
+	assert.equal(home.aiLapse(elsewhereKey, home.homeAIState(elsewhereKey, true, { usable: [], ownSignIn: [H] })), 'unreached', 'a key for a workspace I left reaches nothing of mine either');
+	assert.equal(home.homeAIState(ai.aiConnectionFrom({ sessions: [signIn('gpt', 'h-gone', 1, 'chatgpt', 'ChatGPT'), signIn('co', '', 5, 'claude', 'Claude')], keys: [] }, NOW), true, { usable: [], ownSignIn: [H] }), 'connected', 'beside the company link, which may reach H');
 	assert.equal(home.aiLapse({ ...left, disconnected: true }, stateLeft), 'unreached', 'what is left is said, even after a disconnect here');
 	assert.equal(home.aiLapse({ state: 'none' }, 'none'), 'expired', 'nothing is left');
 	assert.equal(home.aiLapse({ state: 'none', disconnected: true }, 'none'), 'disconnected');

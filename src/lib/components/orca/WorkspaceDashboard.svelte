@@ -96,7 +96,7 @@
 	// own disconnect on this page, an earlier question no longer counts (Codex
 	// release review 70).
 	const ai = $derived(homeAIState(aiConnection, aiChecked, access));
-	// The app whose sign-in reaches my workspaces, never the company link's for ones with their own sign-in (Codex review 72).
+	// The app shown to reach my workspaces, never the company link's for ones with their own sign-in (Codex reviews 72 and 73).
 	const aiApp = $derived(homeAIApp(aiConnection, ai, access));
 	// Connected only through workspaces' own links: where it reaches, never company-wide (B3 follow-up).
 	const aiOnly = $derived(ai === 'limited' ? onlyWorkspacesText(aiConnection.only ?? [], t) : '');

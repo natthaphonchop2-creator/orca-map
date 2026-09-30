@@ -242,6 +242,10 @@ test('a lapsed AI sign-in after setup: one line and a way back on the status vie
 	assert.match(text(unreachedEn), /The AI you connected can't use your workspaces yet Use Sales's link/);
 	const banner = await readFile(new URL('./home/AIReconnectBanner.svelte', import.meta.url), 'utf8');
 	assert.doesNotMatch(banner, /#[0-9a-f]{3,6}\b|rgba?\(/i, 'tokens only');
+	// "ใช้ลิงก์ของ {a long workspace name}" wraps inside the button on a phone, never past the banner (Codex review 73).
+	const button = banner.slice(banner.indexOf('.home-reconnect .k-button {'));
+	assert.match(button, /^\.home-reconnect \.k-button \{[^}]*flex: 0 1 auto;[^}]*min-width: 0;[^}]*max-width: 100%;[^}]*white-space: normal;[^}]*overflow-wrap: anywhere;/);
+	assert.doesNotMatch(button.slice(0, button.indexOf('}')), /flex: none/);
 });
 
 test('back on Home with setup open, the checklist checks again by itself, without blanking what it shows (Codex release review 63)', async () => {
