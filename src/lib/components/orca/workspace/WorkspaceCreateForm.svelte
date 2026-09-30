@@ -151,22 +151,25 @@
 			focusKey += 1;
 			return;
 		}
+		// The form waits while the workspace is made and its page opens: what
+		// it sent is what is saved, and nothing typed meanwhile is lost (Codex
+		// release review 66).
 		busy = mode;
-		let saved: OrcaHub | undefined;
+		let saved: OrcaHub;
 		try {
 			saved = await OrcaService.hub(newHubInput($state.snapshot(form) as WorkspaceForm, mode));
 		} catch (cause) {
 			serverError = workspaceWriteError(cause);
 			focusKey += 1;
+			busy = undefined;
+			return;
+		}
+		try {
+			await onsaved(saved);
+		} catch {
+			serverError = t('สร้างแล้ว แต่เปิดหน้าพื้นที่ทำงานไม่สำเร็จ ดูได้ที่รายการพื้นที่ทำงาน AI', 'Created, but its page did not open. Find it under AI workspaces.');
 		} finally {
 			busy = undefined;
-		}
-		if (saved) {
-			try {
-				await onsaved(saved);
-			} catch {
-				serverError = t('สร้างแล้ว แต่เปิดหน้าพื้นที่ทำงานไม่สำเร็จ ดูได้ที่รายการพื้นที่ทำงาน AI', 'Created, but its page did not open. Find it under AI workspaces.');
-			}
 		}
 	}
 </script>
@@ -198,6 +201,7 @@
 					maxlength="120"
 					autocomplete="off"
 					placeholder={t('เช่น ฝ่ายบัญชี', 'e.g. Accounting')}
+					disabled={!!busy}
 					aria-labelledby="ws-name-title"
 					aria-invalid={errors[FORM_FIELDS.name] ? 'true' : undefined}
 					aria-describedby={errors[FORM_FIELDS.name] ? `${FORM_FIELDS.name}-error` : undefined}
@@ -279,19 +283,19 @@
 			<div class="ws-more" id="ws-more" hidden={!moreOpen}>
 				<div class="ws-field">
 					<label for={FORM_FIELDS.description}>{t('คำอธิบาย', 'Description')}</label>
-					<textarea id={FORM_FIELDS.description} class="ws-input" rows="2" maxlength="4000" bind:value={description} placeholder={t('เช่น ดูใบแจ้งหนี้และเอกสารของฝ่ายบัญชี', 'e.g. Invoices and documents for accounting')} oninput={edited}></textarea>
+					<textarea id={FORM_FIELDS.description} class="ws-input" rows="2" maxlength="4000" bind:value={description} placeholder={t('เช่น ดูใบแจ้งหนี้และเอกสารของฝ่ายบัญชี', 'e.g. Invoices and documents for accounting')} disabled={!!busy} oninput={edited}></textarea>
 					{#if errors[FORM_FIELDS.description]}<p class="ws-error">{errors[FORM_FIELDS.description]}</p>{/if}
 				</div>
 				<div class="ws-field">
 					<label for={FORM_FIELDS.instructions}>{t('คำแนะนำสำหรับ AI', 'Guidance for AI')}</label>
-					<textarea id={FORM_FIELDS.instructions} class="ws-input" rows="3" maxlength="4000" bind:value={instructions} placeholder={t('เช่น ตอบเป็นภาษาไทย อ้างเลขที่เอกสารทุกครั้ง', 'e.g. Reply in Thai and cite document numbers.')} aria-describedby="ws-instructions-hint" oninput={edited}></textarea>
+					<textarea id={FORM_FIELDS.instructions} class="ws-input" rows="3" maxlength="4000" bind:value={instructions} placeholder={t('เช่น ตอบเป็นภาษาไทย อ้างเลขที่เอกสารทุกครั้ง', 'e.g. Reply in Thai and cite document numbers.')} aria-describedby="ws-instructions-hint" disabled={!!busy} oninput={edited}></textarea>
 					<p class="ws-hint" id="ws-instructions-hint">{t('ส่งให้ AI ทุกครั้งที่ใช้พื้นที่นี้ ไม่เพิ่มสิทธิ์ใด ๆ', 'Sent to AI each time; it never adds access.')}</p>
 					{#if errors[FORM_FIELDS.instructions]}<p class="ws-error">{errors[FORM_FIELDS.instructions]}</p>{/if}
 				</div>
 				<div class="ws-field ws-limit">
 					<label for={FORM_FIELDS.limit}>{t('จำกัดการใช้ต่อวัน', 'Daily limit')}</label>
 					<div class="ws-limit-row">
-						<input id={FORM_FIELDS.limit} class="ws-input" class:invalid={!!errors[FORM_FIELDS.limit]} type="number" min="1" max="1000000" step="1" inputmode="numeric" bind:value={dailyLimit} aria-describedby="ws-limit-hint" aria-invalid={errors[FORM_FIELDS.limit] ? 'true' : undefined} oninput={edited} />
+						<input id={FORM_FIELDS.limit} class="ws-input" class:invalid={!!errors[FORM_FIELDS.limit]} type="number" min="1" max="1000000" step="1" inputmode="numeric" bind:value={dailyLimit} aria-describedby="ws-limit-hint" aria-invalid={errors[FORM_FIELDS.limit] ? 'true' : undefined} disabled={!!busy} oninput={edited} />
 						<span>{t('ครั้งต่อวัน', 'uses a day')}</span>
 					</div>
 					<p class="ws-hint" id="ws-limit-hint">{t('ทุกคนในพื้นที่นี้ใช้ร่วมกัน เริ่มนับใหม่ทุกวันตามเวลาประเทศไทย', 'Shared by everyone here; resets daily, Bangkok time.')}</p>
