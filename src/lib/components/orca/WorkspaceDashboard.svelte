@@ -85,14 +85,14 @@
 	// ---- The checklist ----
 	const manager = $derived(data.canManage);
 	const me = $derived(data.members.find((member) => member.id === data.currentUserID));
-	/** The company's link reaches a workspace of mine (one without its own sign-in). */
-	const companyLink = $derived(connectAccess(data).usable.length > 0);
+	/** The workspaces of mine the company's link reaches, and the ones with their own sign-in. */
+	const access = $derived(connectAccess(data));
 	const company = $derived(data.organization.displayName || 'ORCA');
 	const iconName = (connection: OrcaConnection) => sourceNames[connection.mcpID] || connection.name;
 	// The same store the pinned "เชื่อม AI ของฉัน" button reads (B1). After my
 	// own disconnect on this page, an earlier question no longer counts (Codex
 	// release review 70).
-	const ai = $derived(homeAIState(aiConnection, aiChecked, companyLink));
+	const ai = $derived(homeAIState(aiConnection, aiChecked, access));
 	const aiApp = $derived(ai === 'connected' ? (aiConnection.app ?? '') : '');
 	// Connected only through workspaces' own links: where it reaches, never company-wide (B3 follow-up).
 	const aiOnly = $derived(ai === 'limited' ? onlyWorkspacesText(aiConnection.only ?? [], t) : '');

@@ -55,12 +55,22 @@ export type AIState = AIConnectionStatus['state'] | 'revoked' | 'limited';
  * fallback, where the first question proves the AI, stays for a page where
  * nothing was disconnected. Connected only through workspaces' own links is
  * `limited` while the company's link has workspaces for the viewer
- * (`companyLink`); with none (every workspace of theirs has its own sign-in)
- * those links are theirs, and it counts as connected.
+ * (`access.usable`, connectAccess; unknown counts as some). With none (every
+ * workspace of theirs has its own sign-in) those links are theirs: connected
+ * once one reaches a workspace they use now (`access.ownSignIn`), else `none`,
+ * since a sign-in kept for a workspace they were taken out of reaches nothing
+ * (Codex review 71).
  */
-export function homeAIState(store: AIConnectionStatus & { disconnected?: boolean }, checked: boolean, companyLink = true): AIState {
+export function homeAIState(
+	store: AIConnectionStatus & { disconnected?: boolean },
+	checked: boolean,
+	access?: { usable: readonly Pick<OrcaHub, 'id'>[]; ownSignIn: readonly Pick<OrcaHub, 'id'>[] }
+): AIState {
 	const state = checked ? store.state : 'unknown';
-	if (state === 'connected' && store.only?.length && companyLink) return 'limited';
+	if (state === 'connected' && store.only?.length) {
+		if (!access || access.usable.length) return 'limited';
+		return store.only.some((hub) => access.ownSignIn.some((mine) => mine.id === hub.id)) ? 'connected' : 'none';
+	}
 	return store.disconnected && state === 'unknown' ? 'revoked' : state;
 }
 

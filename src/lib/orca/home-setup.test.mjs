@@ -39,8 +39,8 @@ test('Home\'s "เชื่อม AI ของฉัน" step reads the pinned b
 	const page = await readFile(new URL('../components/orca/WorkspaceDashboard.svelte', import.meta.url), 'utf8');
 	assert.match(page, /import \{ aiConnection \} from '\$lib\/orca\/ai-connection\.svelte'/);
 	assert.match(page, /import \{ refreshAIConnection \} from '\$lib\/services\/orca-ai-apps'/);
-	assert.match(page, /const ai = \$derived\(homeAIState\(aiConnection, aiChecked, companyLink\)\);/);
-	assert.match(page, /const companyLink = \$derived\(connectAccess\(data\)\.usable\.length > 0\);/);
+	assert.match(page, /const ai = \$derived\(homeAIState\(aiConnection, aiChecked, access\)\);/);
+	assert.match(page, /const access = \$derived\(connectAccess\(data\)\);/);
 	assert.doesNotMatch(page, /setAIConnection|MyAIAppsService/, 'Home never sets the pin on its own rules');
 	assert.equal(home.aiState, undefined);
 	assert.equal(home.activeAISession, undefined);
@@ -245,10 +245,17 @@ test('after the viewer\'s own disconnect, an earlier question never ticks "เ�
 test('an AI connected only through workspaces\' own links never ticks "เชื่อม AI" for the company link (B3 follow-up)', () => {
 	const ready = company({ connections: [connection('conn-flow')], hubs: [hub('h')] });
 	const limited = { state: 'connected', app: 'Claude', only: [{ id: 'h-own', name: 'ฝ่ายขาย' }] };
-	assert.equal(home.homeAIState(limited, true), 'limited', 'the company link has workspaces for me');
-	assert.equal(home.homeAIState(limited, true, true), 'limited');
-	assert.equal(home.homeAIState(limited, true, false), 'connected', 'every workspace of mine has its own sign-in: those links are mine');
-	assert.equal(home.homeAIState(limited, false), 'unknown', 'before Home\'s own read');
+	const companyLinkReaches = { usable: [{ id: 'h' }], ownSignIn: [{ id: 'h-own' }] };
+	const ownOnly = { usable: [], ownSignIn: [{ id: 'h-own' }, { id: 'h-own-2' }] };
+	assert.equal(home.homeAIState(limited, true), 'limited', 'not known: the company link may have workspaces for me');
+	assert.equal(home.homeAIState(limited, true, companyLinkReaches), 'limited', 'the company link has workspaces for me');
+	assert.equal(home.homeAIState(limited, true, ownOnly), 'connected', 'every workspace of mine has its own sign-in: those links are mine');
+	// A sign-in kept for a workspace I was taken out of reaches none of mine (Codex review 71).
+	assert.equal(home.homeAIState(limited, true, { usable: [], ownSignIn: [{ id: 'h-other' }] }), 'none');
+	assert.equal(home.homeAIState(limited, true, { usable: [], ownSignIn: [] }), 'none', 'no workspace of mine at all');
+	assert.equal(home.homeAIState({ ...limited, only: [{ id: 'h-gone', name: '' }, { id: 'h-own-2', name: 'บัญชี' }] }, true, ownOnly), 'connected', 'one of them reaches a workspace of mine');
+	assert.equal(home.homeAIState(limited, false, ownOnly), 'unknown', 'before Home\'s own read');
+	assert.equal(home.homeAIState({ state: 'connected', app: 'Claude' }, true, { usable: [], ownSignIn: [] }), 'connected', 'the company link or a key: as before');
 	assert.equal(home.homeAIState({ state: 'connected', app: 'Claude', only: [] }, true), 'connected');
 	assert.equal(home.homeAIState({ ...limited, disconnected: true }, true), 'limited');
 	let list = home.ownerChecklist(ready, 'limited', true);
