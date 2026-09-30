@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Check } from '@lucide/svelte';
 	import { t } from '$lib/orca/locale.svelte';
-	import { stepLabelClass, stepperCompactWidth, stepperFit, stepStates, type StepInput } from './stepper';
+	import { stepLabelClass, stepperFit, stepperFixedWidth, stepStates, type StepInput } from './stepper';
 
 	// Steps held in the address: `hrefFor(id)` builds each step's link (usually
 	// stepHref(page.url, id)). Done steps and the current one open; upcoming
@@ -26,11 +26,13 @@
 	} = $props();
 	const items = $derived(stepStates(steps, current, done));
 	const fit = $derived(stepperFit(steps));
-	const compact = $derived(stepperCompactWidth(steps.length));
+	// The folded row's sizes (stepperCompactWidth, computed in the CSS on the stepper's own width).
+	const fixed = $derived(stepperFixedWidth(steps.length));
+	const gaps = $derived(Math.max(0, steps.length - 1));
 </script>
 
 <nav class="orca-stepper" aria-label={label ?? t('ขั้นตอน', 'Steps')}>
-	<ol class="orca-stepper-list {fit}" style:--orca-stepper-compact="{compact}px">
+	<ol class="orca-stepper-list {fit}" style:--orca-stepper-fixed="{fixed}px" style:--orca-stepper-gaps={gaps}>
 		{#each items as step, index (step.id)}
 			<li class="orca-step {step.state}">
 				{#if hrefFor && step.state !== 'upcoming'}<a href={hrefFor(step.id)} aria-current={step.state === 'current' ? 'step' : undefined}
@@ -55,8 +57,13 @@
 	   (0 or 1) is set by the container queries below. */
 	.orca-stepper-list {
 		--orca-stepper-folded: 0;
+		/* A folded connector: 28px, or shorter (down to 12px) where 28px ones would
+		   leave the current label under 64px, e.g. six steps on a 320px phone. */
+		--orca-stepper-link: clamp(12px, (100cqi - var(--orca-stepper-fixed) - 64px) / max(1, var(--orca-stepper-gaps)), 28px);
+		/* The folded row without the current label: circles, connectors, one gap. */
+		--orca-stepper-compact: calc(var(--orca-stepper-fixed) + var(--orca-stepper-gaps) * var(--orca-stepper-link));
 		display: grid;
-		grid-auto-columns: max-content minmax(calc(36px - 8px * var(--orca-stepper-folded)), 96px);
+		grid-auto-columns: max-content minmax(calc(36px + (var(--orca-stepper-link) - 36px) * var(--orca-stepper-folded)), 96px);
 		grid-auto-flow: column;
 		align-items: center;
 		justify-content: start;
@@ -83,9 +90,12 @@
 			grid-template-columns: subgrid;
 		}
 	}
+	/* Never squeezed under its circle (without subgrid the connector beside it
+	   is what gives way). */
 	.orca-step a,
 	.orca-step-body {
 		display: inline-flex;
+		flex: none;
 		align-items: center;
 		min-width: 0;
 		border-radius: 999px;
@@ -134,14 +144,15 @@
 		text-overflow: ellipsis;
 	}
 	.orca-step-label.keep {
-		max-width: calc(100cqi - var(--orca-stepper-compact));
+		max-width: max(0px, calc(100cqi - var(--orca-stepper-compact)));
 		margin-inline-start: 8px;
 	}
 	.orca-step-bar {
 		flex: 1 1 16px;
-		min-width: 12px;
+		min-width: calc(12px - 8px * var(--orca-stepper-folded));
 		height: 1.5px;
-		margin-inline: calc(10px - 2px * var(--orca-stepper-folded));
+		/* 10px clear of the circles and labels; folded, 2/7 of the connector (8px of 28px). */
+		margin-inline: calc(10px + (var(--orca-stepper-link) * 2 / 7 - 10px) * var(--orca-stepper-folded));
 		background: var(--orca-line-strong);
 	}
 	.orca-visually-hidden {
