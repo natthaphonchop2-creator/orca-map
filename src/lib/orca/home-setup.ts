@@ -302,11 +302,16 @@ export function firstPrompt(connection: Pick<OrcaConnection, 'name' | 'mcpID'>, 
 	return found ? t(found.th(name), found.en(name)) : t(`ดูข้อมูลล่าสุดจาก ${name} แล้วสรุปให้หน่อย`, `Look at the latest data in ${name} and summarize it`);
 }
 
-/** Where an admin adds people to workspaces, in this company (short: it goes into a chat message). */
+/**
+ * Where an admin adds people to workspaces, in this company (short: it goes
+ * into a chat message). The company is always named, "default" too: an admin
+ * who last used another company would otherwise open that one (Codex release
+ * review 67).
+ */
 export function workspacesLink(origin: string, company: string): string {
 	const url = new URL('/app', origin);
 	url.searchParams.set('view', 'workspaces');
-	if (company && company !== 'default') url.searchParams.set('org', company);
+	url.searchParams.set('org', company || 'default');
 	return url.href;
 }
 

@@ -246,7 +246,9 @@ test('copy: first names, a first question per program, and the access request', 
 	assert.equal(home.firstPrompt({ name: 'FlowAccount', mcpID: 'default-orca-flowaccount' }, th), 'สรุปใบแจ้งหนี้ที่ค้างชำระจาก FlowAccount');
 	assert.equal(home.firstPrompt({ name: 'Google Drive', mcpID: 'default-orca-managed-google-drive' }, en), 'Find the latest documents in Google Drive and summarize them');
 	assert.equal(home.firstPrompt({ name: 'ระบบเดิม', mcpID: 'custom-x' }, th), 'ดูข้อมูลล่าสุดจาก ระบบเดิม แล้วสรุปให้หน่อย');
-	assert.equal(home.workspacesLink('https://orca.example.test', 'default'), 'https://orca.example.test/app?view=workspaces');
+	// The company is always named, "default" too, so the admin opens the one the message is about (Codex release review 67).
+	assert.equal(home.workspacesLink('https://orca.example.test', 'default'), 'https://orca.example.test/app?view=workspaces&org=default');
+	assert.equal(home.workspacesLink('https://orca.example.test', ''), 'https://orca.example.test/app?view=workspaces&org=default');
 	assert.equal(home.workspacesLink('https://orca.example.test', 'org-b'), 'https://orca.example.test/app?view=workspaces&org=org-b');
 	const text = home.accessRequestText({ name: 'มาลี', email: 'mali@example.com', company: 'บริษัท ก', link: 'https://orca.example.test/app?view=workspaces' }, th);
 	assert.match(text, /มาลี \(mali@example\.com\)/);
