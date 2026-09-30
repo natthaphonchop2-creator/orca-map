@@ -461,3 +461,39 @@ test('a failed refresh adopts nothing later, an archive elsewhere keeps a dirty 
 	assert.equal(view.state.editorHub.version, 6);
 	assert.equal(view.state.activeTab, 'overview');
 });
+
+test('a department deleted since it was chosen still shows, chosen, so it can be taken off (Codex release review 66)', async () => {
+	const AudiencePicker = await component('./workspace/AudiencePicker.svelte', { PersonPicker: await component('./ui/PersonPicker.svelte') });
+	const html = htmlOf(AudiencePicker, {
+		props: { members, units: [{ id: 'dept-acc', name: 'ฝ่ายบัญชี', kind: 'department', parentID: '', version: 1 }], currentUserID: 'u-owner', memberIDs: ['u-owner'], accessUnitIDs: ['dept-gone', 'dept-acc'], id: 'people' }
+	}).body;
+	assert.match(html, /aria-pressed="true"[^>]*>.*ฝ่ายบัญชี/s);
+	assert.match(html, /aria-pressed="true"[^>]*>.*แผนกที่ถูกลบแล้ว.*เอาออกได้/s, 'the deleted one, chosen, with a way to take it off');
+	const picker = await readFile(file('./workspace/AudiencePicker.svelte'), 'utf8');
+	assert.match(picker, /if \(accessUnitIDs\.includes\(unit\.id\)\) accessUnitIDs = accessUnitIDs\.filter/, 'a click takes a chosen one off, whatever its state');
+});
+
+test('a program archived since it was turned on here is offered for removal, as a deleted one is (Codex release review 66)', async () => {
+	const SaveBar = await component('./workspace/SaveBar.svelte');
+	const Programs = await component('./workspace/WorkspaceProgramsTab.svelte', { ProgramToggleCard, SaveBar });
+	const archivedFlow = company({ connections: [{ ...flow, archivedAt: '2026-09-29T00:00:00Z' }, drive, notion] });
+	let html = htmlOf(Programs, { props: { data: archivedFlow, hub, canEdit: true, onchanged: async () => {} } }).body;
+	assert.doesNotMatch(html, /ใช้ FlowAccount ในพื้นที่นี้/, 'no card for it');
+	assert.match(html, /class="pg-missing">มี 1 โปรแกรมที่ถูกลบหรือจัดเก็บไปแล้วแต่ยังอยู่ในพื้นที่นี้[\s\S]*>เอาออก<\/button>/);
+	html = htmlOf(Programs, { props: { data: company(), hub, canEdit: true, onchanged: async () => {} } }).body;
+	assert.doesNotMatch(html, /pg-missing/, 'a live program is a card, not a removal');
+});
+
+test('the create form waits while the workspace is made and its page opens, so nothing typed then is lost (Codex release review 66)', async () => {
+	const source = await readFile(file('./workspace/WorkspaceCreateForm.svelte'), 'utf8');
+	const markup = source.slice(source.indexOf('</script>'));
+	for (const field of ['FORM_FIELDS.name}', 'FORM_FIELDS.description}', 'FORM_FIELDS.instructions}', 'FORM_FIELDS.limit}']) {
+		const at = markup.indexOf(`id={${field}`);
+		assert.ok(at > 0, field);
+		const tag = markup.slice(at, markup.indexOf('>', markup.indexOf('oninput={edited}', at)));
+		assert.match(tag, /disabled=\{!!busy\}/, field);
+	}
+	const submit = source.slice(source.indexOf('async function submit('), source.indexOf('</script>'));
+	assert.match(submit, /await onsaved\(saved\);[\s\S]*\} finally \{\s*busy = undefined;/, 'busy until the page opened');
+	assert.match(submit, /serverError = workspaceWriteError\(cause\);\s*focusKey \+= 1;\s*busy = undefined;\s*return;/, 'a refusal frees the form at once');
+});
