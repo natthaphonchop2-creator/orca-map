@@ -63,6 +63,10 @@ test('a program that cannot be set up says the step that failed, with its code',
 	for (const message of ['the source is not ready; check your account configuration or ask the organization manager', 'the source is not ready (SRC-99); check']) {
 		assert.match(orcaError(refusal(424, message)), /^เชื่อมโปรแกรมนี้ยังไม่ได้ ลองอีกครั้ง/, message);
 	}
-	// Another 424 keeps its own words.
+	// Adding a program to a workspace still says what to finish first.
+	assert.match(orcaError(refusal(424, 'the source is not ready; complete its connection and sign-in settings, then retry')), /^โปรแกรมนี้ยังเชื่อมไม่ครบ ตั้งค่าการเชื่อมต่อและลงชื่อเข้าใช้ให้เสร็จ/);
+	// Another 424, or the same words with another status, keeps its own words.
 	assert.equal(orcaError(refusal(424, 'the API token was not accepted')), 'the API token was not accepted');
+	const elsewhere = 'the source is not ready (SRC-13); check your account configuration or ask the organization manager';
+	assert.equal(orcaError(refusal(502, elsewhere)), elsewhere);
 });

@@ -731,6 +731,13 @@ export const sourceReasons: Readonly<Record<string, readonly [th: string, en: st
 function sourceNotReady(message: string): string {
   const code = /^the source is not ready \(SRC-(\d{2})\)/.exec(message)?.[1];
   const reason = code ? sourceReasons[code] : undefined;
+  // Adding a program to a workspace (Discover) refuses this way when its tools
+  // cannot be read yet: say what to finish, as the English text does.
+  if (!code && message.includes("complete its connection and sign-in settings"))
+    return t(
+      "โปรแกรมนี้ยังเชื่อมไม่ครบ ตั้งค่าการเชื่อมต่อและลงชื่อเข้าใช้ให้เสร็จ แล้วลองอีกครั้ง",
+      "This program isn't fully connected yet. Finish its connection and sign-in, then try again.",
+    );
   if (!code || !reason)
     return t(
       `เชื่อมโปรแกรมนี้ยังไม่ได้ ลองอีกครั้ง ถ้ายังไม่ได้ ติดต่อผู้ดูแลบริษัท หรือทีม ORCA ทาง LINE ${ORCA_SUPPORT_LINE_ID}`,
