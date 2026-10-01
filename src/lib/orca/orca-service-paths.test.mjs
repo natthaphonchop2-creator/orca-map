@@ -160,3 +160,15 @@ test('the library, departments included, uses the page\'s company', async () => 
 	assert.deepEqual(inB.upload, [`/orca/orgs/${B}/hubs/id-1/library/files`]);
 	assert.deepEqual(inB.downloadHref, [`/orca/orgs/${B}/hubs/id-1/library/files/item-1/download?version=published`]);
 });
+
+test('an upload sends each file as a named multipart part, one form a batch', async () => {
+	const forms = [];
+	const upload = async (path, form) => { forms.push([path, form]); return { files: [] }; };
+	const service = library(async () => ({}), async () => ({}), async () => ({}), async () => ({}), upload, BASE);
+	await service.upload('id-1', [new File(['a'], 'ราคา.xlsx'), new File(['b'], 'ลูกค้า.csv')]);
+	await service.replace('id-1', 'item-1', new File(['c'], 'ราคา ฉบับใหม่.xlsx'));
+	assert.deepEqual(forms.map(([path]) => path), ['/orca/hubs/id-1/library/files', '/orca/hubs/id-1/library/files/item-1/versions']);
+	// The server reads every part that has a file name (C4 §14m S5); the field is "files".
+	assert.deepEqual([...forms[0][1].entries()].map(([field, file]) => [field, file.name]), [['files', 'ราคา.xlsx'], ['files', 'ลูกค้า.csv']]);
+	assert.deepEqual([...forms[1][1].entries()].map(([field, file]) => [field, file.name]), [['files', 'ราคา ฉบับใหม่.xlsx']]);
+});
