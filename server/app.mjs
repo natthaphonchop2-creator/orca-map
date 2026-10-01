@@ -289,6 +289,9 @@ export function createBackendMiddleware(options = {}) {
   };
 }
 
+// When a connection's current request started (see requestDeadline).
+const REQUEST_STARTED = Symbol('orca.requestStarted');
+
 /**
  * The 120s the server used to give every request to arrive, now per request:
  * Node's own requestTimeout is the upload routes' 15 minutes. It starts before
@@ -301,6 +304,15 @@ export function createBackendMiddleware(options = {}) {
 function requestDeadline(req, res, ms) {
   if (req.complete) return () => {};
   const socket = req.socket;
+  // From the request's start, its headers included, as Node's own requestTimeout
+  // counts (Codex S7 third confirmation #1): the connection's opening, or the end
+  // of the answer before it on a kept-alive connection. Time a client leaves a
+  // kept-alive connection idle (at most keepAliveTimeout) counts too.
+  const started = socket[REQUEST_STARTED] ?? Date.now();
+  ms = Math.max(0, ms - (Date.now() - started));
+  res.once('finish', () => {
+    socket[REQUEST_STARTED] = Date.now();
+  });
   let timer;
   const done = () => {
     clearTimeout(timer);
@@ -360,6 +372,9 @@ export function createAppServer(options = {}) {
   // request keeps its 120s through requestDeadline.
   server.requestTimeout = config.uploadTimeoutMs;
   server.headersTimeout = 60_000;
+  server.on('connection', (socket) => {
+    socket[REQUEST_STARTED] = Date.now();
+  });
   server.on('upgrade', (_req, socket) => socket.end('HTTP/1.1 501 Not Implemented\r\nConnection: close\r\nContent-Length: 0\r\n\r\n'));
   server.on('connect', (_req, socket) => socket.end('HTTP/1.1 405 Method Not Allowed\r\nConnection: close\r\nContent-Length: 0\r\n\r\n'));
   return server;

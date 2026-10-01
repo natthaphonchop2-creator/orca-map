@@ -968,3 +968,59 @@ test('a keep-alive connection keeps no listener of the requests it carried', asy
   assert.equal(new Set(counts).size, 1, `the connection's close listeners stay the same: ${counts}`);
   assert.deepEqual(warnings.filter((name) => name === 'MaxListenersExceededWarning'), []);
 });
+
+test('an ordinary request\'s 120 seconds count from its start, its headers included (Codex S7 third confirmation #1)', async (t) => {
+  const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const connected = once(f.app, 'connection');
+  const target = new URL(f.appURL);
+  const socket = net.connect(Number(target.port), target.hostname);
+  socket.on('error', () => {});
+  t.after(() => socket.destroy());
+  let closed = false;
+  socket.on('close', () => { closed = true; });
+  let text = '';
+  socket.on('data', (chunk) => { text += chunk; });
+  await connected;
+  // 50 s of slow headers, then the body slowly: 120 s in all, not 50 + 120.
+  socket.write('POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\n');
+  t.mock.timers.tick(50_000);
+  socket.write(`host: ${target.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
+  await within(200, () => false);
+  t.mock.timers.tick(69_000);
+  assert.equal(await within(50, () => closed), false, 'at 119 s it is still arriving');
+  t.mock.timers.tick(1_000);
+  assert.equal(await within(2_000, () => closed), true, 'at 120 s from its start it is cut');
+  assert.match(text, /^HTTP\/1\.1 408 /);
+});
+
+test('on a kept-alive connection each request has its own 120 seconds, from the answer before it', async (t) => {
+  const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const connected = once(f.app, 'connection');
+  const target = new URL(f.appURL);
+  const socket = net.connect(Number(target.port), target.hostname);
+  socket.on('error', () => {});
+  t.after(() => socket.destroy());
+  let closed = false;
+  socket.on('close', () => { closed = true; });
+  let text = '';
+  socket.on('data', (chunk) => { text += chunk; });
+  await connected;
+  const head = `host: ${target.host}\r\ncontent-type: application/json\r\n`;
+  // A first request whose body takes 100 s, within its 120 s.
+  socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\n${head}content-length: 4\r\n\r\n{"`);
+  await within(200, () => false);
+  t.mock.timers.tick(100_000);
+  socket.write('":');
+  assert.equal(await within(2_000, () => /\r\n\r\nok$/.test(text)), true, 'the first request is answered');
+  // 4 s later (within the keep-alive time) a slow second request: its 120 s start at the answer before it.
+  t.mock.timers.tick(4_000);
+  socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\n${head}content-length: 1000\r\n\r\n{"a":`);
+  await within(200, () => false);
+  t.mock.timers.tick(60_000);
+  assert.equal(await within(50, () => closed), false, 'counting from the connection would have cut it already');
+  t.mock.timers.tick(60_000);
+  assert.equal(await within(2_000, () => closed), true, 'cut at its own 120 s');
+  assert.match(text, /HTTP\/1\.1 408 /);
+});
