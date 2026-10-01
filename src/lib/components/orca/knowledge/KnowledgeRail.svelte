@@ -101,7 +101,7 @@
 			<h2>{t('สถานะหมายถึงอะไร', 'What the statuses mean')}</h2>
 			<ul>
 				{#if paused}
-					<li><span class="pill"><i class="dt"></i>{t('เผยแพร่แล้ว', 'Published')}</span>{t('ตอนนี้ AI ไม่ได้ใช้ไฟล์ เพราะคลังความรู้แบบไฟล์ของบริษัทปิดอยู่', 'AI does not use files now: file Knowledge is off for this company')}</li>
+					<li><span class="pill"><i class="dt plain"></i>{t('เผยแพร่แล้ว', 'Published')}</span>{t('ตอนนี้ AI ไม่ได้ใช้ไฟล์ เพราะคลังความรู้แบบไฟล์ของบริษัทปิดอยู่', 'AI does not use files now: file Knowledge is off for this company')}</li>
 				{:else}
 					<li><span class="pill ok"><i class="dt"></i>{t('AI ใช้ได้', 'AI can use')}</span>{t('AI ของคนที่เลือกไว้ใช้ตอบได้ทันที', 'The chosen people’s AI can answer from it now')}</li>
 				{/if}
@@ -258,6 +258,10 @@
 		height: 7px;
 		border-radius: 50%;
 		background: currentColor;
+	}
+	/* A neutral state (published while file Knowledge is off): a grey dot in either theme. */
+	.dt.plain {
+		background: var(--orca-subtle);
 	}
 	.dt.draft {
 		width: 8px;

@@ -310,7 +310,7 @@ test('after the flag went off, the owner still sees, downloads, archives and del
 test('after the flag went off, the file list says เผยแพร่แล้ว, not AI ใช้ได้, and the legend says why', async () => {
 	const items = [article('a'), fileItem('f'), fileItem('p', { title: 'นโยบาย', file: fileInfo({ ext: 'docx', published: version(1, 'ready'), pending: version(2, 'ready'), options: options({ reviewBeforeUpdate: true }) }) })];
 	const { html, rails } = await list({ items, kind: 'file', features: OFF, fileZone: zone });
-	assert.match(html, /<i class="dt"[^>]*><\/i>เผยแพร่แล้ว <b>2<\/b>/, 'the strip counts published files, without the ok dot');
+	assert.match(html, /<i class="dt plain"[^>]*><\/i>เผยแพร่แล้ว <b>2<\/b>/, 'the strip counts published files, with a grey dot');
 	assert.match(html, /aria-pressed="false"[^>]*>เผยแพร่แล้ว<\/button>/, 'the chip too');
 	assert.doesNotMatch(html, /AI ใช้ได้/);
 	assert.doesNotMatch(html, /ฉบับใหม่รอคุณกดใช้/, 'nothing to put in use while it is off');

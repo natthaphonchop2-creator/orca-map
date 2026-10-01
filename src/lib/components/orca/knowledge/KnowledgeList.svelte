@@ -175,7 +175,7 @@
 			{#if choices.length > 1}<ScopeChip {hub} {choices} onchoose={onchoose} />{/if}
 			{#if counted}
 				<p class="kn-strip">
-					<span><i class="dt" class:ok={!paused} aria-hidden="true"></i>{paused ? t('เผยแพร่แล้ว', 'Published') : t('AI ใช้ได้', 'AI can use')} <b>{counts.published}</b></span>
+					<span><i class="dt" class:ok={!paused} class:plain={paused} aria-hidden="true"></i>{paused ? t('เผยแพร่แล้ว', 'Published') : t('AI ใช้ได้', 'AI can use')} <b>{counts.published}</b></span>
 					<i class="sep" aria-hidden="true"></i>
 					<span><i class="dt draft" aria-hidden="true"></i>{t('ฉบับร่าง', 'Drafts')} <b>{counts.draft}</b></span>
 				</p>
@@ -371,6 +371,9 @@
 	}
 	.dt.ok {
 		background: var(--orca-ok);
+	}
+	.dt.plain {
+		background: var(--orca-subtle);
 	}
 	.dt.draft {
 		width: 8px;
