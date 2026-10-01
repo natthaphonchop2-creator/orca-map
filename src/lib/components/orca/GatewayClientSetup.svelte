@@ -42,6 +42,14 @@
       t(`กด Create ตั้งชื่อ ${connectorName} วางลิงก์ ORCA ด้านบน แล้วเลือกการยืนยันตัวตนแบบ OAuth`, `Choose Create, name it ${connectorName}, paste the ORCA link above, and choose OAuth authentication.`),
       t('กด Create แล้วเข้าสู่ระบบด้วยบัญชี ORCA ของคุณ', 'Choose Create, then sign in with your ORCA account.')
     ];
+    // "Add MCP server" re-reads ORCA's tools whenever Codex opens; "Create MCP
+    // app" keeps the list it read first (the owner's test, 2026-10-01).
+    if (app === 'codex') return [
+      t('ในแอป Codex ไปที่ การตั้งค่า → ปลั๊กอิน → แท็บ MCPs', 'In the Codex app, open Settings → Plugins → the MCPs tab.'),
+      t(`กด เพิ่ม → เพิ่มเซิร์ฟเวอร์ MCP ตั้งชื่อ ${connectorName} เลือก HTTP แบบสตรีมได้ แล้ววางลิงก์ ORCA ด้านบน`, `Choose Add → Add MCP server, name it ${connectorName}, choose Streamable HTTP and paste the ORCA link above.`),
+      t('บันทึก แล้วเข้าสู่ระบบด้วยบัญชี ORCA ของคุณ', 'Save, then sign in with your ORCA account.'),
+      t('อย่าเพิ่มแบบ สร้างแอป MCP เพราะ Codex จะไม่อัปเดตเครื่องมือเมื่อเพิ่มสิทธิ์ใหม่', "Don't use Create MCP app: Codex then keeps its first tool list when access is added.")
+    ];
     if (app === 'claude') return [
       t('เปิด Claude (เว็บหรือแอปเดสก์ท็อป) แล้วไปที่ Settings → Connectors', 'In Claude (web or desktop), open Settings → Connectors.'),
       t(`กด Add custom connector ตั้งชื่อ ${connectorName} แล้ววางลิงก์ ORCA ด้านบน`, `Choose Add custom connector, name it ${connectorName}, and paste the ORCA link above.`),
@@ -57,6 +65,18 @@
     if (app === 'codex') return oauth ? t('คำสั่งที่สองจะเปิดหน้าเข้าสู่ระบบ ORCA', 'The second command opens the ORCA sign-in page.') : t(`ตั้งตัวแปร ${clientName.keyEnv} ในสภาพแวดล้อมที่ใช้เปิด Codex`, `Set ${clientName.keyEnv} in the environment Codex starts from.`);
     if (app === 'windsurf') return t('บันทึกไฟล์แล้วกด Refresh ในแผง MCP ของ Windsurf', 'Save the file, then choose Refresh in Windsurf’s MCP panel.');
     return '';
+  });
+  // AI apps keep the tool list they read when ORCA was connected, so a new
+  // grant or program reaches the AI only after the app reads it again. Codex
+  // reads it again when it opens, if ORCA was added as an MCP server; an "MCP
+  // app" keeps its first list until it is removed (2026-10-01).
+  const refreshTip = $derived.by(() => {
+    const why = t('แอป AI จำรายการเครื่องมือไว้ตั้งแต่ตอนเชื่อม ถ้าเพิ่มสิทธิ์หรือโปรแกรมแล้ว AI ยังมองไม่เห็น ', 'AI apps keep the tool list they read when connected. If the AI cannot see newly added access or programs, ');
+    if (app === 'codex') return why + t('ให้ปิดแล้วเปิด Codex ใหม่ ถ้าเคยเพิ่มแบบ สร้างแอป MCP ให้ลบออกแล้วเพิ่มใหม่แบบ เพิ่มเซิร์ฟเวอร์ MCP', 'quit and reopen Codex. If you added ORCA with Create MCP app, remove it and add it again with Add MCP server.');
+    if (app === 'chatgpt') return why + t('ให้เปิด ORCA ใน Apps & Connectors แล้วกด Refresh', 'open ORCA in Apps & Connectors and choose Refresh.');
+    if (app === 'claude') return why + t('ให้ไปที่ Settings → Connectors กด Disconnect ที่ ORCA แล้ว Connect ใหม่', 'go to Settings → Connectors, disconnect ORCA, then connect it again.');
+    if (app === 'claude-code') return why + t('ให้พิมพ์ /mcp เลือก ORCA แล้วกด Reconnect', 'type /mcp, choose ORCA, then Reconnect.');
+    return why + t('ให้เชื่อม ORCA ใหม่ในการตั้งค่า MCP ของแอป', "reconnect ORCA in the app's MCP settings.");
   });
   const configPath = $derived(app === 'codex' ? '~/.codex/config.toml' : app === 'cursor' ? '.cursor/mcp.json' : app === 'windsurf' ? '~/.codeium/windsurf/mcp_config.json' : '.vscode/mcp.json');
   const docsUrl = $derived(app === 'codex' ? 'https://developers.openai.com/codex/mcp' : app === 'cursor' ? 'https://cursor.com/docs/mcp' : app === 'windsurf' ? 'https://docs.windsurf.com/windsurf/cascade/mcp' : 'https://code.visualstudio.com/docs/agents/reference/mcp-configuration');
@@ -88,14 +108,16 @@
       {#if installLink}
         <a class="k-button primary install" href={installLink}><span>{t(`เพิ่มใน ${appName(app)}`, `Add to ${appName(app)}`)}</span><ArrowRight size={16} aria-hidden="true" /></a>
       {/if}
-      {#if commands.length}
-        <ol class="connect-commands">{#each commands as command, i (command)}<li><div class="command-row"><code>{command}</code><button class="k-button small" onclick={() => copy(command, t('คำสั่ง', 'Command'))} aria-label={t(`คัดลอกคำสั่งที่ ${i + 1}`, `Copy command ${i + 1}`)}><Copy size={14} aria-hidden="true" />{t('คัดลอก', 'Copy')}</button></div></li>{/each}</ol>
-      {/if}
       {#if steps.length}
         <ol class="connect-steps">{#each steps as step (step)}<li>{step}</li>{/each}</ol>
       {/if}
+      {#if commands.length && steps.length}<p class="setup-intro">{t('หรือใช้คำสั่งในเทอร์มินัล', 'Or use the terminal')}</p>{/if}
+      {#if commands.length}
+        <ol class="connect-commands">{#each commands as command, i (command)}<li><div class="command-row"><code>{command}</code><button class="k-button small" onclick={() => copy(command, t('คำสั่ง', 'Command'))} aria-label={t(`คัดลอกคำสั่งที่ ${i + 1}`, `Copy command ${i + 1}`)}><Copy size={14} aria-hidden="true" />{t('คัดลอก', 'Copy')}</button></div></li>{/each}</ol>
+      {/if}
       {#if chatApp && !oauth}<p class="setup-note">{t(`${appName(app)} เชื่อมได้เฉพาะการเข้าสู่ระบบด้วยบัญชี ORCA (OAuth) ใช้ลิงก์แบบเข้าสู่ระบบแทนคีย์ส่วนตัว`, `${appName(app)} connects only by signing in with your ORCA account (OAuth). Use the sign-in link instead of a personal key.`)}</p>{/if}
       {#if afterInstall}<p class="after">{afterInstall}</p>{/if}
+      <p class="setup-note">{refreshTip}</p>
       {#if app === 'other'}
         <p class="setup-intro">{oauth
           ? t('เพิ่มลิงก์นี้ในแอป AI ที่รองรับ MCP และ OAuth จากนั้นเข้าสู่ระบบด้วยบัญชี ORCA ของคุณเพื่อยืนยันตัวตน', 'Add this link to an AI app that supports MCP and OAuth, then sign in with your ORCA account to verify your identity.')

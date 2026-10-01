@@ -20,7 +20,7 @@ const script = stripTypeScriptTypes(source.match(/<script lang="ts">([\s\S]*?)<\
 const compiled = compileModule(`export function harness(testProps, lib, orcaLocale, t, navigator, localStorage) {
 	const { AI_APPS, clientNames, gatewayClientCommands, gatewayClientConfig, gatewayInstallLink, localGatewayEndpoint, gatewayClientInstructions } = lib;
 	${script}
-	return { copy, get app() { return app; }, get instructions() { return instructions; }, get config() { return config; }, get installLink() { return installLink; }, get commands() { return commands; }, get copied() { return copied; }, get error() { return error; }, setApp(value) { app = value; }, setEndpoint(value) { endpoint = value; } };
+	return { copy, get app() { return app; }, get instructions() { return instructions; }, get config() { return config; }, get installLink() { return installLink; }, get commands() { return commands; }, get copied() { return copied; }, get error() { return error; }, get refreshTip() { return refreshTip; }, get steps() { return steps; }, setApp(value) { app = value; }, setEndpoint(value) { endpoint = value; } };
 }`, { filename: 'gateway-setup-test.svelte.js', generate: 'client' }).js.code.replaceAll('svelte/internal/client', pathToFileURL(require.resolve('svelte/internal/client')).href);
 const { harness } = await import(moduleURL(compiled));
 
@@ -184,4 +184,38 @@ test('the optional key setup has its own label, and chat apps point back to sign
 	const other = await rendered({ endpoint: 'https://orca.example/mcp/team', oauth: false }, 'other');
 	assert.match(other, /Bearer &lt;personal-key(?:&gt;|>)/);
 	assert.match(other, /optional API-key setup/);
+});
+
+test('every AI app says how to read ORCA\'s tools again after a new grant; Codex needs a restart', (context) => {
+	const view = setupHarness(context, { writeText: async () => {} });
+	const tips = {};
+	for (const app of lib.AI_APPS) {
+		view.setApp(app);
+		flush();
+		tips[app] = view.refreshTip;
+		assert.match(tips[app], /^AI apps keep the tool list they read when connected\. If the AI cannot see newly added access or programs, /);
+	}
+	assert.match(tips.codex, /quit and reopen Codex\. If you added ORCA with Create MCP app, remove it and add it again with Add MCP server\.$/);
+	assert.match(tips.chatgpt, /open ORCA in Apps & Connectors and choose Refresh\.$/);
+	assert.match(tips.claude, /disconnect ORCA, then connect it again\.$/);
+	assert.match(tips['claude-code'], /type \/mcp, choose ORCA, then Reconnect\.$/);
+	assert.match(tips.cursor, /reconnect ORCA in the app's MCP settings\.$/);
+	assert.match(tips.other, /reconnect ORCA in the app's MCP settings\.$/);
+});
+
+// The owner's test (2026-10-01): Codex re-reads ORCA's tools on every start
+// when ORCA is an MCP server, but an "MCP app" keeps its first list. The
+// Codex steps lead to Add MCP server and warn against Create MCP app.
+test('Codex is added as an MCP server, never as an MCP app', (context) => {
+	const view = setupHarness(context, { writeText: async () => {} });
+	view.setApp('codex');
+	flush();
+	assert.equal(view.steps.length, 4);
+	assert.match(view.steps[0], /Settings → Plugins → the MCPs tab/);
+	assert.match(view.steps[1], /Add MCP server.*Streamable HTTP.*ORCA link/);
+	assert.match(view.steps[3], /Don't use Create MCP app/);
+	assert.ok(view.commands.length, 'the terminal commands stay as the other way');
+	view.setApp('cursor');
+	flush();
+	assert.equal(view.steps.length, 0);
 });

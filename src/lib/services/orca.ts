@@ -705,8 +705,46 @@ export const conflictReasons: readonly (readonly [message: string, th: string, e
   ],
 ];
 
+// The step at which a program could not be set up ("the source is not ready
+// (SRC-nn)", orcaSourceReason in the backend). The code stays in the text, so
+// a screenshot tells the ORCA team which step failed.
+export const sourceReasons: Readonly<Record<string, readonly [th: string, en: string]>> = {
+  "01": ["ตรวจสิทธิ์ในพื้นที่ทำงานไม่สำเร็จ ลองอีกครั้ง", "Your workspace access could not be checked. Try again."],
+  "02": ["ข้อมูลของโปรแกรมนี้ใน ORCA ไม่ครบ", "ORCA's record of this program is incomplete."],
+  "03": ["อ่านบัญชีที่คุณบันทึกไว้ไม่สำเร็จ ลองอีกครั้ง", "Your saved account could not be read. Try again."],
+  "04": ["แอปลงชื่อเข้าใช้ของโปรแกรมนี้อ่านไม่ได้หรือไม่ถูกต้อง", "This program's sign-in app could not be read or is not valid."],
+  "05": ["ORCA เตรียมบัญชีของคุณสำหรับโปรแกรมนี้ไม่สำเร็จ ลองอีกครั้ง", "ORCA could not prepare your account for this program. Try again."],
+  "06": ["บัญชีที่บันทึกไว้ไม่ตรงกับคุณหรือบริษัทนี้", "The saved account does not match you or this company."],
+  "07": ["บันทึกการตั้งค่าไม่สำเร็จ ตรวจข้อมูลแล้วลองอีกครั้ง", "The settings could not be saved. Check them and try again."],
+  "08": ["ORCA ตรวจโปรแกรมนี้ไม่ได้", "ORCA cannot check this program."],
+  "09": ["โปรแกรมไม่ตอบตอนตรวจ ลองอีกครั้งภายหลัง", "The program did not answer the check. Try again later."],
+  "10": ["อ่านการลงชื่อเข้าใช้ที่บันทึกไว้ไม่สำเร็จ ลองอีกครั้ง", "Your saved sign-in could not be read. Try again."],
+  "11": ["โปรแกรมนี้ต้องลงชื่อเข้าใช้ แต่ตั้งไว้แบบใช้คีย์", "This program needs a sign-in, but it is set up with a key."],
+  "12": ["สร้างการตั้งค่าลงชื่อเข้าใช้ไม่สำเร็จ", "The sign-in settings could not be made."],
+  "13": ["เริ่มลงชื่อเข้าใช้กับโปรแกรมไม่สำเร็จ ลองอีกครั้ง", "The program's sign-in could not start. Try again."],
+  "14": ["ลิงก์ลงชื่อเข้าใช้ที่โปรแกรมส่งมาไม่ปลอดภัย ORCA จึงไม่เปิด", "The program's sign-in link is not safe, so ORCA did not open it."],
+  "15": ["ยกเลิกการลงชื่อเข้าใช้ไม่สำเร็จ ลองอีกครั้ง", "The sign-in could not be removed. Try again."],
+  "16": ["บันทึกหรือลบแอปลงชื่อเข้าใช้ไม่สำเร็จ ลองอีกครั้ง", "The sign-in app could not be saved or removed. Try again."],
+  "17": ["ตรวจการกลับมาจากหน้าลงชื่อเข้าใช้ไม่ผ่าน เริ่มเชื่อมใหม่อีกครั้ง", "The return from the sign-in could not be verified. Start connecting again."],
+};
+
+function sourceNotReady(message: string): string {
+  const code = /^the source is not ready \(SRC-(\d{2})\)/.exec(message)?.[1];
+  const reason = code ? sourceReasons[code] : undefined;
+  if (!code || !reason)
+    return t(
+      `เชื่อมโปรแกรมนี้ยังไม่ได้ ลองอีกครั้ง ถ้ายังไม่ได้ ติดต่อผู้ดูแลบริษัท หรือทีม ORCA ทาง LINE ${ORCA_SUPPORT_LINE_ID}`,
+      `This program can't connect yet. Try again; if it keeps happening, ask your company admin or the ORCA team on LINE (${ORCA_SUPPORT_LINE_ID}).`,
+    );
+  return t(
+    `เชื่อมโปรแกรมนี้ยังไม่ได้ (รหัส SRC-${code}) ${reason[0]} ถ้ายังไม่ได้ ส่งรหัสนี้ให้ทีม ORCA ทาง LINE ${ORCA_SUPPORT_LINE_ID}`,
+    `This program can't connect yet (code SRC-${code}). ${reason[1]} If it keeps happening, send this code to the ORCA team on LINE (${ORCA_SUPPORT_LINE_ID}).`,
+  );
+}
+
 export function orcaError(error: unknown): string {
   const parsed = parseErrorContent(error);
+  if (parsed.status === 424 && parsed.message.startsWith("the source is not ready")) return sourceNotReady(parsed.message);
   if (parsed.status === 412 && parsed.message.includes("orca_account_changed"))
     return t(
       "คุณเข้าสู่ระบบด้วยบัญชีอื่นในอีกแท็บ โหลดหน้านี้ใหม่",
