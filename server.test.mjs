@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import net from 'node:net';
 import { mkdtemp, mkdir, writeFile, symlink, rm, readdir, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -867,4 +868,103 @@ test('an upload still arriving after 120 seconds is not cut', async (t) => {
   const result = await slow.done;
   assert.equal(result.status, 202);
   assert.equal(body, '0123456789abcdefghij');
+});
+
+/**
+ * A raw connection that sends a request's headers and part of its body, then
+ * holds on without closing, as a slow client does: Node's own client would
+ * close at the answer's "Connection: close", which hides the server's side.
+ */
+function heldRequest(base, pathname, headers = {}) {
+  const target = new URL(base);
+  const socket = net.connect(Number(target.port), target.hostname);
+  socket.on('error', () => {});
+  let text = '';
+  let answered;
+  const answer = new Promise((resolve) => { answered = resolve; });
+  let closed = false;
+  socket.on('close', () => { closed = true; });
+  socket.on('data', (chunk) => {
+    text += chunk;
+    if (text.includes('\r\n\r\n')) answered({ status: Number(text.split(' ')[1]), body: text.slice(text.indexOf('\r\n\r\n') + 4) });
+  });
+  const head = Object.entries({ host: target.host, 'content-type': 'application/octet-stream', 'content-length': '1000', ...headers }).map(([name, value]) => `${name}: ${value}\r\n`).join('');
+  socket.write(`POST ${pathname} HTTP/1.1\r\n${head}\r\n0123456789`);
+  return { socket, answer, isClosed: () => closed };
+}
+
+/** Waits up to `ms` of real time (setTimeout may be mocked) for `check`. */
+async function within(ms, check) {
+  const end = performance.now() + ms;
+  while (performance.now() < end) {
+    if (check()) return true;
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  return check();
+}
+
+test('an early refusal never ends a request\'s 120 seconds: a client still sending is closed then', async (t) => {
+  let upstreamCalls = 0;
+  const f = await fixture(t, () => { upstreamCalls++; });
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  // A foreign Origin is refused at once, while its body keeps arriving.
+  const held = heldRequest(f.appURL, '/api/orca/hubs/hub-sales/library/items', { origin: 'https://evil.example' });
+  t.after(() => held.socket.destroy());
+  const answer = await held.answer;
+  assert.equal(answer.status, 403);
+  held.socket.write('more of the body');
+  t.mock.timers.tick(119_000);
+  assert.equal(await within(50, held.isClosed), false, 'within its 120 s the connection stays');
+  t.mock.timers.tick(1_000);
+  assert.equal(await within(2_000, held.isClosed), true, 'at 120 s it closes, not at the upload routes\' 15 minutes');
+  assert.equal(upstreamCalls, 0);
+});
+
+test('an upload refused before it is served keeps 120 seconds, not 15 minutes', async (t) => {
+  let upstreamCalls = 0;
+  const f = await fixture(t, () => { upstreamCalls++; });
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  for (const [headers, status] of [[{ host: 'evil.example' }, 421], [{ origin: 'https://evil.example' }, 403]]) {
+    const held = heldRequest(f.appURL, '/api/orca/hubs/hub-sales/library/files', headers);
+    t.after(() => held.socket.destroy());
+    assert.equal((await held.answer).status, status, JSON.stringify(headers));
+    t.mock.timers.tick(120_000);
+    assert.equal(await within(2_000, held.isClosed), true, JSON.stringify(headers));
+  }
+  // An invalid path too, before anything else is known about it.
+  const invalid = heldRequest(f.appURL, '/api/orca/hubs/hub-sales/library/%2e%2e');
+  t.after(() => invalid.socket.destroy());
+  assert.equal((await invalid.answer).status, 400);
+  t.mock.timers.tick(120_000);
+  assert.equal(await within(2_000, invalid.isClosed), true);
+  assert.equal(upstreamCalls, 0);
+});
+
+test('a keep-alive connection keeps no listener of the requests it carried', async (t) => {
+  const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
+  const sockets = [];
+  f.app.on('connection', (socket) => sockets.push(socket));
+  const agent = new http.Agent({ keepAlive: true, maxSockets: 1 });
+  t.after(() => agent.destroy());
+  const warnings = [];
+  const warn = (warning) => warnings.push(warning.name);
+  process.on('warning', warn);
+  t.after(() => process.off('warning', warn));
+  const target = new URL(f.appURL);
+  const counts = [];
+  for (let i = 0; i < 15; i++) {
+    await new Promise((resolve, reject) => {
+      const req = http.request({ hostname: target.hostname, port: target.port, path: '/api/orca/hubs/hub-sales/library/items', method: 'POST', agent, headers: { 'content-type': 'application/json' } }, (res) => {
+        res.resume();
+        res.on('end', resolve);
+      });
+      req.on('error', reject);
+      req.end('{}');
+    });
+    counts.push(sockets[0].listenerCount('close'));
+  }
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(sockets.length, 1, 'one connection carried them all');
+  assert.equal(new Set(counts).size, 1, `the connection's close listeners stay the same: ${counts}`);
+  assert.deepEqual(warnings.filter((name) => name === 'MaxListenersExceededWarning'), []);
 });

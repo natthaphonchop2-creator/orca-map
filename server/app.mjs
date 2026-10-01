@@ -291,27 +291,44 @@ export function createBackendMiddleware(options = {}) {
 
 /**
  * The 120s the server used to give every request to arrive, now per request:
- * Node's own requestTimeout is the upload routes' 15 minutes. A request still
- * arriving after it is answered 408 and its connection closed, as Node does.
+ * Node's own requestTimeout is the upload routes' 15 minutes. It starts before
+ * any answer and lasts until the request has arrived in full or its connection
+ * closed: an early answer (a refusal) does not end it (Codex S7 #1). A request
+ * still arriving then is answered 408 and its connection closed, as Node does,
+ * or only closed when it was answered already. Returns the cancel, for an
+ * upload that is served.
  */
 function requestDeadline(req, res, ms) {
-  const timer = setTimeout(() => {
-    if (req.complete || res.destroyed) return;
-    if (!res.headersSent) {
+  if (req.complete) return () => {};
+  const socket = req.socket;
+  let timer;
+  const done = () => {
+    clearTimeout(timer);
+    req.off('end', done);
+    socket.off('close', done);
+  };
+  timer = setTimeout(() => {
+    done();
+    if (req.complete || socket.destroyed) return;
+    if (!res.headersSent && !res.writableEnded) {
       res.shouldKeepAlive = false;
       json(res, 408, { error: 'request_timeout' });
-      res.once('finish', () => req.socket.destroy());
-    } else req.socket.destroy();
+      res.once('finish', () => socket.destroy());
+    } else socket.destroy();
   }, ms);
   timer.unref();
-  const done = () => clearTimeout(timer);
+  // A request read in full, or dumped after an early answer, ends; a keep-alive
+  // connection's listeners go with each request.
   req.once('end', done);
-  res.once('close', done);
+  socket.once('close', done);
+  return done;
 }
 
 export function createAppServer(options = {}) {
   const config = configuration(options);
   const server = http.createServer(async (req, res) => {
+    // First, before any answer: a refusal below never ends a request's 120s.
+    const deadline = requestDeadline(req, res, config.requestTimeoutMs);
     res.setHeader('x-content-type-options', 'nosniff');
     res.setHeader('x-frame-options', 'DENY');
     res.setHeader('referrer-policy', 'same-origin');
@@ -321,7 +338,6 @@ export function createAppServer(options = {}) {
       if (!METHODS.has(req.method)) return json(res, 405, { error: 'method_not_allowed' });
       const pathname = parsedPath(req.url);
       if (pathname === null) return json(res, 400, { error: 'invalid_path' });
-      if (!libraryUploadRoute(req.method, pathname)) requestDeadline(req, res, config.requestTimeoutMs);
       const url = new URL(req.url, appOrigin);
       const rootCallback = pathname === '/' && ['code', 'error', 'state'].some((key) => url.searchParams.has(key));
       const backendRoute = rootCallback || BACKEND_PREFIXES.some((prefix) => pathname.startsWith(prefix));
@@ -329,7 +345,11 @@ export function createAppServer(options = {}) {
       if (pathname === '/healthz') return await health(req, res, config);
       if (pathname === '/home') return publicSite(req, res, config, url);
       if (canonicalOAuthNavigation(req, res, config, appOrigin, pathname)) return;
-      if (backendRoute) return proxy(req, res, config, appOrigin, rootCallback ? '/oauth2/callback' + url.search : req.url);
+      if (backendRoute) {
+        // Only an upload that is served has the backend's 15 minutes to arrive.
+        if (libraryUploadRoute(req.method, pathname)) deadline();
+        return proxy(req, res, config, appOrigin, rootCallback ? '/oauth2/callback' + url.search : req.url);
+      }
       await serveStatic(req, res, pathname, config);
     } catch {
       if (!res.headersSent && !res.destroyed) json(res, 500, { error: 'internal_error' });
