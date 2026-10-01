@@ -1024,3 +1024,111 @@ test('on a kept-alive connection each request has its own 120 seconds, from the 
   assert.equal(await within(2_000, () => closed), true, 'cut at its own 120 s');
   assert.match(text, /HTTP\/1\.1 408 /);
 });
+
+/** A raw kept-alive connection the test writes to; it collects the answers and tells when it closes. */
+async function rawConnection(t, f) {
+  const connected = once(f.app, 'connection');
+  const target = new URL(f.appURL);
+  const socket = net.connect(Number(target.port), target.hostname);
+  socket.on('error', () => {});
+  t.after(() => socket.destroy());
+  const state = { socket, text: '', closed: false, host: target.host };
+  socket.on('close', () => { state.closed = true; });
+  socket.on('data', (chunk) => { state.text += chunk; });
+  await connected;
+  return state;
+}
+const answers = (text) => (text.match(/HTTP\/1\.1 \d{3}/g) ?? []);
+
+test('after an early answer whose body arrived later, the next request\'s 120 s start at that body\'s end (Codex S7 fourth confirmation #3)', async (t) => {
+  const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const c = await rawConnection(t, f);
+  // Refused at once (a foreign Origin), while its body takes 100 s more: the connection stays kept alive.
+  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\norigin: https://evil.example\r\ncontent-type: application/json\r\ncontent-length: 20\r\n\r\n0123456789`);
+  assert.equal(await within(2_000, () => answers(c.text).length === 1), true);
+  assert.match(c.text, /^HTTP\/1\.1 403 /);
+  t.mock.timers.tick(100_000);
+  c.socket.write('abcdefghij');
+  await within(200, () => false);
+  // The next request, slow: counted from the first one's body end, not from its early answer.
+  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
+  await within(200, () => false);
+  t.mock.timers.tick(60_000);
+  assert.equal(await within(50, () => c.closed), false, 'counted from the early answer it would be cut already');
+  t.mock.timers.tick(60_000);
+  assert.equal(await within(2_000, () => c.closed), true);
+  assert.match(c.text, /HTTP\/1\.1 408 /);
+});
+
+test('requests read in full mark the next one\'s start too: a slow request after a run of quick ones keeps its 120 s', async (t) => {
+  const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const c = await rawConnection(t, f);
+  // 40 quick reads, 4 s apart (within the keep-alive time): 160 s on one connection.
+  for (let i = 1; i <= 40; i++) {
+    c.socket.write(`GET /assets/app.js HTTP/1.1\r\nhost: ${c.host}\r\n\r\n`);
+    assert.equal(await within(2_000, () => answers(c.text).length === i), true, `read ${i}`);
+    t.mock.timers.tick(4_000);
+  }
+  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
+  await within(200, () => false);
+  t.mock.timers.tick(100_000);
+  assert.equal(await within(50, () => c.closed), false, 'its 120 s count from the read before it');
+  t.mock.timers.tick(20_000);
+  assert.equal(await within(2_000, () => c.closed), true);
+  assert.match(c.text, /HTTP\/1\.1 408 /);
+});
+
+test('a proxied call cut by its 408 is stopped, and the server goes on serving (Codex S7 fourth confirmation #1)', async (t) => {
+  let upstreamResponse;
+  let markClosed;
+  const upstreamClosed = new Promise((resolve) => { markClosed = resolve; });
+  const f = await fixture(t, (req, res) => { upstreamResponse = res; req.resume(); res.on('close', markClosed); });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const held = heldRequest(f.appURL, '/api/orca/hubs/hub-sales/library/items', { 'content-type': 'application/json' });
+  t.after(() => held.socket.destroy());
+  assert.equal(await within(2_000, () => !!upstreamResponse), true, 'the backend has the call');
+  t.mock.timers.tick(120_000);
+  assert.equal((await held.answer).status, 408);
+  await upstreamClosed;
+  // The backend's late answer goes nowhere and harms nothing.
+  try {
+    upstreamResponse.writeHead(200, { 'content-type': 'text/plain' });
+    upstreamResponse.end('late');
+  } catch {
+    // Its connection is gone already.
+  }
+  await within(100, () => false);
+  t.mock.timers.reset();
+  const next = await request(f.appURL, '/assets/app.js');
+  assert.equal(next.status, 200);
+  const source = await readFile(new URL('./server/app.mjs', import.meta.url), 'utf8');
+  assert.match(source, /if \(res\.headersSent \|\| res\.writableEnded \|\| res\.destroyed\) \{\s*response\.resume\(\);\s*upstream\.destroy\(\);\s*return;\s*\}/, 'an answer already given: the backend\'s is dropped');
+  assert.match(source, /if \(!relayed \|\| !res\.writableFinished\) upstream\.destroy\(\);/, 'and its call stops');
+});
+
+test('after a slow answer the next request\'s 120 s start at that answer, not at its own body\'s end', async (t) => {
+  let release;
+  const f = await fixture(t, (req, res) => {
+    req.resume();
+    req.on('end', () => {
+      // The first call's backend answers 100 s later; the others at once.
+      if (!release) release = () => res.end('slow');
+      else res.end('ok');
+    });
+  });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const c = await rawConnection(t, f);
+  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 2\r\n\r\n{}`);
+  assert.equal(await within(2_000, () => !!release), true);
+  t.mock.timers.tick(100_000);
+  release();
+  assert.equal(await within(2_000, () => /\r\n\r\nslow$/.test(c.text) || /slow\r\n0\r\n\r\n$/.test(c.text)), true, 'the slow answer came');
+  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
+  await within(200, () => false);
+  t.mock.timers.tick(60_000);
+  assert.equal(await within(50, () => c.closed), false, 'counted from its own body\'s end it would be cut already');
+  t.mock.timers.tick(60_000);
+  assert.equal(await within(2_000, () => c.closed), true);
+});

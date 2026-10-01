@@ -166,8 +166,18 @@ function proxy(req, res, config, appOrigin, requestPath = req.url) {
     } catch { delete headers.referer; }
   }
   const transport = config.backend.protocol === 'https:' ? https : http;
+  // Whether this answer is the backend's: set once its headers are written. A 408
+  // (requestDeadline) may answer first; then the backend's late answer is dropped
+  // and its call stops (Codex S7 fourth confirmation #1).
+  let relayed = false;
   const upstream = transport.request({ protocol: config.backend.protocol, hostname: config.backend.hostname.replace(/^\[|\]$/g, ''), port: config.backend.port || undefined, path: requestPath, method: req.method, headers }, (response) => {
     clearTimeout(headerTimer);
+    if (res.headersSent || res.writableEnded || res.destroyed) {
+      response.resume();
+      upstream.destroy();
+      return;
+    }
+    relayed = true;
     const responseHeaders = cleanHeaders(response.headers);
     // The adapter is same-origin; upstream CORS policy cannot grant access here.
     for (const name of Object.keys(responseHeaders)) if (name.startsWith('access-control-')) delete responseHeaders[name];
@@ -197,7 +207,7 @@ function proxy(req, res, config, appOrigin, requestPath = req.url) {
   });
   req.on('aborted', () => upstream.destroy());
   req.on('error', () => upstream.destroy());
-  res.on('close', () => { clearTimeout(headerTimer); if (!res.writableFinished) upstream.destroy(); });
+  res.on('close', () => { clearTimeout(headerTimer); if (!relayed || !res.writableFinished) upstream.destroy(); });
   req.pipe(upstream);
 }
 
@@ -301,18 +311,25 @@ const REQUEST_STARTED = Symbol('orca.requestStarted');
  * or only closed when it was answered already. Returns the cancel, for an
  * upload that is served.
  */
-function requestDeadline(req, res, ms) {
-  if (req.complete) return () => {};
+function requestDeadline(req, res, ms, headersMaxMs) {
   const socket = req.socket;
+  // The next request on this connection starts after this one's answer and its
+  // whole body, whichever comes later (an early answer leaves the body still
+  // arriving: Codex S7 fourth confirmation #3); a pipelined one counts from
+  // there. Every request marks it, one already read in full too.
+  const next = () => {
+    socket[REQUEST_STARTED] = Date.now();
+  };
+  res.once('finish', next);
+  req.once('end', next);
+  if (req.complete) return () => {};
   // From the request's start, its headers included, as Node's own requestTimeout
   // counts (Codex S7 third confirmation #1): the connection's opening, or the end
-  // of the answer before it on a kept-alive connection. Time a client leaves a
-  // kept-alive connection idle (at most keepAliveTimeout) counts too.
+  // of the request before it on a kept-alive connection. Its headers took at
+  // most headersTimeout (Node refuses slower ones), and a kept-alive connection
+  // idles at most keepAliveTimeout, so no more is ever taken off.
   const started = socket[REQUEST_STARTED] ?? Date.now();
-  ms = Math.max(0, ms - (Date.now() - started));
-  res.once('finish', () => {
-    socket[REQUEST_STARTED] = Date.now();
-  });
+  ms = Math.max(0, ms - Math.min(Date.now() - started, headersMaxMs));
   let timer;
   const done = () => {
     clearTimeout(timer);
@@ -340,7 +357,7 @@ export function createAppServer(options = {}) {
   const config = configuration(options);
   const server = http.createServer(async (req, res) => {
     // First, before any answer: a refusal below never ends a request's 120s.
-    const deadline = requestDeadline(req, res, config.requestTimeoutMs);
+    const deadline = requestDeadline(req, res, config.requestTimeoutMs, server.headersTimeout + server.keepAliveTimeout);
     res.setHeader('x-content-type-options', 'nosniff');
     res.setHeader('x-frame-options', 'DENY');
     res.setHeader('referrer-policy', 'same-origin');
