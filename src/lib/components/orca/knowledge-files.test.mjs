@@ -1127,7 +1127,8 @@ test('a save\'s answer, an upload\'s or a recheck\'s, supersedes the quiet asks 
 	assert.equal(view.editorNote, '', 'B is there: its save said so');
 	assert.deepEqual(view.items.map((item) => item.id).sort(), ['a', 'b']);
 	const page = await readFile(new URL('./KnowledgeLibrary.svelte', import.meta.url), 'utf8');
-	for (const where of [/return 'denied';\s*readingRequest \+= 1;\s*items = result\.items;/, /readingRequest \+= 1;\s*items = \[\.\.\.items\.filter\(\(known\) => known\.id !== item\.id\), item\];/, /readingRequest \+= 1;\s*items = items\.filter\(\(known\) => known\.id !== item\.id\);/, /readingRequest \+= 1;\s*items = \[\.\.\.items\.filter\(\(known\) => known\.id !== answer\.item!\.id\), answer\.item\];/])
+	// Every fresher list marks itself: a recheck's, a load's, an answer settled (save, archive, file action), a delete's, an upload's.
+	for (const where of [/return 'denied';\s*fresher\(\);\s*items = result\.items;/, /error = '';\s*fresher\(\);\s*items = result\.items;/, /return undefined;\s*\/\/[^\n]*\n\s*fresher\(\);\s*const \{ item, reload \} = settleAnswer/, /function deleted\(item: LibraryItem\) \{\s*fresher\(\);/, /fresher\(\);\s*items = \[\.\.\.items\.filter\(\(known\) => known\.id !== answer\.item!\.id\), answer\.item\];/])
 		assert.match(page, where);
 });
 
@@ -1135,4 +1136,43 @@ test('the partial reading\'s note follows the version shown, outside anything th
 	const source = await readFile(new URL('./knowledge/FileDetail.svelte', import.meta.url), 'utf8');
 	// Directly after the held-version block, at the same depth: no condition on `which` around it.
 	assert.match(source, /\t\t\t\{\/if\}\n\n\t\t\t<!-- The version shown, the held one too, before it is put in use \(Codex S7 third confirmation #2\)\. -->\n\t\t\t\{#if previewVersion\?\.state === 'partial'\}\n\t\t\t\t<p class="fd-note warn">/);
+});
+
+test('a newer list makes an older load ask again; a save while a quiet ask is out keeps the asking going (Codex S7 seventh confirmation #2, #3)', async (t) => {
+	const reading = fileItem('r', { status: 'draft', file: fileInfo({ pending: version(1, 'extracting'), options: options() }) });
+	const queue = [async () => ({ items: [reading], members, departments: [] })];
+	const { view, flush } = await libraryPage(t, () => (queue.length ? queue.shift()() : Promise.resolve({ items: [reading, article('b')], members, departments: [] })));
+	for (let i = 0; i < 10 && !view.items.length; i++) await new Promise((resolve) => setImmediate(resolve));
+	// A load goes out; B is saved meanwhile; the load's older list (without B) comes back.
+	let older;
+	queue.push(() => new Promise((resolve) => { older = resolve; }));
+	const loading = view.load('sales', true);
+	view.saved(article('b'), 1);
+	flush();
+	older({ items: [reading], members, departments: [] });
+	await loading;
+	for (let i = 0; i < 10; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.ok(view.items.some((item) => item.id === 'b'), 'B stays: the older list was asked for again');
+	assert.equal(view.screen.name, 'detail', 'B\'s page stays open');
+	// A quiet ask goes out (its timer cleared); a save drops its answer; the asking goes on.
+	view.stopPolling();
+	let quiet;
+	queue.push(() => new Promise((resolve) => { quiet = resolve; }));
+	const asking = view.refreshReading('sales');
+	view.saved(article('c'), 1);
+	quiet({ items: [reading], members, departments: [] });
+	await asking;
+	assert.ok(view.pollTimer, 'a file is still being read: the page asks again');
+});
+
+test('the hidden parts of a held newer version: one story, and the hint says "จนกว่าคุณจะกดใช้ฉบับใหม่" (Codex S7 seventh confirmation #4)', async () => {
+	const item = fileItem('h', { file: fileInfo({ ext: 'pptx', published: version(1, 'ready', { stats: { chars: 1, slides: 18, hidden: hiddenParts({ notesSlides: 12 }) } }), pending: version(2, 'ready', { options: { includeHidden: false, includeComments: false, includeNotes: true } }), options: options({ reviewBeforeUpdate: true, includeNotes: true }) }) });
+	const { html } = await fileDetail({ item });
+	assert.match(html, /ฉบับใหม่ \(ฉบับที่ 2\) อ่านเสร็จแล้ว รอคุณตรวจก่อนให้ AI ใช้/);
+	assert.match(html, /ไฟล์นี้มีโน้ตผู้บรรยาย 12 สไลด์ ฉบับใหม่ให้ AI เห็นแล้ว รอคุณกดใช้/);
+	assert.doesNotMatch(html, /ORCA กำลังอ่านใหม่/, 'never "being read" beside "read and waiting"');
+	assert.match(html, /เปลี่ยนแล้ว ORCA จะอ่านไฟล์ใหม่ AI ใช้ฉบับเดิมจนกว่าคุณจะกดใช้ฉบับใหม่/);
+	// The partial note's line, exactly: nothing on the tab hides its text.
+	const source = await readFile(new URL('./knowledge/FileDetail.svelte', import.meta.url), 'utf8');
+	assert.match(source, /\t\t\t\{#if previewVersion\?\.state === 'partial'\}\n\t\t\t\t<p class="fd-note warn"><TriangleAlert size=\{15\} aria-hidden="true" \/><span>\{t\('อ่านได้บางส่วน:', 'Partly read:'\)\} \{partialText\(previewVersion\.stats\?\.partialReason \|\| previewVersion\.errorClass, t, previewLive\)\}<\/span><\/p>\n\t\t\t\{\/if\}/);
 });

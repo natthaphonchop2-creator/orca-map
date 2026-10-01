@@ -470,3 +470,21 @@ test('a batch sent in full whose answer did not come says so, and is not counted
 	assert.equal(k.uploadSummary([row('unknown'), row('saved')], th), 'อัปโหลดแล้ว 1 จาก 2 ไฟล์');
 	assert.equal(k.uploadSummary([row('unknown'), row('sending')], th), 'กำลังอัปโหลด 1 ไฟล์');
 });
+
+test('a turned switch says where the newer version is: being read, waiting for "ใช้ฉบับใหม่", or not read (Codex S7 seventh confirmation #4)', () => {
+	const read = (options, counts) => version(1, 'ready', { options: { includeHidden: false, includeComments: false, includeNotes: false, ...options }, stats: { chars: 1, hidden: hidden(counts) } });
+	const on = { includeNotes: true, includeHidden: false, includeComments: false };
+	const off = { includeNotes: false, includeHidden: false, includeComments: false };
+	const text = (version, wanted, live, stage) => k.hiddenLines(version, th, wanted, live, stage).map((line) => line.text);
+	// Turned on.
+	assert.deepEqual(text(read({}, { notesSlides: 12 }), on, true, 'reading'), ['ไฟล์นี้มีโน้ตผู้บรรยาย 12 สไลด์ ORCA กำลังอ่านใหม่ให้ AI เห็น']);
+	assert.deepEqual(text(read({}, { notesSlides: 12 }), on, true, 'held'), ['ไฟล์นี้มีโน้ตผู้บรรยาย 12 สไลด์ ฉบับใหม่ให้ AI เห็นแล้ว รอคุณกดใช้']);
+	assert.deepEqual(text(read({}, { notesSlides: 12 }), on, true, 'failed'), ['ไฟล์นี้มีโน้ตผู้บรรยาย 12 สไลด์ ซึ่ง AI ยังไม่เห็น เพราะฉบับใหม่อ่านไม่ได้']);
+	// Turned off.
+	assert.deepEqual(text(read({ includeNotes: true }, { notesSlides: 12 }), off, true, 'reading'), ['AI ยังเห็นโน้ตผู้บรรยาย 12 สไลด์ จนกว่าฉบับใหม่จะอ่านเสร็จ']);
+	assert.deepEqual(text(read({ includeNotes: true }, { notesSlides: 12 }), off, true, 'held'), ['AI ยังเห็นโน้ตผู้บรรยาย 12 สไลด์ จนกว่าคุณจะกดใช้ฉบับใหม่']);
+	assert.deepEqual(text(read({ includeNotes: true }, { notesSlides: 12 }), off, true, 'failed'), ['AI ยังเห็นโน้ตผู้บรรยาย 12 สไลด์ เพราะฉบับใหม่อ่านไม่ได้']);
+	assert.deepEqual(text(read({ includeNotes: true }, { notesSlides: 12 }), off, false, 'held'), ['ฉบับนี้ยังมีโน้ตผู้บรรยาย 12 สไลด์ จนกว่าคุณจะกดใช้ฉบับใหม่']);
+	// The default is the reading.
+	assert.deepEqual(k.hiddenLines(read({}, { notesSlides: 12 }), th, on).map((line) => line.text), ['ไฟล์นี้มีโน้ตผู้บรรยาย 12 สไลด์ ORCA กำลังอ่านใหม่ให้ AI เห็น']);
+});

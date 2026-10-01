@@ -997,7 +997,14 @@ export type HiddenLine = { part: 'notes' | 'hidden' | 'comments' | 'tracked'; op
  * version holds hidden, and whether it was read with it. Tracked changes are
  * never read; they are told only.
  */
-export function hiddenLines(version: Pick<LibraryFileVersion, 'stats' | 'options'> | undefined, t: Translate, wanted?: LibraryReadParts, live = true): HiddenLine[] {
+/**
+ * Where the newer version with the owner's choice is (Codex S7 seventh
+ * confirmation #4): being read, read and waiting for "ใช้ฉบับใหม่"
+ * (ต้องตรวจก่อนอัปเดต), or not read.
+ */
+export type NewerStage = 'reading' | 'held' | 'failed';
+
+export function hiddenLines(version: Pick<LibraryFileVersion, 'stats' | 'options'> | undefined, t: Translate, wanted?: LibraryReadParts, live = true, stage: NewerStage = 'reading'): HiddenLine[] {
 	const hidden = version?.stats?.hidden;
 	if (!version || !hidden) return [];
 	const read = version.options ?? { includeHidden: false, includeComments: false, includeNotes: false };
@@ -1023,11 +1030,7 @@ export function hiddenLines(version: Pick<LibraryFileVersion, 'stats' | 'options
 			// Knowledge off) says what the AI will see, never what it sees (Codex S7
 			// second confirmation #4).
 			text: changing
-				? included
-					? live
-						? t(`AI ยังเห็น${thai} ${n(count)} ${unit} จนกว่าฉบับใหม่จะอ่านเสร็จ`, `The AI still sees ${n(count)} ${english} until the new version is read`)
-						: t(`ฉบับนี้ยังมี${thai} ${n(count)} ${unit} จนกว่าฉบับใหม่จะอ่านเสร็จ`, `This version still has ${n(count)} ${english} until the new one is read`)
-					: t(`ไฟล์นี้มี${thai} ${n(count)} ${unit} ORCA กำลังอ่านใหม่ให้ AI เห็น`, `This file has ${n(count)} ${english}; ORCA is reading it again so the AI sees them`)
+				? changingText(included, live, stage, thai, `${n(count)} ${unit}`, `${n(count)} ${english}`, t)
 				: included
 					? live
 						? t(`AI เห็น${thai} ${n(count)} ${unit}`, `The AI sees ${n(count)} ${english}`)
@@ -1044,6 +1047,21 @@ export function hiddenLines(version: Pick<LibraryFileVersion, 'stats' | 'options
 				: t(`ไฟล์นี้มีการแก้ไขที่ติดตามไว้ ${n(hidden.trackedChanges)} จุด AI จะเห็นเฉพาะข้อความฉบับปัจจุบัน`, `This file has ${n(hidden.trackedChanges)} tracked changes; the AI will see only the current text`)
 		});
 	return lines;
+}
+
+/** A hidden part whose switch the owner turned, by where the newer version is. */
+function changingText(included: boolean, live: boolean, stage: NewerStage, thai: string, countTh: string, countEn: string, t: Translate): string {
+	if (included) {
+		// It was read with the part; the newer version leaves it out.
+		const subject = live ? ['AI ยังเห็น', 'The AI still sees'] : ['ฉบับนี้ยังมี', 'This version still has'];
+		if (stage === 'held') return t(`${subject[0]}${thai} ${countTh} จนกว่าคุณจะกดใช้ฉบับใหม่`, `${subject[1]} ${countEn} until you use the new version`);
+		if (stage === 'failed') return t(`${subject[0]}${thai} ${countTh} เพราะฉบับใหม่อ่านไม่ได้`, `${subject[1]} ${countEn}: the new version can’t be read`);
+		return t(`${subject[0]}${thai} ${countTh} จนกว่าฉบับใหม่จะอ่านเสร็จ`, `${subject[1]} ${countEn} until the new version is read`);
+	}
+	// It was read without the part; the newer version takes it in.
+	if (stage === 'held') return t(`ไฟล์นี้มี${thai} ${countTh} ฉบับใหม่ให้ AI เห็นแล้ว รอคุณกดใช้`, `This file has ${countEn}; the new version shows them to the AI once you use it`);
+	if (stage === 'failed') return t(`ไฟล์นี้มี${thai} ${countTh} ซึ่ง AI ยังไม่เห็น เพราะฉบับใหม่อ่านไม่ได้`, `This file has ${countEn}, which the AI doesn’t see yet: the new version can’t be read`);
+	return t(`ไฟล์นี้มี${thai} ${countTh} ORCA กำลังอ่านใหม่ให้ AI เห็น`, `This file has ${countEn}; ORCA is reading it again so the AI sees them`);
 }
 
 /** Where a piece of text is in its file: "หน้า 3–4", "สไลด์ 5", "แผ่นงาน “ราคา” · แถว 2–51", "หัวข้อ “การรับประกัน” · ย่อหน้า 4". */

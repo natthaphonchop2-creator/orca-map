@@ -26,7 +26,8 @@
 		relativeTime,
 		uploadProblem,
 		versionServable,
-		type LibraryFeatures
+		type LibraryFeatures,
+		type NewerStage
 	} from '$lib/orca/knowledge';
 	import { t } from '$lib/orca/locale.svelte';
 	import { orcaError, type OrcaHub, type OrcaMember } from '$lib/services/orca';
@@ -118,7 +119,9 @@
 	// Only while the owner can switch them: after a rollback the AI uses no file at all.
 	// A newer version held for review serves no one yet: its tab says what the AI will see (Codex S7 third confirmation #3).
 	const previewLive = $derived(live && !(which === 'pending' && held));
-	const lines = $derived(manage ? hiddenLines(previewVersion ?? current, t, options, previewLive) : []);
+	// Where the newer version with the owner's choice is: read and held, not read, or being read (Codex S7 seventh confirmation #4).
+	const stage = $derived<NewerStage>(pending && fileReading(pending) === 'failed' ? 'failed' : held ? 'held' : 'reading');
+	const lines = $derived(manage ? hiddenLines(previewVersion ?? current, t, options, previewLive, stage) : []);
 	const encoding = $derived(owner ? encodingNote((previewVersion ?? current)?.stats, t) : undefined);
 	const offered = $derived.by(() => {
 		const parts = new Set(lines.map((line) => line.option).filter(Boolean));
@@ -403,9 +406,11 @@
 							{#if offered.includeHidden}<Switch checked={options.includeHidden} disabled={!!busy} label={t('ให้ AI เห็นส่วนที่ซ่อนไว้', 'Let the AI see hidden parts')} description={t('สไลด์ แผ่นงาน และข้อความที่ซ่อนไว้', 'Hidden slides, sheets and text')} onchange={(value) => setOption('includeHidden', value)} />{/if}
 							{#if offered.includeComments}<Switch checked={options.includeComments} disabled={!!busy} label={t('ให้ AI เห็นความคิดเห็น', 'Let the AI see comments')} onchange={(value) => setOption('includeComments', value)} />{/if}
 						</div>
-						<p class="fd-hint">{live
-								? t('เปลี่ยนแล้ว ORCA จะอ่านไฟล์ใหม่ AI ใช้ฉบับเดิมจนกว่าจะอ่านเสร็จ', 'A change reads the file again; the AI keeps the current version until that is done.')
-								: t('เปลี่ยนแล้ว ORCA จะอ่านไฟล์ใหม่ตามที่เลือก', 'A change reads the file again as you chose.')}</p>
+						<p class="fd-hint">{!live
+								? t('เปลี่ยนแล้ว ORCA จะอ่านไฟล์ใหม่ตามที่เลือก', 'A change reads the file again as you chose.')
+								: options.reviewBeforeUpdate
+									? t('เปลี่ยนแล้ว ORCA จะอ่านไฟล์ใหม่ AI ใช้ฉบับเดิมจนกว่าคุณจะกดใช้ฉบับใหม่', 'A change reads the file again; the AI keeps the current version until you use the new one.')
+									: t('เปลี่ยนแล้ว ORCA จะอ่านไฟล์ใหม่ AI ใช้ฉบับเดิมจนกว่าจะอ่านเสร็จ', 'A change reads the file again; the AI keeps the current version until that is done.')}</p>
 					{/if}
 				</section>
 			{/if}

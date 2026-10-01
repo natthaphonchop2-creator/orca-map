@@ -110,10 +110,18 @@
 	let screen = $state<Screen>({ name: 'list' });
 	let dirty = $state(false);
 	let requestNumber = 0;
-	// The editor's quiet asks for the files' reading (refreshReading). Every
-	// fresher list (a load, a recheck, a save's, a file action's or an upload's
-	// answer) supersedes the asks still on their way (Codex S7 sixth confirmation #2).
+	// The editor's quiet asks for the files' reading (refreshReading), in order.
 	let readingRequest = 0;
+	// Bumped whenever the list takes a fresher answer (a load's, a recheck's, a
+	// save's, a file action's, a delete's or an upload's). A load or a quiet ask
+	// that began before then is older than the list: a load asks again (its answer
+	// would drop what came meanwhile), a quiet ask is dropped (Codex S7 sixth and
+	// seventh confirmations #2).
+	let freshness = 0;
+	/** The list took a fresher answer: what began before is older. */
+	function fresher() {
+		freshness += 1;
+	}
 	const screenID = (value: Screen) => (value.name === 'list' ? undefined : value.id);
 	const selected = $derived.by(() => {
 		const id = screenID(screen);
@@ -190,17 +198,21 @@
 	async function load(id = hub?.id ?? '', quiet = false) {
 		if (!id || disposed) return;
 		const request = ++requestNumber;
-		// A load supersedes the quiet asks still on their way: their older lists never
-		// speak over its answer (Codex S7 fifth confirmation #2).
-		readingRequest += 1;
+		const seen = freshness;
 		if (!quiet) error = '';
 		try {
 			const result = await OrcaLibraryService.load(id);
 			if (request !== requestNumber || disposed) return;
+			// A fresher answer came meanwhile (a save, an upload…): this list is older; ask again.
+			if (seen !== freshness) {
+				void load(id, quiet);
+				return;
+			}
 			// The person began typing while this was on its way: the answer never closes
 			// their editor; it brings the files' reading and says what changed (Codex S7 fourth confirmation #2).
 			if (applyUnderEditor(result)) return;
 			error = '';
+			fresher();
 			items = result.items;
 			members = result.members;
 			departments = result.departments;
@@ -243,7 +255,7 @@
 			if (request !== requestNumber || hub?.id !== id) return 'unknown';
 			const open = screenID(screen);
 			if (open && !result.items.some((item) => item.id === open)) return 'denied';
-			readingRequest += 1;
+			fresher();
 			items = result.items;
 			members = result.members;
 			departments = result.departments;
@@ -270,6 +282,8 @@
 	function settled(answer: LibraryItem): LibraryItem | undefined {
 		// An answer for another workspace (the page moved on meanwhile) changes nothing here (Codex S7 confirmation #3).
 		if (!hub || (answer.hubID && answer.hubID !== hub.id)) return undefined;
+		// Fresher than any load or quiet ask on its way (a reload below starts after it).
+		fresher();
 		const { item, reload } = settleAnswer(answer, items.find((known) => known.id === answer.id));
 		if (reload) void load(hub.id);
 		return item;
@@ -277,11 +291,12 @@
 	function saved(answer: LibraryItem, people: number) {
 		const item = settled(answer);
 		if (!item) return;
-		readingRequest += 1;
 		items = [...items.filter((known) => known.id !== item.id), item];
 		kind = item.kind;
 		dirty = false;
 		show({ name: 'detail', id: item.id });
+		// A quiet ask dropped meanwhile leaves no timer: ask again while files are read (Codex S7 seventh confirmation #3).
+		schedulePoll();
 		if (item.status === 'published')
 			showToast(
 				hub?.status === 'active'
@@ -293,22 +308,22 @@
 	function archived(answer: LibraryItem) {
 		const item = settled(answer);
 		if (!item) return;
-		readingRequest += 1;
 		items = items.map((known) => (known.id === item.id ? item : known));
 		show({ name: 'list' });
+		schedulePoll();
 		showToast(t('จัดเก็บแล้ว — AI เลิกใช้เรื่องนี้', 'Archived — AI no longer uses it'));
 	}
 	/** A file action or a takeover answered with the item as it is now. */
 	function changed(answer: LibraryItem) {
 		const item = settled(answer);
 		if (!item) return;
-		readingRequest += 1;
 		items = items.some((known) => known.id === item.id) ? items.map((known) => (known.id === item.id ? item : known)) : [...items, item];
 		schedulePoll();
 	}
 	function deleted(item: LibraryItem) {
-		readingRequest += 1;
+		fresher();
 		items = items.filter((known) => known.id !== item.id);
+		schedulePoll();
 		show({ name: 'list' });
 		showToast(t('ลบแล้ว — AI ของทุกคนหยุดเห็นไฟล์นี้', 'Deleted — nobody’s AI sees it any more'));
 		void refreshUsage();
@@ -350,9 +365,15 @@
 	}
 	async function refreshReading(id: string) {
 		const request = ++readingRequest;
+		const seen = freshness;
 		try {
 			const result = await OrcaLibraryService.load(id);
 			if (disposed || request !== readingRequest || hub?.id !== id) return;
+			// Older than the list now: dropped, and the asking goes on from the list (Codex S7 seventh confirmation #3).
+			if (seen !== freshness) {
+				schedulePoll();
+				return;
+			}
 			if (applyUnderEditor(result)) return;
 			// The editor closed, or holds nothing unsaved now: the whole answer applies.
 			void load(id, true);
@@ -360,6 +381,10 @@
 		} catch (cause) {
 			// Another workspace's, or an older, answer: nothing of this page's asking changes (Codex S7 second confirmation #3).
 			if (disposed || request !== readingRequest || hub?.id !== id) return;
+			if (seen !== freshness) {
+				schedulePoll();
+				return;
+			}
 			// Access lost: no more asking; the editor keeps its text and says so (Codex S7 third confirmation #9, C4).
 			if ([403, 404].includes(getHttpStatusCode(cause) ?? 0) && refuseUnderEditor()) return;
 		}
@@ -488,7 +513,7 @@
 							saved += 1;
 							setRow(key, { state: 'saved', progress: 1, itemID: answer.item.id });
 							if (hub?.id === id) {
-								readingRequest += 1;
+								fresher();
 								items = [...items.filter((known) => known.id !== answer.item!.id), answer.item];
 							}
 						} else {
