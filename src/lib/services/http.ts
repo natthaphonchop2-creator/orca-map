@@ -265,7 +265,7 @@ export interface UploadRequest {
 	abort(): void;
 	readonly status: number;
 	readonly responseText: string;
-	upload: { onprogress: ((event: { loaded: number; total: number; lengthComputable: boolean }) => void) | null };
+	upload: { onprogress: ((event: { loaded: number; total: number; lengthComputable: boolean }) => void) | null; onload?: (() => void) | null };
 	onload: (() => void) | null;
 	onerror: (() => void) | null;
 	onabort: (() => void) | null;
@@ -283,6 +283,8 @@ export function doUpload(
 	opts?: {
 		/** Bytes of the body sent so far, and the body's size (0 when unknown). */
 		onprogress?: (loaded: number, total: number) => void;
+		/** The whole body was sent: a cancel or a lost answer after this leaves its outcome unknown. */
+		onsent?: () => void;
 		signal?: AbortSignal;
 		dontLogErrors?: boolean;
 		request?: () => UploadRequest;
@@ -306,6 +308,8 @@ export function doUpload(
 				request.open('POST', baseURL + path);
 				for (const [name, value] of Object.entries(getAuthHeaders(path))) request.setRequestHeader(name, value);
 				request.upload.onprogress = (event) => opts?.onprogress?.(event.loaded, event.lengthComputable ? event.total : 0);
+				// The whole body is on its way: from here the server may store it even if no answer comes back.
+				request.upload.onload = () => opts?.onsent?.();
 				request.onload = () => {
 					done();
 					const body = request.responseText ?? '';

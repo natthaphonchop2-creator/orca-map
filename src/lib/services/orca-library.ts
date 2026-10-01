@@ -181,6 +181,8 @@ export interface RenderedTemplate {
 }
 
 const options = { dontLogErrors: true };
+/** An upload's progress, its end of sending (after which a lost answer leaves the outcome unknown) and its cancel. */
+export type UploadProgress = { onprogress?: (loaded: number, total: number) => void; onsent?: () => void; signal?: AbortSignal };
 const part = encodeURIComponent;
 const base = (hubID: string) => orcaPath(`/hubs/${part(hubID)}/library`);
 const fileBase = (hubID: string, itemID: string) => `${base(hubID)}/files/${part(itemID)}`;
@@ -250,7 +252,7 @@ export const OrcaLibraryService = {
 	async upload(
 		hubID: string,
 		files: readonly File[],
-		progress?: { onprogress?: (loaded: number, total: number) => void; signal?: AbortSignal }
+		progress?: UploadProgress
 	): Promise<LibraryUploadResult> {
 		return normalizeUpload((await doUpload(`${base(hubID)}/files`, uploadForm(files), { ...options, ...progress })) as LibraryUploadResult);
 	},
@@ -259,7 +261,7 @@ export const OrcaLibraryService = {
 		hubID: string,
 		itemID: string,
 		file: File,
-		progress?: { onprogress?: (loaded: number, total: number) => void; signal?: AbortSignal }
+		progress?: UploadProgress
 	): Promise<LibraryUploadResult> {
 		return normalizeUpload((await doUpload(`${fileBase(hubID, itemID)}/versions`, uploadForm([file]), { ...options, ...progress })) as LibraryUploadResult);
 	},

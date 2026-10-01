@@ -41,7 +41,7 @@ function fakeRequest() {
 		seen,
 		status: 0,
 		responseText: '',
-		upload: { onprogress: null },
+		upload: { onprogress: null, onload: null },
 		onload: null,
 		onerror: null,
 		onabort: null,
@@ -129,4 +129,16 @@ test('a cancelled upload stops the request; a dropped one fails as a network err
 	dropped.onerror();
 	await assert.rejects(lost, TypeError);
 	assert.equal(api.writesInFlight(), 0);
+});
+
+test('an upload says when its whole body is sent: after that, a lost answer leaves the outcome unknown', async () => {
+	const api = client();
+	const request = fakeRequest();
+	let sent = 0;
+	const pending = api.doUpload('/orca/hubs/h/library/files', new FormData(), { request: () => request, onsent: () => sent++ });
+	assert.equal(sent, 0);
+	request.upload.onload();
+	assert.equal(sent, 1);
+	request.onerror();
+	await assert.rejects(pending, TypeError);
 });

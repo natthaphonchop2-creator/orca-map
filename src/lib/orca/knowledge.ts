@@ -1093,6 +1093,26 @@ export function fileRowState(item: Pick<LibraryItem, 'status' | 'file'>, t: Tran
 	return { status: 'reading', note: t('ORCA กำลังอ่านข้อความในไฟล์', 'ORCA is reading the file'), tone: 'muted' };
 }
 
+/**
+ * What an answer leaves out, kept from the item the page has (Codex S7 #2–#3):
+ * a save's answer has no file block, and a takeover's no text; neither
+ * changes them.
+ */
+export function keepOmitted(answer: LibraryItem, known: LibraryItem | undefined): LibraryItem {
+	if (!known || known.id !== answer.id) return answer;
+	return {
+		...answer,
+		file: answer.file ?? known.file,
+		content: answer.kind !== 'file' && !answer.content ? known.content : answer.content
+	};
+}
+
+/** While an editor holds unsaved text, a refresh brings only the files' reading: the item being edited keeps the rest (Codex S7 #8). */
+export function withReading(items: readonly LibraryItem[], fresh: readonly LibraryItem[]): LibraryItem[] {
+	const files = new Map(fresh.filter((item) => item.kind === 'file').map((item) => [item.id, item.file]));
+	return items.map((item) => (item.kind === 'file' && files.has(item.id) ? { ...item, file: files.get(item.id) } : item));
+}
+
 /** The owner's own files still being read: the page asks again until they are done. */
 export function readingFileIDs(items: readonly LibraryItem[]): string[] {
 	return items.filter((item) => item.kind === 'file' && item.canEdit && fileReading(shownVersion(item.file)) === 'reading').map((item) => item.id);
@@ -1134,7 +1154,8 @@ export type UploadRow = {
 	key: string;
 	name: string;
 	size: number;
-	state: 'waiting' | 'sending' | 'saved' | 'refused' | 'failed' | 'cancelled';
+	/** `unknown`: sent in full, and no answer came back (a cancel or a lost connection then): the server may have stored it. */
+	state: 'waiting' | 'sending' | 'saved' | 'refused' | 'failed' | 'cancelled' | 'unknown';
 	/** 0–1 while sending. */
 	progress: number;
 	reason?: FileRefusal;
@@ -1169,6 +1190,8 @@ export function uploadRowText(row: UploadRow, t: Translate): string {
 			return t('ยังไม่ได้อัปโหลด', 'Not uploaded');
 		case 'cancelled':
 			return t('ยกเลิกแล้ว', 'Cancelled');
+		case 'unknown':
+			return t('ส่งครบแล้ว แต่ไม่ได้รับคำตอบ ดูในรายการด้านล่างก่อนส่งซ้ำ', 'Sent, but no answer came back. Check the list below before sending it again.');
 	}
 }
 
@@ -1177,7 +1200,9 @@ export function uploadSummary(rows: readonly UploadRow[], t: Translate): string 
 	const total = rows.length;
 	const saved = rows.filter((row) => row.state === 'saved').length;
 	const moving = rows.filter((row) => row.state === 'sending' || row.state === 'waiting').length;
+	const unknown = rows.filter((row) => row.state === 'unknown').length;
 	if (moving) return t(`กำลังอัปโหลด ${moving.toLocaleString('en-US')} ไฟล์`, `Uploading ${moving.toLocaleString('en-US')} ${moving === 1 ? 'file' : 'files'}`);
+	if (!saved && unknown) return t(`ยังไม่รู้ผลของ ${unknown.toLocaleString('en-US')} ไฟล์`, `No answer for ${unknown.toLocaleString('en-US')} ${unknown === 1 ? 'file' : 'files'}`);
 	if (!saved) return t('ไม่ได้อัปโหลดไฟล์', 'No file was uploaded');
 	if (saved === total) return t(`อัปโหลดแล้ว ${saved.toLocaleString('en-US')} ไฟล์`, `${saved.toLocaleString('en-US')} ${saved === 1 ? 'file' : 'files'} uploaded`);
 	return t(`อัปโหลดแล้ว ${saved.toLocaleString('en-US')} จาก ${total.toLocaleString('en-US')} ไฟล์`, `${saved.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} files uploaded`);

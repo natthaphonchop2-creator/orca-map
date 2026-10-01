@@ -373,3 +373,49 @@ test('"ลองถาม AI" asks about a file only once the AI can read it', (
 	assert.deepEqual(k.filterLibrary([named], 'file', 'all', 'price-list').map((entry) => entry.id), ['n']);
 	assert.deepEqual(k.libraryCounts([named, item('p', { status: 'published' })], 'file'), { published: 1, draft: 1, archived: 0, current: 2 });
 });
+
+test('what an answer leaves out stays: a save\'s file block, a takeover\'s text (Codex S7 #2-#3)', () => {
+	const file = { published: version(1, 'ready'), options: { includeHidden: false, includeComments: false, includeNotes: false, allowDownload: true, reviewBeforeUpdate: false } };
+	const known = { ...item('f', { status: 'draft', file }), title: 'เดิม' };
+	// A save answers the row without its file block.
+	const saved = k.keepOmitted({ ...item('f', { status: 'published' }), title: 'ใหม่', file: undefined }, known);
+	assert.equal(saved.title, 'ใหม่');
+	assert.equal(saved.status, 'published');
+	assert.equal(saved.file, file, 'the file block the page had');
+	// A newer block in the answer wins.
+	const newer = { published: version(2, 'ready') };
+	assert.equal(k.keepOmitted({ ...item('f'), file: newer }, known).file, newer);
+	// A takeover answers an article without its text.
+	const article = { ...item('a'), kind: 'knowledge', content: 'นโยบายคืนสินค้า', file: undefined };
+	const taken = k.keepOmitted({ ...article, content: '', ownerID: 'me', version: 4 }, article);
+	assert.equal(taken.content, 'นโยบายคืนสินค้า');
+	assert.equal(taken.ownerID, 'me');
+	assert.equal(taken.version, 4);
+	// Another item, or none known: the answer as it is.
+	assert.equal(k.keepOmitted(saved, undefined), saved);
+	assert.equal(k.keepOmitted({ ...item('x'), file: undefined }, known).file, undefined);
+});
+
+test('with unsaved text in the editor, a refresh brings only the files\' reading (Codex S7 #8)', () => {
+	const editing = { ...item('f', { status: 'draft', file: { pending: version(1, 'extracting') } }), title: 'ชื่อที่กำลังแก้' };
+	const article = { ...item('a'), kind: 'knowledge', content: 'เดิม' };
+	const fresh = [
+		{ ...item('f', { status: 'draft', file: { published: version(1, 'ready') } }), title: 'ชื่อบนเซิร์ฟเวอร์', version: 9 },
+		{ ...article, content: 'ใหม่' },
+		item('new-file')
+	];
+	const next = k.withReading([editing, article], fresh);
+	assert.equal(next.length, 2, 'nothing is added or removed under the editor');
+	assert.equal(next[0].title, 'ชื่อที่กำลังแก้');
+	assert.equal(next[0].version, editing.version, 'the version the editor saves against stays');
+	assert.equal(next[0].file.published.state, 'ready', 'the reading came in: the file can be published');
+	assert.equal(next[1], article, 'articles are left as they are');
+});
+
+test('a batch sent in full whose answer did not come says so, and is not counted as uploaded (Codex S7 #5)', () => {
+	const row = (state, extra = {}) => ({ key: state, name: `${state}.xlsx`, size: 1, state, progress: 0, ...extra });
+	assert.equal(k.uploadRowText(row('unknown'), th), 'ส่งครบแล้ว แต่ไม่ได้รับคำตอบ ดูในรายการด้านล่างก่อนส่งซ้ำ');
+	assert.equal(k.uploadSummary([row('unknown'), row('cancelled')], th), 'ยังไม่รู้ผลของ 1 ไฟล์');
+	assert.equal(k.uploadSummary([row('unknown'), row('saved')], th), 'อัปโหลดแล้ว 1 จาก 2 ไฟล์');
+	assert.equal(k.uploadSummary([row('unknown'), row('sending')], th), 'กำลังอัปโหลด 1 ไฟล์');
+});
