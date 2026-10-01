@@ -255,6 +255,10 @@ test('hidden parts: "ไฟล์นี้มีโน้ตผู้บรร�
 	// The owner turned the switch: the version that serves keeps the old choice until the new one is read.
 	assert.deepEqual(k.hiddenLines(read({}, { notesSlides: 12 }), th, { includeNotes: true, includeHidden: false, includeComments: false }).map((line) => line.text), ['ไฟล์นี้มีโน้ตผู้บรรยาย 12 สไลด์ ORCA กำลังอ่านใหม่ให้ AI เห็น']);
 	assert.deepEqual(k.hiddenLines(read({ includeNotes: true }, { notesSlides: 12 }), th, { includeNotes: false, includeHidden: false, includeComments: false }).map((line) => line.text), ['AI ยังเห็นโน้ตผู้บรรยาย 12 สไลด์ จนกว่าฉบับใหม่จะอ่านเสร็จ']);
+	// A file that serves no one now (a draft, a workspace not active, file Knowledge off): what the AI will see, never what it sees (Codex S7 second confirmation #4).
+	assert.deepEqual(k.hiddenLines(read({ includeNotes: true }, { notesSlides: 12 }), th, undefined, false).map((line) => line.text), ['AI จะเห็นโน้ตผู้บรรยาย 12 สไลด์']);
+	assert.deepEqual(k.hiddenLines(read({ includeNotes: true }, { notesSlides: 12 }), th, { includeNotes: false, includeHidden: false, includeComments: false }, false).map((line) => line.text), ['ฉบับนี้ยังมีโน้ตผู้บรรยาย 12 สไลด์ จนกว่าฉบับใหม่จะอ่านเสร็จ']);
+	assert.deepEqual(k.hiddenLines(read({}, { notesSlides: 12 }), th, undefined, false).map((line) => line.text), ['ไฟล์นี้มีโน้ตผู้บรรยาย 12 สไลด์ ซึ่ง AI จะไม่เห็นจนกว่าคุณจะเปิด']);
 	assert.deepEqual(k.hiddenLines(read({}, {}), th), [], 'nothing hidden, nothing said');
 	assert.deepEqual(k.hiddenLines(undefined, th), []);
 	assert.doesNotMatch(k.hiddenLines(read({}, { notesSlides: 1, comments: 2 }), en).map((line) => line.text).join(' '), /[฀-๿]/);
@@ -410,6 +414,12 @@ test('what an answer leaves out stays: a save\'s file block, a takeover\'s text 
 	assert.equal(k.keepOmitted(saved, undefined), saved);
 	assert.equal(k.keepOmitted({ ...item('x'), file: undefined, version: 4 }, known).file, undefined);
 	assert.equal(k.itemIncomplete({ ...article }), false);
+	// The page keeps the item it had while what it has is stale: its older version makes any save from it a
+	// conflict, never an overwrite of the newer text (Codex S7 second confirmation #1).
+	assert.deepEqual(k.settleAnswer({ ...article, content: '', ownerID: 'me', version: 6 }, article), { item: article, reload: true });
+	assert.deepEqual(k.settleAnswer({ ...article, content: '', ownerID: 'me', version: 4 }, article), { item: { ...article, ownerID: 'me', version: 4 }, reload: false });
+	const unknown = { ...article, id: 'new', content: '' };
+	assert.deepEqual(k.settleAnswer(unknown, undefined), { item: unknown, reload: true }, 'nothing better known: the answer, and the library again');
 });
 
 test('with unsaved text in the editor, a refresh brings only the files\' reading (Codex S7 #8)', () => {

@@ -984,7 +984,7 @@ export type HiddenLine = { part: 'notes' | 'hidden' | 'comments' | 'tracked'; op
  * version holds hidden, and whether it was read with it. Tracked changes are
  * never read; they are told only.
  */
-export function hiddenLines(version: Pick<LibraryFileVersion, 'stats' | 'options'> | undefined, t: Translate, wanted?: LibraryReadParts): HiddenLine[] {
+export function hiddenLines(version: Pick<LibraryFileVersion, 'stats' | 'options'> | undefined, t: Translate, wanted?: LibraryReadParts, live = true): HiddenLine[] {
 	const hidden = version?.stats?.hidden;
 	if (!version || !hidden) return [];
 	const read = version.options ?? { includeHidden: false, includeComments: false, includeNotes: false };
@@ -1006,12 +1006,19 @@ export function hiddenLines(version: Pick<LibraryFileVersion, 'stats' | 'options
 			part,
 			option,
 			included,
+			// A file that serves no one now (a draft, a workspace not active, file
+			// Knowledge off) says what the AI will see, never what it sees (Codex S7
+			// second confirmation #4).
 			text: changing
 				? included
-					? t(`AI ยังเห็น${thai} ${n(count)} ${unit} จนกว่าฉบับใหม่จะอ่านเสร็จ`, `The AI still sees ${n(count)} ${english} until the new version is read`)
+					? live
+						? t(`AI ยังเห็น${thai} ${n(count)} ${unit} จนกว่าฉบับใหม่จะอ่านเสร็จ`, `The AI still sees ${n(count)} ${english} until the new version is read`)
+						: t(`ฉบับนี้ยังมี${thai} ${n(count)} ${unit} จนกว่าฉบับใหม่จะอ่านเสร็จ`, `This version still has ${n(count)} ${english} until the new one is read`)
 					: t(`ไฟล์นี้มี${thai} ${n(count)} ${unit} ORCA กำลังอ่านใหม่ให้ AI เห็น`, `This file has ${n(count)} ${english}; ORCA is reading it again so the AI sees them`)
 				: included
-					? t(`AI เห็น${thai} ${n(count)} ${unit}`, `The AI sees ${n(count)} ${english}`)
+					? live
+						? t(`AI เห็น${thai} ${n(count)} ${unit}`, `The AI sees ${n(count)} ${english}`)
+						: t(`AI จะเห็น${thai} ${n(count)} ${unit}`, `The AI will see ${n(count)} ${english}`)
 					: t(`ไฟล์นี้มี${thai} ${n(count)} ${unit} ซึ่ง AI จะไม่เห็นจนกว่าคุณจะเปิด`, `This file has ${n(count)} ${english}, which the AI won’t see until you turn them on`)
 		});
 	}
@@ -1114,6 +1121,19 @@ export function keepOmitted(answer: LibraryItem, known: LibraryItem | undefined)
 /** An item still missing what its answer left out (a file's block, an article's text): the page asks for the library again. */
 export function itemIncomplete(item: LibraryItem): boolean {
 	return item.kind === 'file' ? !item.file : !item.content;
+}
+
+/**
+ * The item a page keeps from an answer: the answer with what it left out, or,
+ * when that can't be filled in (someone else's change in between), the item
+ * the page had until the library comes again. Its older version makes any
+ * save from it a conflict, never an overwrite of the newer text (Codex S7
+ * second confirmation #1).
+ */
+export function settleAnswer(answer: LibraryItem, known: LibraryItem | undefined): { item: LibraryItem; reload: boolean } {
+	const item = keepOmitted(answer, known);
+	if (!itemIncomplete(item)) return { item, reload: false };
+	return { item: known ?? item, reload: true };
 }
 
 /**
