@@ -7,7 +7,7 @@ import path from 'node:path';
 import { once } from 'node:events';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { createAppServer, createBackendMiddleware, originURL } from './server/app.mjs';
+import { createAppServer, createBackendMiddleware, libraryUploadRoute, originURL } from './server/app.mjs';
 
 async function listen(server) {
   server.listen(0, '127.0.0.1');
@@ -742,4 +742,129 @@ test('a wrong password in AI mode comes back through the sign-in page with the h
 test('the server logs no request, so no code, request or state reaches a log', async () => {
   const source = await readFile(new URL('./server/app.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /console\.|process\.stdout|process\.stderr/);
+});
+
+// Knowledge library v2 (C4 §14m S7): the two upload routes take up to 15
+// minutes to arrive and to be answered; every other request keeps 120 s.
+test('only the two library upload routes are upload routes', () => {
+  for (const path of ['/api/orca/hubs/hub-sales/library/files', '/api/orca/orgs/org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/hubs/hub-sales/library/files', '/api/orca/hubs/hub-sales/library/files/orl-1/versions'])
+    assert.equal(libraryUploadRoute('POST', path), true, path);
+  for (const [method, path] of [
+    ['GET', '/api/orca/hubs/hub-sales/library/files'],
+    ['PUT', '/api/orca/hubs/hub-sales/library/files/orl-1/versions'],
+    ['POST', '/api/orca/hubs/hub-sales/library/files/orl-1/reextract'],
+    ['POST', '/api/orca/hubs/hub-sales/library/files/orl-1/publish-pending'],
+    ['POST', '/api/orca/hubs/hub-sales/library/files/orl-1'],
+    ['POST', '/api/orca/hubs/hub-sales/library/items'],
+    ['POST', '/api/orca/hubs/hub-sales/mcp'],
+    ['POST', '/api/khum/hubs/hub-sales/library/files'],
+    ['POST', '/api/orca/hubs/a/b/library/files'],
+    ['POST', '/api/orca/hubs/hub-sales/library/files/'],
+  ]) assert.equal(libraryUploadRoute(method, path), false, `${method} ${path}`);
+});
+
+test('the server gives requests 15 minutes to arrive only through the upload routes', async (t) => {
+  const f = await fixture(t);
+  assert.equal(f.app.requestTimeout, 15 * 60_000);
+  assert.equal(f.app.headersTimeout, 60_000);
+});
+
+test('an upload\'s answer may take 15 minutes; another call is still cut at 120 seconds', async (t) => {
+  const answers = [];
+  let started = 0;
+  let markStarted;
+  const both = new Promise((resolve) => { markStarted = resolve; });
+  const f = await fixture(t, (req, res) => {
+    answers.push({ path: req.url, res });
+    if (++started === 2) markStarted();
+    req.resume();
+  });
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const upload = request(f.appURL, '/api/orca/hubs/hub-sales/library/files', { method: 'POST', headers: { 'content-type': 'multipart/form-data; boundary=x' }, body: '--x--\r\n' });
+  const other = request(f.appURL, '/api/orca/hubs/hub-sales/library/items', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  await both;
+  let uploadDone = false;
+  upload.then(() => { uploadDone = true; });
+  t.mock.timers.tick(120_000);
+  const cut = await other;
+  assert.equal(cut.status, 504);
+  assert.deepEqual(JSON.parse(cut.body), { error: 'backend_timeout' });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(uploadDone, false, 'the upload still waits for its answer');
+  t.mock.timers.tick(10 * 60_000);
+  const held = answers.find((answer) => answer.path === '/api/orca/hubs/hub-sales/library/files');
+  held.res.writeHead(202, { 'content-type': 'application/json' });
+  held.res.end('{"files":[]}');
+  const answered = await upload;
+  assert.equal(answered.status, 202);
+  assert.deepEqual(JSON.parse(answered.body), { files: [] });
+});
+
+test('an upload that is never answered is cut at 15 minutes', async (t) => {
+  let markStarted;
+  const started = new Promise((resolve) => { markStarted = resolve; });
+  const f = await fixture(t, (req) => { req.resume(); markStarted(); });
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const pending = request(f.appURL, '/api/orca/orgs/org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/hubs/hub-sales/library/files/orl-1/versions', { method: 'POST', headers: { 'content-type': 'multipart/form-data; boundary=x' }, body: '--x--\r\n' });
+  await started;
+  t.mock.timers.tick(15 * 60_000);
+  const result = await pending;
+  assert.equal(result.status, 504);
+  assert.deepEqual(JSON.parse(result.body), { error: 'backend_timeout' });
+});
+
+/** A request whose body stops halfway: the headers promise 20 bytes and 10 are sent. */
+function slowBody(base, pathname) {
+  const target = new URL(base);
+  const chunks = [];
+  let closed;
+  const done = new Promise((resolve) => { closed = resolve; });
+  const req = http.request({ hostname: target.hostname, port: target.port, path: pathname, method: 'POST', headers: { 'content-type': 'application/octet-stream', 'content-length': 20 } }, (res) => {
+    res.on('data', (chunk) => chunks.push(chunk));
+    res.on('end', () => closed({ status: res.statusCode, body: Buffer.concat(chunks).toString() }));
+    res.on('error', () => closed({ status: res.statusCode, body: Buffer.concat(chunks).toString() }));
+  });
+  req.on('error', () => closed({ status: 0, body: '' }));
+  req.write('0123456789');
+  return { req, done };
+}
+
+test('a request still arriving after 120 seconds is answered 408 and closed, and its proxied call stops', async (t) => {
+  let markStarted;
+  let markUpstreamClosed;
+  const started = new Promise((resolve) => { markStarted = resolve; });
+  const upstreamClosed = new Promise((resolve) => { markUpstreamClosed = resolve; });
+  const f = await fixture(t, (req, res) => {
+    req.on('data', () => markStarted());
+    res.on('close', markUpstreamClosed);
+  });
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const slow = slowBody(f.appURL, '/api/orca/hubs/hub-sales/library/items');
+  await started;
+  t.mock.timers.tick(120_000);
+  const result = await slow.done;
+  assert.equal(result.status, 408);
+  assert.deepEqual(JSON.parse(result.body), { error: 'request_timeout' });
+  await upstreamClosed;
+});
+
+test('an upload still arriving after 120 seconds is not cut', async (t) => {
+  let markStarted;
+  let body = '';
+  const started = new Promise((resolve) => { markStarted = resolve; });
+  const f = await fixture(t, (req, res) => {
+    req.on('data', (chunk) => { body += chunk; markStarted(); });
+    req.on('end', () => {
+      res.writeHead(202, { 'content-type': 'application/json' });
+      res.end('{"files":[]}');
+    });
+  });
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const slow = slowBody(f.appURL, '/api/orca/hubs/hub-sales/library/files');
+  await started;
+  t.mock.timers.tick(5 * 60_000);
+  slow.req.end('abcdefghij');
+  const result = await slow.done;
+  assert.equal(result.status, 202);
+  assert.equal(body, '0123456789abcdefghij');
 });

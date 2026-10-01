@@ -23,6 +23,17 @@ const MARKETING = /^\/(?:pricing|services|start)(?:\.html|\/|$)/;
 // followed by up to 5s for audit finalization. Let the backend return its own
 // result while retaining a finite deadline for a stalled upstream connection.
 const BACKEND_HEADER_TIMEOUT_MS = 120_000;
+// Every request's body arrives within 120s, as before (C4 §14m S7)...
+const REQUEST_TIMEOUT_MS = 120_000;
+// ...except the knowledge library's two upload routes: up to 100 MB on a slow
+// line, answered once every file is stored. The backend allows them 15 minutes.
+const UPLOAD_TIMEOUT_MS = 15 * 60_000;
+const UPLOAD_ROUTE = /^\/api\/orca(?:\/orgs\/[^/]+)?\/hubs\/[^/]+\/library\/files(?:\/[^/]+\/versions)?$/;
+
+/** POST of new files, or of a file's new version, to the knowledge library. */
+export function libraryUploadRoute(method, pathname) {
+  return method === 'POST' && UPLOAD_ROUTE.test(pathname);
+}
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.pdf': 'application/pdf' };
 
 export function originURL(value, name) {
@@ -132,6 +143,8 @@ function publicSite(req, res, config, url) {
 }
 
 function proxy(req, res, config, appOrigin, requestPath = req.url) {
+  const pathname = parsedPath(requestPath);
+  const headerTimeoutMs = pathname && libraryUploadRoute(req.method, pathname) ? config.uploadTimeoutMs : config.headerTimeoutMs;
   const headers = cleanHeaders(req.headers);
   for (const name of Object.keys(headers)) {
     if (name === 'forwarded' || name.startsWith('x-forwarded-') || name === 'x-real-ip') delete headers[name];
@@ -175,7 +188,7 @@ function proxy(req, res, config, appOrigin, requestPath = req.url) {
   const headerTimer = setTimeout(() => {
     upstream.destroy();
     if (!res.headersSent && !res.destroyed) json(res, 504, { error: 'backend_timeout' });
-  }, config.headerTimeoutMs);
+  }, headerTimeoutMs);
   headerTimer.unref();
   upstream.on('error', () => {
     clearTimeout(headerTimer);
@@ -241,7 +254,7 @@ function configuration(options = {}) {
   const publicOrigin = options.publicOrigin ? originURL(options.publicOrigin, 'ORCA_PUBLIC_ORIGIN') : null;
   const advertisedOrigin = options.backendPublicOrigin || (backend.origin === 'http://127.0.0.1:8787' ? 'http://localhost:8787' : null);
   const backendPublicOrigin = advertisedOrigin ? originURL(advertisedOrigin, 'ORCA_BACKEND_PUBLIC_ORIGIN') : null;
-  return { backend, backendPublicOrigin, publicOrigin, buildDir: path.resolve(options.buildDir ?? 'build'), redirectOrigins: new Set([backend.origin, backendPublicOrigin?.origin].filter(Boolean)), headerTimeoutMs: options.headerTimeoutMs ?? BACKEND_HEADER_TIMEOUT_MS, healthTimeoutMs: options.healthTimeoutMs ?? 2_000 };
+  return { backend, backendPublicOrigin, publicOrigin, buildDir: path.resolve(options.buildDir ?? 'build'), redirectOrigins: new Set([backend.origin, backendPublicOrigin?.origin].filter(Boolean)), headerTimeoutMs: options.headerTimeoutMs ?? BACKEND_HEADER_TIMEOUT_MS, uploadTimeoutMs: options.uploadTimeoutMs ?? UPLOAD_TIMEOUT_MS, requestTimeoutMs: options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS, healthTimeoutMs: options.healthTimeoutMs ?? 2_000 };
 }
 
 // Mount before Vite's HTML fallback with configureServer. This handles only
@@ -276,6 +289,26 @@ export function createBackendMiddleware(options = {}) {
   };
 }
 
+/**
+ * The 120s the server used to give every request to arrive, now per request:
+ * Node's own requestTimeout is the upload routes' 15 minutes. A request still
+ * arriving after it is answered 408 and its connection closed, as Node does.
+ */
+function requestDeadline(req, res, ms) {
+  const timer = setTimeout(() => {
+    if (req.complete || res.destroyed) return;
+    if (!res.headersSent) {
+      res.shouldKeepAlive = false;
+      json(res, 408, { error: 'request_timeout' });
+      res.once('finish', () => req.socket.destroy());
+    } else req.socket.destroy();
+  }, ms);
+  timer.unref();
+  const done = () => clearTimeout(timer);
+  req.once('end', done);
+  res.once('close', done);
+}
+
 export function createAppServer(options = {}) {
   const config = configuration(options);
   const server = http.createServer(async (req, res) => {
@@ -288,6 +321,7 @@ export function createAppServer(options = {}) {
       if (!METHODS.has(req.method)) return json(res, 405, { error: 'method_not_allowed' });
       const pathname = parsedPath(req.url);
       if (pathname === null) return json(res, 400, { error: 'invalid_path' });
+      if (!libraryUploadRoute(req.method, pathname)) requestDeadline(req, res, config.requestTimeoutMs);
       const url = new URL(req.url, appOrigin);
       const rootCallback = pathname === '/' && ['code', 'error', 'state'].some((key) => url.searchParams.has(key));
       const backendRoute = rootCallback || BACKEND_PREFIXES.some((prefix) => pathname.startsWith(prefix));
@@ -302,7 +336,9 @@ export function createAppServer(options = {}) {
       else res.destroy();
     }
   });
-  server.requestTimeout = 120_000;
+  // The longest any request may take to arrive: the upload routes'. Every other
+  // request keeps its 120s through requestDeadline.
+  server.requestTimeout = config.uploadTimeoutMs;
   server.headersTimeout = 60_000;
   server.on('upgrade', (_req, socket) => socket.end('HTTP/1.1 501 Not Implemented\r\nConnection: close\r\nContent-Length: 0\r\n\r\n'));
   server.on('connect', (_req, socket) => socket.end('HTTP/1.1 405 Method Not Allowed\r\nConnection: close\r\nContent-Length: 0\r\n\r\n'));
