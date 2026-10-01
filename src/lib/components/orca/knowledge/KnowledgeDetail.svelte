@@ -260,7 +260,7 @@
 		<div class="kd-side">
 			<WhoCard {hub} {item} {members} {departments} {currentUserID} />
 			{#if takeover && onchanged}<TakeoverCard hubID={hub.id} {item} ontaken={onchanged} {ondenied} />{/if}
-			<KnowledgeRail item={item} ask={item.status === 'published' && !idle} {connected} {app} workspace={hub} legend={false} />
+			<KnowledgeRail item={item} ask={item.status === 'published' && !idle} {connected} {app} workspace={hub} legend={false} paused={idle ? 'workspace' : undefined} />
 		</div>
 	</div>
 </div>

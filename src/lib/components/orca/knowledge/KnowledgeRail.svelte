@@ -66,7 +66,9 @@
 	{:else if !connected}
 		<div class="kn-card connect">
 			<div class="connect-h"><span class="ask-ic" aria-hidden="true"><Sparkles size={16} /></span><b>{t('ยังไม่ได้เชื่อม AI ของคุณ', 'Your AI is not connected')}</b></div>
-			<p>{t('เชื่อมครั้งเดียว แล้ว Claude หรือ ChatGPT จะตอบจากคลังนี้ได้', 'Connect once and Claude or ChatGPT can answer from this library.')}</p>
+			<p>{paused === 'workspace'
+					? t('เชื่อมครั้งเดียว แล้ว Claude หรือ ChatGPT จะตอบจากคลังนี้ได้เมื่อเปิดใช้งานพื้นที่ทำงานนี้', 'Connect once and Claude or ChatGPT can answer from this library once this workspace is active.')
+					: t('เชื่อมครั้งเดียว แล้ว Claude หรือ ChatGPT จะตอบจากคลังนี้ได้', 'Connect once and Claude or ChatGPT can answer from this library.')}</p>
 			<a class="k-button" href={localeHref('/app?view=connect-ai')}>{term('connectMyAI', t)}<ArrowRight size={15} aria-hidden="true" /></a>
 		</div>
 	{/if}

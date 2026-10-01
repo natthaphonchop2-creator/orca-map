@@ -665,7 +665,8 @@ test('a preview that is gone changes nothing when its answer comes back (Codex S
 	assert.match(page, /if \(!hub \|\| \(answer\.hubID && answer\.hubID !== hub\.id\)\) return undefined;/);
 	assert.match(page, /if \(reload\) void load\(hub\.id\);/, 'an answer still missing what it left out: the library is asked again');
 	assert.match(page, /if \(failure\.reload && hub\?\.id === id\) void load\(id\);/, 'an upload whose outcome is unknown: the list is asked');
-	assert.match(page, /if \(\[403, 404\]\.includes\(getHttpStatusCode\(cause\) \?\? 0\)\) \{\s*stopPolling\(\);\s*editorNote = t\(/, 'access lost under an editor: no more asking, and the editor says so');
+	assert.match(page, /if \(\[403, 404\]\.includes\(getHttpStatusCode\(cause\) \?\? 0\) && refuseUnderEditor\(\)\) return;/, 'access lost under an editor: no more asking, and the editor says so');
+	assert.match(page, /function refuseUnderEditor\(\): boolean \{\s*if \(dirtyEditor\(\) === undefined\) return false;\s*stopPolling\(\);\s*editorNote = t\(/);
 });
 
 test('a workspace not active yet: its lists say "เผยแพร่แล้ว", never "AI ใช้ได้", and the legend says why (Codex S7 second confirmation #4)', async () => {
@@ -899,7 +900,7 @@ test('an article\'s page that is gone changes nothing when its archive answer co
 
 test('access lost under an editor: the editor says so and keeps the text; once it closes the library comes again (Codex S7 third confirmation #9, C4)', async (t) => {
 	const client = await import('svelte/internal/client');
-	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ refreshReading, show, get editorNote() { return editorNote; }, get items() { return items; } }');
+	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ refreshReading, show, setDirty(value) { dirty = value; }, get editorNote() { return editorNote; }, get items() { return items; } }');
 	const loads = [];
 	const salesHub = hub('sales', { memberIDs: ['me'] });
 	let refuse = false;
@@ -926,17 +927,142 @@ test('access lost under an editor: the editor says so and keeps the text; once i
 	});
 	t.after(stop);
 	client.flush();
-	for (let i = 0; i < 5 && !loads.length; i++) await new Promise((resolve) => setImmediate(resolve));
+	for (let i = 0; i < 10 && !view.items.length; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(view.items.length, 1, 'the library loaded');
 	view.show({ name: 'editor', kind: 'knowledge', id: 'a' });
+	view.setDirty(true);
 	client.flush();
 	refuse = true;
 	await view.refreshReading('sales');
 	assert.match(view.editorNote, /เปิดคลังความรู้ของพื้นที่ทำงานนี้ไม่ได้แล้ว ข้อความที่พิมพ์ยังอยู่ คัดลอกเก็บไว้ก่อนออก/);
 	assert.equal(view.items.length, 1, 'the editor\'s item stays under it');
 	const before = loads.length;
+	view.setDirty(false);
 	view.show({ name: 'list' });
 	client.flush();
 	for (let i = 0; i < 5 && loads.length === before; i++) await new Promise((resolve) => setImmediate(resolve));
 	assert.equal(view.editorNote, '');
 	assert.equal(loads.length, before + 1, 'the library comes again in full: its refusal shows on the list');
+});
+
+
+/** The library page's script, alone, with a library the test answers by hand. */
+async function libraryPage(t, answer) {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ load, refreshReading, show, setDirty(value) { dirty = value; }, get screen() { return screen; }, get editorNote() { return editorNote; }, get items() { return items; }, get pollTimer() { return pollTimer; }, stopPolling }');
+	const salesHub = hub('sales', { memberIDs: ['me'] });
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ data: { hubs: [salesHub], currentUserID: 'me', canManage: true, features: { libraryV2: true }, members, units: [] }, hubID: 'sales', initialKind: undefined, initialCreate: false, onchanged: async () => {} },
+			{
+				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
+				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales'), state: {} },
+				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', localeHref: (value) => value,
+				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
+				OrcaLibraryService: { load: () => answer(), usage: async () => ({ bytes: 0, bytesLimit: 1, chars: 0, charsLimit: 1, uploadsToday: 0, uploadsLimit: 50, items: 0, itemsLimit: 1000 }) }
+			}
+		);
+	});
+	t.after(() => {
+		view.stopPolling();
+		stop();
+	});
+	client.flush();
+	await new Promise((resolve) => setImmediate(resolve));
+	return { view, flush: client.flush };
+}
+
+test('a load asked for before the person began typing never closes their editor (Codex S7 fourth confirmation #2)', async (t) => {
+	for (const outcome of ['refused', 'gone']) {
+		const queue = [async () => ({ items: [article('a'), article('b')], members, departments: [] })];
+		const { view, flush } = await libraryPage(t, () => queue.shift()());
+		view.show({ name: 'editor', kind: 'knowledge', id: 'a' });
+		flush();
+		// The page asks (dirty is false), then the person types while the answer is on its way.
+		let answer;
+		queue.push(() => new Promise((resolve, reject) => { answer = { resolve, reject }; }));
+		const loading = view.load('sales', true);
+		view.setDirty(true);
+		if (outcome === 'refused') answer.reject(Object.assign(new Error('forbidden'), { status: 403 }));
+		else answer.resolve({ items: [article('b')], members, departments: [] });
+		await loading;
+		flush();
+		assert.equal(view.screen.name, 'editor', `${outcome}: the editor stays`);
+		assert.match(view.editorNote, outcome === 'refused' ? /เปิดคลังความรู้ของพื้นที่ทำงานนี้ไม่ได้แล้ว/ : /เรื่องนี้ไม่อยู่ในรายการของคุณแล้ว/, outcome);
+		assert.ok(view.items.some((item) => item.id === 'a'), `${outcome}: the edited item stays under it`);
+	}
+});
+
+test('a quiet ask started while editing one item and answered while editing another speaks of the one open now (Codex S7 fourth confirmation #4)', async (t) => {
+	const queue = [async () => ({ items: [article('a'), article('b')], members, departments: [] })];
+	const { view, flush } = await libraryPage(t, () => queue.shift()());
+	view.show({ name: 'editor', kind: 'knowledge', id: 'a' });
+	view.setDirty(true);
+	flush();
+	let answer;
+	queue.push(() => new Promise((resolve) => { answer = resolve; }));
+	const asking = view.refreshReading('sales');
+	// The person moves to B's editor; the answer lists B, not A.
+	view.show({ name: 'editor', kind: 'knowledge', id: 'b' });
+	flush();
+	answer({ items: [article('b')], members, departments: [] });
+	await asking;
+	assert.equal(view.editorNote, '', 'B is listed: nothing to say over B');
+	assert.deepEqual(view.items.map((item) => item.id), ['b'], 'A, no longer listed and not being edited, goes');
+});
+
+test('the remaining words of a workspace not active, and the takeover\'s 403 (Codex S7 fourth confirmation #5, #6, NOTE)', async (t) => {
+	const { Component } = await serverComponent(new URL('./knowledge/KnowledgeRail.svelte', import.meta.url), { ...k, t: th, term, localeHref: (value) => value, copyFeedback: () => ({ dispose: noop, copied: noop }), copyText: noop, showToast: noop, onDestroy: noop });
+	const card = (paused) => show(Component, { item: undefined, connected: false, ask: false, legend: false, paused });
+	assert.match(card('workspace'), /เชื่อมครั้งเดียว แล้ว Claude หรือ ChatGPT จะตอบจากคลังนี้ได้เมื่อเปิดใช้งานพื้นที่ทำงานนี้/);
+	assert.match(card(undefined), /เชื่อมครั้งเดียว แล้ว Claude หรือ ChatGPT จะตอบจากคลังนี้ได้</);
+	// The pages pass it on library v2 only.
+	const detail = await readFile(new URL('./knowledge/KnowledgeDetail.svelte', import.meta.url), 'utf8');
+	assert.match(detail, /ask=\{item\.status === 'published' && !idle\}[^>]*paused=\{idle \? 'workspace' : undefined\}/);
+	const file = await readFile(new URL('./knowledge/FileDetail.svelte', import.meta.url), 'utf8');
+	assert.match(file, /paused=\{features\.files && hub\.status !== 'active' \? 'workspace' : undefined\}/);
+	// Dots only: S7's red states colour the dot, never the whole pill.
+	const pill = await readFile(new URL('./ui/StatusPill.svelte', import.meta.url), 'utf8');
+	assert.match(pill, /\.orca-pill \.orca-pill-dot\.tone-deny \{\s*background: var\(--orca-deny\);/);
+	const rail = await readFile(new URL('./knowledge/KnowledgeRail.svelte', import.meta.url), 'utf8');
+	assert.match(rail, /\.dt\.deny \{\s*background: var\(--orca-deny\);/);
+	assert.doesNotMatch(rail, /\.pill\.deny/);
+	// The takeover's 403 names no one cause: the owner may be here, or the role changed.
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./knowledge/TakeoverCard.svelte', '{ take, get error() { return error; } }');
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ hubID: 'sales', item: article('a', { ownerID: 'gone', canEdit: false }), ontaken: noop, ondenied: noop },
+			{ ...k, t: th, onDestroy: () => {}, getHttpStatusCode: (error) => error.status, parseErrorContent: (error) => ({ status: error.status, message: error.message }), orcaError: (error) => error.message, OrcaLibraryService: { takeover: async () => { throw Object.assign(new Error('forbidden'), { status: 403 }); } } }
+		);
+	});
+	t.after(stop);
+	client.flush();
+	await view.take();
+	assert.equal(view.error, 'ยังรับช่วงไม่ได้ เจ้าของอาจยังอยู่ในพื้นที่ทำงานนี้ หรือสิทธิ์ของคุณเปลี่ยน โหลดหน้าใหม่แล้วลองอีกครั้ง');
+});
+
+test('a held version\'s tab: its lines say what the AI will see, and its partial reading shows (Codex S7 fourth confirmation NOTE)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./knowledge/FileDetail.svelte', '{ setWhich(value) { which = value; }, get lines() { return lines; }, get previewVersion() { return previewVersion; }, get previewLive() { return previewLive; } }');
+	const item = fileItem('p', { file: fileInfo({ ext: 'pptx', published: version(1, 'ready', { stats: { chars: 1, slides: 18, hidden: hiddenParts() } }), pending: version(2, 'partial', { options: { includeHidden: false, includeComments: false, includeNotes: true }, stats: { chars: 1, slides: 240, partialReason: 'slides', hidden: hiddenParts({ notesSlides: 7 }) } }), options: options({ reviewBeforeUpdate: true, includeNotes: true }) }) });
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ hub: hub('sales'), item, members, departments, currentUserID: 'me', canManage: false, features: ON, now: 0, onback: noop, onedit: noop, onchanged: noop, onarchived: noop, ondeleted: noop, ondenied: noop },
+			{ ...k, t: th, term, onDestroy: () => {}, getHttpStatusCode: () => undefined, isAbortError: () => false, parseErrorContent: (error) => error, orcaError: (error) => error.message, OrcaLibraryService: {} }
+		);
+	});
+	t.after(stop);
+	client.flush();
+	assert.equal(view.previewLive, true, 'the version in use, published: what the AI sees');
+	view.setWhich('pending');
+	client.flush();
+	assert.equal(view.previewVersion.version, 2);
+	assert.equal(view.previewLive, false);
+	assert.deepEqual(view.lines.map((line) => line.text), ['AI จะเห็นโน้ตผู้บรรยาย 7 สไลด์'], 'the held version serves no one yet');
+	assert.equal(view.previewVersion.state, 'partial', 'its partial note shows on its tab');
 });

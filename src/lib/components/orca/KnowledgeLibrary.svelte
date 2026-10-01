@@ -192,6 +192,9 @@
 		try {
 			const result = await OrcaLibraryService.load(id);
 			if (request !== requestNumber || disposed) return;
+			// The person began typing while this was on its way: the answer never closes
+			// their editor; it brings the files' reading and says what changed (Codex S7 fourth confirmation #2).
+			if (applyUnderEditor(result)) return;
 			error = '';
 			items = result.items;
 			members = result.members;
@@ -209,6 +212,7 @@
 				schedulePoll();
 				return;
 			}
+			if (denied && refuseUnderEditor()) return;
 			if (denied) {
 				items = [];
 				screen = { name: 'list' };
@@ -336,28 +340,47 @@
 	}
 	async function refreshReading(id: string) {
 		const request = ++readingRequest;
-		const editing = screenID(screen) ?? '';
 		try {
 			const result = await OrcaLibraryService.load(id);
 			if (disposed || request !== readingRequest || hub?.id !== id) return;
-			items = withReading(items, result.items, editing);
-			// The item being edited is no longer listed: nothing more to ask; the editor says so and keeps the text.
-			if (editing && !result.items.some((item) => item.id === editing)) {
-				stopPolling();
-				editorNote = t('เรื่องนี้ไม่อยู่ในรายการของคุณแล้ว (อาจถูกลบหรือเปลี่ยนสิทธิ์) ข้อความที่พิมพ์ยังอยู่ คัดลอกเก็บไว้ก่อนออก', 'This item is no longer in your list (it may have been deleted, or access changed). Your text is still here: copy it before you leave.');
-				return;
-			}
+			if (applyUnderEditor(result)) return;
+			// The editor closed, or holds nothing unsaved now: the whole answer applies.
+			void load(id, true);
+			return;
 		} catch (cause) {
 			// Another workspace's, or an older, answer: nothing of this page's asking changes (Codex S7 second confirmation #3).
 			if (disposed || request !== readingRequest || hub?.id !== id) return;
 			// Access lost: no more asking; the editor keeps its text and says so (Codex S7 third confirmation #9, C4).
-			if ([403, 404].includes(getHttpStatusCode(cause) ?? 0)) {
-				stopPolling();
-				editorNote = t('เปิดคลังความรู้ของพื้นที่ทำงานนี้ไม่ได้แล้ว ข้อความที่พิมพ์ยังอยู่ คัดลอกเก็บไว้ก่อนออก', 'This workspace’s knowledge no longer opens for you. Your text is still here: copy it before you leave.');
-				return;
-			}
+			if ([403, 404].includes(getHttpStatusCode(cause) ?? 0) && refuseUnderEditor()) return;
 		}
 		if (!disposed && hub?.id === id) schedulePoll();
+	}
+	/** The editor open now, holding unsaved text: its item's ID ('' for a new one), or undefined. */
+	function dirtyEditor(): string | undefined {
+		return screen.name === 'editor' && dirty ? (screen.id ?? '') : undefined;
+	}
+	/**
+	 * An answer of the library while the editor holds unsaved text: only the
+	 * files' reading comes in, and the editor open now (not the one open when
+	 * the answer was asked for) says when its item is no longer listed
+	 * (Codex S7 fourth confirmation #4). False when no such editor is open.
+	 */
+	function applyUnderEditor(result: { items: LibraryItem[] }): boolean {
+		const editing = dirtyEditor();
+		if (editing === undefined) return false;
+		items = withReading(items, result.items, editing);
+		if (editing && !result.items.some((item) => item.id === editing)) {
+			stopPolling();
+			editorNote = t('เรื่องนี้ไม่อยู่ในรายการของคุณแล้ว (อาจถูกลบหรือเปลี่ยนสิทธิ์) ข้อความที่พิมพ์ยังอยู่ คัดลอกเก็บไว้ก่อนออก', 'This item is no longer in your list (it may have been deleted, or access changed). Your text is still here: copy it before you leave.');
+		} else schedulePoll();
+		return true;
+	}
+	/** A refusal of the library while the editor holds unsaved text: the editor stays and says so. False when no such editor is open. */
+	function refuseUnderEditor(): boolean {
+		if (dirtyEditor() === undefined) return false;
+		stopPolling();
+		editorNote = t('เปิดคลังความรู้ของพื้นที่ทำงานนี้ไม่ได้แล้ว ข้อความที่พิมพ์ยังอยู่ คัดลอกเก็บไว้ก่อนออก', 'This workspace’s knowledge no longer opens for you. Your text is still here: copy it before you leave.');
+		return true;
 	}
 	// What the quiet asks under an editor learned; once the editor closes, the library comes again in full.
 	let editorNote = $state('');

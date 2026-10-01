@@ -46,9 +46,10 @@
 				return;
 			}
 			const problem = parseErrorContent(cause);
+			// The server's 403 has no reason code: the owner is still here, or this person's role changed (Codex S7 fourth confirmation #6).
 			error =
 				code === 403
-					? t('ยังรับช่วงไม่ได้ เพราะเจ้าของยังอยู่ในพื้นที่ทำงานนี้', 'You can’t take this over: its owner is still in this workspace.')
+					? t('ยังรับช่วงไม่ได้ เจ้าของอาจยังอยู่ในพื้นที่ทำงานนี้ หรือสิทธิ์ของคุณเปลี่ยน โหลดหน้าใหม่แล้วลองอีกครั้ง', 'You can’t take this over now: its owner may still be in this workspace, or your role changed. Reload and try again.')
 					: (fileActionProblem(problem, t) ?? orcaError(cause));
 		} finally {
 			busy = false;

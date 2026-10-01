@@ -481,7 +481,7 @@
 
 			{#if takeover}<TakeoverCard hubID={hub.id} {item} ontaken={tell.changed} ondenied={tell.denied} />{/if}
 
-			<KnowledgeRail item={item} ask={item.status === 'published' && servable && aiUses} {connected} {app} workspace={hub} legend={false} />
+			<KnowledgeRail item={item} ask={item.status === 'published' && servable && aiUses} {connected} {app} workspace={hub} legend={false} paused={features.files && hub.status !== 'active' ? 'workspace' : undefined} />
 		</div>
 	</div>
 </div>
