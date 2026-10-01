@@ -20,8 +20,9 @@ const knownLabels: Record<string, readonly [string, string]> = {
 	read_file: ['อ่านไฟล์', 'Read file'],
 	search_files: ['ค้นหาไฟล์', 'Search files'],
 	list_recent_files: ['ดูไฟล์ล่าสุด', 'List recent files'],
-	orca_knowledge_search: ['ค้นหาบทความความรู้', 'Search knowledge articles'],
-	orca_knowledge_read: ['อ่านบทความความรู้', 'Read a knowledge article'],
+	// Articles, and with knowledge library v2 uploaded files too.
+	orca_knowledge_search: ['ค้นหาในคลังความรู้', 'Search knowledge'],
+	orca_knowledge_read: ['อ่านจากคลังความรู้', 'Read from knowledge'],
 	orca_template_list: ['ดูรายการคำสั่งสำเร็จรูป', 'List ready-made prompts'],
 	orca_template_use: ['เตรียมคำสั่งสำเร็จรูปพร้อมความรู้ประกอบ', 'Prepare a ready-made prompt with its knowledge']
 };
