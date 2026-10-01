@@ -475,7 +475,7 @@
 <ConfirmDialog
 	bind:open={leaveOpen}
 	title={t('ออกโดยไม่บันทึก?', 'Leave without saving?')}
-	message={t('กำลังอัปโหลดฉบับใหม่ ถ้าออกตอนนี้ ฉบับใหม่จะไม่ถูกบันทึก', 'A new version is uploading. If you leave now, it is not saved.')}
+	message={t('กำลังอัปโหลดฉบับใหม่ ถ้าออกก่อนส่งเสร็จ ฉบับใหม่จะไม่ถูกบันทึก', 'A new version is uploading. If you leave before it is sent, it is not saved.')}
 	confirmLabel={t('ออกโดยไม่บันทึก', 'Leave without saving')}
 	cancelLabel={t('อยู่ต่อ', 'Stay')}
 	tone="danger"

@@ -589,7 +589,7 @@ test('leaving a file\'s page while its new version is on its way asks first (Cod
 	const detail = await readFile(new URL('./knowledge/FileDetail.svelte', import.meta.url), 'utf8');
 	assert.match(detail, /function back\(\) \{\s*if \(busy === 'replace'\) leaveOpen = true;\s*else onback\(\);\s*\}/);
 	assert.match(detail, /<button type="button" class="kn-back" onclick=\{back\}>/);
-	assert.match(detail, /bind:open=\{leaveOpen\}[\s\S]*?กำลังอัปโหลดฉบับใหม่ ถ้าออกตอนนี้ ฉบับใหม่จะไม่ถูกบันทึก/);
+	assert.match(detail, /bind:open=\{leaveOpen\}[\s\S]*?กำลังอัปโหลดฉบับใหม่ ถ้าออกก่อนส่งเสร็จ ฉบับใหม่จะไม่ถูกบันทึก/);
 	assert.match(detail, /onuploading\?\.\(true\);[\s\S]*?finally \{[\s\S]*?onuploading\?\.\(false\);/, 'the page knows while it is on its way');
 	// A new version sent in full whose answer did not come: the file is asked for again, not sent twice.
 	assert.match(detail, /if \(sent && \(aborted \|\| cause instanceof TypeError \|\| status >= 500\)\) \{[\s\S]*?void refresh\(\);/);
