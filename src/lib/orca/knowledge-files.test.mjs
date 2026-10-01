@@ -220,6 +220,12 @@ test('a file row: its reading until a version serves, then its status with the n
 	assert.equal(off('published', { published: version(1, 'partial') }).note, 'อ่านได้บางส่วน');
 	assert.equal(off('draft', { pending: version(1, 'unsupported', { errorClass: 'encrypted_or_legacy' }) }).status, 'failed');
 	assert.deepEqual(off('draft', { published: version(1, 'ready') }), { status: 'draft' }, 'while it is off, no promise about the AI');
+	// A workspace not active yet serves no one: no "AI keeps the current one", no "ready once published" (Codex S7 confirmation #5).
+	const paused = (status, extra) => k.fileRowState(item('f', { status, file: file(extra) }), th, true, false);
+	assert.equal(paused('published', { published: version(1, 'ready'), pending: version(2, 'extracting') }).note, 'กำลังอ่านฉบับใหม่');
+	assert.equal(paused('published', { published: version(1, 'ready'), pending: version(2, 'failed') }).note, 'ฉบับใหม่อ่านไม่ได้');
+	assert.equal(paused('published', { published: version(1, 'ready'), pending: version(2, 'ready') }).note, 'ฉบับใหม่รอคุณกดใช้', 'a held version can still be put in use');
+	assert.deepEqual(paused('draft', { published: version(1, 'ready') }), { status: 'draft' });
 	// Only the owner's own files still being read are asked about again.
 	const items = [
 		item('mine', { file: file({ pending: version(1, 'extracting') }) }),
@@ -376,40 +382,71 @@ test('"ลองถาม AI" asks about a file only once the AI can read it', (
 
 test('what an answer leaves out stays: a save\'s file block, a takeover\'s text (Codex S7 #2-#3)', () => {
 	const file = { published: version(1, 'ready'), options: { includeHidden: false, includeComments: false, includeNotes: false, allowDownload: true, reviewBeforeUpdate: false } };
-	const known = { ...item('f', { status: 'draft', file }), title: 'เดิม' };
-	// A save answers the row without its file block.
-	const saved = k.keepOmitted({ ...item('f', { status: 'published' }), title: 'ใหม่', file: undefined }, known);
+	const known = { ...item('f', { status: 'draft', file }), title: 'เดิม', version: 3 };
+	// A save answers the row without its file block, one version on.
+	const saved = k.keepOmitted({ ...item('f', { status: 'published' }), title: 'ใหม่', file: undefined, version: 4 }, known);
 	assert.equal(saved.title, 'ใหม่');
 	assert.equal(saved.status, 'published');
 	assert.equal(saved.file, file, 'the file block the page had');
+	assert.equal(k.itemIncomplete(saved), false);
 	// A newer block in the answer wins.
 	const newer = { published: version(2, 'ready') };
-	assert.equal(k.keepOmitted({ ...item('f'), file: newer }, known).file, newer);
-	// A takeover answers an article without its text.
-	const article = { ...item('a'), kind: 'knowledge', content: 'นโยบายคืนสินค้า', file: undefined };
+	assert.equal(k.keepOmitted({ ...item('f'), file: newer, version: 4 }, known).file, newer);
+	// A takeover answers an article without its text, one version on.
+	const article = { ...item('a'), kind: 'knowledge', content: 'นโยบายคืนสินค้า', file: undefined, version: 3 };
 	const taken = k.keepOmitted({ ...article, content: '', ownerID: 'me', version: 4 }, article);
 	assert.equal(taken.content, 'นโยบายคืนสินค้า');
 	assert.equal(taken.ownerID, 'me');
 	assert.equal(taken.version, 4);
+	// Someone else changed it in between (Codex S7 confirmation #1): what the page has is stale,
+	// so nothing is filled in and the page asks for the item again.
+	const stale = k.keepOmitted({ ...article, content: '', ownerID: 'me', version: 6 }, article);
+	assert.equal(stale.content, '');
+	assert.equal(k.itemIncomplete(stale), true);
+	const staleFile = k.keepOmitted({ ...item('f'), file: undefined, version: 9 }, known);
+	assert.equal(staleFile.file, undefined);
+	assert.equal(k.itemIncomplete(staleFile), true);
 	// Another item, or none known: the answer as it is.
 	assert.equal(k.keepOmitted(saved, undefined), saved);
-	assert.equal(k.keepOmitted({ ...item('x'), file: undefined }, known).file, undefined);
+	assert.equal(k.keepOmitted({ ...item('x'), file: undefined, version: 4 }, known).file, undefined);
+	assert.equal(k.itemIncomplete({ ...article }), false);
 });
 
 test('with unsaved text in the editor, a refresh brings only the files\' reading (Codex S7 #8)', () => {
 	const editing = { ...item('f', { status: 'draft', file: { pending: version(1, 'extracting') } }), title: 'ชื่อที่กำลังแก้' };
 	const article = { ...item('a'), kind: 'knowledge', content: 'เดิม' };
+	const gone = { ...item('g'), kind: 'knowledge', content: 'ไม่อยู่ในรายการแล้ว' };
 	const fresh = [
 		{ ...item('f', { status: 'draft', file: { published: version(1, 'ready') } }), title: 'ชื่อบนเซิร์ฟเวอร์', version: 9 },
 		{ ...article, content: 'ใหม่' },
 		item('new-file')
 	];
-	const next = k.withReading([editing, article], fresh);
-	assert.equal(next.length, 2, 'nothing is added or removed under the editor');
+	const next = k.withReading([editing, article, gone], fresh, 'f');
+	assert.deepEqual(next.map((entry) => entry.id), ['f', 'a'], 'nothing is added under the editor; an item no longer listed goes (Codex S7 confirmation #4)');
 	assert.equal(next[0].title, 'ชื่อที่กำลังแก้');
 	assert.equal(next[0].version, editing.version, 'the version the editor saves against stays');
 	assert.equal(next[0].file.published.state, 'ready', 'the reading came in: the file can be published');
 	assert.equal(next[1], article, 'articles are left as they are');
+	// The item being edited stays even when it is no longer listed: its save says what changed.
+	assert.deepEqual(k.withReading([editing, article], [article], 'f').map((entry) => entry.id), ['f', 'a']);
+});
+
+test('an upload batch\'s failure: unknown once sent in full, unless refused before storing (Codex S7 #5, confirmation #2)', () => {
+	const f = (extra) => k.uploadFailure({ sent: true, aborted: false, network: false, status: 500, message: '', ...extra });
+	// Sent in full: a cancel, a lost connection, a server failure, or access or the flag lost midway.
+	for (const [label, extra] of [['cancel', { aborted: true, status: 0 }], ['network', { network: true, status: 0 }], ['500', {}], ['504', { status: 504, message: '{"error":"backend_timeout"}' }], ['flag off midway', { status: 404, message: 'library_files_disabled: knowledge library v2 is off' }], ['access lost midway', { status: 403, message: 'forbidden' }], ['conflict', { status: 409, message: 'this item changed' }]])
+		assert.deepEqual(f(extra), { outcome: 'unknown', reload: true }, label);
+	// Refused before storing anything: each file's reason, a busy library, a body it does not take.
+	assert.deepEqual(f({ status: 409, message: 'quota: โควตาคลังความรู้ของบริษัทเต็มแล้ว' }), { outcome: 'refused', reason: 'quota', reload: false });
+	assert.deepEqual(f({ status: 415, message: 'unsupported: hint' }), { outcome: 'refused', reason: 'unsupported', reload: false });
+	assert.deepEqual(f({ status: 429, message: 'library_uploads_busy: other uploads are in progress; try again shortly' }), { outcome: 'failed', reason: undefined, reload: false });
+	assert.deepEqual(f({ status: 413, message: 'an upload holds at most 100 MB' }), { outcome: 'failed', reason: undefined, reload: false });
+	assert.deepEqual(f({ status: 400, message: 'invalid' }), { outcome: 'failed', reason: 'invalid', reload: false });
+	// Not sent in full: nothing was stored.
+	const partial = (extra) => k.uploadFailure({ sent: false, aborted: false, network: false, status: 0, message: '', ...extra });
+	assert.deepEqual(partial({ aborted: true }), { outcome: 'cancelled', reload: false });
+	assert.deepEqual(partial({ network: true }), { outcome: 'failed', reason: undefined, reload: false });
+	assert.deepEqual(partial({ status: 404, message: 'library_files_disabled: off' }), { outcome: 'failed', reason: undefined, reload: false });
 });
 
 test('a batch sent in full whose answer did not come says so, and is not counted as uploaded (Codex S7 #5)', () => {

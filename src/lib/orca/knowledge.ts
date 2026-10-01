@@ -1066,7 +1066,7 @@ export type FileRowState = {
 	tone?: 'deny' | 'warn' | 'muted';
 };
 
-export function fileRowState(item: Pick<LibraryItem, 'status' | 'file'>, t: Translate, on = true): FileRowState {
+export function fileRowState(item: Pick<LibraryItem, 'status' | 'file'>, t: Translate, on = true, active = true): FileRowState {
 	const file = item.file;
 	const published = file?.published;
 	const pending = file?.pending;
@@ -1075,16 +1075,17 @@ export function fileRowState(item: Pick<LibraryItem, 'status' | 'file'>, t: Tran
 		const status = item.status;
 		// With library v2 off (a rollback) the AI uses no file and a newer
 		// version can't be put in use: nothing to say about one until it is on.
-		// A draft serves no one: its notes never say what the AI keeps using.
-		const live = status === 'published';
+		// A draft, or a workspace not active yet, serves no one: its notes never say
+		// what the AI keeps using (Codex S7 confirmation #5).
+		const live = status === 'published' && active;
 		if (on && pending && fileReading(pending) === 'reading')
 			return { status, note: live ? t('กำลังอ่านฉบับใหม่ AI ใช้ฉบับเดิมไปก่อน', 'Reading a new version; the AI keeps the current one') : t('กำลังอ่านฉบับใหม่', 'Reading a new version'), tone: 'muted' };
 		if (on && pending && fileReading(pending) === 'failed')
 			return { status, note: live ? t('ฉบับใหม่อ่านไม่ได้ AI ใช้ฉบับเดิมอยู่', 'The new version can’t be read; the AI keeps the current one') : t('ฉบับใหม่อ่านไม่ได้', 'The new version can’t be read'), tone: 'warn' };
 		if (on && pending && versionServable(pending)) return { status, note: t('ฉบับใหม่รอคุณกดใช้', 'A new version waits for you'), tone: 'warn' };
 		if (published?.state === 'partial') return { status, note: t('อ่านได้บางส่วน', 'Partly read'), tone: 'warn' };
-		// Read, and the AI gets it once its owner publishes it.
-		if (on && status === 'draft') return { status, note: t('อ่านเสร็จแล้ว พร้อมให้ AI ใช้เมื่อเผยแพร่', 'Read; ready for AI once published'), tone: 'muted' };
+		// Read, and the AI gets it once its owner publishes it (in an active workspace).
+		if (on && active && status === 'draft') return { status, note: t('อ่านเสร็จแล้ว พร้อมให้ AI ใช้เมื่อเผยแพร่', 'Read; ready for AI once published'), tone: 'muted' };
 		return { status };
 	}
 	const version = shownVersion(file);
@@ -1096,10 +1097,13 @@ export function fileRowState(item: Pick<LibraryItem, 'status' | 'file'>, t: Tran
 /**
  * What an answer leaves out, kept from the item the page has (Codex S7 #2–#3):
  * a save's answer has no file block, and a takeover's no text; neither
- * changes them.
+ * changes them. Only for the answer to the page's own change, one version on
+ * from the item it has: after someone else's change in between what the page
+ * has is stale, and the page asks for the item instead (Codex S7
+ * confirmation #1).
  */
 export function keepOmitted(answer: LibraryItem, known: LibraryItem | undefined): LibraryItem {
-	if (!known || known.id !== answer.id) return answer;
+	if (!known || known.id !== answer.id || answer.version !== known.version + 1) return answer;
 	return {
 		...answer,
 		file: answer.file ?? known.file,
@@ -1107,10 +1111,43 @@ export function keepOmitted(answer: LibraryItem, known: LibraryItem | undefined)
 	};
 }
 
-/** While an editor holds unsaved text, a refresh brings only the files' reading: the item being edited keeps the rest (Codex S7 #8). */
-export function withReading(items: readonly LibraryItem[], fresh: readonly LibraryItem[]): LibraryItem[] {
-	const files = new Map(fresh.filter((item) => item.kind === 'file').map((item) => [item.id, item.file]));
-	return items.map((item) => (item.kind === 'file' && files.has(item.id) ? { ...item, file: files.get(item.id) } : item));
+/** An item still missing what its answer left out (a file's block, an article's text): the page asks for the library again. */
+export function itemIncomplete(item: LibraryItem): boolean {
+	return item.kind === 'file' ? !item.file : !item.content;
+}
+
+/**
+ * While an editor holds unsaved text, a refresh brings only the files' reading
+ * (Codex S7 #8); items no longer listed go, except the one being edited, whose
+ * save then says what changed (Codex S7 confirmation #4).
+ */
+export function withReading(items: readonly LibraryItem[], fresh: readonly LibraryItem[], editingID = ''): LibraryItem[] {
+	const listed = new Map(fresh.map((item) => [item.id, item]));
+	return items
+		.filter((item) => listed.has(item.id) || item.id === editingID)
+		.map((item) => {
+			const now = listed.get(item.id);
+			return item.kind === 'file' && now ? { ...item, file: now.file } : item;
+		});
+}
+
+/**
+ * What an upload batch's failure means (Codex S7 #5 and its confirmation #2).
+ * The server stores the files one by one once the whole body has arrived, so
+ * after a batch was sent in full only its refusals before storing anything
+ * (each file's reason, a busy library, a body it does not take) say that
+ * nothing was stored. Anything else (a cancel, a lost connection, a server
+ * failure, access or the flag lost midway) may follow files already stored:
+ * "unknown", never sent again, and the list says what is there.
+ */
+export type UploadFailure = { outcome: 'unknown' | 'cancelled' | 'refused' | 'failed'; reason?: FileRefusal; reload: boolean };
+export function uploadFailure(failure: { sent: boolean; aborted: boolean; network: boolean; status: number; message: string }): UploadFailure {
+	const reason = failure.aborted || failure.network ? undefined : refusalCode(failure.message);
+	const beforeStoring = !!reason || [411, 413, 415, 429].includes(failure.status) || /library_uploads_busy/.test(failure.message);
+	if (failure.sent && !beforeStoring) return { outcome: 'unknown', reload: true };
+	if (failure.aborted) return { outcome: 'cancelled', reload: false };
+	if (reason && reason !== 'invalid') return { outcome: 'refused', reason, reload: false };
+	return { outcome: 'failed', reason, reload: false };
 }
 
 /** The owner's own files still being read: the page asks again until they are done. */
