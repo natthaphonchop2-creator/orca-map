@@ -949,7 +949,7 @@ test('access lost under an editor: the editor says so and keeps the text; once i
 /** The library page's script, alone, with a library the test answers by hand. */
 async function libraryPage(t, answer) {
 	const client = await import('svelte/internal/client');
-	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ load, refreshReading, show, setDirty(value) { dirty = value; }, get screen() { return screen; }, get editorNote() { return editorNote; }, get items() { return items; }, get pollTimer() { return pollTimer; }, stopPolling }');
+	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ load, refreshReading, show, saved, setDirty(value) { dirty = value; }, get screen() { return screen; }, get editorNote() { return editorNote; }, get items() { return items; }, get pollTimer() { return pollTimer; }, stopPolling }');
 	const salesHub = hub('sales', { memberIDs: ['me'] });
 	let view;
 	const stop = client.effect_root(() => {
@@ -1103,4 +1103,36 @@ test('the notices are shown as they say: the editor\'s above it, a partial readi
 	assert.match(html, /<p class="fd-note warn">(?:<[^>]+>)*<span>อ่านได้บางส่วน: บางแผ่นงานมีมากกว่า 50,000 แถว AI เห็นเฉพาะ 50,000 แถวแรก \(นับแถวหัวตารางด้วย\)<\/span><\/p>/);
 	const draft = await fileDetail({ item: { ...partial, status: 'draft' } });
 	assert.match(draft.html, /อ่านได้บางส่วน: บางแผ่นงานมีมากกว่า 50,000 แถว AI จะเห็นเฉพาะ 50,000 แถวแรก/, 'a draft: what the AI will see');
+});
+
+test('a save\'s answer, an upload\'s or a recheck\'s, supersedes the quiet asks on their way (Codex S7 sixth confirmation #2)', async (t) => {
+	const queue = [async () => ({ items: [article('a')], members, departments: [] })];
+	const { view, flush } = await libraryPage(t, () => queue.shift()());
+	for (let i = 0; i < 10 && !view.items.length; i++) await new Promise((resolve) => setImmediate(resolve));
+	view.show({ name: 'editor', kind: 'knowledge', id: 'a' });
+	view.setDirty(true);
+	flush();
+	let old;
+	queue.push(() => new Promise((resolve) => { old = resolve; }));
+	const asking = view.refreshReading('sales');
+	// The editor closes, B is created (its save's answer, no load), and the person edits B.
+	view.setDirty(false);
+	view.saved(article('b'), 1);
+	flush();
+	view.show({ name: 'editor', kind: 'knowledge', id: 'b' });
+	view.setDirty(true);
+	flush();
+	old({ items: [article('a')], members, departments: [] });
+	await asking;
+	assert.equal(view.editorNote, '', 'B is there: its save said so');
+	assert.deepEqual(view.items.map((item) => item.id).sort(), ['a', 'b']);
+	const page = await readFile(new URL('./KnowledgeLibrary.svelte', import.meta.url), 'utf8');
+	for (const where of [/return 'denied';\s*readingRequest \+= 1;\s*items = result\.items;/, /readingRequest \+= 1;\s*items = \[\.\.\.items\.filter\(\(known\) => known\.id !== item\.id\), item\];/, /readingRequest \+= 1;\s*items = items\.filter\(\(known\) => known\.id !== item\.id\);/, /readingRequest \+= 1;\s*items = \[\.\.\.items\.filter\(\(known\) => known\.id !== answer\.item!\.id\), answer\.item\];/])
+		assert.match(page, where);
+});
+
+test('the partial reading\'s note follows the version shown, outside anything that depends on the tab (Codex S7 sixth confirmation #5)', async () => {
+	const source = await readFile(new URL('./knowledge/FileDetail.svelte', import.meta.url), 'utf8');
+	// Directly after the held-version block, at the same depth: no condition on `which` around it.
+	assert.match(source, /\t\t\t\{\/if\}\n\n\t\t\t<!-- The version shown, the held one too, before it is put in use \(Codex S7 third confirmation #2\)\. -->\n\t\t\t\{#if previewVersion\?\.state === 'partial'\}\n\t\t\t\t<p class="fd-note warn">/);
 });

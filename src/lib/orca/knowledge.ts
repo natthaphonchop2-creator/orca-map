@@ -657,11 +657,21 @@ export const FILE_ACCEPT = FILE_EXTENSIONS.map((ext) => `.${ext}`).join(',');
 const MACRO_EXTENSIONS = ['docm', 'xlsm', 'pptm', 'dotm', 'xltm', 'potm', 'ppsm'];
 const LEGACY_EXTENSIONS = ['doc', 'xls', 'ppt', 'dot', 'xlt', 'pot', 'pps', 'xlsb', 'rtf'];
 
-/** A file name's extension, lower case, without the dot ("" when it has none). */
+/**
+ * A file's name as the server keeps it (gateway OrcaCleanFileName): the last
+ * path part, without control characters, trimmed.
+ */
+export function cleanFileName(name: string): string {
+	const base = name.split(/[/\\]/).pop() ?? '';
+	// eslint-disable-next-line no-control-regex
+	return base.replace(/[\u0000-\u001f\u007f-\u009f\ufffd]/g, '').trim();
+}
+
+/** A file name's extension, lower case, without the dot ("" when it has none), as the server's path.Ext reads it (Codex S7 sixth confirmation #4). */
 export function fileExtension(name: string): string {
-	const base = name.replaceAll('\\', '/').split('/').pop() ?? '';
+	const base = cleanFileName(name);
 	const dot = base.lastIndexOf('.');
-	return dot > 0 ? base.slice(dot + 1).toLowerCase() : '';
+	return dot >= 0 ? base.slice(dot + 1).toLowerCase() : '';
 }
 
 /**
@@ -674,6 +684,7 @@ const REFUSALS: readonly FileRefusal[] = ['macro', 'encrypted_or_legacy', 'pdf_l
 
 /** The server's own check, before anything is sent: the type by the name's extension, then the size. */
 export function classifyFile(name: string, size: number): { ok: true; ext: string } | { ok: false; reason: FileRefusal } {
+	if (!cleanFileName(name)) return { ok: false, reason: 'invalid_name' };
 	const ext = fileExtension(name);
 	if (MACRO_EXTENSIONS.includes(ext)) return { ok: false, reason: 'macro' };
 	if (LEGACY_EXTENSIONS.includes(ext)) return { ok: false, reason: 'encrypted_or_legacy' };

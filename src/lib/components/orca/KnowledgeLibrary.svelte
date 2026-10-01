@@ -110,7 +110,9 @@
 	let screen = $state<Screen>({ name: 'list' });
 	let dirty = $state(false);
 	let requestNumber = 0;
-	// The editor's quiet asks for the files' reading (refreshReading), apart from the page's loads.
+	// The editor's quiet asks for the files' reading (refreshReading). Every
+	// fresher list (a load, a recheck, a save's, a file action's or an upload's
+	// answer) supersedes the asks still on their way (Codex S7 sixth confirmation #2).
 	let readingRequest = 0;
 	const screenID = (value: Screen) => (value.name === 'list' ? undefined : value.id);
 	const selected = $derived.by(() => {
@@ -241,6 +243,7 @@
 			if (request !== requestNumber || hub?.id !== id) return 'unknown';
 			const open = screenID(screen);
 			if (open && !result.items.some((item) => item.id === open)) return 'denied';
+			readingRequest += 1;
 			items = result.items;
 			members = result.members;
 			departments = result.departments;
@@ -274,6 +277,7 @@
 	function saved(answer: LibraryItem, people: number) {
 		const item = settled(answer);
 		if (!item) return;
+		readingRequest += 1;
 		items = [...items.filter((known) => known.id !== item.id), item];
 		kind = item.kind;
 		dirty = false;
@@ -289,6 +293,7 @@
 	function archived(answer: LibraryItem) {
 		const item = settled(answer);
 		if (!item) return;
+		readingRequest += 1;
 		items = items.map((known) => (known.id === item.id ? item : known));
 		show({ name: 'list' });
 		showToast(t('จัดเก็บแล้ว — AI เลิกใช้เรื่องนี้', 'Archived — AI no longer uses it'));
@@ -297,10 +302,12 @@
 	function changed(answer: LibraryItem) {
 		const item = settled(answer);
 		if (!item) return;
+		readingRequest += 1;
 		items = items.some((known) => known.id === item.id) ? items.map((known) => (known.id === item.id ? item : known)) : [...items, item];
 		schedulePoll();
 	}
 	function deleted(item: LibraryItem) {
+		readingRequest += 1;
 		items = items.filter((known) => known.id !== item.id);
 		show({ name: 'list' });
 		showToast(t('ลบแล้ว — AI ของทุกคนหยุดเห็นไฟล์นี้', 'Deleted — nobody’s AI sees it any more'));
@@ -480,7 +487,10 @@
 						if (answer?.item) {
 							saved += 1;
 							setRow(key, { state: 'saved', progress: 1, itemID: answer.item.id });
-							if (hub?.id === id) items = [...items.filter((known) => known.id !== answer.item!.id), answer.item];
+							if (hub?.id === id) {
+								readingRequest += 1;
+								items = [...items.filter((known) => known.id !== answer.item!.id), answer.item];
+							}
 						} else {
 							const reason = refusalCode(answer?.error);
 							setRow(key, { state: 'refused', reason, message: refusalText(reason, t, quotaLimit(usage), usage) });

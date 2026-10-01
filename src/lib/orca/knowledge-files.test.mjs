@@ -22,12 +22,16 @@ const item = (id, extra = {}) => ({
 const usage = (extra = {}) => ({ bytes: 100 * MB, bytesLimit: 1024 * MB, chars: 1_500_000, charsLimit: 10_000_000, uploadsToday: 3, uploadsLimit: 50, items: 20, itemsLimit: 1000, ...extra });
 
 test('the server\'s file table, before anything is sent: type by the name, then the size', () => {
-	for (const name of ['คู่มือ.docx', 'ราคา.XLSX', 'deck.pptx', 'list.csv', 'note.txt', 'readme.md', 'guide.markdown', 'C:\\Users\\a\\ราคา.xlsx'])
-		assert.deepEqual(k.classifyFile(name, 10).ok, true, name);
+	// As the server reads names (OrcaCleanFileName, then path.Ext): the last path part, trimmed, the last dot (Codex S7 sixth confirmation #4).
+	for (const name of ['คู่มือ.docx', 'ราคา.XLSX', 'deck.pptx', 'list.csv', 'note.txt', 'readme.md', 'guide.markdown', 'C:\\Users\\a\\ราคา.xlsx', 'notes.txt ', ' ราคา.xlsx', '.txt', '.docx', 'a/b\\c.csv', 'tab\t.md'])
+		assert.deepEqual(k.classifyFile(name, 10).ok, true, JSON.stringify(name));
+	assert.equal(k.cleanFileName('C:\\Users\\a\\ราคา ฉบับใหม่.xlsx '), 'ราคา ฉบับใหม่.xlsx');
+	for (const name of ['', '   ', 'a/', '\u0001'])
+		assert.deepEqual(k.classifyFile(name, 10), { ok: false, reason: 'invalid_name' }, JSON.stringify(name));
 	for (const [name, reason] of [
 		['ใบสั่งซื้อ.docm', 'macro'], ['book.xlsm', 'macro'], ['deck.pptm', 'macro'], ['t.dotm', 'macro'], ['t.xltm', 'macro'], ['t.potm', 'macro'], ['t.ppsm', 'macro'],
 		['old.doc', 'encrypted_or_legacy'], ['old.xls', 'encrypted_or_legacy'], ['old.ppt', 'encrypted_or_legacy'], ['b.xlsb', 'encrypted_or_legacy'], ['r.rtf', 'encrypted_or_legacy'],
-		['scan.pdf', 'pdf_later'], ['photo.png', 'unsupported'], ['noextension', 'unsupported'], ['.docx', 'unsupported'], ['archive.zip', 'unsupported']
+		['scan.pdf', 'pdf_later'], ['photo.png', 'unsupported'], ['noextension', 'unsupported'], ['a.', 'unsupported'], ['notes.txt.bak', 'unsupported'], ['archive.zip', 'unsupported']
 	])
 		assert.deepEqual(k.classifyFile(name, 10), { ok: false, reason }, name);
 	assert.deepEqual(k.classifyFile('empty.txt', 0), { ok: false, reason: 'empty' });
