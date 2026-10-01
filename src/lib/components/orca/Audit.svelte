@@ -145,6 +145,23 @@
     "library.create": t("เพิ่มรายการในคลังความรู้", "Knowledge item added"),
     "library.update": t("แก้ไขรายการในคลังความรู้", "Knowledge item updated"),
     "library.archive": t("จัดเก็บรายการในคลังความรู้", "Knowledge item archived"),
+    // Knowledge library v2 (C4 §14m S5): files, their reading, and who may use them.
+    "library.file.upload": t("อัปโหลดไฟล์เข้าคลังความรู้", "File uploaded to Knowledge"),
+    "library.file.replace": t("อัปโหลดไฟล์ฉบับใหม่", "New file version uploaded"),
+    "library.file.ready": t("ORCA อ่านไฟล์เสร็จ", "ORCA read a file"),
+    "library.file.partial": t("ORCA อ่านไฟล์ได้บางส่วน", "ORCA read part of a file"),
+    "library.file.failed": t("ORCA อ่านไฟล์ไม่ได้", "ORCA could not read a file"),
+    "library.file.publish": t("ใช้ไฟล์ฉบับใหม่", "New file version put in use"),
+    "library.file.options": t("เปลี่ยนการตั้งค่าไฟล์", "File settings changed"),
+    "library.file.reextract": t("สั่งอ่านไฟล์ใหม่", "File read again"),
+    "library.file.download": t("ดาวน์โหลดไฟล์ต้นฉบับ", "Original file downloaded"),
+    "library.audience.live": t("ให้ทุกคนใช้ได้ (อัปเดตอัตโนมัติ)", "Audience set to everyone (updates itself)"),
+    "library.audience.list": t("ให้ใช้ได้ตามรายชื่อ", "Audience set to a list"),
+    "library.delete": t("ลบรายการในคลังความรู้", "Knowledge item deleted"),
+    "library.purged": t("ORCA ลบรายการที่สั่งลบออกหมดแล้ว", "ORCA finished deleting an item"),
+    "library.takeover": t("รับช่วงดูแลรายการในคลังความรู้", "Knowledge item taken over"),
+    "library.v2": t("ทีม ORCA เปิดหรือปิดคลังความรู้แบบไฟล์", "The ORCA team switched file Knowledge"),
+    "platform.company.library_v2": t("เปิดหรือปิดคลังความรู้แบบไฟล์ของบริษัทลูกค้า", "File Knowledge switched for a customer company"),
     "department.members": t("แก้ไขสมาชิกของแผนก", "Department members updated"),
     "template.preview": t("ดูตัวอย่างคำสั่งสำเร็จรูป", "Ready-made prompt previewed"),
     "invitation.create": t("สร้างคำเชิญ", "Invitation created"),
@@ -241,7 +258,17 @@
   function toolLabel(name: string, fromConnection?: string) {
     return eventToolLabel(data.connections, fromConnection, name, orcaLocale.value === "en" ? "en" : "th");
   }
+  // The flag's events say which way it went by their version: 1 on, 0 off.
+  function switchLabel(event: OrcaAuditEvent) {
+    if (event.action === "library.v2")
+      return event.version === 1 ? t("ทีม ORCA เปิดคลังความรู้แบบไฟล์", "The ORCA team turned on file Knowledge") : t("ทีม ORCA ปิดคลังความรู้แบบไฟล์", "The ORCA team turned off file Knowledge");
+    if (event.action === "platform.company.library_v2")
+      return event.version === 1 ? t("เปิดคลังความรู้แบบไฟล์ให้บริษัทลูกค้า", "File Knowledge turned on for a customer company") : t("ปิดคลังความรู้แบบไฟล์ของบริษัทลูกค้า", "File Knowledge turned off for a customer company");
+    return "";
+  }
   function eventLabel(event: OrcaAuditEvent) {
+    const flag = switchLabel(event);
+    if (flag) return flag;
     return mode === "executions"
       ? (event.toolName ? toolLabel(event.toolName, event.connectionID) : "") ||
           actionLabels[event.action ?? event.method ?? ""] ||
@@ -284,7 +311,7 @@
   }
   function resourceDisplay(event: OrcaAuditEvent): EntityDisplay {
     // The company's own details: name the company, never a code or "—".
-    if ((event.action ?? "").startsWith("organization."))
+    if ((event.action ?? "").startsWith("organization.") || event.action === "library.v2")
       return { label: data.organization?.displayName || t("ข้อมูลบริษัท", "Company details") };
     const id = event.resourceID;
     if (id) {

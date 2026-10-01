@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { auditDetailValues, auditDuration } from "./audit-details.ts";
+import { auditDetailValues, auditDuration, auditLibraryRefs } from "./audit-details.ts";
 
 test("legacy records do not invent execution metadata", () => {
   assert.deepEqual(auditDetailValues({ id: "event-1", version: 3 }), {
@@ -13,6 +13,8 @@ test("legacy records do not invent execution metadata", () => {
     durationMs: undefined,
     schemaHash: undefined,
     errorCategory: undefined,
+    fileVersion: undefined,
+    libraryRefs: [],
   });
   assert.equal(auditDetailValues({ hubID: "hub-1", version: 3 }).hubVersion, 3);
   assert.equal(auditDetailValues({ durationMs: 0 }).durationMs, 0);
@@ -95,4 +97,45 @@ test("details only expose validated hashes, numeric metadata and allowlisted err
       undefined,
     );
   }
+});
+
+test("knowledge library v2 records name the file's version, the reasons a file failed, and what the AI received", () => {
+  // A file's own events carry the file's version, never mistaken for the workspace's or the item's.
+  for (const action of ["library.file.upload", "library.file.replace", "library.file.ready", "library.file.partial", "library.file.failed", "library.file.publish", "library.file.reextract", "library.file.download"]) {
+    const detail = auditDetailValues({ action, hubID: "hub-1", resourceID: "orl-1", version: 3 });
+    assert.equal(detail.fileVersion, 3, action);
+    assert.equal(detail.hubVersion, undefined, action);
+    assert.equal(detail.resourceVersion, undefined, action);
+  }
+  // Options that read nothing again record version 0: no version is shown.
+  assert.equal(auditDetailValues({ action: "library.file.options", hubID: "hub-1", version: 0 }).fileVersion, undefined);
+  assert.equal(auditDetailValues({ action: "library.file.options", hubID: "hub-1", version: 4 }).fileVersion, 4);
+  // The item's own changes keep the item's version.
+  for (const action of ["library.takeover", "library.audience.live", "library.audience.list"]) {
+    const detail = auditDetailValues({ action, hubID: "hub-1", version: 9 });
+    assert.equal(detail.resourceVersion, 9, action);
+    assert.equal(detail.fileVersion, undefined, action);
+  }
+  for (const category of ["file_too_large", "file_unsupported", "file_hostile", "file_encrypted", "extract_timeout", "extract_memory", "extract_failed", "storage_error"])
+    assert.equal(auditDetailValues({ errorCategory: category }).errorCategory, category);
+  assert.equal(auditDetailValues({ errorCategory: "a raw parser message" }).errorCategory, "unknown", "anything else is never echoed");
+  // What a search released: items and versions, a title only when the server sent one; malformed entries dropped.
+  const refs = auditDetailValues({
+    action: "tools.call",
+    libraryRefs: [
+      { itemID: "orl-a", kind: "article", title: "นโยบายคืนสินค้า", version: 4 },
+      { itemID: "orl-f", kind: "file", title: "", version: 2 },
+      { itemID: "", kind: "file", title: "x", version: 1 },
+      { itemID: "orl-x", kind: "file", title: "x", version: 0 },
+      { itemID: "orl-y", kind: "<b>odd</b>", title: 7, version: 1 },
+      "orl-z",
+    ],
+  }).libraryRefs;
+  assert.deepEqual(refs, [
+    { itemID: "orl-a", kind: "article", title: "นโยบายคืนสินค้า", version: 4 },
+    { itemID: "orl-f", kind: "file", title: "", version: 2 },
+    { itemID: "orl-y", kind: "other", title: "", version: 1 },
+  ]);
+  assert.equal(auditLibraryRefs(Array.from({ length: 40 }, (_, i) => ({ itemID: `orl-${i}`, kind: "file", title: "", version: 1 }))).length, 25, "at most the 25 a call releases");
+  assert.deepEqual(auditLibraryRefs(undefined), []);
 });

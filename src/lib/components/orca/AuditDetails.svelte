@@ -49,10 +49,23 @@
       "โปรแกรมตอบกลับในรูปแบบที่อ่านไม่ได้",
       "The program sent a response ORCA could not read",
     ),
+    file_too_large: t("ไฟล์ใหญ่หรือซับซ้อนเกินกว่าที่ ORCA อ่านได้", "The file is too large or complex for ORCA to read"),
+    file_unsupported: t("ORCA อ่านไฟล์ชนิดนี้ไม่ได้", "ORCA can't read this type of file"),
+    file_hostile: t("ไฟล์มีส่วนที่อาจไม่ปลอดภัย ORCA จึงไม่อ่าน", "Part of the file may be unsafe, so ORCA did not read it"),
+    file_encrypted: t("ไฟล์ตั้งรหัสผ่านไว้ หรือเป็นไฟล์ Office รุ่นเก่า", "The file has a password or is an older Office file"),
+    extract_timeout: t("อ่านไฟล์นานเกินเวลาที่กำหนด", "Reading the file took too long"),
+    extract_memory: t("อ่านไฟล์ใช้หน่วยความจำเกินที่กำหนด", "Reading the file needed more memory than allowed"),
+    extract_failed: t("ORCA อ่านไฟล์ไม่สำเร็จ", "ORCA could not read the file"),
+    storage_error: t("ORCA เก็บหรือเปิดไฟล์ไม่สำเร็จ", "ORCA could not store or open the file"),
     unknown: t(
       "ประวัตินี้ไม่ได้บอกสาเหตุ",
       "The cause is not available in this record",
     ),
+  });
+  const refKinds = $derived({
+    article: t("บทความ", "Article"),
+    file: t("ไฟล์", "File"),
+    other: t("รายการ", "Item"),
   });
   async function copyReference() {
     if (!detail.reference) return;
@@ -70,7 +83,17 @@
 </script>
 
 <div class="audit-details">
-  {#if detail.durationMs !== undefined || detail.finishedAt || detail.errorCategory}<dl class="audit-plain">
+  {#if detail.libraryRefs.length}<section class="audit-refs" aria-labelledby={`audit-refs-${event.id}`}>
+      <h3 id={`audit-refs-${event.id}`}>{t("AI ได้เห็น", "What the AI received")}</h3>
+      <ul>
+        {#each detail.libraryRefs as ref, index (index)}<li>
+            <span class="audit-ref-title">{ref.title || t("รายการที่คุณเปิดไม่ได้", "An item you can't open")}</span>
+            <small>{refKinds[ref.kind]} · {t(`ฉบับที่ ${ref.version}`, `Version ${ref.version}`)}</small>
+          </li>{/each}
+      </ul>
+      <p>{t("ORCA บันทึกรายการและฉบับที่ส่งให้ AI แต่ไม่เก็บข้อความนั้น", "ORCA records the items and versions it gave the AI, never their text")}</p>
+    </section>{/if}
+  {#if detail.durationMs !== undefined || detail.finishedAt || detail.errorCategory || detail.fileVersion !== undefined}<dl class="audit-plain">
       {#if detail.durationMs !== undefined}<div>
           <dt>{t("ใช้เวลา", "Duration")}</dt>
           <dd>{auditDuration(detail.durationMs, orcaLocale.value === "en" ? "en" : "th")}</dd>
@@ -82,6 +105,10 @@
       {#if detail.errorCategory}<div>
           <dt>{t("สาเหตุ", "Cause")}</dt>
           <dd>{errors[detail.errorCategory]}</dd>
+        </div>{/if}
+      {#if detail.fileVersion !== undefined}<div>
+          <dt>{t("ฉบับของไฟล์", "File version")}</dt>
+          <dd>{t(`ฉบับที่ ${detail.fileVersion}`, `Version ${detail.fileVersion}`)}</dd>
         </div>{/if}
     </dl>{/if}
   <details class="audit-dev">
@@ -158,6 +185,45 @@
     color: var(--orca-ink);
     font-size: 14px;
     overflow-wrap: anywhere;
+  }
+  .audit-refs {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--orca-line);
+    border-radius: var(--orca-radius);
+    background: var(--orca-surface-2);
+  }
+  .audit-refs h3 {
+    margin: 0 0 8px;
+    color: var(--orca-ink);
+    font-size: 13.5px;
+    font-weight: 700;
+  }
+  .audit-refs ul {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .audit-refs li {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+  }
+  .audit-ref-title {
+    color: var(--orca-ink);
+    font-size: 14px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .audit-refs small {
+    color: var(--orca-muted);
+    font-size: 12.5px;
+  }
+  .audit-details .audit-refs p {
+    margin: 10px 0 0;
+    padding: 0;
   }
   .audit-dev {
     margin-top: 14px;
