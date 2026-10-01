@@ -1,9 +1,16 @@
 import { orcaPath } from '$lib/orca/company';
-import { doGet, doPost, doPut } from './http';
+import { baseURL, doDelete, doGet, doPost, doPut, doUpload } from './http';
 import type { OrcaMember } from './orca';
 
-export type LibraryKind = 'knowledge' | 'template';
+/** An article, a ready-made prompt, or (knowledge library v2) an uploaded file. */
+export type LibraryKind = 'knowledge' | 'template' | 'file';
 export type LibraryStatus = 'draft' | 'published' | 'archived';
+/**
+ * Who a published item reaches (C4 §14m S1): "list" is its people and
+ * departments, as before; "everyone_live" is everyone the workspace admits,
+ * now and later ("ทุกคน (อัปเดตอัตโนมัติ)").
+ */
+export type LibraryAudienceMode = 'list' | 'everyone_live';
 export interface LibraryParameter {
 	name: string;
 	label: string;
@@ -20,6 +27,8 @@ export interface LibraryInput {
 	unitIDs: string[];
 	status: LibraryStatus;
 	version: number;
+	/** Sent only to a server that knows it (its bootstrap has `features`): an older one refuses unknown fields. */
+	audienceMode?: LibraryAudienceMode;
 }
 export interface LibraryItem extends LibraryInput {
 	id: string;
@@ -28,7 +37,130 @@ export interface LibraryItem extends LibraryInput {
 	createdAt: string;
 	updatedAt: string;
 	canEdit: boolean;
+	/** A file item's file: its published version for everyone, its pending one and options for its owner. */
+	file?: LibraryFileInfo;
 }
+
+// ── Files (knowledge library v2, C4 §14m S5) ────────────────────────
+
+/**
+ * A version's reading: queued and extracting are still being read; ready and
+ * partial serve; failed, too_large and unsupported never do. superseded is a
+ * version replaced before it served; needs_ocr comes with PDFs (phase 1b).
+ */
+export type LibraryFileState =
+	| 'queued'
+	| 'extracting'
+	| 'ready'
+	| 'partial'
+	| 'failed'
+	| 'too_large'
+	| 'unsupported'
+	| 'superseded'
+	| 'needs_ocr';
+/** The hidden parts a version was read with. */
+export interface LibraryReadParts {
+	includeHidden: boolean;
+	includeComments: boolean;
+	includeNotes: boolean;
+}
+/** A file's hidden parts, counted whether they were read or not. */
+export interface LibraryHiddenParts {
+	notesSlides: number;
+	hiddenSlides: number;
+	hiddenSheets: number;
+	hiddenText: number;
+	comments: number;
+	trackedChanges: number;
+}
+/** What reading a version found. It never holds text. */
+export interface LibraryFileStats {
+	pages?: number;
+	paginated?: boolean;
+	slides?: number;
+	sheets?: number;
+	rows?: number;
+	chars: number;
+	encoding?: string;
+	encodingUncertain?: boolean;
+	partialReason?: string;
+	hidden: LibraryHiddenParts;
+}
+export interface LibraryFileVersion {
+	version: number;
+	state: LibraryFileState;
+	/** Why a version is partial or did not read (a reason code, never a parser message). */
+	errorClass?: string;
+	fileName: string;
+	bytes: number;
+	options: LibraryReadParts;
+	stats: LibraryFileStats;
+	createdAt: string;
+	readyAt?: string;
+}
+/** A file's settings, for its owner only. */
+export interface LibraryFileOptions extends LibraryReadParts {
+	allowDownload: boolean;
+	reviewBeforeUpdate: boolean;
+}
+export interface LibraryFileInfo {
+	origin: string;
+	fileName: string;
+	ext: string;
+	mime: string;
+	bytes: number;
+	allowDownload: boolean;
+	published?: LibraryFileVersion;
+	pending?: LibraryFileVersion;
+	options?: LibraryFileOptions;
+}
+/** Where a piece of text is in its file. */
+export interface LibraryLocator {
+	page?: number;
+	pageEnd?: number;
+	paragraph?: number;
+	heading?: string;
+	slide?: number;
+	sheet?: string;
+	rowStart?: number;
+	rowEnd?: number;
+	line?: number;
+}
+export interface LibraryPreviewChunk {
+	text: string;
+	locator: LibraryLocator;
+}
+/** A file item with one page of what the AI sees of one of its versions. */
+export interface LibraryFileDetail {
+	item: LibraryItem;
+	which: 'published' | 'pending';
+	version?: LibraryFileVersion;
+	preview: LibraryPreviewChunk[];
+	totalChars: number;
+	nextCursor?: string;
+}
+/** One file of an upload: its new item, or the reason it was refused. */
+export interface LibraryUploadedFile {
+	fileName: string;
+	item?: LibraryItem;
+	error?: string;
+	hint?: string;
+}
+export interface LibraryUploadResult {
+	files: LibraryUploadedFile[];
+}
+/** The company's library quota, and the workspace's items. */
+export interface LibraryUsage {
+	bytes: number;
+	bytesLimit: number;
+	chars: number;
+	charsLimit: number;
+	uploadsToday: number;
+	uploadsLimit: number;
+	items: number;
+	itemsLimit: number;
+}
+
 export interface LibraryDepartment {
 	unitID: string;
 	memberIDs: string[];
@@ -51,13 +183,23 @@ export interface RenderedTemplate {
 const options = { dontLogErrors: true };
 const part = encodeURIComponent;
 const base = (hubID: string) => orcaPath(`/hubs/${part(hubID)}/library`);
+const fileBase = (hubID: string, itemID: string) => `${base(hubID)}/files/${part(itemID)}`;
 const normalizeItem = (item: LibraryItem): LibraryItem => ({
 	...item,
+	content: item.content ?? '',
 	parameters: item.parameters ?? [],
 	knowledgeIDs: item.knowledgeIDs ?? [],
 	memberIDs: item.memberIDs ?? [],
 	unitIDs: item.unitIDs ?? []
 });
+const normalizeUpload = (result: LibraryUploadResult): LibraryUploadResult => ({
+	files: (result?.files ?? []).map((file) => (file.item ? { ...file, item: normalizeItem(file.item) } : file))
+});
+const uploadForm = (files: readonly File[]) => {
+	const form = new FormData();
+	for (const file of files) form.append('files', file, file.name);
+	return form;
+};
 
 export const OrcaLibraryService = {
 	async load(hubID: string): Promise<LibraryData> {
@@ -101,5 +243,55 @@ export const OrcaLibraryService = {
 			orcaPath(`/library/departments/${part(unitID)}`),
 			{ memberIDs, version },
 			options
-		) as Promise<LibraryDepartment>
+		) as Promise<LibraryDepartment>,
+
+	// ── Files ──
+	/** 1–10 new files as drafts of the uploader: 202 once each is stored or refused, before any is read. */
+	async upload(
+		hubID: string,
+		files: readonly File[],
+		progress?: { onprogress?: (loaded: number, total: number) => void; signal?: AbortSignal }
+	): Promise<LibraryUploadResult> {
+		return normalizeUpload((await doUpload(`${base(hubID)}/files`, uploadForm(files), { ...options, ...progress })) as LibraryUploadResult);
+	},
+	/** A new version of the owner's file: it serves once read (and, with review, once published). */
+	async replace(
+		hubID: string,
+		itemID: string,
+		file: File,
+		progress?: { onprogress?: (loaded: number, total: number) => void; signal?: AbortSignal }
+	): Promise<LibraryUploadResult> {
+		return normalizeUpload((await doUpload(`${fileBase(hubID, itemID)}/versions`, uploadForm([file]), { ...options, ...progress })) as LibraryUploadResult);
+	},
+	/** A file's detail and one page of what the AI sees: the published version, or the owner's pending one. */
+	async file(hubID: string, itemID: string, which: 'published' | 'pending' = 'published', cursor = ''): Promise<LibraryFileDetail> {
+		const query = new URLSearchParams({ version: which });
+		if (cursor) query.set('cursor', cursor);
+		const result = (await doGet(`${fileBase(hubID, itemID)}?${query}`, options)) as LibraryFileDetail;
+		return { ...result, item: normalizeItem(result.item), preview: result.preview ?? [], totalChars: result.totalChars ?? 0 };
+	},
+	async setOptions(hubID: string, itemID: string, value: LibraryFileOptions): Promise<LibraryItem> {
+		return normalizeItem((await doPut(`${fileBase(hubID, itemID)}/options`, value, options)) as LibraryItem);
+	},
+	async publishPending(hubID: string, itemID: string): Promise<LibraryItem> {
+		return normalizeItem((await doPost(`${fileBase(hubID, itemID)}/publish-pending`, {}, options)) as LibraryItem);
+	},
+	/** "อ่านไฟล์ใหม่": a failed version runs again; a read one gets a new pending version. */
+	async reextract(hubID: string, itemID: string): Promise<LibraryItem> {
+		return normalizeItem((await doPost(`${fileBase(hubID, itemID)}/reextract`, {}, options)) as LibraryItem);
+	},
+	/** Hidden from everyone at once; the server purges it afterwards. */
+	remove: (hubID: string, itemID: string) => doDelete(`${base(hubID)}/items/${part(itemID)}`, options) as Promise<{ id: string; status: string }>,
+	/** A company owner or admin takes over an item whose owner left. */
+	async takeover(hubID: string, itemID: string): Promise<LibraryItem> {
+		return normalizeItem((await doPost(`${base(hubID)}/items/${part(itemID)}/takeover`, {}, options)) as LibraryItem);
+	},
+	usage: (hubID: string) => doGet(`${base(hubID)}/usage`, options) as Promise<LibraryUsage>,
+	/**
+	 * The original's address, for a plain same-origin link: the browser saves
+	 * the attachment itself, and nothing downloads without a click. The server
+	 * checks who may download it, and records every download.
+	 */
+	downloadHref: (hubID: string, itemID: string, which: 'published' | 'pending' = 'published') =>
+		`${baseURL}${fileBase(hubID, itemID)}/download?version=${which}`
 };

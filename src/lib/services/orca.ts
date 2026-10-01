@@ -146,6 +146,16 @@ export interface OrcaBootstrap {
   connections: OrcaConnection[];
   hubs: OrcaHub[];
   unifiedConnectURL?: string;
+  /**
+   * What this company may use now. `libraryV2` is knowledge library v2 (file
+   * uploads, C4 §14m), which the platform operator turns on per company. A
+   * server from before it sends no `features` at all, and also refuses the
+   * library's `audienceMode`.
+   */
+  features?: OrcaFeatures;
+}
+export interface OrcaFeatures {
+  libraryV2?: boolean;
 }
 
 /**
@@ -273,6 +283,8 @@ export interface OrcaPlatformCompany {
   owners: number;
   /** The platform's owner invitations still pending, expired ones included. */
   ownerInvitations: OrcaPlatformOwnerInvitation[];
+  /** Knowledge library v2 (file uploads) is on for the company; only the operator sets it. An older server sends none. */
+  libraryV2?: boolean;
 }
 export interface OrcaPlatformOwnerInvitation {
   id: string;
@@ -386,6 +398,14 @@ export interface OrcaAuditEvent {
   connectionVersion?: number;
   toolSchemaHash?: string;
   errorCategory?: string;
+  /** What a knowledge search or read released to the AI: items and versions, with a title only for someone who may read the item now. */
+  libraryRefs?: OrcaLibraryAuditRef[];
+}
+export interface OrcaLibraryAuditRef {
+  itemID: string;
+  kind: string;
+  title: string;
+  version: number;
 }
 
 export interface OrcaConnectionMember {
@@ -601,6 +621,9 @@ export const OrcaService = {
     doPost(`/orca/platform/companies/${part(companyID)}/owner-invitations`, { email }, options) as Promise<OrcaOwnerInvitationLink>,
   revokeCompanyOwnerInvitation: (companyID: string, id: string) =>
     doPost(`/orca/platform/companies/${part(companyID)}/owner-invitations/${part(id)}/revoke`, {}, options) as Promise<OrcaInvitation>,
+  /** Turns knowledge library v2 on or off for a company (the operator only; audited in both logs). */
+  setCompanyLibraryV2: (companyID: string, enabled: boolean) =>
+    doPut(`/orca/platform/companies/${part(companyID)}/library-v2`, { enabled }, options) as Promise<{ companyID: string; libraryV2: boolean }>,
   approveRequest: (id: string) => doPost(orcaPath(`/approvals/${part(id)}/approve`), {}, options) as Promise<OrcaApproval>,
   rejectRequest: (id: string, note: string) =>
     doPost(orcaPath(`/approvals/${part(id)}/reject`), { note }, options) as Promise<OrcaApproval>,

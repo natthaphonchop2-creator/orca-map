@@ -27,7 +27,7 @@ const accountLevel = new Set([
 	'previewInvitation', 'acceptInvitation', 'companies', 'googleSignIn', 'saveGoogleSignIn', 'signInMethods',
 	'requestPilot', 'listPilotRequests', 'updatePilotRequest', 'localUsers', 'authProviders', 'createLocalUser',
 	'resetLocalPassword', 'createRemoteEntry', 'configureSourceOAuthClient', 'removeSourceOAuthClient',
-	'platformCompanies', 'openCompany', 'inviteCompanyOwner', 'revokeCompanyOwnerInvitation',
+	'platformCompanies', 'openCompany', 'inviteCompanyOwner', 'revokeCompanyOwnerInvitation', 'setCompanyLibraryV2',
 ]);
 
 async function paths(company) {
@@ -80,6 +80,8 @@ test('"default" keeps every legacy path', async () => {
 	assert.deepEqual(byName.openCompany, ['/orca/platform/companies']);
 	assert.deepEqual(byName.inviteCompanyOwner, ['/orca/platform/companies/id-1/owner-invitations']);
 	assert.deepEqual(byName.revokeCompanyOwnerInvitation, ['/orca/platform/companies/id-1/owner-invitations/name/revoke']);
+	// The operator's knowledge library v2 switch is the platform's call for that company (C4 §14m S5).
+	assert.deepEqual(byName.setCompanyLibraryV2, ['/orca/platform/companies/id-1/library-v2']);
 });
 
 // The library service: every call for "default" and for another company.
@@ -87,22 +89,42 @@ const libraryCode = stripTypeScriptTypes(await readFile(new URL('../services/orc
 	.replace(/^import[^;]+;/gm, '')
 	.replace(/^export /gm, '');
 const { library } = await import('data:text/javascript;base64,' + Buffer.from(`import { orcaPath } from ${JSON.stringify(companyURL)};
-export function library(doGet, doPost, doPut) {
+export function library(doGet, doPost, doPut, doDelete, doUpload, baseURL) {
 	${libraryCode};
 	return OrcaLibraryService;
 }`).toString('base64'));
 
+const BASE = 'https://orca.example.invalid/api';
+// Calls whose arguments are not (workspace, input, item): the file routes (knowledge library v2).
+const fileArgs = {
+	upload: ['id-1', [new File(['x'], 'ราคา.xlsx')]],
+	replace: ['id-1', 'item-1', new File(['x'], 'ราคา.xlsx')],
+	file: ['id-1', 'item-1', 'pending', 'cur-1'],
+	setOptions: ['id-1', 'item-1', { includeHidden: false, includeComments: false, includeNotes: true, allowDownload: true, reviewBeforeUpdate: false }],
+	publishPending: ['id-1', 'item-1'],
+	reextract: ['id-1', 'item-1'],
+	remove: ['id-1', 'item-1'],
+	takeover: ['id-1', 'item-1'],
+	usage: ['id-1'],
+	downloadHref: ['id-1', 'item-1', 'published']
+};
+
 async function libraryPaths(company) {
 	const calls = [];
-	const record = async (path) => { calls.push(path); return { items: [], departments: [], knowledge: [] }; };
-	const service = library(record, record, record);
+	const record = async (path) => { calls.push(path); return { items: [], departments: [], knowledge: [], files: [], item: {}, preview: [] }; };
+	const service = library(record, record, record, record, record, BASE);
 	setPageCompany(company, company === 'default' ? [] : [{ id: company }]);
 	const result = {};
 	try {
 		for (const [name, call] of Object.entries(service)) {
 			if (typeof call !== 'function') continue;
 			calls.length = 0;
-			await call.call(service, 'id-1', { title: 'x', memberIDs: [], unitIDs: [], parameters: [], knowledgeIDs: [] }, 'x');
+			const value = await call.call(service, ...(fileArgs[name] ?? ['id-1', { title: 'x', memberIDs: [], unitIDs: [], parameters: [], knowledgeIDs: [] }, 'x']));
+			// A download is a plain link, never a request the page makes.
+			if (name === 'downloadHref') {
+				assert.ok(value.startsWith(BASE), value);
+				calls.push(value.slice(BASE.length));
+			}
 			result[name] = [...calls];
 		}
 	} finally {
@@ -124,4 +146,17 @@ test('the library, departments included, uses the page\'s company', async () => 
 		for (const path of list) assert.ok(path.startsWith('/orca/') && !path.includes('/orgs/'), `${name}: ${path}`);
 	}
 	assert.deepEqual(inDefault.departments, ['/orca/library/departments']);
+	// The file routes, exactly as the backend registers them (C4 §14m S5).
+	assert.deepEqual(inDefault.upload, ['/orca/hubs/id-1/library/files']);
+	assert.deepEqual(inDefault.replace, ['/orca/hubs/id-1/library/files/item-1/versions']);
+	assert.deepEqual(inDefault.file, ['/orca/hubs/id-1/library/files/item-1?version=pending&cursor=cur-1']);
+	assert.deepEqual(inDefault.setOptions, ['/orca/hubs/id-1/library/files/item-1/options']);
+	assert.deepEqual(inDefault.publishPending, ['/orca/hubs/id-1/library/files/item-1/publish-pending']);
+	assert.deepEqual(inDefault.reextract, ['/orca/hubs/id-1/library/files/item-1/reextract']);
+	assert.deepEqual(inDefault.remove, ['/orca/hubs/id-1/library/items/item-1']);
+	assert.deepEqual(inDefault.takeover, ['/orca/hubs/id-1/library/items/item-1/takeover']);
+	assert.deepEqual(inDefault.usage, ['/orca/hubs/id-1/library/usage']);
+	assert.deepEqual(inDefault.downloadHref, ['/orca/hubs/id-1/library/files/item-1/download?version=published']);
+	assert.deepEqual(inB.upload, [`/orca/orgs/${B}/hubs/id-1/library/files`]);
+	assert.deepEqual(inB.downloadHref, [`/orca/orgs/${B}/hubs/id-1/library/files/item-1/download?version=published`]);
 });

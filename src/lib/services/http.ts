@@ -257,6 +257,86 @@ export async function doPatch(
 	return await doWithBody('PATCH', path, input, opts);
 }
 
+/** The part of XMLHttpRequest an upload uses (a test passes its own). */
+export interface UploadRequest {
+	open(method: string, url: string): void;
+	setRequestHeader(name: string, value: string): void;
+	send(body: FormData): void;
+	abort(): void;
+	readonly status: number;
+	readonly responseText: string;
+	upload: { onprogress: ((event: { loaded: number; total: number; lengthComputable: boolean }) => void) | null };
+	onload: (() => void) | null;
+	onerror: (() => void) | null;
+	onabort: (() => void) | null;
+}
+
+/**
+ * A multipart POST with upload progress (fetch has none): the knowledge
+ * library's file uploads. Like doPost it names the page's account, counts as
+ * a write until its answer is read, and fails with the same HttpError. The
+ * browser sets the multipart type, its boundary and the body's length.
+ */
+export function doUpload(
+	path: string,
+	form: FormData,
+	opts?: {
+		/** Bytes of the body sent so far, and the body's size (0 when unknown). */
+		onprogress?: (loaded: number, total: number) => void;
+		signal?: AbortSignal;
+		dontLogErrors?: boolean;
+		request?: () => UploadRequest;
+	}
+): Promise<unknown> {
+	return counted(
+		() =>
+			new Promise<unknown>((resolve, reject) => {
+				const aborted = () => {
+					const error = new Error('The upload was cancelled');
+					error.name = 'AbortError';
+					return error;
+				};
+				if (opts?.signal?.aborted) {
+					reject(aborted());
+					return;
+				}
+				const request: UploadRequest = opts?.request?.() ?? (new XMLHttpRequest() as unknown as UploadRequest);
+				const stop = () => request.abort();
+				const done = () => opts?.signal?.removeEventListener('abort', stop);
+				request.open('POST', baseURL + path);
+				for (const [name, value] of Object.entries(getAuthHeaders(path))) request.setRequestHeader(name, value);
+				request.upload.onprogress = (event) => opts?.onprogress?.(event.loaded, event.lengthComputable ? event.total : 0);
+				request.onload = () => {
+					done();
+					const body = request.responseText ?? '';
+					if (request.status < 200 || request.status >= 300) {
+						if (request.status === 401) handle401Redirect();
+						accountChanged(request.status, body);
+						const e = createHttpError(request.status, path, body);
+						if (!opts?.dontLogErrors) errors.items.push(e);
+						reject(e);
+						return;
+					}
+					try {
+						resolve(body ? JSON.parse(body) : {});
+					} catch {
+						resolve(body);
+					}
+				};
+				request.onerror = () => {
+					done();
+					reject(new TypeError('The upload did not reach ORCA'));
+				};
+				request.onabort = () => {
+					done();
+					reject(aborted());
+				};
+				opts?.signal?.addEventListener('abort', stop, { once: true });
+				request.send(form);
+			})
+	);
+}
+
 export type Fetcher = typeof fetch;
 
 export type PaginatedResponse<T> = {
