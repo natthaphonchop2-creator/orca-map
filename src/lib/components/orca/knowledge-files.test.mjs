@@ -949,7 +949,7 @@ test('access lost under an editor: the editor says so and keeps the text; once i
 /** The library page's script, alone, with a library the test answers by hand. */
 async function libraryPage(t, answer) {
 	const client = await import('svelte/internal/client');
-	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ load, refreshReading, show, saved, setDirty(value) { dirty = value; }, get screen() { return screen; }, get editorNote() { return editorNote; }, get items() { return items; }, get pollTimer() { return pollTimer; }, stopPolling }');
+	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ load, refreshReading, recheck, show, saved, deleted, setDirty(value) { dirty = value; }, get screen() { return screen; }, get editorNote() { return editorNote; }, get items() { return items; }, get pollTimer() { return pollTimer; }, stopPolling }');
 	const salesHub = hub('sales', { memberIDs: ['me'] });
 	let view;
 	const stop = client.effect_root(() => {
@@ -1175,4 +1175,93 @@ test('the hidden parts of a held newer version: one story, and the hint says "�
 	// The partial note's line, exactly: nothing on the tab hides its text.
 	const source = await readFile(new URL('./knowledge/FileDetail.svelte', import.meta.url), 'utf8');
 	assert.match(source, /\t\t\t\{#if previewVersion\?\.state === 'partial'\}\n\t\t\t\t<p class="fd-note warn"><TriangleAlert size=\{15\} aria-hidden="true" \/><span>\{t\('อ่านได้บางส่วน:', 'Partly read:'\)\} \{partialText\(previewVersion\.stats\?\.partialReason \|\| previewVersion\.errorClass, t, previewLive\)\}<\/span><\/p>\n\t\t\t\{\/if\}/);
+});
+
+
+test('every list is ordered by one freshness: an older load or recheck never takes back what came after it (Codex S7 eighth confirmation #1, #2)', async (t) => {
+	const reading = (state) => fileItem('r', { status: 'draft', file: fileInfo({ pending: version(1, state), options: options() }) });
+	const queue = [async () => ({ items: [reading('extracting'), article('a')], members, departments: [] })];
+	const next = () => (queue.length ? queue.shift()() : Promise.resolve({ items: [reading('ready'), article('a'), article('b')], members, departments: [] }));
+	const { view, flush } = await libraryPage(t, next);
+	for (let i = 0; i < 10 && !view.items.length; i++) await new Promise((resolve) => setImmediate(resolve));
+	const settle = async () => { for (let i = 0; i < 10; i++) await new Promise((resolve) => setImmediate(resolve)); };
+	// 1. A load goes out; under an editor a quiet ask brings "ready"; the load's older "extracting" comes last.
+	let older;
+	queue.push(() => new Promise((resolve) => { older = resolve; }));
+	const loading = view.load('sales', true);
+	view.show({ name: 'editor', kind: 'knowledge', id: 'a' });
+	view.setDirty(true);
+	flush();
+	queue.push(async () => ({ items: [reading('ready'), article('a')], members, departments: [] }));
+	await view.refreshReading('sales');
+	assert.equal(view.items.find((item) => item.id === 'r').file.pending.state, 'ready');
+	older({ items: [reading('extracting'), article('a')], members, departments: [] });
+	await loading;
+	await settle();
+	assert.equal(view.items.find((item) => item.id === 'r').file.pending.state, 'ready', 'the older list was asked for again, not applied');
+	// 2. A load goes out; B is saved and edited; the load's older refusal never speaks over B.
+	view.setDirty(false);
+	view.show({ name: 'list' });
+	flush();
+	let refused;
+	queue.push(() => new Promise((_resolve, reject) => { refused = reject; }));
+	const loading2 = view.load('sales', true);
+	view.saved(article('b'), 1);
+	view.show({ name: 'editor', kind: 'knowledge', id: 'b' });
+	view.setDirty(true);
+	flush();
+	refused(Object.assign(new Error('forbidden'), { status: 403 }));
+	await loading2;
+	await settle();
+	assert.equal(view.editorNote, '', 'a refusal older than B\'s save is asked again, and the newer answer has B');
+	// 3. A recheck goes out; R is deleted; the recheck's older list (with R) never brings R back.
+	view.setDirty(false);
+	view.show({ name: 'list' });
+	flush();
+	let rechecked;
+	queue.push(() => new Promise((resolve) => { rechecked = resolve; }));
+	queue.push(async () => ({ items: [article('a'), article('b')], members, departments: [] }));
+	const checking = view.recheck();
+	view.deleted(view.items.find((item) => item.id === 'r'));
+	rechecked({ items: [reading('ready'), article('a'), article('b')], members, departments: [] });
+	assert.equal(await checking, 'open');
+	await settle();
+	assert.equal(view.items.some((item) => item.id === 'r'), false, 'R stays deleted');
+});
+
+test('a recheck that took the place of the timer\'s load asks again while files are read (Codex S7 eighth confirmation #3)', async (t) => {
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+	const reading = fileItem('r', { status: 'draft', file: fileInfo({ pending: version(1, 'extracting'), options: options() }) });
+	let loads = 0;
+	const answers = [];
+	const { view } = await libraryPage(t, () => {
+		loads += 1;
+		return answers.length ? answers.shift()() : Promise.resolve({ items: [reading], members, departments: [] });
+	});
+	for (let i = 0; i < 10 && !view.items.length; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(loads, 1);
+	assert.ok(view.pollTimer, 'the file is read: the page will ask again');
+	// The timer's load goes out, then a recheck takes its place.
+	let timerLoad;
+	answers.push(() => new Promise((resolve) => { timerLoad = resolve; }));
+	t.mock.timers.tick(3_000);
+	assert.equal(loads, 2);
+	assert.equal(await view.recheck(), 'open');
+	timerLoad({ items: [reading], members, departments: [] });
+	for (let i = 0; i < 10; i++) await new Promise((resolve) => setImmediate(resolve));
+	// The asking goes on: within the next delays the page asks again.
+	t.mock.timers.tick(20_000);
+	for (let i = 0; i < 10; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.ok(loads >= 4, `the page went on asking (${loads} loads)`);
+	view.stopPolling();
+});
+
+test('with "ต้องตรวจก่อนอัปเดต" a version being read still waits for "ใช้ฉบับใหม่": one story (Codex S7 eighth confirmation #4)', async () => {
+	const item = fileItem('w', { file: fileInfo({ ext: 'pptx', published: version(1, 'ready', { options: { includeHidden: false, includeComments: false, includeNotes: true }, stats: { chars: 1, slides: 18, hidden: hiddenParts({ notesSlides: 12, comments: 2 }) } }), pending: version(2, 'extracting', { options: { includeHidden: false, includeComments: true, includeNotes: false } }), options: options({ reviewBeforeUpdate: true, includeNotes: false, includeComments: true }) }) });
+	const { html } = await fileDetail({ item });
+	assert.match(html, /กำลังอ่านฉบับใหม่ \(ฉบับที่ 2\) AI ใช้ฉบับเดิมจนกว่าคุณจะกดใช้ฉบับใหม่/);
+	assert.match(html, /AI ยังเห็นโน้ตผู้บรรยาย 12 สไลด์ จนกว่าคุณจะกดใช้ฉบับใหม่/);
+	assert.match(html, /ไฟล์นี้มีความคิดเห็น 2 รายการ ORCA กำลังอ่านฉบับใหม่ให้ AI เห็นเมื่อคุณกดใช้/);
+	assert.doesNotMatch(html, /จนกว่าจะอ่านเสร็จ|จนกว่าฉบับใหม่จะอ่านเสร็จ/, 'never "until it is read" while review holds it after');
+	assert.equal(k.hiddenLines(version(1, 'ready', { options: { includeHidden: false, includeComments: false, includeNotes: true }, stats: { chars: 1, hidden: hiddenParts({ notesSlides: 3 }) } }), th, { includeNotes: false, includeHidden: false, includeComments: false }, true, 'reading', false)[0].text, 'AI ยังเห็นโน้ตผู้บรรยาย 3 สไลด์ จนกว่าฉบับใหม่จะอ่านเสร็จ', 'without review: until it is read');
 });

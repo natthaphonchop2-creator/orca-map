@@ -121,7 +121,7 @@
 	const previewLive = $derived(live && !(which === 'pending' && held));
 	// Where the newer version with the owner's choice is: read and held, not read, or being read (Codex S7 seventh confirmation #4).
 	const stage = $derived<NewerStage>(pending && fileReading(pending) === 'failed' ? 'failed' : held ? 'held' : 'reading');
-	const lines = $derived(manage ? hiddenLines(previewVersion ?? current, t, options, previewLive, stage) : []);
+	const lines = $derived(manage ? hiddenLines(previewVersion ?? current, t, options, previewLive, stage, options?.reviewBeforeUpdate === true) : []);
 	const encoding = $derived(owner ? encodingNote((previewVersion ?? current)?.stats, t) : undefined);
 	const offered = $derived.by(() => {
 		const parts = new Set(lines.map((line) => line.option).filter(Boolean));
@@ -363,9 +363,11 @@
 
 			{#if manage && pending && servable}
 				{#if fileReading(pending) === 'reading'}
-					<p class="fd-note" aria-live="polite"><Info size={15} aria-hidden="true" /><span>{live
-								? t(`กำลังอ่านฉบับใหม่ (ฉบับที่ ${pending.version}) AI ใช้ฉบับเดิมจนกว่าจะอ่านเสร็จ`, `Reading the new version (version ${pending.version}). The AI keeps the current one until it is read.`)
-								: t(`กำลังอ่านฉบับใหม่ (ฉบับที่ ${pending.version}) ด้านล่างยังเป็นฉบับเดิมจนกว่าจะอ่านเสร็จ`, `Reading the new version (version ${pending.version}). Below is the current one until it is read.`)}</span></p>
+					<p class="fd-note" aria-live="polite"><Info size={15} aria-hidden="true" /><span>{!live
+								? t(`กำลังอ่านฉบับใหม่ (ฉบับที่ ${pending.version}) ด้านล่างยังเป็นฉบับเดิมจนกว่าจะอ่านเสร็จ`, `Reading the new version (version ${pending.version}). Below is the current one until it is read.`)
+								: file?.options?.reviewBeforeUpdate
+									? t(`กำลังอ่านฉบับใหม่ (ฉบับที่ ${pending.version}) AI ใช้ฉบับเดิมจนกว่าคุณจะกดใช้ฉบับใหม่`, `Reading the new version (version ${pending.version}). The AI keeps the current one until you use the new one.`)
+									: t(`กำลังอ่านฉบับใหม่ (ฉบับที่ ${pending.version}) AI ใช้ฉบับเดิมจนกว่าจะอ่านเสร็จ`, `Reading the new version (version ${pending.version}). The AI keeps the current one until it is read.`)}</span></p>
 				{:else if fileReading(pending) === 'failed'}
 					<div class="fd-note warn">
 						<TriangleAlert size={15} aria-hidden="true" />

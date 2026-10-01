@@ -223,6 +223,11 @@
 			schedulePoll();
 		} catch (cause) {
 			if (request !== requestNumber || disposed) return;
+			// Older than the list now: its refusal may be too; ask again (Codex S7 eighth confirmation #1).
+			if (seen !== freshness) {
+				void load(id, quiet);
+				return;
+			}
 			// Access changed: nothing of this library stays on screen.
 			const denied = [403, 404].includes(getHttpStatusCode(cause) ?? 0);
 			if (quiet && !denied) {
@@ -250,9 +255,12 @@
 		const id = hub?.id ?? '';
 		if (!id) return 'denied';
 		const request = ++requestNumber;
+		const seen = freshness;
 		try {
 			const result = await OrcaLibraryService.load(id);
 			if (request !== requestNumber || hub?.id !== id) return 'unknown';
+			// A fresher list came meanwhile (a delete, a save…): this one is older; check again (Codex S7 eighth confirmation #2).
+			if (seen !== freshness) return await recheck();
 			const open = screenID(screen);
 			if (open && !result.items.some((item) => item.id === open)) return 'denied';
 			fresher();
@@ -260,8 +268,11 @@
 			members = result.members;
 			departments = result.departments;
 			now = Date.now();
+			// It may have taken the place of a load the timer started: ask again while files are read (Codex S7 eighth confirmation #3).
+			schedulePoll();
 			return 'open';
 		} catch (cause) {
+			if (request === requestNumber && hub?.id === id && seen !== freshness) return await recheck();
 			return [403, 404].includes(getHttpStatusCode(cause) ?? 0) ? 'denied' : 'unknown';
 		}
 	}
@@ -403,6 +414,7 @@
 	function applyUnderEditor(result: { items: LibraryItem[] }): boolean {
 		const editing = dirtyEditor();
 		if (editing === undefined) return false;
+		fresher();
 		items = withReading(items, result.items, editing);
 		if (editing && !result.items.some((item) => item.id === editing)) {
 			stopPolling();
