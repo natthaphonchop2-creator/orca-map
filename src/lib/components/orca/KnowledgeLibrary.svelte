@@ -334,6 +334,13 @@
 		const item = settled(answer);
 		if (!item) return;
 		items = items.some((known) => known.id === item.id) ? items.map((known) => (known.id === item.id ? item : known)) : [...items, item];
+		// A file action may start a reading (a new version, reading again, a setting
+		// that reads anew): a fresh polling budget, and the quota as it is now
+		// (Codex S7 tenth confirmation #2, #3).
+		if (item.kind === 'file') {
+			pollRound = 0;
+			void refreshUsage();
+		}
 		schedulePoll();
 	}
 	function deleted(item: LibraryItem) {
@@ -578,6 +585,8 @@
 				showToast(t(`อัปโหลดแล้ว ${saved} ไฟล์ ORCA กำลังอ่าน`, `${saved} ${saved === 1 ? 'file' : 'files'} uploaded; ORCA is reading them`));
 				kind = 'file';
 				void refreshUsage(id);
+				// New readings: a fresh polling budget (Codex S7 tenth confirmation #2).
+				pollRound = 0;
 				schedulePoll();
 			}
 		}

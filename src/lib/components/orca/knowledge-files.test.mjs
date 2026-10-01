@@ -1352,3 +1352,101 @@ test('the quota meter takes the newest answer only', async () => {
 	const page = await readFile(new URL('./KnowledgeLibrary.svelte', import.meta.url), 'utf8');
 	assert.match(page, /const request = \+\+usageRequest;\s*try \{\s*const next = await OrcaLibraryService\.usage\(id\);\s*if \(request === usageRequest && hub\?\.id === id && !disposed\) usage = next;/);
 });
+
+
+test('a read of the file is older than a newer item from the page too; one that nothing overtook is applied (Codex S7 tenth confirmation #1)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./knowledge/FileDetail.svelte', '{ refresh, setOption, setItem(next) { item = next; } }');
+	const withDownload = (allow) => fileItem('f', { file: fileInfo({ allowDownload: allow, published: version(2, 'ready'), options: options({ allowDownload: allow }) }) });
+	const puts = [];
+	const reads = [];
+	const told = [];
+	let denied = 0;
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ hub: hub('sales'), item: withDownload(true), members, departments, currentUserID: 'me', canManage: false, features: ON, now: 0, onback: noop, onedit: noop, onchanged: (next) => { told.push(next); view.setItem(next); }, onarchived: noop, ondeleted: noop, ondenied: () => denied++ },
+			{
+				...k, t: th, term, onDestroy: () => {}, getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => error, orcaError: (error) => error.message,
+				OrcaLibraryService: {
+					file: () => new Promise((resolve, reject) => reads.push({ resolve, reject })),
+					setOptions: async (_hub, _item, value) => { puts.push(value); return withDownload(value.allowDownload); }
+				}
+			}
+		);
+	});
+	t.after(stop);
+	client.flush();
+	// 1. A read goes out; the page's own asking brings downloads off (another tab); the read's older "on" comes last.
+	const first = view.refresh();
+	view.setItem(withDownload(false));
+	client.flush();
+	reads.shift().resolve({ item: withDownload(true), which: 'published', preview: [], totalChars: 0 });
+	await first;
+	assert.equal(told.length, 0, 'dropped: the page had a newer item');
+	await view.setOption('reviewBeforeUpdate', true);
+	assert.equal(puts.at(-1).allowDownload, false, 'the next change keeps downloads off');
+	// 2. Its refusal is dropped the same way.
+	const second = view.refresh();
+	view.setItem(withDownload(false));
+	client.flush();
+	reads.shift().reject(Object.assign(new Error('gone'), { status: 404 }));
+	await second;
+	assert.equal(denied, 0, 'an older refusal never closes the page');
+	// 3. A read nothing overtook is applied, refusal or not.
+	const told0 = told.length;
+	const third = view.refresh();
+	reads.shift().resolve({ item: withDownload(false), which: 'published', preview: [], totalChars: 0 });
+	await third;
+	assert.equal(told.length, told0 + 1, 'the read is passed on');
+	const fourth = view.refresh();
+	reads.shift().reject(Object.assign(new Error('gone'), { status: 404 }));
+	await fourth;
+	assert.equal(denied, 1, 'a current refusal is told');
+});
+
+test('a file action or an upload starts a fresh polling budget and asks for the quota again (Codex S7 tenth confirmation #2, #3)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ changed, upload, setPollRound(value) { pollRound = value; }, get pollRound() { return pollRound; }, get pollTimer() { return pollTimer; }, stopPolling, get items() { return items; } }');
+	const reading = (id) => fileItem(id, { status: 'draft', file: fileInfo({ pending: version(1, 'extracting'), options: options() }) });
+	const salesHub = hub('sales', { memberIDs: ['me'] });
+	let usageAsks = 0;
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ data: { hubs: [salesHub], currentUserID: 'me', canManage: true, features: { libraryV2: true }, members, units: [] }, hubID: 'sales', initialKind: 'file', initialCreate: false, onchanged: async () => {} },
+			{
+				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
+				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
+				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', localeHref: (value) => value,
+				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
+				OrcaLibraryService: {
+					load: async () => ({ items: [reading('old')], members, departments: [] }),
+					usage: async () => { usageAsks += 1; return { bytes: 0, bytesLimit: 1024 * 1024 * 1024, chars: 0, charsLimit: 10_000_000, uploadsToday: 1, uploadsLimit: 50, items: 1, itemsLimit: 1000 }; },
+					upload: async (_id, files, progress) => { progress.onsent?.(); return { files: files.map((file) => ({ fileName: file.name, item: reading(`new-${file.name}`) })) }; }
+				}
+			}
+		);
+	});
+	t.after(() => {
+		view.stopPolling();
+		stop();
+	});
+	client.flush();
+	for (let i = 0; i < 10 && !view.items.length; i++) await new Promise((resolve) => setImmediate(resolve));
+	// The old file never finished: the budget is spent.
+	view.stopPolling();
+	view.setPollRound(61);
+	const asked = usageAsks;
+	view.changed(reading('old'));
+	assert.equal(view.pollRound, 0, 'a file action starts a fresh budget');
+	assert.ok(view.pollTimer, 'and the page asks again');
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.ok(usageAsks > asked, 'the quota is asked for again');
+	view.stopPolling();
+	view.setPollRound(61);
+	await view.upload([new File(['x'], 'ราคา.xlsx')]);
+	assert.equal(view.pollRound, 0, 'an upload starts a fresh budget');
+	assert.ok(view.pollTimer);
+});

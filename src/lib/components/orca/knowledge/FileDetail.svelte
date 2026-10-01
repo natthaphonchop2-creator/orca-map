@@ -278,11 +278,15 @@
 	 */
 	async function refresh() {
 		const seen = answers;
+		// The page may bring a newer item meanwhile (its own asking, another tab's
+		// change): then this read is older too (Codex S7 tenth confirmation #1).
+		const seenItem = item;
+		const current = () => seen === answers && item === seenItem;
 		try {
 			const next = (await OrcaLibraryService.file(hub.id, item.id)).item;
-			if (seen === answers) tell.changed(next);
+			if (current()) tell.changed(next);
 		} catch (cause) {
-			if (seen === answers) denied(cause);
+			if (current()) denied(cause);
 		}
 	}
 	async function archive() {
