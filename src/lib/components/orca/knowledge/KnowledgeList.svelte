@@ -104,8 +104,10 @@
 	const fileCount = $derived(libraryCounts(items, 'file').current);
 	// Uploads need library v2; files already there stay listed after it is turned off (a rollback).
 	const files = $derived(features.files);
-	// The file list after a rollback: the AI uses no file, so a published one is "เผยแพร่แล้ว", not "AI ใช้ได้".
-	const paused = $derived(kind === 'file' && !features.files);
+	// The AI uses nothing here now, so a published item is "เผยแพร่แล้ว", not "AI ใช้ได้": the file list
+	// after a rollback (file Knowledge off), or any list of a workspace not active yet (Codex S7 second confirmation #4).
+	const filesOff = $derived(kind === 'file' && !features.files);
+	const paused = $derived(filesOff || hub.status !== 'active');
 	const fileTab = $derived(features.files || items.some((item) => item.kind === 'file'));
 	const rows = $derived(filterLibrary(items, kind, filter, query));
 	const shown = $derived(expanded ? rows : rows.slice(0, LIBRARY_PAGE));
@@ -316,7 +318,7 @@
 			{/if}
 		</div>
 
-		<KnowledgeRail item={ask} ask={counted} {connected} {app} workspace={hub} files={kind === 'file'} {paused} usage={kind === 'file' ? usage : undefined} />
+		<KnowledgeRail item={ask} ask={counted} {connected} {app} workspace={hub} files={kind === 'file'} paused={filesOff ? 'files' : paused ? 'workspace' : undefined} usage={kind === 'file' ? usage : undefined} />
 	</div>
 </div>
 

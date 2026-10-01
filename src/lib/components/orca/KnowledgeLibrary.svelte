@@ -10,8 +10,6 @@
 	import {
 		accessRequestMessage,
 		batchProgress,
-		itemIncomplete,
-		keepOmitted,
 		libraryFeatures,
 		libraryProblem,
 		libraryScope,
@@ -19,6 +17,7 @@
 		readingFileIDs,
 		readingPollDelay,
 		refusalCode,
+		settleAnswer,
 		refusalText,
 		uploadBatches,
 		uploadFailure,
@@ -111,6 +110,8 @@
 	let screen = $state<Screen>({ name: 'list' });
 	let dirty = $state(false);
 	let requestNumber = 0;
+	// The editor's quiet asks for the files' reading (refreshReading), apart from the page's loads.
+	let readingRequest = 0;
 	const screenID = (value: Screen) => (value.name === 'list' ? undefined : value.id);
 	const selected = $derived.by(() => {
 		const id = screenID(screen);
@@ -130,6 +131,7 @@
 			if (id !== contextID) {
 				contextID = id;
 				stopPolling();
+				readingRequest += 1;
 				cancelUpload();
 				uploads = [];
 				uploadNote = '';
@@ -254,12 +256,12 @@
 		}
 		show({ name: 'editor', kind: next, title });
 	}
-	/** An answer for this workspace, with what it leaves out kept or, when that is stale, asked for again. */
+	/** An answer for this workspace, with what it leaves out kept or, when that is stale, the item as it was until the library comes again. */
 	function settled(answer: LibraryItem): LibraryItem | undefined {
 		// An answer for another workspace (the page moved on meanwhile) changes nothing here (Codex S7 confirmation #3).
 		if (!hub || (answer.hubID && answer.hubID !== hub.id)) return undefined;
-		const item = keepOmitted(answer, items.find((known) => known.id === answer.id));
-		if (itemIncomplete(item)) void load(hub.id);
+		const { item, reload } = settleAnswer(answer, items.find((known) => known.id === answer.id));
+		if (reload) void load(hub.id);
 		return item;
 	}
 	function saved(answer: LibraryItem, people: number) {
@@ -345,6 +347,8 @@
 				return;
 			}
 		} catch (cause) {
+			// Another workspace's, or an older, answer: nothing of this page's asking changes (Codex S7 second confirmation #3).
+			if (disposed || request !== readingRequest || hub?.id !== id) return;
 			// Access lost: no more asking; the editor keeps its text and its save says so (Codex S7 confirmation #4).
 			if ([403, 404].includes(getHttpStatusCode(cause) ?? 0)) {
 				stopPolling();
@@ -353,7 +357,6 @@
 		}
 		if (!disposed && hub?.id === id) schedulePoll();
 	}
-	let readingRequest = 0;
 	function stopPolling() {
 		clearTimeout(pollTimer);
 		pollTimer = undefined;

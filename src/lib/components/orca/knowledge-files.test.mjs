@@ -317,12 +317,12 @@ test('after the flag went off, the file list says เผยแพร่แล้
 	assert.match(html, /aria-pressed="false"[^>]*>เผยแพร่แล้ว<\/button>/, 'the chip too');
 	assert.doesNotMatch(html, /AI ใช้ได้/);
 	assert.doesNotMatch(html, /ฉบับใหม่รอคุณกดใช้/, 'nothing to put in use while it is off');
-	assert.equal(rails[0].paused, true);
+	assert.equal(rails[0].paused, 'files');
 	// With the flag the same rows are "AI ใช้ได้".
 	const on = await list({ items, kind: 'file', features: ON, fileZone: zone });
 	assert.match(on.html, /AI ใช้ได้/);
 	assert.match(on.html, /ฉบับใหม่รอคุณกดใช้/);
-	assert.equal(on.rails[0].paused, false);
+	assert.equal(on.rails[0].paused, undefined);
 });
 
 test('an owner who left is not called a workspace member; the takeover card names the kind', async () => {
@@ -450,7 +450,7 @@ test('the page shows files only with library v2, sends uploads in batches, and a
 	assert.match(page, /if \(dirty\) void refreshReading\(id\);\s*else void load\(id, true\);/);
 	assert.match(page, /items = withReading\(items, result\.items, editing\);/);
 	// What an answer leaves out stays: a save's file block, a takeover's text.
-	assert.match(page, /const item = keepOmitted\(answer, items\.find\(\(known\) => known\.id === answer\.id\)\);/);
+	assert.match(page, /const \{ item, reload \} = settleAnswer\(answer, items\.find\(\(known\) => known\.id === answer\.id\)\);\s*if \(reload\) void load\(hub\.id\);/);
 	assert.equal(page.match(/const item = settled\(answer\);\s*if \(!item\) return;/g)?.length, 3, 'saved, archived and changed');
 	// A batch sent in full whose answer did not come is not sent again: the list is asked.
 	assert.match(page, /const failure = uploadFailure\(\{ sent, aborted, network: cause instanceof TypeError, status: problem\.status, message: problem\.message \}\);/);
@@ -584,7 +584,7 @@ test('leaving a file\'s page while its new version is on its way asks first (Cod
 	assert.match(detail, /onuploading\?\.\(true\);[\s\S]*?finally \{[\s\S]*?onuploading\?\.\(false\);/, 'the page knows while it is on its way');
 	// A new version sent in full whose answer did not come: the file is asked for again, not sent twice.
 	assert.match(detail, /if \(sent && \(aborted \|\| cause instanceof TypeError \|\| status >= 500\)\) \{[\s\S]*?void refresh\(\);/);
-	assert.match(detail, /onitem=\{onchanged\}/, 'a preview that met a newer version updates the page');
+	assert.match(detail, /onitem=\{tell\.changed\}/, 'a preview that met a newer version updates the page');
 });
 
 /** A component's script compiled alone (its props a $state the test changes), with its imports given by name. */
@@ -661,7 +661,162 @@ test('a preview that is gone changes nothing when its answer comes back (Codex S
 	// And the page drops an answer for another workspace anyway.
 	const page = await readFile(new URL('./KnowledgeLibrary.svelte', import.meta.url), 'utf8');
 	assert.match(page, /if \(!hub \|\| \(answer\.hubID && answer\.hubID !== hub\.id\)\) return undefined;/);
-	assert.match(page, /if \(itemIncomplete\(item\)\) void load\(hub\.id\);/, 'an answer still missing what it left out: the library is asked again');
+	assert.match(page, /if \(reload\) void load\(hub\.id\);/, 'an answer still missing what it left out: the library is asked again');
 	assert.match(page, /if \(failure\.reload && hub\?\.id === id\) void load\(id\);/, 'an upload whose outcome is unknown: the list is asked');
 	assert.match(page, /if \(\[403, 404\]\.includes\(getHttpStatusCode\(cause\) \?\? 0\)\) \{\s*stopPolling\(\);\s*return;\s*\}/, 'access lost under an editor: no more asking');
+});
+
+test('a workspace not active yet: its lists say "เผยแพร่แล้ว", never "AI ใช้ได้", and the legend says why (Codex S7 second confirmation #4)', async () => {
+	const items = [article('a'), fileItem('f')];
+	const draftHub = hub('sales', { status: 'draft' });
+	for (const kind of ['knowledge', 'file']) {
+		const { html, rails } = await list({ hub: draftHub, choices: [draftHub], items, kind, features: ON, fileZone: zone });
+		assert.doesNotMatch(html, /AI ใช้ได้/, kind);
+		assert.match(html, /<i class="dt plain"[^>]*><\/i>เผยแพร่แล้ว <b>1<\/b>/, kind);
+		assert.match(html, /<span class="orca-pill neutral[^"]*"[^>]*>(?:<[^>]+>)*เผยแพร่แล้ว/, kind);
+		assert.equal(rails[0].paused, 'workspace', kind);
+	}
+	const { Component } = await serverComponent(new URL('./knowledge/KnowledgeRail.svelte', import.meta.url), { ...k, t: th, term, localeHref: (value) => value, copyFeedback: () => ({ dispose: noop, copied: noop }), copyText: noop, showToast: noop, onDestroy: noop });
+	const rail = (paused) => show(Component, { item: undefined, connected: true, ask: false, files: true, paused });
+	assert.match(rail('workspace'), /เผยแพร่แล้ว<\/span>AI จะใช้ได้เมื่อเปิดใช้งานพื้นที่ทำงานนี้/);
+	assert.match(rail('files'), /เผยแพร่แล้ว<\/span>ตอนนี้ AI ไม่ได้ใช้ไฟล์ เพราะคลังความรู้แบบไฟล์ของบริษัทปิดอยู่/);
+	assert.match(rail(undefined), /AI ใช้ได้<\/span>AI ของคนที่เลือกไว้ใช้ตอบได้ทันที/);
+});
+
+test('a file\'s page that is gone changes nothing when an action\'s answer comes back (Codex S7 second confirmation #2)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./knowledge/FileDetail.svelte', '{ readAgain, archive }');
+	const destroyers = [];
+	const told = [];
+	let refuse;
+	const refused = new Promise((_resolve, reject) => { refuse = reject; });
+	refused.catch(() => {});
+	const item = fileItem('f', { file: fileInfo({ published: version(2, 'ready'), options: options() }) });
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ hub: hub('sales'), item, members, departments, currentUserID: 'me', canManage: false, features: ON, now: 0, onback: noop, onedit: noop, onchanged: () => told.push('changed'), onarchived: () => told.push('archived'), ondeleted: () => told.push('deleted'), ondenied: () => told.push('denied'), onuploading: noop },
+			{ ...k, t: th, term, onDestroy: (fn) => destroyers.push(fn), getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status, message: error.message }), orcaError: (error) => error.message, OrcaLibraryService: { reextract: () => refused, save: async () => ({ ...item, status: 'archived', version: 4 }) } }
+		);
+	});
+	t.after(stop);
+	client.flush();
+	const pending = view.readAgain();
+	// The person goes back, and on to another item's editor, before the answer.
+	for (const destroy of destroyers) destroy();
+	refuse(Object.assign(new Error('not found'), { status: 404 }));
+	await pending;
+	await view.archive();
+	assert.deepEqual(told, [], 'neither "denied" (which would close the other editor) nor any change reaches the page');
+});
+
+test('a batch sent in full whose answer is a refusal midway is unknown, asked for again, and not sent twice (Codex S7 confirmation #2, #6)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ upload, retryUpload, get uploads() { return uploads; }, get uploadNote() { return uploadNote; } }');
+	const loads = [];
+	const sends = [];
+	const salesHub = hub('sales', { memberIDs: ['me'] });
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ data: { hubs: [salesHub], currentUserID: 'me', canManage: true, features: { libraryV2: true }, members, units: [] }, hubID: 'sales', initialKind: 'file', initialCreate: false, onchanged: async () => {} },
+			{
+				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
+				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
+				getHttpStatusCode: (error) => error.status, isAbortError: (error) => error?.name === 'AbortError', parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', localeHref: (value) => value,
+				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
+				OrcaLibraryService: {
+					load: async (id) => { loads.push(id); return { items: [], members, departments: [] }; },
+					usage: async () => ({ bytes: 0, bytesLimit: 1024 * 1024 * 1024, chars: 0, charsLimit: 10_000_000, uploadsToday: 0, uploadsLimit: 50, items: 0, itemsLimit: 1000 }),
+					// The whole batch goes, the first file is stored, then the company's flag goes off: 404, no results.
+					upload: async (_id, files, progress) => {
+						sends.push(files.map((file) => file.name));
+						progress.onsent();
+						throw Object.assign(new Error('library_files_disabled: knowledge library v2 is off for this company'), { status: 404 });
+					}
+				}
+			}
+		);
+	});
+	t.after(stop);
+	client.flush();
+	for (let i = 0; i < 5 && !loads.length; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(loads, ['sales'], 'the library loads once');
+	await view.upload([new File(['a'], 'ราคา.xlsx'), new File(['b'], 'ลูกค้า.csv')]);
+	assert.deepEqual(view.uploads.map((row) => row.state), ['unknown', 'unknown']);
+	assert.match(view.uploadNote, /ORCA อาจบันทึกไว้แล้ว ดูในรายการก่อนส่งซ้ำ/);
+	assert.equal(loads.length, 2, 'the list is asked for what the server stored');
+	await view.retryUpload();
+	assert.equal(sends.length, 1, '"ลองอีกครั้ง" sends nothing whose outcome is unknown');
+});
+
+test('a draft\'s hidden parts say what the AI will see; a takeover that is gone tells nothing (Codex S7 second confirmation #2, #4)', async (t) => {
+	const notes = (status, hubStatus = 'active') => fileItem('n', { status, file: fileInfo({ ext: 'pptx', published: version(1, 'ready', { options: { includeHidden: false, includeComments: false, includeNotes: true }, stats: { chars: 1, slides: 18, hidden: hiddenParts({ notesSlides: 12 }) } }), options: options({ includeNotes: true }) }) });
+	assert.match((await fileDetail({ item: notes('published') })).html, /AI เห็นโน้ตผู้บรรยาย 12 สไลด์/);
+	const draft = (await fileDetail({ item: notes('draft') })).html;
+	assert.match(draft, /AI จะเห็นโน้ตผู้บรรยาย 12 สไลด์/);
+	assert.doesNotMatch(draft, /AI เห็นโน้ตผู้บรรยาย 12/, 'never what the AI sees (the switch reads "ให้ AI เห็นโน้ตผู้บรรยาย")');
+	assert.match((await fileDetail({ item: notes('published'), hub: hub('sales', { status: 'paused' }) })).html, /AI จะเห็นโน้ตผู้บรรยาย 12 สไลด์/);
+	// The takeover's answer after its page is gone.
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./knowledge/TakeoverCard.svelte', '{ take }');
+	const destroyers = [];
+	const told = [];
+	let answer;
+	const pending = new Promise((resolve) => { answer = resolve; });
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ hubID: 'sales', item: article('a', { ownerID: 'gone', canEdit: false }), ontaken: () => told.push('taken'), ondenied: () => told.push('denied') },
+			{ ...k, t: th, onDestroy: (fn) => destroyers.push(fn), getHttpStatusCode: (error) => error.status, parseErrorContent: (error) => error, orcaError: (error) => error.message, OrcaLibraryService: { takeover: () => pending } }
+		);
+	});
+	t.after(stop);
+	client.flush();
+	const taking = view.take();
+	for (const destroy of destroyers) destroy();
+	answer(article('a', { version: 2 }));
+	await taking;
+	assert.deepEqual(told, []);
+});
+
+test('under an editor, an older reading answer that is refused never stops the newer asking (Codex S7 second confirmation #3)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ refreshReading, stopPolling, get pollTimer() { return pollTimer; } }');
+	const reading = fileItem('r', { status: 'draft', file: fileInfo({ pending: version(1, 'extracting'), options: options() }) });
+	const answers = [];
+	const salesHub = hub('sales', { memberIDs: ['me'] });
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ data: { hubs: [salesHub], currentUserID: 'me', canManage: true, features: { libraryV2: true }, members, units: [] }, hubID: 'sales', initialKind: 'file', initialCreate: false, onchanged: async () => {} },
+			{
+				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
+				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
+				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', localeHref: (value) => value,
+				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
+				OrcaLibraryService: {
+					load: () => (answers.length ? answers.shift()() : Promise.resolve({ items: [reading], members, departments: [] })),
+					usage: async () => ({ bytes: 0, bytesLimit: 1, chars: 0, charsLimit: 1, uploadsToday: 0, uploadsLimit: 50, items: 0, itemsLimit: 1000 })
+				}
+			}
+		);
+	});
+	t.after(() => {
+		view.stopPolling();
+		stop();
+	});
+	client.flush();
+	for (let i = 0; i < 5 && !view.pollTimer; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.ok(view.pollTimer, 'the page asks again while its file is read');
+	let refuse;
+	answers.push(() => new Promise((_resolve, reject) => { refuse = reject; }));
+	const older = view.refreshReading('sales');
+	await view.refreshReading('sales');
+	assert.ok(view.pollTimer, 'the newer answer asks again');
+	refuse(Object.assign(new Error('not found'), { status: 404 }));
+	await older;
+	assert.ok(view.pollTimer, 'the older refusal stops nothing');
 });

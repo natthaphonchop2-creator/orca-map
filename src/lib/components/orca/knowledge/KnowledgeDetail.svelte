@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 	import { Archive, ArrowLeft, Eye, FileText, Pencil, TriangleAlert } from '@lucide/svelte';
 	import { getHttpStatusCode, parseErrorContent } from '$lib/errors';
 	import { term } from '$lib/orca/glossary';
@@ -85,6 +85,9 @@
 		const member = members.find((entry) => entry.id === id);
 		return member ? member.displayName || member.email : t('สมาชิกพื้นที่ทำงาน', 'Workspace member');
 	}
+	// Gone (the page moved on): a late answer changes nothing of the page now (Codex S7 second confirmation #2).
+	let gone = false;
+	onDestroy(() => (gone = true));
 	async function archive() {
 		if (archiving || !item.canEdit) return;
 		archiving = true;
@@ -93,12 +96,12 @@
 			// A live audience stays live: the mode is sent whenever the server knows it.
 			const saved = await OrcaLibraryService.save(hub.id, libraryInput(item, { status: 'archived' }, features), item.id);
 			archiveOpen = false;
-			onarchived(saved);
+			if (!gone) onarchived(saved);
 		} catch (cause) {
 			const code = getHttpStatusCode(cause);
 			if (code === 403 || code === 404) {
 				archiveOpen = false;
-				ondenied();
+				if (!gone) ondenied();
 				return;
 			}
 			archiveError = libraryProblem(parseErrorContent(cause), t) ?? orcaError(cause);
@@ -132,7 +135,7 @@
 			if (problem.status === 403 || problem.status === 404) {
 				// An article it reads changed, or my access did (then the page leaves).
 				if ((await onrecheck()) === 'denied') {
-					ondenied();
+					if (!gone) ondenied();
 					return;
 				}
 				renderError = item.knowledgeIDs.length

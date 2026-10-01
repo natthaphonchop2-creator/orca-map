@@ -98,6 +98,11 @@
 	// archived and deleted; what needs the flag (settings, a new version,
 	// reading again, a takeover) is not offered.
 	const manage = $derived(owner && features.files);
+	// "AI ใช้ได้" only when the AI can: file Knowledge on and the workspace active (Codex S7 #11).
+	const aiUses = $derived(features.files && hub.status === 'active');
+	// A draft, or a file the AI does not use now, serves no one: its notes never
+	// say what "the AI keeps using" (Codex S7 confirmation #5).
+	const live = $derived(item.status === 'published' && aiUses);
 	const published = $derived(file?.published);
 	const pending = $derived(owner ? file?.pending : undefined);
 	/** The version shown first: the published one once it serves, else the owner's newer one. */
@@ -111,7 +116,7 @@
 	const options = $derived<LibraryFileOptions | undefined>(manage ? file?.options : undefined);
 	// The parts hidden in the version shown, against what the owner chose now.
 	// Only while the owner can switch them: after a rollback the AI uses no file at all.
-	const lines = $derived(manage ? hiddenLines(previewVersion ?? current, t, options) : []);
+	const lines = $derived(manage ? hiddenLines(previewVersion ?? current, t, options, live) : []);
 	const encoding = $derived(owner ? encodingNote((previewVersion ?? current)?.stats, t) : undefined);
 	const offered = $derived.by(() => {
 		const parts = new Set(lines.map((line) => line.option).filter(Boolean));
@@ -131,11 +136,6 @@
 		const member = members.find((entry) => entry.id === item.ownerID);
 		return member ? member.displayName || member.email : t('ไม่อยู่ในพื้นที่ทำงานนี้แล้ว', 'No longer in this workspace');
 	});
-	// "AI ใช้ได้" only when the AI can: file Knowledge on and the workspace active (Codex S7 #11).
-	const aiUses = $derived(features.files && hub.status === 'active');
-	// A draft, or a file the AI does not use now, serves no one: its notes never
-	// say what "the AI keeps using" (Codex S7 confirmation #5).
-	const live = $derived(item.status === 'published' && aiUses);
 	let leaveOpen = $state(false);
 	/** Back to the list, asking first while a new version is on its way (Codex S7 #7). */
 	function back() {
@@ -151,7 +151,17 @@
 	let replaceProgress = $state(0);
 	let replaceName = $state('');
 	let replaceAbort: AbortController | undefined;
+	// Gone (the page moved on): an action's late answer changes nothing of the
+	// page now, not even the screen (Codex S7 second confirmation #2).
+	let gone = false;
+	const tell = {
+		changed: (next: LibraryItem) => !gone && onchanged(next),
+		archived: (next: LibraryItem) => !gone && onarchived(next),
+		deleted: (next: LibraryItem) => !gone && ondeleted(next),
+		denied: () => !gone && ondenied()
+	};
 	onDestroy(() => {
+		gone = true;
 		replaceAbort?.abort();
 		onuploading?.(false);
 	});
@@ -159,7 +169,7 @@
 	function denied(cause: unknown) {
 		const code = getHttpStatusCode(cause);
 		if (code === 403 || code === 404) {
-			ondenied();
+			tell.denied();
 			return true;
 		}
 		return false;
@@ -172,7 +182,7 @@
 		busy = 'reextract';
 		actionError = '';
 		try {
-			onchanged(await OrcaLibraryService.reextract(hub.id, item.id));
+			tell.changed(await OrcaLibraryService.reextract(hub.id, item.id));
 		} catch (cause) {
 			if (!denied(cause)) actionError = problem(cause);
 		} finally {
@@ -186,7 +196,7 @@
 		try {
 			const next = await OrcaLibraryService.publishPending(hub.id, item.id);
 			which = 'published';
-			onchanged(next);
+			tell.changed(next);
 		} catch (cause) {
 			if (!denied(cause)) actionError = problem(cause);
 		} finally {
@@ -198,7 +208,7 @@
 		busy = 'options';
 		actionError = '';
 		try {
-			onchanged(await OrcaLibraryService.setOptions(hub.id, item.id, { ...options, [key]: value }));
+			tell.changed(await OrcaLibraryService.setOptions(hub.id, item.id, { ...options, [key]: value }));
 		} catch (cause) {
 			if (!denied(cause)) actionError = problem(cause);
 		} finally {
@@ -231,7 +241,7 @@
 				}
 			});
 			const answer = result.files[0];
-			if (answer?.item) onchanged(answer.item);
+			if (answer?.item) tell.changed(answer.item);
 			else actionError = refusalText(refusalCode(answer?.error), t);
 		} catch (cause) {
 			const aborted = isAbortError(cause);
@@ -250,7 +260,7 @@
 	/** The file as the server has it now (after an answer that did not come). */
 	async function refresh() {
 		try {
-			onchanged((await OrcaLibraryService.file(hub.id, item.id)).item);
+			tell.changed((await OrcaLibraryService.file(hub.id, item.id)).item);
 		} catch (cause) {
 			denied(cause);
 		}
@@ -262,7 +272,7 @@
 		try {
 			const saved = await OrcaLibraryService.save(hub.id, libraryInput(item, { status: 'archived' }, features), item.id);
 			archiveOpen = false;
-			onarchived(saved);
+			tell.archived(saved);
 		} catch (cause) {
 			archiveOpen = false;
 			if (!denied(cause)) actionError = getHttpStatusCode(cause) === 409 ? t('มีคนแก้ไฟล์นี้พร้อมกัน โหลดใหม่แล้วลองอีกครั้ง', 'Someone changed this file at the same time. Reload and try again.') : problem(cause);
@@ -277,7 +287,7 @@
 		try {
 			await OrcaLibraryService.remove(hub.id, item.id);
 			deleteOpen = false;
-			ondeleted(item);
+			tell.deleted(item);
 		} catch (cause) {
 			deleteOpen = false;
 			if (!denied(cause)) actionError = problem(cause);
@@ -405,7 +415,7 @@
 			{/if}
 			{#if previewVersion}
 				{#key `${previewVersion.version}:${which}`}
-					<FilePreview hubID={hub.id} itemID={item.id} which={which === 'pending' && held ? 'pending' : 'published'} version={previewVersion} {ondenied} onitem={onchanged} />
+					<FilePreview hubID={hub.id} itemID={item.id} which={which === 'pending' && held ? 'pending' : 'published'} version={previewVersion} ondenied={tell.denied} onitem={tell.changed} />
 				{/key}
 			{/if}
 		</div>
@@ -466,7 +476,7 @@
 				</section>
 			{/if}
 
-			{#if takeover}<TakeoverCard hubID={hub.id} {item} ontaken={onchanged} {ondenied} />{/if}
+			{#if takeover}<TakeoverCard hubID={hub.id} {item} ontaken={tell.changed} ondenied={tell.denied} />{/if}
 
 			<KnowledgeRail item={item} ask={item.status === 'published' && servable && features.files} {connected} {app} workspace={hub} legend={false} />
 		</div>

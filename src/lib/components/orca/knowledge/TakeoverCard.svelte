@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { UserRoundCheck } from '@lucide/svelte';
 	import { getHttpStatusCode, parseErrorContent } from '$lib/errors';
 	import { fileActionProblem } from '$lib/orca/knowledge';
@@ -24,6 +25,9 @@
 	let open = $state(false);
 	let busy = $state(false);
 	let error = $state('');
+	// Gone (the page moved on): a late answer changes nothing of the page now (Codex S7 second confirmation #2).
+	let gone = false;
+	onDestroy(() => (gone = true));
 	const noun = $derived(item.kind === 'file' ? t('ไฟล์นี้', 'this file') : item.kind === 'template' ? t('คำสั่งนี้', 'this prompt') : t('เรื่องนี้', 'this item'));
 
 	async function take() {
@@ -33,12 +37,12 @@
 		try {
 			const taken = await OrcaLibraryService.takeover(hubID, item.id);
 			open = false;
-			ontaken(taken);
+			if (!gone) ontaken(taken);
 		} catch (cause) {
 			const code = getHttpStatusCode(cause);
 			if (code === 404) {
 				open = false;
-				ondenied();
+				if (!gone) ondenied();
 				return;
 			}
 			const problem = parseErrorContent(cause);
