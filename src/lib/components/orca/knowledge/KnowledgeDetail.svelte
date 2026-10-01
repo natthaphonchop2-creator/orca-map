@@ -1,16 +1,18 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { Archive, ArrowLeft, Briefcase, Eye, FileText, Pencil, TriangleAlert, User } from '@lucide/svelte';
+	import { Archive, ArrowLeft, Eye, FileText, Pencil, TriangleAlert } from '@lucide/svelte';
 	import { getHttpStatusCode, parseErrorContent } from '$lib/errors';
 	import { term } from '$lib/orca/glossary';
 	import {
-		audiencePeople,
 		brokenReferences,
+		canTakeOver,
 		contentForEditing,
+		libraryInput,
 		libraryProblem,
 		missingInput,
 		relativeTime,
-		tokenRuns
+		tokenRuns,
+		type LibraryFeatures
 	} from '$lib/orca/knowledge';
 	import { t } from '$lib/orca/locale.svelte';
 	import { orcaError, type OrcaHub, type OrcaMember } from '$lib/services/orca';
@@ -18,6 +20,8 @@
 	import ConfirmDialog from '../ui/ConfirmDialog.svelte';
 	import StatusPill from '../ui/StatusPill.svelte';
 	import KnowledgeRail from './KnowledgeRail.svelte';
+	import TakeoverCard from './TakeoverCard.svelte';
+	import WhoCard from './WhoCard.svelte';
 
 	// One article or ready-made prompt (proposal §3.6 screen 4): its text, who
 	// can use it (to its author only), a prompt to try in AI, a preview for a
@@ -29,12 +33,15 @@
 		members,
 		departments,
 		currentUserID,
+		canManage = false,
+		features = { files: false, audienceModes: false },
 		now = Date.now(),
 		connected = false,
 		app = '',
 		onback,
 		onedit,
 		onarchived,
+		onchanged,
 		ondenied,
 		onrecheck = async () => 'unknown' as const
 	}: {
@@ -44,12 +51,16 @@
 		members: OrcaMember[];
 		departments: LibraryDepartment[];
 		currentUserID: string;
+		canManage?: boolean;
+		features?: LibraryFeatures;
 		now?: number;
 		connected?: boolean;
 		app?: string;
 		onback: () => void;
 		onedit: () => void;
 		onarchived: (item: LibraryItem) => void;
+		/** A manager took the item over: it is theirs now. */
+		onchanged?: (item: LibraryItem) => void;
 		ondenied: () => void;
 		/** After a refused preview: whether the library still opens (then its lists are fresh). */
 		onrecheck?: () => Promise<'open' | 'denied' | 'unknown'>;
@@ -62,8 +73,7 @@
 	let rendering = $state(false);
 	let renderError = $state('');
 	let emptyField = $state('');
-	const people = $derived([...audiencePeople(item, departments)]);
-	const ordered = $derived([item.ownerID, ...people.filter((id) => id !== item.ownerID)]);
+	const takeover = $derived(!!onchanged && canTakeOver(item, { files: features.files, canManage, me: currentUserID, workspaceMembers: members }));
 	const runs = $derived(item.kind === 'template' ? tokenRuns(contentForEditing(item.content, item.parameters), item.parameters) : []);
 	const canPreview = $derived(item.kind === 'template' && item.status !== 'archived');
 	// Articles the prompt names that are no longer published (or readable): the
@@ -75,35 +85,13 @@
 		const member = members.find((entry) => entry.id === id);
 		return member ? member.displayName || member.email : t('สมาชิกพื้นที่ทำงาน', 'Workspace member');
 	}
-	function initial(id: string) {
-		const member = members.find((entry) => entry.id === id);
-		const name = member ? member.displayName || member.email : personName(id);
-		return [...name.trim()].find((c) => /[\p{L}\p{N}]/u.test(c))?.toLocaleUpperCase() ?? '•';
-	}
-	function departmentName(id: string) {
-		return departments.find((entry) => entry.unitID === id)?.name || t('แผนก', 'Department');
-	}
 	async function archive() {
 		if (archiving || !item.canEdit) return;
 		archiving = true;
 		archiveError = '';
 		try {
-			const saved = await OrcaLibraryService.save(
-				hub.id,
-				{
-					kind: item.kind,
-					title: item.title,
-					summary: item.summary,
-					content: item.content,
-					parameters: item.parameters,
-					knowledgeIDs: item.knowledgeIDs,
-					memberIDs: item.memberIDs,
-					unitIDs: item.unitIDs,
-					status: 'archived',
-					version: item.version
-				},
-				item.id
-			);
+			// A live audience stays live: the mode is sent whenever the server knows it.
+			const saved = await OrcaLibraryService.save(hub.id, libraryInput(item, { status: 'archived' }, features), item.id);
 			archiveOpen = false;
 			onarchived(saved);
 		} catch (cause) {
@@ -263,33 +251,8 @@
 		</div>
 
 		<div class="kd-side">
-			<section class="kd-card who">
-				<h2>{t('ใครใช้ได้', 'Who can use it')}</h2>
-				{#if !item.canEdit}
-					<p class="kd-hint">{t('ผู้เขียนเป็นคนเลือกว่าใครใช้ได้', 'Its author chooses who can use it')}</p>
-				{:else}
-					<div class="live" class:off={item.status !== 'published' || hub.status !== 'active'}>
-						<div class="avs" aria-hidden="true">
-							{#each ordered.slice(0, 4) as id (id)}<span class:me={id === currentUserID}>{initial(id)}</span>{/each}
-							{#if ordered.length > 4}<span class="more-n">+{ordered.length - 4}</span>{/if}
-						</div>
-						<p>
-							{#if item.status === 'published' && hub.status !== 'active'}{t(`AI ของ ${people.length} คนจะใช้ได้เมื่อเปิดใช้งานพื้นที่ทำงานนี้`, `${people.length} people’s AI can use it once this workspace is active`)}
-							{:else if item.status === 'published'}{t('AI ของ', 'The AI of')} <b>{t(`${people.length} คน`, `${people.length} people`)}</b>{t('ใช้ได้ตอนนี้', ' can use it now')}
-							{:else if item.status === 'draft'}{t(`ฉบับร่าง เห็นแค่คุณ เผยแพร่แล้ว AI ของ ${people.length} คนจะใช้ได้`, `A draft only you see. Once published, ${people.length} people’s AI can use it`)}
-							{:else}{t('จัดเก็บแล้ว AI ไม่ใช้เรื่องนี้', 'Archived. AI does not use it')}{/if}
-						</p>
-					</div>
-					{#if item.unitIDs.length || item.memberIDs.length}
-						<ul class="kd-who">
-							{#each item.unitIDs as id (id)}<li><Briefcase size={14} aria-hidden="true" />{departmentName(id)}<small>{t(`${departments.find((entry) => entry.unitID === id)?.memberIDs.length ?? 0} คน`, `${departments.find((entry) => entry.unitID === id)?.memberIDs.length ?? 0} people`)}</small></li>{/each}
-							{#each item.memberIDs as id (id)}<li><User size={14} aria-hidden="true" />{personName(id)}</li>{/each}
-						</ul>
-					{:else}
-						<p class="kd-hint">{t('เฉพาะคุณ', 'Only you')}</p>
-					{/if}
-				{/if}
-			</section>
+			<WhoCard {hub} {item} {members} {departments} {currentUserID} />
+			{#if takeover && onchanged}<TakeoverCard hubID={hub.id} {item} ontaken={onchanged} {ondenied} />{/if}
 			<KnowledgeRail item={item} ask={item.status === 'published'} {connected} {app} workspace={hub} legend={false} />
 		</div>
 	</div>
@@ -414,31 +377,23 @@
 		color: var(--orca-ink);
 		font-weight: 600;
 	}
-	.kd-refs,
-	.kd-who {
+	.kd-refs {
 		display: grid;
 		gap: 8px;
 		margin: 0;
 		padding: 0;
 		list-style: none;
 	}
-	.kd-refs li,
-	.kd-who li {
+	.kd-refs li {
 		display: flex;
 		align-items: center;
 		gap: 8px;
 		color: var(--orca-text-2);
 		font-size: 14px;
 	}
-	.kd-refs :global(svg),
-	.kd-who :global(svg) {
+	.kd-refs :global(svg) {
 		flex: none;
 		color: var(--orca-subtle);
-	}
-	.kd-who small {
-		margin-left: auto;
-		color: var(--orca-muted);
-		font-size: 12.5px;
 	}
 	.kd-refs li.broken {
 		color: var(--orca-muted);
@@ -457,9 +412,6 @@
 		color: var(--orca-muted);
 		font-size: 13.5px;
 		line-height: 1.55;
-	}
-	.who .kd-hint {
-		margin: 0;
 	}
 	.kd-preview {
 		display: grid;
@@ -531,53 +483,6 @@
 		gap: 8px;
 		font-weight: 600;
 		cursor: pointer;
-	}
-	.live {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		margin-bottom: 12px;
-		padding: 12px 14px;
-		border: 1px solid var(--orca-ok-line);
-		border-radius: 10px;
-		background: var(--orca-ok-bg);
-	}
-	.live.off {
-		border-color: var(--orca-line);
-		background: var(--orca-surface-2);
-	}
-	.live p {
-		margin: 0;
-		color: var(--orca-ink);
-		font-size: 14px;
-		line-height: 1.45;
-	}
-	.avs {
-		display: flex;
-		flex: none;
-		padding-left: 8px;
-	}
-	.avs span {
-		display: grid;
-		place-items: center;
-		width: 26px;
-		height: 26px;
-		margin-left: -8px;
-		border: 2px solid var(--orca-surface);
-		border-radius: 50%;
-		background: var(--orca-secondary);
-		color: var(--orca-text-2);
-		font-size: 11px;
-		font-weight: 700;
-	}
-	.avs span.me {
-		background: var(--orca-ink);
-		color: var(--orca-on-ink);
-	}
-	.avs span.more-n {
-		background: var(--orca-ok);
-		color: var(--orca-on-ink);
-		font-size: 10.5px;
 	}
 	@media (max-width: 1080px) {
 		.kd-grid {

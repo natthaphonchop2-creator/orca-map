@@ -5,9 +5,10 @@
 	import { askPrompt } from '$lib/orca/knowledge';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import type { OrcaHub } from '$lib/services/orca';
-	import type { LibraryItem } from '$lib/services/orca-library';
+	import type { LibraryItem, LibraryUsage } from '$lib/services/orca-library';
 	import { copyFeedback, copyText } from '../ui/copy';
 	import { showToast } from '../ui/toast-store.svelte';
+	import UsageCard from './UsageCard.svelte';
 
 	// The side of the knowledge page: a nudge to connect my AI when it is not
 	// (in place of the old MCP-URL box), "ลองถาม AI" with a prompt to copy, and
@@ -18,7 +19,9 @@
 		app = '',
 		workspace,
 		legend = true,
-		ask = true
+		ask = true,
+		files = false,
+		usage
 	}: {
 		/** The item to ask about: the open one, or the newest published article. */
 		item?: LibraryItem;
@@ -31,6 +34,10 @@
 		legend?: boolean;
 		/** Whether to show "ลองถาม AI" at all. */
 		ask?: boolean;
+		/** The file list (knowledge library v2): the legend tells the reading states too. */
+		files?: boolean;
+		/** The company's file quota, beside the file list. */
+		usage?: LibraryUsage;
 	} = $props();
 	const prompt = $derived(item ? askPrompt(item, t) : '');
 	let copied = $state(false);
@@ -84,6 +91,8 @@
 	</div>
 	{/if}
 
+	{#if usage}<UsageCard {usage} />{/if}
+
 	{#if legend}
 		<div class="kn-card lg">
 			<h2>{t('สถานะหมายถึงอะไร', 'What the statuses mean')}</h2>
@@ -91,6 +100,10 @@
 				<li><span class="pill ok"><i class="dt"></i>{t('AI ใช้ได้', 'AI can use')}</span>{t('AI ของคนที่เลือกไว้ใช้ตอบได้ทันที', 'The chosen people’s AI can answer from it now')}</li>
 				<li><span class="pill"><i class="dt draft"></i>{t('ฉบับร่าง', 'Draft')}</span>{t('เห็นแค่คุณ AI ยังไม่ใช้', 'Only you see it. AI does not use it yet')}</li>
 				<li><span class="pill"><Archive size={12} aria-hidden="true" />{t('จัดเก็บแล้ว', 'Archived')}</span>{t('AI เลิกใช้ แต่ยังเปิดดูย้อนหลังได้', 'AI no longer uses it; you can still open it')}</li>
+				{#if files}
+					<li><span class="pill"><i class="dt draft"></i>{t('กำลังอ่าน', 'Reading')}</span>{t('ORCA กำลังอ่านข้อความในไฟล์ AI ยังไม่เห็น', 'ORCA is reading the file; AI does not see it yet')}</li>
+					<li><span class="pill deny"><i class="dt"></i>{t('อ่านไม่ได้', 'Can’t be read')}</span>{t('เปิดไฟล์เพื่อดูเหตุผล แล้วอัปโหลดฉบับใหม่', 'Open the file to see why, then upload a new version')}</li>
+				{/if}
 			</ul>
 		</div>
 	{/if}
@@ -227,6 +240,11 @@
 		border-color: var(--orca-ok-line);
 		background: var(--orca-ok-bg);
 		color: var(--orca-ok);
+	}
+	.pill.deny {
+		border-color: var(--orca-deny-line);
+		background: var(--orca-deny-bg);
+		color: var(--orca-deny);
 	}
 	.dt {
 		width: 7px;

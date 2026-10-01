@@ -1,17 +1,19 @@
 <script lang="ts">
 	import { untrack, type Snippet } from 'svelte';
 	import { Briefcase, UserPlus } from '@lucide/svelte';
-	import { audienceFor, audiencePeople, peopleList, type AudienceMode, type AudienceSelection } from '$lib/orca/knowledge';
+	import { audienceFor, audiencePeople, audienceWireMode, peopleList, type AudienceMode, type AudienceSelection } from '$lib/orca/knowledge';
 	import { t } from '$lib/orca/locale.svelte';
 	import { memberRole, type OrcaMember } from '$lib/services/orca';
 	import type { LibraryDepartment, LibraryKind } from '$lib/services/orca-library';
 	import PersonPicker from '../ui/PersonPicker.svelte';
 
-	// "ใครใช้ได้บ้าง" (proposal §3.6 screen 3): four plain choices, and the live
+	// "ใครใช้ได้บ้าง" (proposal §3.6 screen 3): plain choices, and the live
 	// sentence "AI ของ N คนจะใช้ความรู้นี้ได้". Departments stay live; people
-	// picked by name, and a workspace's direct members, are a snapshot.
+	// picked by name, and a workspace's direct members, are a snapshot. With
+	// knowledge library v2, "ทุกคน (อัปเดตอัตโนมัติ)" follows the workspace.
 	let {
 		kind,
+		live = false,
 		mode = $bindable('everyone'),
 		unitIDs = $bindable([]),
 		memberIDs = $bindable([]),
@@ -23,6 +25,8 @@
 		actions
 	}: {
 		kind: LibraryKind;
+		/** Offer "ทุกคน (อัปเดตอัตโนมัติ)" (the company has knowledge library v2). A live item shows it anyway. */
+		live?: boolean;
 		mode?: AudienceMode;
 		/** The departments chosen under "เฉพาะแผนก" (kept when another choice is picked). */
 		unitIDs?: string[];
@@ -41,8 +45,9 @@
 	// An older item may mix departments and people; that choice shows only for it.
 	const showMixed = untrack(() => mode === 'mixed');
 	let showNames = $state(false);
+	const showLive = untrack(() => live || mode === 'everyone_live');
 	const selection = $derived(audienceFor(mode, { unitIDs, memberIDs }, everyone));
-	const people = $derived([...audiencePeople({ ownerID: me, ...selection }, departments)]);
+	const people = $derived([...audiencePeople({ ownerID: me, ...selection, audienceMode: audienceWireMode(mode) }, departments, members.map((member) => member.id))]);
 	const ordered = $derived([me, ...people.filter((id) => id !== me)]);
 	const others = $derived(members.filter((member) => member.id !== me));
 	const pickable = $derived(others.map((member) => ({ id: member.id, name: name(member.id), email: member.email, detail: memberRole(member.role) })));
@@ -55,7 +60,7 @@
 				)
 			: t(`ตอนนี้มี ${members.length} คนในพื้นที่ทำงานนี้`, `${members.length} people in this workspace now`)
 	);
-	const noun = $derived(kind === 'template' ? t('คำสั่งนี้', 'this prompt') : t('ความรู้นี้', 'this knowledge'));
+	const noun = $derived(kind === 'template' ? t('คำสั่งนี้', 'this prompt') : kind === 'file' ? t('ไฟล์นี้', 'this file') : t('ความรู้นี้', 'this knowledge'));
 	function name(id: string) {
 		const member = members.find((item) => item.id === id);
 		return member ? member.displayName || member.email : t('สมาชิก', 'Member');
@@ -67,6 +72,9 @@
 		unitIDs = checked ? [...new Set([...unitIDs, id])] : unitIDs.filter((item) => item !== id);
 	}
 	const options = $derived<{ id: AudienceMode; title: string; detail: string }[]>([
+		...(showLive || live
+			? [{ id: 'everyone_live' as AudienceMode, title: t('ทุกคน (อัปเดตอัตโนมัติ)', 'Everyone (updates itself)'), detail: t('รวมคนที่เข้ามาในพื้นที่นี้ทีหลังด้วย', 'People who join this workspace later included') }]
+			: []),
 		{ id: 'everyone', title: t('ทุกคนในพื้นที่ทำงานนี้', 'Everyone in this workspace'), detail: everyoneLine },
 		{ id: 'departments', title: t('เฉพาะแผนก', 'Only departments'), detail: t('เลือกได้มากกว่า 1 แผนก', 'Choose one or more departments') },
 		{ id: 'people', title: t('เฉพาะบางคน', 'Only some people'), detail: t('ค้นหาชื่อแล้วเลือกทีละคน', 'Search and choose people by name') },
@@ -98,7 +106,13 @@
 <section class="wc" aria-labelledby={`wc-${uid}`}>
 	<div class="wc-h">
 		<h2 id={`wc-${uid}`}>{t('ใครใช้ได้บ้าง', 'Who can use it')}</h2>
-		<p>{kind === 'template' ? t('เลือกว่า AI ของใครจะใช้คำสั่งนี้ได้', 'Choose whose AI can use this prompt') : t('เลือกว่า AI ของใครจะตอบจากความรู้นี้ได้', 'Choose whose AI can answer from this')}</p>
+		<p>
+			{kind === 'template'
+				? t('เลือกว่า AI ของใครจะใช้คำสั่งนี้ได้', 'Choose whose AI can use this prompt')
+				: kind === 'file'
+					? t('เลือกว่า AI ของใครจะตอบจากไฟล์นี้ได้', 'Choose whose AI can answer from this file')
+					: t('เลือกว่า AI ของใครจะตอบจากความรู้นี้ได้', 'Choose whose AI can answer from this')}
+		</p>
 	</div>
 	<div class="opts" role="radiogroup" aria-labelledby={`wc-${uid}`}>
 		{#each options as option (option.id)}

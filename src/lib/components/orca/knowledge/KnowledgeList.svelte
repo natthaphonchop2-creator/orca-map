@@ -1,15 +1,20 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import {
 		Archive,
 		BookOpen,
 		Briefcase,
 		ChevronDown,
+		FileSpreadsheet,
 		FileText,
+		Files,
 		Info,
 		LockKeyhole,
 		Plus,
+		Presentation,
 		RefreshCw,
 		Search,
+		Upload,
 		User,
 		Users,
 		Zap
@@ -19,15 +24,21 @@
 		LIBRARY_PAGE,
 		askItem,
 		audienceChip,
+		factLine,
+		fileRowState,
+		fileTypeLabel,
 		filterLibrary,
+		formatBytes,
 		itemExcerpt,
 		libraryCounts,
+		readingLabel,
 		relativeTime,
+		type LibraryFeatures,
 		type LibraryFilter
 	} from '$lib/orca/knowledge';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import type { OrcaHub, OrcaMember } from '$lib/services/orca';
-	import type { LibraryDepartment, LibraryItem, LibraryKind } from '$lib/services/orca-library';
+	import type { LibraryDepartment, LibraryItem, LibraryKind, LibraryUsage } from '$lib/services/orca-library';
 	import PageHeader from '../ui/PageHeader.svelte';
 	import StatusPill from '../ui/StatusPill.svelte';
 	import KnowledgeRail from './KnowledgeRail.svelte';
@@ -35,6 +46,7 @@
 
 	// คลังความรู้, the library's home (proposal §3.6 screen 1): the workspace,
 	// its counts, articles or ready-made prompts, and a side to try it in AI.
+	// With knowledge library v2 a third kind, ไฟล์, has its drop zone and quota.
 	let {
 		hub,
 		choices,
@@ -51,6 +63,9 @@
 		connected = false,
 		app = '',
 		now = Date.now(),
+		features = { files: false, audienceModes: false },
+		fileZone,
+		usage,
 		onchoose,
 		oncreate,
 		onopen,
@@ -72,6 +87,11 @@
 		connected?: boolean;
 		app?: string;
 		now?: number;
+		features?: LibraryFeatures;
+		/** The drop zone and its upload panel, above the file list. */
+		fileZone?: Snippet;
+		/** The company's file quota, beside the file list. */
+		usage?: LibraryUsage;
 		onchoose: (hubID: string) => void;
 		oncreate: (kind: LibraryKind, title?: string) => void;
 		onopen: (item: LibraryItem) => void;
@@ -81,13 +101,18 @@
 	const counts = $derived(libraryCounts(items, kind));
 	const knowledgeCount = $derived(libraryCounts(items, 'knowledge').current);
 	const templateCount = $derived(libraryCounts(items, 'template').current);
+	const fileCount = $derived(libraryCounts(items, 'file').current);
+	// Uploads need library v2; files already there stay listed after it is turned off (a rollback).
+	const files = $derived(features.files);
+	const fileTab = $derived(features.files || items.some((item) => item.kind === 'file'));
 	const rows = $derived(filterLibrary(items, kind, filter, query));
 	const shown = $derived(expanded ? rows : rows.slice(0, LIBRARY_PAGE));
 	const hidden = $derived(rows.length - shown.length);
 	const someoneElse = $derived(shown.some((item) => !item.canEdit));
 	// Counts only once the library answered: a failed load shows no zeros.
 	const counted = $derived(loaded && !(error && !items.length));
-	const ask = $derived(askItem(items, undefined, kind));
+	// Without library v2 the AI searches articles only: the card asks about one.
+	const ask = $derived(askItem(items, undefined, kind === 'file' && !features.files ? 'knowledge' : kind));
 	const workspaceMemberIDs = $derived(members.map((member) => member.id));
 	const filters = $derived<{ id: LibraryFilter; label: string }[]>([
 		{ id: 'all', label: t('ทั้งหมด', 'All') },
@@ -95,6 +120,15 @@
 		{ id: 'draft', label: t('ฉบับร่าง', 'Drafts') },
 		{ id: 'archived', label: t('จัดเก็บแล้ว', 'Archived') }
 	]);
+	const addLabel = $derived(
+		kind === 'file'
+			? t('เพิ่มไฟล์', 'Add files')
+			: kind === 'template'
+				? t('เพิ่มคำสั่งสำเร็จรูป', 'Add a ready-made prompt')
+				: files
+					? t('เพิ่มบทความ', 'Add an article')
+					: t('เพิ่มความรู้', 'Add knowledge')
+	);
 	const starters = $derived(
 		kind === 'knowledge'
 			? [t('นโยบายคืนสินค้า', 'Return policy'), t('ขั้นตอนออกใบกำกับภาษี', 'Issuing a tax invoice'), t('สวัสดิการพนักงาน', 'Employee benefits')]
@@ -128,9 +162,11 @@
 	<div class="kn-head">
 		<PageHeader title={term('knowledge', t)} subtitle={t('ข้อมูลที่ AI ของทีมใช้ตอบคำถาม', 'What your team’s AI answers from')}>
 			{#snippet action()}
-				<button type="button" class="k-button primary kn-add" onclick={() => oncreate(kind)} disabled={!loaded || (!!error && !items.length)}>
-					<Plus size={16} strokeWidth={2.3} aria-hidden="true" />{kind === 'knowledge' ? t('เพิ่มความรู้', 'Add knowledge') : t('เพิ่มคำสั่งสำเร็จรูป', 'Add a ready-made prompt')}
-				</button>
+				{#if kind !== 'file' || files}
+					<button type="button" class="k-button primary kn-add" onclick={() => oncreate(kind)} disabled={!loaded || (!!error && !items.length)}>
+						{#if kind === 'file'}<Upload size={16} strokeWidth={2.3} aria-hidden="true" />{:else}<Plus size={16} strokeWidth={2.3} aria-hidden="true" />{/if}{addLabel}
+					</button>
+				{/if}
 			{/snippet}
 		</PageHeader>
 		<div class="kn-ctx">
@@ -156,10 +192,15 @@
 	<div class="kn-grid">
 		<div class="kn-main">
 			<div class="kn-bar">
-				<div class="seg" role="group" aria-label={t('ประเภท', 'Type')}>
+				<div class="seg" class:three={fileTab} role="group" aria-label={t('ประเภท', 'Type')}>
 					<button type="button" aria-pressed={kind === 'knowledge'} class:on={kind === 'knowledge'} onclick={() => (kind = 'knowledge')}>
-						<BookOpen size={16} aria-hidden="true" />{t('ความรู้', 'Knowledge')}{#if counted}<span class="c">{knowledgeCount}</span>{/if}
+						<BookOpen size={16} aria-hidden="true" />{fileTab ? t('บทความ', 'Articles') : t('ความรู้', 'Knowledge')}{#if counted}<span class="c">{knowledgeCount}</span>{/if}
 					</button>
+					{#if fileTab}
+						<button type="button" aria-pressed={kind === 'file'} class:on={kind === 'file'} onclick={() => (kind = 'file')}>
+							<Files size={16} aria-hidden="true" />{t('ไฟล์', 'Files')}{#if counted}<span class="c">{fileCount}</span>{/if}
+						</button>
+					{/if}
 					<button type="button" aria-pressed={kind === 'template'} class:on={kind === 'template'} onclick={() => (kind = 'template')}>
 						<Zap size={16} aria-hidden="true" />{term('readyPrompt', t)}{#if counted}<span class="c">{templateCount}</span>{/if}
 					</button>
@@ -169,6 +210,14 @@
 					<input type="search" bind:value={query} maxlength="200" placeholder={t('ค้นหาชื่อเรื่อง', 'Search titles')} aria-label={t('ค้นหาชื่อเรื่อง', 'Search titles')} />
 				</label>
 			</div>
+
+			{#if kind === 'file' && files && fileZone}{@render fileZone()}{/if}
+			{#if kind === 'file' && !files}
+				<p class="kn-note off">
+					<Info size={16} aria-hidden="true" />
+					<span>{t('ตอนนี้ AI ไม่ได้ค้นจากไฟล์ และอัปโหลดไฟล์ใหม่ไม่ได้ เพราะคลังความรู้แบบไฟล์ของบริษัทปิดอยู่ ไฟล์ที่มีอยู่ยังเปิดดู ดาวน์โหลด และลบได้', 'AI does not search files now and new files can’t be uploaded: file Knowledge is off for this company. Files already here can still be opened, downloaded and deleted.')}</span>
+				</p>
+			{/if}
 
 			<div class="chips" role="group" aria-label={t('สถานะ', 'Status')}>
 				{#each filters as item (item.id)}
@@ -196,12 +245,20 @@
 					<ul>
 						{#each shown as item (item.id)}
 							{@const audience = item.canEdit ? chip(item) : undefined}
+							{@const row = item.kind === 'file' ? fileRowState(item, t) : undefined}
 							<li>
 								<button type="button" class="kl-r" onclick={() => onopen(item)}>
-									<span class="kl-ic" class:draft={item.status === 'draft'} class:archived={item.status === 'archived'} aria-hidden="true">
-										{#if item.kind === 'template'}<Zap size={17} />{:else}<FileText size={17} />{/if}
+									<span class="kl-ic" class:draft={item.status === 'draft' || row?.status === 'reading'} class:archived={item.status === 'archived'} class:failed={row?.status === 'failed'} aria-hidden="true">
+										{#if item.kind === 'template'}<Zap size={17} />{:else if item.kind === 'file' && ['xlsx', 'csv'].includes(item.file?.ext ?? '')}<FileSpreadsheet size={17} />{:else if item.kind === 'file' && item.file?.ext === 'pptx'}<Presentation size={17} />{:else}<FileText size={17} />{/if}
 									</span>
-									<span class="kl-t"><b>{item.title}</b>{#if itemExcerpt(item)}<small>{itemExcerpt(item)}</small>{/if}</span>
+									{#if item.kind === 'file'}
+										<span class="kl-t"
+											><b>{item.title}</b><small class="kl-fm">{factLine([fileTypeLabel(item.file?.ext ?? '', t), formatBytes(item.file?.bytes ?? 0), itemExcerpt(item, 60)])}</small
+											>{#if row?.note}<small class="kl-fn {row.tone ?? ''}">{row.note}</small>{/if}</span
+										>
+									{:else}
+										<span class="kl-t"><b>{item.title}</b>{#if itemExcerpt(item)}<small>{itemExcerpt(item)}</small>{/if}</span>
+									{/if}
 									<span class="kl-a">
 										<span class="kn-sr">{t('ใครใช้ได้:', 'Who can use:')}</span>
 										{#if audience}
@@ -209,10 +266,12 @@
 												{#if audience.kind === 'everyone'}<Users size={13} aria-hidden="true" />{:else if audience.kind === 'me'}<LockKeyhole size={13} aria-hidden="true" />{:else if audience.kind === 'departments'}<Briefcase size={13} aria-hidden="true" />{:else}<User size={13} aria-hidden="true" />{/if}
 												{audience.label}
 											</span>
-										{:else}<span class="aud-none">{t('ตั้งโดยผู้เขียน', 'Set by its author')}</span>{/if}
+										{:else}<span class="aud-none">{item.kind === 'file' ? t('ตั้งโดยเจ้าของ', 'Set by its owner') : t('ตั้งโดยผู้เขียน', 'Set by its author')}</span>{/if}
 									</span>
-									<span class="kl-s" class:draft={item.status === 'draft'}>
-										{#if item.status === 'published'}<StatusPill label={t('AI ใช้ได้', 'AI can use')} tone="ok" dot />
+									<span class="kl-s" class:draft={row ? row.status === 'reading' || row.status === 'draft' : item.status === 'draft'}>
+										{#if row?.status === 'reading'}<StatusPill label={readingLabel('reading', t)} dot />
+										{:else if row?.status === 'failed'}<StatusPill label={readingLabel('failed', t)} tone="deny" dot />
+										{:else if item.status === 'published'}<StatusPill label={t('AI ใช้ได้', 'AI can use')} tone="ok" dot />
 										{:else if item.status === 'draft'}<StatusPill label={t('ฉบับร่าง', 'Draft')} dot />
 										{:else}<span class="archived-pill"><Archive size={12} aria-hidden="true" />{t('จัดเก็บแล้ว', 'Archived')}</span>{/if}
 									</span>
@@ -236,6 +295,11 @@
 					<p>{t('ไม่พบเรื่องที่ตรงกับตัวกรอง', 'Nothing matches these filters')}</p>
 					<button type="button" class="k-button" onclick={() => { query = ''; filter = 'all'; }}>{t('ล้างตัวกรอง', 'Clear filters')}</button>
 				</div>
+			{:else if kind === 'file'}
+				<div class="kn-empty">
+					<p>{t('ยังไม่มีไฟล์ในพื้นที่ทำงานนี้', 'No files in this workspace yet')}</p>
+					<small>{t('ลากไฟล์ Word, Excel หรือ PowerPoint มาวางด้านบน AI จะตอบจากไฟล์ได้เมื่อคุณเผยแพร่', 'Drop Word, Excel or PowerPoint files above. AI answers from them once you publish them.')}</small>
+				</div>
 			{:else}
 				<div class="kn-empty starter">
 					<span class="kn-empty-ic" aria-hidden="true">{#if kind === 'template'}<Zap size={22} />{:else}<BookOpen size={22} />{/if}</span>
@@ -249,7 +313,7 @@
 			{/if}
 		</div>
 
-		<KnowledgeRail item={ask} ask={counted} {connected} {app} workspace={hub} />
+		<KnowledgeRail item={ask} ask={counted} {connected} {app} workspace={hub} files={kind === 'file'} usage={kind === 'file' ? usage : undefined} />
 	</div>
 </div>
 
@@ -330,6 +394,15 @@
 	}
 	.kn-note span {
 		flex: 1 1 260px;
+	}
+	.kn-note.off {
+		margin: 0 0 14px;
+		border-color: var(--orca-line);
+		background: var(--orca-surface-2);
+		color: var(--orca-text-2);
+	}
+	.kn-note.off :global(svg) {
+		color: var(--orca-subtle);
 	}
 	.kn-note a {
 		color: var(--orca-ink);
@@ -524,6 +597,11 @@
 	.kl-ic.archived {
 		color: var(--orca-subtle);
 	}
+	.kl-ic.failed {
+		border: 1.5px solid var(--orca-deny-line);
+		background: var(--orca-deny-bg);
+		color: var(--orca-deny);
+	}
 	.kl-t {
 		display: block;
 		min-width: 0;
@@ -546,6 +624,16 @@
 		line-height: 1.5;
 		white-space: nowrap;
 		text-overflow: ellipsis;
+	}
+	.kl-t small.kl-fn {
+		color: var(--orca-muted);
+	}
+	.kl-t small.kl-fn.deny {
+		color: var(--orca-deny);
+		white-space: normal;
+	}
+	.kl-t small.kl-fn.warn {
+		color: var(--orca-warn);
 	}
 	.kl-a {
 		min-width: 0;
@@ -714,6 +802,13 @@
 		font-size: 15px;
 		font-weight: 600;
 	}
+	.kn-empty small {
+		max-width: 420px;
+		margin-top: -6px;
+		color: var(--orca-muted);
+		font-size: 13.5px;
+		line-height: 1.55;
+	}
 	.kn-empty-ic {
 		display: grid;
 		place-items: center;
@@ -758,9 +853,20 @@
 			display: grid;
 			grid-template-columns: 1fr 1fr;
 		}
+		.seg.three {
+			grid-template-columns: repeat(3, auto);
+		}
 		.seg button {
 			justify-content: center;
 			padding: 7px 8px;
+		}
+		.seg.three button {
+			gap: 6px;
+			padding: 7px 4px;
+			font-size: 13.5px;
+		}
+		.seg.three button :global(svg) {
+			display: none;
 		}
 		.search {
 			width: 100%;

@@ -121,16 +121,22 @@ test('a failed load shows no zero counts and no "ลองถาม AI"', async 
 	assert.equal(loaded.rails[0].ask, true);
 });
 
+const WhoCard = (await serverComponent(new URL('./knowledge/WhoCard.svelte', import.meta.url), { ...k, t: th })).Component;
 async function detail(props) {
 	const rails = [];
+	const takeovers = [];
 	const { warnings, Component } = await serverComponent(new URL('./knowledge/KnowledgeDetail.svelte', import.meta.url), {
-		...k, term, t: th, tick: async () => {}, StatusPill, ConfirmDialog: noop,
+		...k, term, t: th, tick: async () => {}, StatusPill, ConfirmDialog: noop, WhoCard,
 		orcaError: () => '', OrcaLibraryService: {}, getHttpStatusCode: noop, parseErrorContent: noop,
-		KnowledgeRail: (_renderer, input) => rails.push(input)
+		KnowledgeRail: (_renderer, input) => rails.push(input),
+		TakeoverCard: (renderer, input) => {
+			takeovers.push(input);
+			renderer.push('<takeover-card></takeover-card>');
+		}
 	});
 	assert.deepEqual(warnings, []);
 	const html = render(Component, { props: { hub: hub('sales'), items: [], members, departments, currentUserID: 'me', now: Date.parse('2026-09-28T10:00:00Z'), onback: noop, onedit: noop, onarchived: noop, ondenied: noop, ...props } }).body;
-	return { html, rails };
+	return { html, rails, takeovers };
 }
 
 test('the detail: its author sees who can use it and which supporting articles stopped working', async () => {

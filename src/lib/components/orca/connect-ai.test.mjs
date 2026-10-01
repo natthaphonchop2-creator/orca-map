@@ -388,7 +388,7 @@ test('เชื่อม AI ของฉัน names where each sign-in reaches,
 	assert.match(library, /const connected = \$derived\(aiConnectionReaches\(aiConnection, hub\)\);/);
 	// "ถามใน …" names the app that reaches this workspace, never one limited to another (Codex review 71).
 	assert.match(library, /const aiApp = \$derived\(aiConnectionAppFor\(aiConnection, hub\)\);/);
-	assert.equal(library.match(/app=\{aiApp\}/g)?.length, 2, 'the list and the detail');
+	assert.equal(library.match(/app=\{aiApp\}/g)?.length, 3, 'the list, an article\'s detail and a file\'s detail');
 	assert.doesNotMatch(library, /aiConnection\.app/);
 });
 

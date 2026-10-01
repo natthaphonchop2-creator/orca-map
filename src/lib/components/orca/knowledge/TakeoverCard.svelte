@@ -1,0 +1,104 @@
+<script lang="ts">
+	import { UserRoundCheck } from '@lucide/svelte';
+	import { getHttpStatusCode, parseErrorContent } from '$lib/errors';
+	import { fileActionProblem } from '$lib/orca/knowledge';
+	import { t } from '$lib/orca/locale.svelte';
+	import { orcaError } from '$lib/services/orca';
+	import { OrcaLibraryService, type LibraryItem } from '$lib/services/orca-library';
+	import ConfirmDialog from '../ui/ConfirmDialog.svelte';
+
+	// "รับช่วงดูแล" (C4 §14m S5, owner decision 7): a company owner or admin
+	// takes over an item whose owner left the company or the workspace. It is
+	// a manager's only power over people's items; the server checks it all.
+	let {
+		hubID,
+		item,
+		ontaken,
+		ondenied
+	}: {
+		hubID: string;
+		item: LibraryItem;
+		ontaken: (item: LibraryItem) => void;
+		ondenied: () => void;
+	} = $props();
+	let open = $state(false);
+	let busy = $state(false);
+	let error = $state('');
+
+	async function take() {
+		if (busy) return;
+		busy = true;
+		error = '';
+		try {
+			const taken = await OrcaLibraryService.takeover(hubID, item.id);
+			open = false;
+			ontaken(taken);
+		} catch (cause) {
+			const code = getHttpStatusCode(cause);
+			if (code === 404) {
+				open = false;
+				ondenied();
+				return;
+			}
+			const problem = parseErrorContent(cause);
+			error =
+				code === 403
+					? t('ยังรับช่วงไม่ได้ เพราะเจ้าของยังอยู่ในพื้นที่ทำงานนี้', 'You can’t take this over: its owner is still in this workspace.')
+					: (fileActionProblem(problem, t) ?? orcaError(cause));
+		} finally {
+			busy = false;
+		}
+	}
+</script>
+
+<section class="tk" aria-labelledby={`tk-${item.id}`}>
+	<h2 id={`tk-${item.id}`}>{t('เจ้าของเรื่องนี้ไม่อยู่แล้ว', 'Its owner has left')}</h2>
+	<p>{t('ไม่มีใครแก้ไขเรื่องนี้ได้ จนกว่าเจ้าของบริษัทหรือผู้ดูแลจะรับช่วงดูแล', 'Nobody can change it until a company owner or admin takes it over.')}</p>
+	<button type="button" class="k-button" onclick={() => (open = true)}><UserRoundCheck size={16} aria-hidden="true" />{t('รับช่วงดูแล', 'Take over')}</button>
+</section>
+
+<ConfirmDialog
+	bind:open
+	icon={UserRoundCheck}
+	title={t(`รับช่วงดูแล “${item.title}”?`, `Take over “${item.title}”?`)}
+	message={t(
+		'คุณจะเป็นเจ้าของเรื่องนี้ แก้ไข เผยแพร่ และลบได้ ส่วนคนที่ใช้ได้ยังเหมือนเดิม ORCA บันทึกไว้ในประวัติการตั้งค่า',
+		'You become its owner and can edit, publish and delete it. Who can use it stays the same. ORCA records it in the settings history.'
+	)}
+	confirmLabel={busy ? t('กำลังรับช่วง…', 'Taking over…') : t('รับช่วงดูแล', 'Take over')}
+	{busy}
+	onconfirm={take}
+	oncancel={() => (error = '')}
+>
+	{#if error}<p class="tk-error" role="alert">{error}</p>{/if}
+</ConfirmDialog>
+
+<style>
+	.tk {
+		padding: 18px 20px;
+		border: 1px solid var(--orca-warn-line);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-warn-bg);
+	}
+	.tk h2 {
+		margin: 0 0 6px;
+		font-size: 15px;
+		font-weight: 700;
+	}
+	.tk p {
+		margin: 0 0 12px;
+		color: var(--orca-text-2);
+		font-size: 13.5px;
+		line-height: 1.55;
+	}
+	.tk :global(.k-button) {
+		width: 100%;
+		justify-content: center;
+		font-weight: 600;
+	}
+	.tk-error {
+		margin: 12px 0 0;
+		color: var(--orca-deny);
+		font-size: 13.5px;
+	}
+</style>

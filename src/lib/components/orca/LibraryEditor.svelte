@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
-	import { ArrowLeft, ChevronRight, Info, TriangleAlert } from '@lucide/svelte';
+	import { ArrowLeft, ChevronRight, FileText, Info, TriangleAlert } from '@lucide/svelte';
 	import { parseErrorContent } from '$lib/errors';
 	import {
 		LIBRARY_CONTENT_MAX,
@@ -9,15 +9,26 @@
 		audienceFor,
 		audienceMode,
 		audiencePeople,
+		audienceWireMode,
 		contentForEditing,
+		factLine,
 		contentForSaving,
+		failureText,
+		fileExtent,
+		fileReading,
+		fileServable,
+		fileTypeLabel,
+		formatBytes,
 		libraryProblem,
 		libraryStale,
 		mismatchMessage,
+		readingLabel,
 		relativeTime,
+		shownVersion,
 		templateMismatches,
 		workspaceEveryone,
-		type AudienceMode
+		type AudienceMode,
+		type LibraryFeatures
 	} from '$lib/orca/knowledge';
 	import { t } from '$lib/orca/locale.svelte';
 	import { orcaError, type OrcaHub, type OrcaMember } from '$lib/services/orca';
@@ -39,9 +50,12 @@
 	// Adding or editing an article or a ready-made prompt (proposal §3.6
 	// screens 3 and 5): the text on the left, "ใครใช้ได้บ้าง" on the right,
 	// and two buttons instead of a status list: บันทึกร่าง, เผยแพร่ให้ AI ใช้.
+	// An uploaded file (knowledge library v2) is edited here too: its title,
+	// short description and audience; its text comes from the file.
 	let {
 		hub,
 		kind,
+		features = { files: false, audienceModes: false },
 		existing,
 		initialTitle = '',
 		items,
@@ -57,6 +71,7 @@
 	}: {
 		hub: OrcaHub;
 		kind: LibraryKind;
+		features?: LibraryFeatures;
 		existing?: LibraryItem;
 		initialTitle?: string;
 		items: LibraryItem[];
@@ -89,7 +104,17 @@
 		const savedMembers = (existing?.memberIDs ?? []).filter((id) => id !== me && known.has(id));
 		const savedUnits = (existing?.unitIDs ?? []).filter((id) => knownUnits.has(id));
 		const dropped = (existing?.memberIDs ?? []).filter((id) => id !== me).length + (existing?.unitIDs ?? []).length - savedMembers.length - savedUnits.length;
-		const mode: AudienceMode = existing ? audienceMode({ memberIDs: savedMembers, unitIDs: savedUnits }, everyone) : 'everyone';
+		// A new item reaches everyone, live where the company has library v2. So
+		// does a file just uploaded, whose first setup this is: the upload made
+		// it a draft of its uploader's only (version 1, nobody chosen yet).
+		const firstSetup = existing?.kind === 'file' && existing.status === 'draft' && existing.version <= 1 && !existing.memberIDs.length && !existing.unitIDs.length;
+		const mode: AudienceMode =
+			existing && !firstSetup
+				? audienceMode({ memberIDs: savedMembers, unitIDs: savedUnits, audienceMode: existing.audienceMode }, everyone)
+				: features.files
+					? 'everyone_live'
+					: 'everyone';
+		const fresh = mode === 'everyone' || mode === 'me' || mode === 'everyone_live';
 		const parameters = (existing?.parameters ?? []).map((item) => ({ ...item }));
 		return {
 			title: existing?.title ?? initialTitle,
@@ -98,8 +123,8 @@
 			parameters,
 			knowledgeIDs: [...(existing?.knowledgeIDs ?? [])],
 			mode,
-			unitIDs: mode === 'everyone' || mode === 'me' ? [...everyone.unitIDs] : savedUnits,
-			memberIDs: mode === 'everyone' || mode === 'me' ? [] : savedMembers,
+			unitIDs: fresh ? [...everyone.unitIDs] : savedUnits,
+			memberIDs: fresh ? [] : savedMembers,
 			version: existing?.version ?? 0,
 			dropped
 		};
@@ -125,24 +150,31 @@
 	let discardOpen = $state(false);
 
 	const selection = $derived(audienceFor(mode, { unitIDs, memberIDs: chosenMembers }, everyone));
-	const snapshot = $derived(JSON.stringify({ title, summary, content, parameters, knowledgeIDs, selection }));
+	const live = $derived(mode === 'everyone_live');
+	const snapshot = $derived(JSON.stringify({ title, summary, content, parameters, knowledgeIDs, selection, live }));
 	let baseline = $state(untrack(() => snapshot));
 	const dirty = $derived(snapshot !== baseline);
 	$effect(() => ondirty(dirty || saving));
 	onDestroy(() => ondirty(false));
 
-	const people = $derived(audiencePeople({ ownerID: me, ...selection }, departments).size);
+	const people = $derived(audiencePeople({ ownerID: me, ...selection, audienceMode: audienceWireMode(mode) }, departments, memberIDs).size);
+	// A file is published once ORCA read it: its preview is what its audience's AI gets.
+	const fileItem = $derived(kind === 'file');
+	const fileVersion = $derived(fileItem ? shownVersion(existing?.file) : undefined);
+	const fileReady = $derived(!fileItem || fileServable(existing?.file));
 	const missingReferences = $derived(knowledgeIDs.filter((id) => !available.some((item) => item.id === id)));
 	const chosenArticles = $derived(available.filter((item) => knowledgeIDs.includes(item.id)));
 	const mismatches = $derived(
 		kind === 'template' && mode !== 'me'
-			? templateMismatches({ ownerID: me, ...selection }, chosenArticles, { departments, personName, departmentName }, t)
+			? templateMismatches({ ownerID: me, ...selection, audienceMode: audienceWireMode(mode) }, chosenArticles, { departments, personName, departmentName, workspaceMemberIDs: memberIDs }, t)
 			: []
 	);
 	const heading = $derived(
-		existing
-			? kind === 'template' ? t('แก้ไขคำสั่งสำเร็จรูป', 'Edit ready-made prompt') : t('แก้ไขความรู้', 'Edit knowledge')
-			: kind === 'template' ? t('เพิ่มคำสั่งสำเร็จรูป', 'Add a ready-made prompt') : t('เพิ่มความรู้', 'Add knowledge')
+		kind === 'file'
+			? t('แก้ไขไฟล์', 'Edit file')
+			: existing
+				? kind === 'template' ? t('แก้ไขคำสั่งสำเร็จรูป', 'Edit ready-made prompt') : t('แก้ไขความรู้', 'Edit knowledge')
+				: kind === 'template' ? t('เพิ่มคำสั่งสำเร็จรูป', 'Add a ready-made prompt') : t('เพิ่มความรู้', 'Add knowledge')
 	);
 	const saveState = $derived(
 		!existing
@@ -173,7 +205,8 @@
 		const stored = kind === 'template' ? contentForSaving(content, parameters) : { content, unknown: [] };
 		const problems: Record<string, string> = {};
 		if (!title.trim()) problems['kn-title'] = t('ใส่ชื่อเรื่อง', 'Add a title');
-		if (!content.trim()) problems['kn-content'] = kind === 'template' ? t('บอกว่าอยากให้ AI ทำอะไร', 'Say what AI should do') : t('ใส่เนื้อหา', 'Add the content');
+		if (!fileItem && !content.trim()) problems['kn-content'] = kind === 'template' ? t('บอกว่าอยากให้ AI ทำอะไร', 'Say what AI should do') : t('ใส่เนื้อหา', 'Add the content');
+		if (fileItem && status === 'published' && !fileReady) problems['kn-file'] = t('เผยแพร่ได้เมื่อ ORCA อ่านไฟล์เสร็จ', 'You can publish once ORCA has read the file');
 		if (stored.unknown.length)
 			problems['kn-content'] = t(
 				`ยังไม่มีช่องชื่อ ${stored.unknown.map((name) => `{{${name}}}`).join(', ')} กด แทรกช่องให้กรอก เพื่อเพิ่ม หรือลบออกจากข้อความ`,
@@ -191,7 +224,7 @@
 			kind,
 			title: title.trim(),
 			summary: summary.trim(),
-			content: stored.content,
+			content: fileItem ? '' : stored.content,
 			parameters: kind === 'template' ? parameters.map((item) => ({ ...item, label: item.label.trim() })) : [],
 			knowledgeIDs: kind === 'template' ? [...knowledgeIDs] : [],
 			memberIDs: selection.memberIDs,
@@ -199,6 +232,8 @@
 			status,
 			version
 		};
+		// Only a server that knows the mode gets it (an older one refuses unknown fields).
+		if (features.audienceModes) input.audienceMode = audienceWireMode(mode);
 		saving = true;
 		try {
 			const saved = await OrcaLibraryService.save(hub.id, input, itemID);
@@ -286,9 +321,10 @@
 		const known = new Set(memberIDs);
 		const savedMembers = next.memberIDs.filter((id) => id !== me && known.has(id));
 		const savedUnits = next.unitIDs.filter((id) => departments.some((item) => item.unitID === id));
-		mode = audienceMode({ memberIDs: savedMembers, unitIDs: savedUnits }, everyone);
-		unitIDs = mode === 'everyone' || mode === 'me' ? [...everyone.unitIDs] : savedUnits;
-		chosenMembers = mode === 'everyone' || mode === 'me' ? [] : savedMembers;
+		mode = audienceMode({ memberIDs: savedMembers, unitIDs: savedUnits, audienceMode: next.audienceMode }, everyone);
+		const fresh = mode === 'everyone' || mode === 'me' || mode === 'everyone_live';
+		unitIDs = fresh ? [...everyone.unitIDs] : savedUnits;
+		chosenMembers = fresh ? [] : savedMembers;
 		version = next.version;
 		baseline = snapshot;
 		conflict = false;
@@ -341,7 +377,23 @@
 				/>
 			</div>
 
-			{#if kind === 'knowledge'}
+			{#if kind === 'file'}
+				<div class="field" id="kn-file" tabindex="-1">
+					<span class="field-label">{t('ไฟล์', 'File')}</span>
+					<div class="ed-file">
+						<FileText size={18} aria-hidden="true" />
+						<span>
+							<b>{existing?.file?.fileName ?? title}</b>
+							<small>{factLine([fileTypeLabel(existing?.file?.ext ?? '', t), formatBytes(existing?.file?.bytes ?? 0), fileVersion && fileReading(fileVersion) && readingLabel(fileReading(fileVersion)!, t), fileExtent(fileVersion, t)])}</small>
+						</span>
+					</div>
+					{#if !fileReady && fileVersion && fileReading(fileVersion) === 'failed'}
+						<p class="ed-warn"><TriangleAlert size={15} aria-hidden="true" /><span>{failureText(fileVersion, t)}</span></p>
+					{:else if !fileReady}
+						<p class="ed-note"><Info size={15} aria-hidden="true" /><span>{t('ORCA กำลังอ่านไฟล์นี้ บันทึกร่างได้เลย และเผยแพร่ได้เมื่ออ่านเสร็จ', 'ORCA is reading this file. Save a draft now; publish once it is read.')}</span></p>
+					{/if}
+				</div>
+			{:else if kind === 'knowledge'}
 				<div class="field kn-grow">
 					<label for="kn-content">{t('เนื้อหา', 'Content')}</label>
 					<textarea
@@ -405,6 +457,7 @@
 		<div class="ed-side" id="kn-audience" tabindex="-1">
 		<AudienceCard
 			{kind}
+			live={features.files}
 			bind:mode
 			bind:unitIDs
 			bind:memberIDs={chosenMembers}
@@ -416,7 +469,7 @@
 		>
 			{#snippet actions()}
 				<button type="button" class="k-button ed-draft" disabled={saving || conflict} onclick={() => save('draft')}>{t('บันทึกร่าง', 'Save draft')}</button>
-				<button type="button" class="k-button primary ed-publish" disabled={saving || conflict} aria-busy={saving} onclick={() => save('published')}>{saving ? t('กำลังบันทึก…', 'Saving…') : t('เผยแพร่ให้ AI ใช้', 'Publish for AI')}</button>
+				<button type="button" class="k-button primary ed-publish" disabled={saving || conflict || !fileReady} aria-busy={saving} onclick={() => save('published')}>{saving ? t('กำลังบันทึก…', 'Saving…') : t('เผยแพร่ให้ AI ใช้', 'Publish for AI')}</button>
 			{/snippet}
 		</AudienceCard>
 		</div>
@@ -516,11 +569,41 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
 	}
-	.field label {
+	.field label,
+	.field-label {
 		display: block;
 		margin-bottom: 6px;
 		font-size: 14px;
 		font-weight: 600;
+	}
+	.ed-file {
+		display: flex;
+		align-items: flex-start;
+		gap: 12px;
+		padding: 12px 14px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius);
+		background: var(--orca-surface-2);
+	}
+	.ed-file :global(svg) {
+		flex: none;
+		margin-top: 2px;
+		color: var(--orca-subtle);
+	}
+	.ed-file span {
+		display: grid;
+		gap: 2px;
+		min-width: 0;
+	}
+	.ed-file b {
+		font-size: 14.5px;
+		font-weight: 600;
+		overflow-wrap: anywhere;
+	}
+	.ed-file small {
+		color: var(--orca-muted);
+		font-size: 13px;
+		line-height: 1.5;
 	}
 	.field.kn-grow {
 		display: flex;

@@ -1,26 +1,46 @@
 <script lang="ts">
 	import { beforeNavigate, goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
-	import { getHttpStatusCode, parseErrorContent } from '$lib/errors';
+	import { getHttpStatusCode, isAbortError, parseErrorContent } from '$lib/errors';
 	import { connectionReady } from '$lib/orca/activation';
 	import { aiConnectionAppFor, aiConnectionReaches } from '$lib/orca/ai-connection';
 	import { aiConnection } from '$lib/orca/ai-connection.svelte';
 	import { currentCompany } from '$lib/orca/company';
 	import { term } from '$lib/orca/glossary';
-	import { accessRequestMessage, libraryProblem, libraryScope, withoutCreateIntent, type LibraryFilter } from '$lib/orca/knowledge';
+	import {
+		accessRequestMessage,
+		batchProgress,
+		libraryFeatures,
+		libraryProblem,
+		libraryScope,
+		quotaLimit,
+		readingFileIDs,
+		readingPollDelay,
+		refusalCode,
+		refusalText,
+		uploadBatches,
+		uploadProblem,
+		uploadRows,
+		withoutCreateIntent,
+		type LibraryFilter,
+		type UploadRow
+	} from '$lib/orca/knowledge';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { memberName, orcaError, statusLabels, type OrcaBootstrap, type OrcaMember } from '$lib/services/orca';
 	import {
 		OrcaLibraryService,
 		type LibraryDepartment,
 		type LibraryItem,
-		type LibraryKind
+		type LibraryKind,
+		type LibraryUsage
 	} from '$lib/services/orca-library';
 	import { HubConflictError, hubConflictMessage, joinPatch, saveHubPatch } from '$lib/orca/workspace-edit';
 	import { hubWriteService } from '$lib/services/orca-workspaces';
 	import { Copy, FolderPlus, Info, SearchX, UserPlus, Users } from '@lucide/svelte';
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 	import LibraryEditor from './LibraryEditor.svelte';
+	import FileDetail from './knowledge/FileDetail.svelte';
+	import FileDropZone from './knowledge/FileDropZone.svelte';
 	import KnowledgeDetail from './knowledge/KnowledgeDetail.svelte';
 	import KnowledgeList from './knowledge/KnowledgeList.svelte';
 	import ChoiceTile from './ui/ChoiceTile.svelte';
@@ -31,7 +51,10 @@
 
 	// view=knowledge: คลังความรู้ (workspace UX U8, the interim UI of proposal
 	// §3.6). Items live in an AI workspace, so the page opens the viewer's
-	// workspace by itself, or says in one line what is missing.
+	// workspace by itself, or says in one line what is missing. With knowledge
+	// library v2 (the company's `features.libraryV2`, C4 §14m S7) it also takes
+	// uploaded files: the page sends them, shows their reading, and asks again
+	// while the viewer's own files are still being read.
 	let {
 		data,
 		hubID,
@@ -70,6 +93,7 @@
 		libraryScope({ hubs: data.hubs, currentUserID: data.currentUserID, canManage: data.canManage, requestedID: hubID || undefined, rememberedID: remembered })
 	);
 	const hub = $derived(scope.kind === 'hub' ? scope.hub : undefined);
+	const features = $derived(libraryFeatures(data));
 
 	let kind = $state<LibraryKind>('knowledge');
 	let filter = $state<LibraryFilter>('all');
@@ -101,6 +125,11 @@
 		untrack(() => {
 			if (id !== contextID) {
 				contextID = id;
+				stopPolling();
+				cancelUpload();
+				uploads = [];
+				uploadNote = '';
+				usage = undefined;
 				// A workspace opened by itself stays open for this page: a refresh
 				// that sorts another first never swaps it under a draft (Codex
 				// release review 66). The saved choice is not changed.
@@ -129,8 +158,10 @@
 			const key = `${id}:${entryKind}:${create}`;
 			if (consumed.has(key) || dirty) return;
 			consumed.add(key);
+			// Files exist only where the company has library v2 (or had it: they stay listed).
+			if (entryKind === 'file' && !features.files && !items.some((item) => item.kind === 'file')) return;
 			kind = entryKind;
-			if (create) {
+			if (create && entryKind !== 'file') {
 				openEditor(entryKind);
 				// Used once: a reload or a copied link must not open an empty form again (a duplicate).
 				const clean = withoutCreateIntent(page.url);
@@ -157,6 +188,7 @@
 			now = Date.now();
 			const open = screenID(screen);
 			if (open && !result.items.some((item) => item.id === open)) screen = { name: 'list' };
+			schedulePoll();
 		} catch (cause) {
 			if (request !== requestNumber) return;
 			// Access changed: nothing of this library stays on screen.
@@ -201,6 +233,11 @@
 	}
 	function openEditor(next: LibraryKind, title = '') {
 		if (!hub || loadedHub !== hub.id) return;
+		// Files are added by uploading them: "เพิ่มไฟล์" opens the file picker.
+		if (next === 'file') {
+			zone?.pick();
+			return;
+		}
 		show({ name: 'editor', kind: next, title });
 	}
 	function saved(item: LibraryItem, people: number) {
@@ -221,6 +258,164 @@
 		show({ name: 'list' });
 		showToast(t('จัดเก็บแล้ว — AI เลิกใช้เรื่องนี้', 'Archived — AI no longer uses it'));
 	}
+	/** A file action or a takeover answered with the item as it is now. */
+	function changed(item: LibraryItem) {
+		items = items.some((known) => known.id === item.id) ? items.map((known) => (known.id === item.id ? item : known)) : [...items, item];
+		schedulePoll();
+	}
+	function deleted(item: LibraryItem) {
+		items = items.filter((known) => known.id !== item.id);
+		show({ name: 'list' });
+		showToast(t('ลบแล้ว — AI ของทุกคนหยุดเห็นไฟล์นี้', 'Deleted — nobody’s AI sees it any more'));
+		void refreshUsage();
+	}
+
+	// ── Files: uploads, the reading, the quota (knowledge library v2) ──
+	let zone: { pick: () => void } | undefined = $state();
+	let uploads = $state<UploadRow[]>([]);
+	let uploading = $state(false);
+	let uploadNote = $state('');
+	let usage = $state<LibraryUsage>();
+	let uploadAbort: AbortController | undefined;
+	// The chosen files by row, so "ลองอีกครั้ง" sends the same ones (never reactive).
+	let uploadFiles = new Map<string, File>();
+	let pollTimer: ReturnType<typeof setTimeout> | undefined;
+	let pollRound = 0;
+	/** Asks again, a little slower each time, while the viewer's own files are still being read (at most ~20 minutes). */
+	function schedulePoll() {
+		clearTimeout(pollTimer);
+		pollTimer = undefined;
+		if (!hub || !features.files || !readingFileIDs(items).length || pollRound > 60) {
+			if (!readingFileIDs(items).length) pollRound = 0;
+			return;
+		}
+		const id = hub.id;
+		pollTimer = setTimeout(() => {
+			pollTimer = undefined;
+			pollRound += 1;
+			if (hub?.id !== id) return;
+			if (dirty) {
+				schedulePoll();
+				return;
+			}
+			void load(id);
+		}, readingPollDelay(pollRound));
+	}
+	function stopPolling() {
+		clearTimeout(pollTimer);
+		pollTimer = undefined;
+		pollRound = 0;
+	}
+	function cancelUpload() {
+		uploadAbort?.abort();
+	}
+	onDestroy(() => {
+		stopPolling();
+		cancelUpload();
+	});
+	async function refreshUsage(id = hub?.id ?? '') {
+		if (!id || !features.files) return;
+		try {
+			const next = await OrcaLibraryService.usage(id);
+			if (hub?.id === id) usage = next;
+		} catch {
+			// The meter is a convenience: without it the server still refuses what is over the quota.
+		}
+	}
+	$effect(() => {
+		const id = hub?.id ?? '';
+		if (id && kind === 'file' && features.files && loadedHub === id) untrack(() => void refreshUsage(id));
+	});
+	$effect(() => {
+		// No library v2 and no file left (or the address asked for files without it): back to articles.
+		if (kind === 'file' && !features.files && loadedHub === hub?.id && !items.some((item) => item.kind === 'file')) untrack(() => (kind = 'knowledge'));
+	});
+	function setRow(key: string, change: Partial<UploadRow>) {
+		uploads = uploads.map((row) => (row.key === key ? { ...row, ...change } : row));
+	}
+	/** Sends the files chosen or dropped, in batches the server takes; each file's answer lands on its row. */
+	async function upload(files: File[]) {
+		if (!hub || uploading || !features.files) return;
+		const id = hub.id;
+		const rows = uploadRows(files, t);
+		uploadFiles = new Map(rows.map((row, index) => [row.key, files[index]]));
+		// The day's uploads are used up: nothing is sent.
+		if (quotaLimit(usage) === 'uploads')
+			for (const row of rows) if (row.state === 'waiting') Object.assign(row, { state: 'refused', reason: 'quota', message: refusalText('quota', t, 'uploads', usage) });
+		uploads = rows;
+		uploadNote = '';
+		await send(id, rows.filter((row) => row.state === 'waiting').map((row) => row.key));
+	}
+	async function retryUpload() {
+		if (!hub || uploading) return;
+		const keys = uploads.filter((row) => row.state === 'failed').map((row) => row.key);
+		for (const key of keys) setRow(key, { state: 'waiting', progress: 0 });
+		uploadNote = '';
+		await send(hub.id, keys);
+	}
+	async function send(id: string, keys: string[]) {
+		if (!keys.length) return;
+		uploading = true;
+		const abort = new AbortController();
+		uploadAbort = abort;
+		let saved = 0;
+		try {
+			const sizes = keys.map((key) => uploadFiles.get(key)?.size ?? 0);
+			for (const batch of uploadBatches(sizes)) {
+				const batchKeys = batch.map((index) => keys[index]);
+				const batchFiles = batchKeys.map((key) => uploadFiles.get(key)).filter((file): file is File => !!file);
+				for (const key of batchKeys) setRow(key, { state: 'sending', progress: 0 });
+				try {
+					const result = await OrcaLibraryService.upload(id, batchFiles, {
+						signal: abort.signal,
+						onprogress: (loaded, total) => {
+							const shares = batchProgress(batchFiles.map((file) => file.size), loaded, total);
+							batchKeys.forEach((key, index) => setRow(key, { progress: shares[index] }));
+						}
+					});
+					// One answer per file, in the order sent.
+					batchKeys.forEach((key, index) => {
+						const answer = result.files[index];
+						if (answer?.item) {
+							saved += 1;
+							setRow(key, { state: 'saved', progress: 1, itemID: answer.item.id });
+							if (hub?.id === id) items = [...items.filter((known) => known.id !== answer.item!.id), answer.item];
+						} else {
+							const reason = refusalCode(answer?.error);
+							setRow(key, { state: 'refused', reason, message: refusalText(reason, t, quotaLimit(usage), usage) });
+						}
+					});
+				} catch (cause) {
+					if (isAbortError(cause)) {
+						for (const row of uploads) if (row.state === 'sending' || row.state === 'waiting') setRow(row.key, { state: 'cancelled', progress: 0 });
+						return;
+					}
+					const problem = parseErrorContent(cause);
+					const reason = refusalCode(problem.message);
+					// Every file of this upload was refused for one reason; the rest wait for "ลองอีกครั้ง".
+					if (reason && reason !== 'invalid') {
+						if (reason === 'quota') await refreshUsage(id);
+						for (const key of batchKeys) setRow(key, { state: 'refused', reason, message: refusalText(reason, t, quotaLimit(usage), usage) });
+						continue;
+					}
+					if (problem.status === 409 && /library_quota/.test(problem.message)) await refreshUsage(id);
+					uploadNote = uploadProblem(cause instanceof TypeError ? { status: 0, message: '' } : problem, t, usage);
+					for (const row of uploads) if (row.state === 'sending' || row.state === 'waiting') setRow(row.key, { state: 'failed', progress: 0 });
+					if ([403, 404].includes(problem.status) && !/library_files_disabled/.test(problem.message)) void recheck();
+					return;
+				}
+			}
+		} finally {
+			if (uploadAbort === abort) uploadAbort = undefined;
+			uploading = false;
+			if (saved && hub?.id === id) {
+				showToast(t(`อัปโหลดแล้ว ${saved} ไฟล์ ORCA กำลังอ่าน`, `${saved} ${saved === 1 ? 'file' : 'files'} uploaded; ORCA is reading them`));
+				kind = 'file';
+				void refreshUsage(id);
+				schedulePoll();
+			}
+		}
+	}
 	function denied() {
 		dirty = false;
 		show({ name: 'list' });
@@ -236,7 +431,7 @@
 	let leaveTo: URL | undefined;
 	let leaving = false;
 	beforeNavigate((navigation) => {
-		if (leaving || !dirty) return;
+		if (leaving || !(dirty || uploading)) return;
 		navigation.cancel();
 		if (navigation.type === 'leave') return;
 		leaveTo = navigation.to?.url;
@@ -245,6 +440,8 @@
 	async function leave() {
 		leaveOpen = false;
 		dirty = false;
+		// Files not sent yet are not saved: the upload stops here.
+		cancelUpload();
 		const target = leaveTo;
 		leaveTo = undefined;
 		if (!target) return;
@@ -387,6 +584,7 @@
 			<LibraryEditor
 				hub={hub!}
 				kind={screen.kind}
+				{features}
 				existing={selected}
 				initialTitle={screen.title}
 				{items}
@@ -406,22 +604,46 @@
 		{/key}
 	{:else if screen.name === 'detail' && selected}
 		{#key selected.id}
-			<KnowledgeDetail
-				hub={hub!}
-				item={selected}
-				{items}
-				{members}
-				{departments}
-				currentUserID={data.currentUserID}
-				{now}
-				{connected}
-				app={aiApp}
-				onback={() => show({ name: 'list' })}
-				onedit={() => show({ name: 'editor', kind: selected!.kind, id: selected!.id })}
-				onarchived={archived}
-				ondenied={denied}
-				onrecheck={recheck}
-			/>
+			{#if selected.kind === 'file'}
+				<FileDetail
+					hub={hub!}
+					item={selected}
+					{members}
+					{departments}
+					currentUserID={data.currentUserID}
+					canManage={data.canManage}
+					{features}
+					{now}
+					{connected}
+					app={aiApp}
+					onback={() => show({ name: 'list' })}
+					onedit={() => show({ name: 'editor', kind: 'file', id: selected!.id })}
+					onchanged={changed}
+					onarchived={archived}
+					ondeleted={deleted}
+					ondenied={denied}
+				/>
+			{:else}
+				<KnowledgeDetail
+					hub={hub!}
+					item={selected}
+					{items}
+					{members}
+					{departments}
+					currentUserID={data.currentUserID}
+					canManage={data.canManage}
+					{features}
+					{now}
+					{connected}
+					app={aiApp}
+					onback={() => show({ name: 'list' })}
+					onedit={() => show({ name: 'editor', kind: selected!.kind, id: selected!.id })}
+					onarchived={archived}
+					onchanged={changed}
+					ondenied={denied}
+					onrecheck={recheck}
+				/>
+			{/if}
 		{/key}
 	{:else}
 		<KnowledgeList
@@ -440,6 +662,9 @@
 			{connected}
 			app={aiApp}
 			{now}
+			{features}
+			{usage}
+			fileZone={features.files ? fileZone : undefined}
 			onchoose={chooseWorkspace}
 			oncreate={(next, title) => openEditor(next, title)}
 			onopen={(item) => show({ name: 'detail', id: item.id })}
@@ -448,10 +673,30 @@
 	{/if}
 </div>
 
+{#snippet fileZone()}
+	<FileDropZone
+		bind:this={zone}
+		rows={uploads}
+		busy={uploading}
+		problem={uploadNote}
+		disabled={loadedHub !== hub?.id}
+		onfiles={(files) => void upload(files)}
+		oncancel={cancelUpload}
+		onclear={() => {
+			uploads = [];
+			uploadNote = '';
+		}}
+		onretry={() => void retryUpload()}
+		onopen={(id) => show({ name: 'detail', id })}
+	/>
+{/snippet}
+
 <ConfirmDialog
 	bind:open={leaveOpen}
 	title={t('ออกโดยไม่บันทึก?', 'Leave without saving?')}
-	message={t('สิ่งที่แก้ไว้ในหน้านี้จะหายไป', 'What you changed here will be lost.')}
+	message={uploading
+		? t('กำลังอัปโหลดไฟล์ ถ้าออกตอนนี้ ไฟล์ที่ยังส่งไม่เสร็จจะไม่ถูกบันทึก', 'Files are uploading. If you leave now, the ones not sent yet are not saved.')
+		: t('สิ่งที่แก้ไว้ในหน้านี้จะหายไป', 'What you changed here will be lost.')}
 	confirmLabel={t('ออกโดยไม่บันทึก', 'Leave without saving')}
 	cancelLabel={t('แก้ต่อ', 'Keep editing')}
 	tone="danger"

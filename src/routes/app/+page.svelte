@@ -72,7 +72,9 @@
       ? "knowledge"
       : page.url.searchParams.get("kind") === "template"
         ? "template"
-        : undefined,
+        : page.url.searchParams.get("kind") === "file"
+          ? "file"
+          : undefined,
   );
   const createLibraryItem = $derived(
     !!libraryKind && page.url.searchParams.get("create") === "1",
