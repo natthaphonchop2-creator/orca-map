@@ -221,9 +221,10 @@
 				<div>
 					<h2>{t('เชื่อมไว้แล้วด้วยบัญชีของคุณ', 'Already connected with your account')}</h2>
 					<p>{t(`ORCA จะใช้บัญชี ${programName} นี้ดูว่า AI ทำอะไรได้บ้าง`, `ORCA uses this ${programName} account to see what AI can do.`)}</p>
+					{#if connector.underReview}<p>{t(`ระหว่างรอการยืนยันจาก ${programName} ยังเปลี่ยนเป็นบัญชีอื่นไม่ได้`, `While ${programName}'s review is pending, you can't switch to another account.`)}</p>{/if}
 					<div class="acct-actions">
 						<button type="button" class="k-button primary acct-lg" onclick={() => connector.verify()}>{t('ใช้บัญชีนี้ต่อ', 'Continue with this account')}</button>
-						<button type="button" class="k-button quiet" onclick={useAnother}>{t('ใช้บัญชีอื่น', 'Use another account')}</button>
+						{#if !connector.underReview}<button type="button" class="k-button quiet" onclick={useAnother}>{t('ใช้บัญชีอื่น', 'Use another account')}</button>{/if}
 					</div>
 				</div>
 			</div>
@@ -294,8 +295,8 @@
 			{#if !busy}
 				{#if phase === 'connected' || phase === 'check'}
 					<button type="button" class="k-button small" onclick={() => connector.verify()}>{phase === 'check' ? t('ตรวจการเชื่อมต่อ', 'Check the connection') : t('ตรวจบัญชี', 'Check the account')}</button>
-					{#if connector.alreadyConnected}<button type="button" class="k-button small" onclick={useAnother}>{t('เชื่อมบัญชีใหม่', 'Connect another account')}</button>{/if}
-				{:else if phase === 'ready' && connector.alreadyConnected}
+					{#if connector.alreadyConnected && !connector.underReview}<button type="button" class="k-button small" onclick={useAnother}>{t('เชื่อมบัญชีใหม่', 'Connect another account')}</button>{/if}
+				{:else if phase === 'ready' && connector.alreadyConnected && !connector.underReview}
 					<button type="button" class="k-button small" onclick={useAnother}>{t('เชื่อมบัญชีใหม่', 'Connect another account')}</button>
 				{:else if phase === 'signin'}
 					<button type="button" class="k-button small" onclick={() => connector.signIn()}>{t(`ลงชื่อเข้าใช้ ${programName}`, `Sign in to ${programName}`)}</button>
