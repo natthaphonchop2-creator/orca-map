@@ -1066,3 +1066,41 @@ test('a held version\'s tab: its lines say what the AI will see, and its partial
 	assert.deepEqual(view.lines.map((line) => line.text), ['AI จะเห็นโน้ตผู้บรรยาย 7 สไลด์'], 'the held version serves no one yet');
 	assert.equal(view.previewVersion.state, 'partial', 'its partial note shows on its tab');
 });
+
+test('an older quiet ask never speaks over a newer load (Codex S7 fifth confirmation #2)', async (t) => {
+	const queue = [async () => ({ items: [article('a')], members, departments: [] })];
+	const { view, flush } = await libraryPage(t, () => queue.shift()());
+	for (let i = 0; i < 10 && !view.items.length; i++) await new Promise((resolve) => setImmediate(resolve));
+	// A quiet ask while editing A...
+	view.show({ name: 'editor', kind: 'knowledge', id: 'a' });
+	view.setDirty(true);
+	flush();
+	let old;
+	queue.push(() => new Promise((resolve) => { old = resolve; }));
+	const asking = view.refreshReading('sales');
+	// ...then the editor closes, a load brings A and a new B, and the person edits B.
+	view.setDirty(false);
+	view.show({ name: 'list' });
+	flush();
+	queue.push(async () => ({ items: [article('a'), article('b')], members, departments: [] }));
+	await view.load('sales');
+	view.show({ name: 'editor', kind: 'knowledge', id: 'b' });
+	view.setDirty(true);
+	flush();
+	// The old answer, without B, comes last.
+	old({ items: [article('a')], members, departments: [] });
+	await asking;
+	assert.equal(view.editorNote, '', 'B is there: the newer load said so');
+	assert.deepEqual(view.items.map((item) => item.id).sort(), ['a', 'b']);
+});
+
+test('the notices are shown as they say: the editor\'s above it, a partial reading on the file\'s page (Codex S7 fifth confirmation NOTE)', async () => {
+	const page = await readFile(new URL('./KnowledgeLibrary.svelte', import.meta.url), 'utf8');
+	assert.match(page, /\{#if editorNote\}<p class="editor-note" role="alert"><Info size=\{16\} aria-hidden="true" \/><span>\{editorNote\}<\/span><\/p>\{\/if\}\s*\{#key `\$\{screen\.kind\}:\$\{screen\.id \?\? 'new'\}`\}\s*<LibraryEditor/, 'right above the editor, while it is open');
+	assert.doesNotMatch(page.slice(page.indexOf('.editor-note {'), page.indexOf('}', page.indexOf('.editor-note {'))), /display: none|visibility: hidden/);
+	const partial = fileItem('p', { file: fileInfo({ published: version(2, 'partial', { stats: { chars: 1, sheets: 2, rows: 50_000, partialReason: 'rows', hidden: hiddenParts() } }), options: options() }) });
+	const { html } = await fileDetail({ item: partial });
+	assert.match(html, /<p class="fd-note warn">(?:<[^>]+>)*<span>อ่านได้บางส่วน: บางแผ่นงานมีมากกว่า 50,000 แถว AI เห็นเฉพาะ 50,000 แถวแรก \(นับแถวหัวตารางด้วย\)<\/span><\/p>/);
+	const draft = await fileDetail({ item: { ...partial, status: 'draft' } });
+	assert.match(draft.html, /อ่านได้บางส่วน: บางแผ่นงานมีมากกว่า 50,000 แถว AI จะเห็นเฉพาะ 50,000 แถวแรก/, 'a draft: what the AI will see');
+});

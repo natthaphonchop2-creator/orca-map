@@ -188,6 +188,9 @@
 	async function load(id = hub?.id ?? '', quiet = false) {
 		if (!id || disposed) return;
 		const request = ++requestNumber;
+		// A load supersedes the quiet asks still on their way: their older lists never
+		// speak over its answer (Codex S7 fifth confirmation #2).
+		readingRequest += 1;
 		if (!quiet) error = '';
 		try {
 			const result = await OrcaLibraryService.load(id);
