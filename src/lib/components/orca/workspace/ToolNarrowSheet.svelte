@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { orcaLocale, t } from '$lib/orca/locale.svelte';
-	import { toolCopy, toolUnspecified } from '$lib/orca/program-tools';
-	import { allowedTools, readOnlyToolNames } from '$lib/orca/workspace-edit';
+	import { toolAlwaysApproved, toolCopy, toolUnspecified } from '$lib/orca/program-tools';
+	import { allowedTools, alwaysHeldToolNames, changeGroupHint, readOnlyToolNames } from '$lib/orca/workspace-edit';
 	import type { OrcaConnection } from '$lib/services/orca';
 	import type { ProgramTool } from '$lib/services/orca-programs';
 	import { Eye, Info, Pencil } from '@lucide/svelte';
@@ -35,13 +35,9 @@
 	const changeTools = $derived(tools.filter((tool) => !readNames.includes(tool.name)));
 	const unstated = $derived(!connection?.reviewedReadOnly && changeTools.some((tool) => toolUnspecified(tool)));
 	const name = $derived(connection?.name ?? '');
-	const changeHint = $derived(
-		approval === true
-			? t('รอผู้ดูแลอนุมัติก่อน ORCA จึงทำจริง', 'Waits for an admin to approve before ORCA runs it.')
-			: approval === false
-				? t('พื้นที่นี้ตั้งให้ทำได้ทันที ไม่ต้องรออนุมัติ เปลี่ยนได้ในแท็บ “ตั้งค่า”', 'This workspace runs changes at once, without approval. Change it under “Settings”.')
-				: t('ถ้าพื้นที่นี้ตั้งให้ผู้ดูแลอนุมัติก่อน จะรออนุมัติก่อนทำจริง', 'Waits for approval when this workspace asks for it.')
-	);
+	// LINE's sends and changes wait for an admin whatever the workspace (design §14l), so the hint never says otherwise.
+	const changeNames = $derived(changeTools.map((tool) => tool.name));
+	const changeHint = $derived(changeGroupHint(approval, changeNames, alwaysHeldToolNames(connection, changeNames), t));
 
 	function toggle(tool: string) {
 		chosen = chosen.includes(tool) ? chosen.filter((item) => item !== tool) : [...chosen, tool];
@@ -87,7 +83,7 @@
 							<label class="narrow-tool">
 								<input type="checkbox" checked={chosen.includes(tool.name)} onchange={() => toggle(tool.name)} />
 								<span>
-									<strong>{shown.label}{#if group.id === 'change' && toolUnspecified(tool)}<em class="narrow-tag">{t('ผู้ให้บริการไม่ได้ระบุ', 'Not stated')}</em>{/if}</strong>
+									<strong>{shown.label}{#if group.id === 'change' && toolUnspecified(tool)}<em class="narrow-tag">{t('ผู้ให้บริการไม่ได้ระบุ', 'Not stated')}</em>{/if}{#if group.id === 'change' && toolAlwaysApproved(tool)}<em class="narrow-tag">{t('ต้องอนุมัติทุกครั้ง', 'Always needs approval')}</em>{/if}</strong>
 									{#if shown.description && shown.description !== shown.label}<small>{shown.description}</small>{/if}
 								</span>
 							</label>

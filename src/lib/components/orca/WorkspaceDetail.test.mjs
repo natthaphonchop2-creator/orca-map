@@ -28,7 +28,7 @@ const homeSetup = await importTypeScript(new URL('../../orca/home-setup.ts', imp
 const th = (value) => value;
 const base = {
 	...edit, ...sources, ...activation, ...presentation, ...invitations, ...copy, ...picker, ...formErrors,
-	toolCopy: programTools.toolCopy, toolUnspecified: programTools.toolUnspecified,
+	toolCopy: programTools.toolCopy, toolUnspecified: programTools.toolUnspecified, toolAlwaysApproved: programTools.toolAlwaysApproved,
 	personalAccountReader: personal.personalAccountReader, personalSetup: personal.personalSetup, personalSources: personal.personalSources,
 	sourceAccountState: connectionPresentation.sourceAccountState, accountStateFrom: homeSetup.accountStateFrom,
 	t: th, localeHref: (path) => path, orcaLocale: { value: 'th' }, onMount: () => {}, onDestroy: () => {}, untrack: (fn) => fn(),
@@ -261,6 +261,36 @@ test('ภาพรวม offers the invite message after creation and one banner
 	const source = await readFile(file('./workspace/WorkspaceOverviewTab.svelte'), 'utf8');
 	assert.match(source, /ai = aiReachesWorkspace\(apps, hub\.id\) \? 'connected' : 'none';\s*\/\/[^\n]*\n\s*const status = aiConnectionFrom\(apps, Date\.now\(\), t\);\s*elsewhere = ai === 'none' && status\.only\?\.length \? aiConnectionLine\(status, t\) : '';/);
 	assert.match(source, /\{#if elsewhere\}\s*<strong>\{t\('AI ของคุณยังใช้พื้นที่นี้ไม่ได้'/);
+});
+
+// Codex release review deploy41 (MINOR): LINE's sends and changes wait for an
+// admin even in a workspace set to "ทำได้เลย" (design §14l), so neither ภาพรวม
+// nor the sheet that narrows a program says they run without approval.
+test('ภาพรวม and the narrowing sheet name LINE\'s held actions in a workspace set to "ทำได้เลย"', async () => {
+	const { lineTools, lineWriteNames } = await import(new URL('../../orca/line-messaging-tools.fixture.mjs', import.meta.url).href);
+	const line = { ...flow, id: 'conn-line', name: 'LINE OA (Messaging API)', mcpID: 'default-orca-api-line-messaging', tools: lineTools, toolNames: lineTools.map((tool) => tool.name) };
+	const Overview = await component('./workspace/WorkspaceOverviewTab.svelte', { StatusPill, MyAIAppsService: {} });
+	const tabHref = (tab) => `/app?view=hub&hub=hub-one&tab=${tab}`;
+	const direct = { ...hub, writeMode: 'direct', sources: [{ connectionID: 'conn-flow', toolNames: ['list_invoices', 'create_quotation'] }, { connectionID: 'conn-line', toolNames: ['line_followers_get', 'line_broadcast_text'] }] };
+	const data = company({ connections: [flow, drive, notion, line] });
+	let html = htmlOf(Overview, { props: { data, hub: direct, tabHref } }).body;
+	assert.match(html, /AI สร้างหรือแก้ข้อมูลได้ทันที แต่งานที่ต้องอนุมัติทุกครั้งใน LINE OA \(Messaging API\) ยังรอผู้ดูแลอนุมัติก่อน/);
+	assert.doesNotMatch(html, /ไม่ต้องรออนุมัติ/);
+	html = htmlOf(Overview, { props: { data, hub: { ...direct, sources: [direct.sources[0]] }, tabHref } }).body;
+	assert.match(html, /AI สร้างหรือแก้ข้อมูลได้ทันที ไม่ต้องรออนุมัติ/, 'without LINE\'s writes, changes run at once');
+	html = htmlOf(Overview, { props: { data, hub: { ...direct, writeMode: 'approval' }, tabHref } }).body;
+	assert.match(html, /เมื่อ AI จะสร้างหรือแก้ข้อมูล ต้องรอผู้ดูแลอนุมัติก่อน/);
+
+	// The sheet, with a stand-in Sheet that shows what it holds.
+	const Sheet = (renderer, props) => props.children?.(renderer);
+	const Narrow = await component('./workspace/ToolNarrowSheet.svelte', { Sheet });
+	html = htmlOf(Narrow, { props: { open: true, connection: line, selected: line.toolNames, approval: false, onapply: () => {} } }).body;
+	assert.match(html, /รอผู้ดูแลอนุมัติก่อนทุกครั้ง แม้พื้นที่นี้ตั้งให้ทำได้ทันที/);
+	assert.doesNotMatch(html, /ไม่ต้องรออนุมัติ/);
+	assert.equal((html.match(/<em class="narrow-tag">ต้องอนุมัติทุกครั้ง<\/em>/g) ?? []).length, lineWriteNames.length, 'each held action says so');
+	html = htmlOf(Narrow, { props: { open: true, connection: flow, selected: flow.toolNames, approval: false, onapply: () => {} } }).body;
+	assert.match(html, /พื้นที่นี้ตั้งให้ทำได้ทันที ไม่ต้องรออนุมัติ/, 'FlowAccount\'s changes do run at once');
+	assert.doesNotMatch(html, /ต้องอนุมัติทุกครั้ง/);
 });
 
 test('คน and โปรแกรม are editable only by managers; readers see who and what, without names they may not receive', async () => {
