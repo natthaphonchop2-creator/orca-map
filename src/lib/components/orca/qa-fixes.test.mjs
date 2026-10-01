@@ -44,6 +44,16 @@ test('someone who never signed in gets no empty "จัดการการเ�
 	assert.match(setup, /onclick=\{copyCallback\}/);
 });
 
+// Codex review 2 of deploy41: under review, step 2 offers no account switch (it
+// signs the saved grant out before a sign-in the review stops).
+test('step 2 offers no other account while the program waits for review', async () => {
+	const account = await read('./programs/ProgramAccount.svelte');
+	assert.match(account, /\{#if !connector\.underReview\}<button type="button" class="k-button quiet" onclick=\{useAnother\}>/);
+	assert.match(account, /\{#if connector\.alreadyConnected && !connector\.underReview\}<button type="button" class="k-button small" onclick=\{useAnother\}>/);
+	assert.match(account, /\{:else if phase === 'ready' && connector\.alreadyConnected && !connector\.underReview\}/);
+	assert.equal((account.match(/onclick=\{useAnother\}/g) ?? []).length, 3, 'every switch button is guarded above');
+});
+
 test('the operator is sent where each unavailable program is handled, and the overview counts the catalog\'s waiting programs', async () => {
 	const account = await read('./programs/ProgramAccount.svelte');
 	assert.match(account, /\{#if operator && waitingForReview\}[\s\S]*?platformHref\('catalog'\)[\s\S]*?\{:else if operator\}[\s\S]*?platformHref\('oauth-apps'\)/);

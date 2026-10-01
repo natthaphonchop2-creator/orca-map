@@ -1265,6 +1265,24 @@ test('source setup renders provider branding, native API fields and permission-g
     }
   }
 
+  // Codex review 2 of deploy41: a saved grant under review keeps Disconnect,
+  // with a warning that it cannot connect again until the review is done.
+  const reviewed = component.replace('let setup = $state<OrcaSourceSetup>();', `let setup = $state<OrcaSourceSetup>(${JSON.stringify(source('default-canva-0a1b2c3d', {
+    endpointHost: 'mcp.canva.com', configured: true, oauthConnected: true, setupStatus: 'review_required', setupReason: 'provider_review',
+  }))});`);
+  const { default: ReviewedSetup } = await import(serverModule(reviewed, 'ReviewedSetup.svelte', {
+    '$lib/orca/CatalogIcon.svelte': iconURL,
+    '$lib/orca/catalog': catalogURL,
+    '$lib/orca/api-connector-setup': apiSetupURL,
+    '$lib/orca/provider-guides': new URL('../../orca/provider-guides.ts', import.meta.url).href,
+    '$lib/orca/locale.svelte': moduleURL('export const t = (_th, en) => en;'),
+    '$lib/services/orca': moduleURL('export const OrcaService = {}; export const orcaError = (error) => error.message;'),
+  }));
+  const reviewedBody = render(ReviewedSetup, { props: { sourceID: 'default-canva-0a1b2c3d' } }).body;
+  assert.match(reviewedBody, /Disconnect account/);
+  assert.match(reviewedBody, /is waiting for review\. If you disconnect now, you can/);
+  assert.doesNotMatch(reviewedBody, /To change accounts, disconnect first|Disconnect and sign in again|Restart sign-in/);
+
   for (const [provider, name, logo] of [
     ['gmail', 'Gmail', '/orca/catalog/gmail.svg'],
     ['microsoft-outlook', 'Microsoft Outlook', '/orca/catalog/outlook.svg'],
@@ -1817,4 +1835,34 @@ test('managed operator guides require exact source and trusted metadata and dist
   const excel = oauthProviderSetup('default-orca-managed-microsoft-excel', '127.0.0.1', 'microsoft-excel');
   assert.match(JSON.stringify(excel.steps), /Files.ReadWrite/);
   assert.match(JSON.stringify(excel.steps), /only reads data/);
+});
+
+// Codex review 2 of deploy41: while the provider reviews a program, a saved
+// grant whose sign-in expired is never steered to "Disconnect and sign in
+// again", since the review would stop the new sign-in; the page says why.
+test('a program under review never asks a saved account to reconnect', async (context) => {
+  let starts = 0;
+  let disconnects = 0;
+  const { view } = await setupHarness(context, {
+    sourceSetup: async (id) => source(id, { endpointHost: 'mcp.canva.com', configured: true, oauthConnected: true, setupStatus: 'review_required', setupReason: 'provider_review' }),
+    checkSource: async () => ({ ready: false, oauthRequired: true }),
+    startSourceOAuth: async () => { starts++; return { oauthURL: 'https://provider.example.test/authorize?x=1' }; },
+    disconnectSourceOAuth: async () => { disconnects++; return { disconnected: true }; },
+  }, { sourceID: 'default-canva-0a1b2c3d' });
+  assert.equal(view.primaryState, 'check');
+  await view.verify();
+  assert.equal(view.primaryState, 'check', 'never "Disconnect and sign in again"');
+  assert.match(view.state.error, /needs a new sign-in, which isn't possible while .+ review is pending/);
+  await view.startOAuth();
+  assert.equal(starts, 0);
+  assert.equal(disconnects, 0);
+  assert.equal(view.state.setup.oauthConnected, true);
+  // Without the review the same account is asked to reconnect, as before.
+  const open = await setupHarness(context, {
+    sourceSetup: async (id) => source(id, { configured: true, oauthConnected: true }),
+    checkSource: async () => ({ ready: false, oauthRequired: true }),
+  });
+  await open.view.verify();
+  assert.equal(open.view.primaryState, 'reconnect');
+  assert.equal(open.view.state.error, '');
 });
