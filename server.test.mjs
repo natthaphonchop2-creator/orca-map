@@ -1177,3 +1177,29 @@ test('a pipelined request, sent while the answer before it is on its way, keeps 
   t.mock.timers.tick(10_000);
   assert.equal(await within(2_000, () => c.closed), true, 'cut at its own 120 s');
 });
+
+test('a pipelined request whose 408 would wait behind a streaming answer closes its connection at its deadline (Codex S7 seventh confirmation #1)', async (t) => {
+  let streaming;
+  const f = await fixture(t, (req, res) => {
+    req.resume();
+    req.on('end', () => {
+      if (!streaming) {
+        // A's answer starts and never ends.
+        streaming = res;
+        res.writeHead(200, { 'content-type': 'text/plain' });
+        res.write('part');
+      } else res.end('ok');
+    });
+  });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const c = await rawConnection(t, f);
+  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 2\r\n\r\n{}`);
+  assert.equal(await within(2_000, () => /part/.test(c.text)), true, 'A is streaming');
+  t.mock.timers.tick(100_000);
+  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
+  await within(200, () => false);
+  t.mock.timers.tick(119_000);
+  assert.equal(await within(50, () => c.closed), false);
+  t.mock.timers.tick(1_000);
+  assert.equal(await within(2_000, () => c.closed), true, 'B\'s deadline closes the connection, not A\'s end');
+});

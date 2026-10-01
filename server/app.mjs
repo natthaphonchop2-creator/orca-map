@@ -358,7 +358,10 @@ function requestDeadline(req, res, ms, headersMaxMs) {
   timer = setTimeout(() => {
     done();
     if (req.complete || socket.destroyed) return;
-    if (!res.headersSent && !res.writableEnded) {
+    // Its answer waits behind the one before it (pipelined; no socket yet): a 408
+    // could not go out now, so the connection closes at once (Codex S7 seventh
+    // confirmation #1).
+    if (!res.headersSent && !res.writableEnded && res.socket) {
       res.shouldKeepAlive = false;
       json(res, 408, { error: 'request_timeout' });
       res.once('finish', () => socket.destroy());
