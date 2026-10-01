@@ -63,6 +63,10 @@ test('a program that cannot be set up says the step that failed, with its code',
 	for (const message of ['the source is not ready; check your account configuration or ask the organization manager', 'the source is not ready (SRC-99); check']) {
 		assert.match(orcaError(refusal(424, message)), /^เชื่อมโปรแกรมนี้ยังไม่ได้ ลองอีกครั้ง/, message);
 	}
+	// A sign-in while the program waits for its provider is refused in Thai.
+	const review = orcaError(refusal(409, 'this source is waiting for review; new sign-ins are not available yet'));
+	assert.match(review, /^โปรแกรมนี้ยังรอการยืนยันจากผู้ให้บริการ จึงยังลงชื่อเข้าใช้ใหม่ไม่ได้/);
+	assert.doesNotMatch(review, /โหลดข้อมูลล่าสุด/);
 	// Adding a program to a workspace still says what to finish first.
 	assert.match(orcaError(refusal(424, 'the source is not ready; complete its connection and sign-in settings, then retry')), /^โปรแกรมนี้ยังเชื่อมไม่ครบ ตั้งค่าการเชื่อมต่อและลงชื่อเข้าใช้ให้เสร็จ/);
 	// Another 424, or the same words with another status, keeps its own words.

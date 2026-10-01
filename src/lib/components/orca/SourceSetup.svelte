@@ -72,7 +72,9 @@
   const needsOAuthClient = $derived(Boolean(setup?.oauthClientRequired && !setup.oauthClientConfigured));
   const providerSetup = $derived(oauthProviderSetup(sourceID, setup?.endpointHost || endpointHost, setup ? setup.managedProvider : managedProvider));
   const providerReviewRequired = $derived(Boolean(
-    (setup?.setupStatus === "review_required" && !setup.configured) ||
+    // A record saved with no field reads as configured: only a grant (or a
+    // saved key, where the program takes one) is an account to keep.
+    (setup?.setupStatus === "review_required" && !(setup.oauthSupported ? setup.oauthConnected : setup.configured)) ||
     (providerSetup?.vendorConfirmationRequired && needsOAuthClient)
   ));
   const appSetupRequired = $derived(needsOAuthClient || providerReviewRequired);

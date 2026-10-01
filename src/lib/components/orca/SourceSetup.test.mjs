@@ -1602,6 +1602,22 @@ test('provider review blocks new OAuth and credential writes without hiding exis
   await view.verify();
   assert.equal(checks, 1);
   assert.equal(view.primaryState, 'ready');
+  // Codex review of deploy41: someone who pressed connect on Canva before it
+  // waited for review has a record with no field, which reads as configured,
+  // but no grant. Canva refuses ORCA, so no sign-in is offered.
+  let canvaStarts = 0;
+  const canva = await setupHarness(context, {
+    sourceSetup: async (id) => source(id, { endpointHost: 'mcp.canva.com', configured: true, oauthConnected: false, setupStatus: 'review_required', setupReason: 'provider_review' }),
+    startSourceOAuth: async () => { canvaStarts++; },
+  }, { sourceID: 'default-canva-0a1b2c3d', canCreate: true });
+  assert.equal(canva.view.primaryState, 'unavailable');
+  await canva.view.startOAuth();
+  assert.equal(canvaStarts, 0);
+  // A saved key is an account: it keeps its check while the address waits.
+  const keyed = await setupHarness(context, {
+    sourceSetup: async (id) => source(id, { configured: true, oauthSupported: false, setupStatus: 'review_required', setupReason: 'url_review', fields: [{ key: 'Authorization', name: 'Key', description: '', required: true, sensitive: true }] }),
+  });
+  assert.equal(keyed.view.primaryState, 'check');
 });
 
 test('provider instructions follow the current source and never a lookalike display name', async (context) => {
