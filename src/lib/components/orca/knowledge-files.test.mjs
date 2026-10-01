@@ -586,7 +586,7 @@ test('leaving a file\'s page while its new version is on its way asks first (Cod
 	assert.match(detail, /onuploading\?\.\(true\);[\s\S]*?finally \{[\s\S]*?onuploading\?\.\(false\);/, 'the page knows while it is on its way');
 	// A new version sent in full whose answer did not come: the file is asked for again, not sent twice.
 	assert.match(detail, /if \(sent && \(aborted \|\| cause instanceof TypeError \|\| status >= 500\)\) \{[\s\S]*?void refresh\(\);/);
-	assert.match(detail, /onitem=\{tell\.changed\}/, 'a preview that met a newer version updates the page');
+	assert.match(detail, /onitem=\{\(\) => void refresh\(\)\}/, 'a preview that met a newer version reads the file again, in order');
 });
 
 /** A component's script compiled alone (its props a $state the test changes), with its imports given by name. */
@@ -1264,4 +1264,86 @@ test('with "ต้องตรวจก่อนอัปเดต" a version be
 	assert.match(html, /ไฟล์นี้มีความคิดเห็น 2 รายการ ORCA กำลังอ่านฉบับใหม่ให้ AI เห็นเมื่อคุณกดใช้/);
 	assert.doesNotMatch(html, /จนกว่าจะอ่านเสร็จ|จนกว่าฉบับใหม่จะอ่านเสร็จ/, 'never "until it is read" while review holds it after');
 	assert.equal(k.hiddenLines(version(1, 'ready', { options: { includeHidden: false, includeComments: false, includeNotes: true }, stats: { chars: 1, hidden: hiddenParts({ notesSlides: 3 }) } }), th, { includeNotes: false, includeHidden: false, includeComments: false }, true, 'reading', false)[0].text, 'AI ยังเห็นโน้ตผู้บรรยาย 3 สไลด์ จนกว่าฉบับใหม่จะอ่านเสร็จ', 'without review: until it is read');
+});
+
+
+test('a read of the file that began before a settings change never brings the older settings back (Codex S7 ninth confirmation #1)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./knowledge/FileDetail.svelte', '{ refresh, setOption, setItem(next) { item = next; } }');
+	const item = fileItem('f', { file: fileInfo({ published: version(2, 'ready'), options: options({ allowDownload: true }) }) });
+	const puts = [];
+	let read;
+	let view;
+	const told = [];
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ hub: hub('sales'), item, members, departments, currentUserID: 'me', canManage: false, features: ON, now: 0, onback: noop, onedit: noop, onchanged: (next) => { told.push(next); view.setItem(next); }, onarchived: noop, ondeleted: noop, ondenied: noop },
+			{
+				...k, t: th, term, onDestroy: () => {}, getHttpStatusCode: () => undefined, isAbortError: () => false, parseErrorContent: (error) => error, orcaError: (error) => error.message,
+				OrcaLibraryService: {
+					file: () => new Promise((resolve) => { read = resolve; }),
+					setOptions: async (_hub, _item, value) => { puts.push(value); return { ...item, file: { ...item.file, allowDownload: value.allowDownload, options: value } }; }
+				}
+			}
+		);
+	});
+	t.after(stop);
+	client.flush();
+	// A read goes out (allowDownload still on); the owner turns downloads off; the read's older answer comes last.
+	const reading = view.refresh();
+	await view.setOption('allowDownload', false);
+	client.flush();
+	read({ item, which: 'published', preview: [], totalChars: 0 });
+	await reading;
+	client.flush();
+	assert.equal(told.length, 1, 'the older read is dropped');
+	// The next change sends the settings as the owner left them.
+	await view.setOption('reviewBeforeUpdate', true);
+	assert.equal(puts.at(-1).allowDownload, false, 'downloads stay off');
+	assert.equal(puts.at(-1).reviewBeforeUpdate, true);
+});
+
+test('a recheck taken over by a newer request says nothing; one that failed for a moment keeps the asking going (Codex S7 ninth confirmation #2, #3)', async (t) => {
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+	const reading = fileItem('r', { status: 'draft', file: fileInfo({ pending: version(1, 'extracting'), options: options() }) });
+	let loads = 0;
+	const answers = [];
+	const { view } = await libraryPage(t, () => {
+		loads += 1;
+		return answers.length ? answers.shift()() : Promise.resolve({ items: [reading], members, departments: [] });
+	});
+	for (let i = 0; i < 10 && !view.items.length; i++) await new Promise((resolve) => setImmediate(resolve));
+	// A recheck goes out; a newer load answers; the recheck's older 403 comes last.
+	let refuse;
+	answers.push(() => new Promise((_resolve, reject) => { refuse = reject; }));
+	const checking = view.recheck();
+	await view.load('sales', true);
+	refuse(Object.assign(new Error('forbidden'), { status: 403 }));
+	assert.equal(await checking, 'unknown', 'not "denied": a newer answer took its place');
+	// The timer's load goes out; a recheck takes its place and fails for a moment (503): the page asks again.
+	view.stopPolling();
+	await view.load('sales', true);
+	let timerLoad;
+	answers.push(() => new Promise((resolve) => { timerLoad = resolve; }));
+	t.mock.timers.tick(3_000);
+	answers.push(() => Promise.reject(Object.assign(new Error('unavailable'), { status: 503 })));
+	assert.equal(await view.recheck(), 'unknown');
+	timerLoad({ items: [reading], members, departments: [] });
+	const before = loads;
+	for (let i = 0; i < 10; i++) await new Promise((resolve) => setImmediate(resolve));
+	t.mock.timers.tick(20_000);
+	for (let i = 0; i < 10; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.ok(loads > before, `the asking went on (${before} → ${loads})`);
+	view.stopPolling();
+});
+
+test('a draft or a workspace not active, with review on: its banner and lines tell the same wait (Codex S7 ninth confirmation #4)', async () => {
+	for (const [state, status, hubStatus] of [['queued', 'draft', 'active'], ['extracting', 'draft', 'active'], ['queued', 'published', 'paused'], ['extracting', 'published', 'paused']]) {
+		const item = fileItem('w', { status, file: fileInfo({ ext: 'pptx', published: version(1, 'ready', { options: { includeHidden: false, includeComments: false, includeNotes: true }, stats: { chars: 1, slides: 18, hidden: hiddenParts({ notesSlides: 12 }) } }), pending: version(2, state, { options: { includeHidden: false, includeComments: false, includeNotes: false } }), options: options({ reviewBeforeUpdate: true, includeNotes: false }) }) });
+		const { html } = await fileDetail({ item, hub: hub('sales', { status: hubStatus }) });
+		const label = `${state} ${status} ${hubStatus}`;
+		assert.match(html, /กำลังอ่านฉบับใหม่ \(ฉบับที่ 2\) ด้านล่างยังเป็นฉบับเดิมจนกว่าคุณจะกดใช้ฉบับใหม่/, label);
+		assert.match(html, /ฉบับนี้ยังมีโน้ตผู้บรรยาย 12 สไลด์ จนกว่าคุณจะกดใช้ฉบับใหม่/, label);
+		assert.doesNotMatch(html, /จนกว่าจะอ่านเสร็จ/, label);
+	}
 });

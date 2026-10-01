@@ -159,8 +159,16 @@
 	// Gone (the page moved on): an action's late answer changes nothing of the
 	// page now, not even the screen (Codex S7 second confirmation #2).
 	let gone = false;
+	// Every answer this page passes on is counted: a read of the file (refresh) that
+	// began before one is older than it (Codex S7 ninth confirmation #1). The server
+	// keeps a file's settings outside the item's version, so the order is kept here.
+	let answers = 0;
 	const tell = {
-		changed: (next: LibraryItem) => !gone && onchanged(next),
+		changed: (next: LibraryItem) => {
+			if (gone) return;
+			answers += 1;
+			onchanged(next);
+		},
 		archived: (next: LibraryItem) => !gone && onarchived(next),
 		deleted: (next: LibraryItem) => !gone && ondeleted(next),
 		denied: () => !gone && ondenied()
@@ -262,12 +270,19 @@
 			onuploading?.(false);
 		}
 	}
-	/** The file as the server has it now (after an answer that did not come). */
+	/**
+	 * The file as the server has it now (after an answer that did not come, or a
+	 * preview that met a newer version). An action answered meanwhile is newer:
+	 * this read is dropped, so its older settings never go back with the next
+	 * change (Codex S7 ninth confirmation #1).
+	 */
 	async function refresh() {
+		const seen = answers;
 		try {
-			tell.changed((await OrcaLibraryService.file(hub.id, item.id)).item);
+			const next = (await OrcaLibraryService.file(hub.id, item.id)).item;
+			if (seen === answers) tell.changed(next);
 		} catch (cause) {
-			denied(cause);
+			if (seen === answers) denied(cause);
 		}
 	}
 	async function archive() {
@@ -364,7 +379,9 @@
 			{#if manage && pending && servable}
 				{#if fileReading(pending) === 'reading'}
 					<p class="fd-note" aria-live="polite"><Info size={15} aria-hidden="true" /><span>{!live
-								? t(`กำลังอ่านฉบับใหม่ (ฉบับที่ ${pending.version}) ด้านล่างยังเป็นฉบับเดิมจนกว่าจะอ่านเสร็จ`, `Reading the new version (version ${pending.version}). Below is the current one until it is read.`)
+								? file?.options?.reviewBeforeUpdate
+									? t(`กำลังอ่านฉบับใหม่ (ฉบับที่ ${pending.version}) ด้านล่างยังเป็นฉบับเดิมจนกว่าคุณจะกดใช้ฉบับใหม่`, `Reading the new version (version ${pending.version}). Below is the current one until you use the new one.`)
+									: t(`กำลังอ่านฉบับใหม่ (ฉบับที่ ${pending.version}) ด้านล่างยังเป็นฉบับเดิมจนกว่าจะอ่านเสร็จ`, `Reading the new version (version ${pending.version}). Below is the current one until it is read.`)
 								: file?.options?.reviewBeforeUpdate
 									? t(`กำลังอ่านฉบับใหม่ (ฉบับที่ ${pending.version}) AI ใช้ฉบับเดิมจนกว่าคุณจะกดใช้ฉบับใหม่`, `Reading the new version (version ${pending.version}). The AI keeps the current one until you use the new one.`)
 									: t(`กำลังอ่านฉบับใหม่ (ฉบับที่ ${pending.version}) AI ใช้ฉบับเดิมจนกว่าจะอ่านเสร็จ`, `Reading the new version (version ${pending.version}). The AI keeps the current one until it is read.`)}</span></p>
@@ -425,7 +442,7 @@
 			{/if}
 			{#if previewVersion}
 				{#key `${previewVersion.version}:${which}`}
-					<FilePreview hubID={hub.id} itemID={item.id} which={which === 'pending' && held ? 'pending' : 'published'} version={previewVersion} ondenied={tell.denied} onitem={tell.changed} />
+					<FilePreview hubID={hub.id} itemID={item.id} which={which === 'pending' && held ? 'pending' : 'published'} version={previewVersion} ondenied={tell.denied} onitem={() => void refresh()} />
 				{/key}
 			{/if}
 		</div>

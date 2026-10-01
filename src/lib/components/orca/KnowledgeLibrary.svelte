@@ -272,8 +272,13 @@
 			schedulePoll();
 			return 'open';
 		} catch (cause) {
-			if (request === requestNumber && hub?.id === id && seen !== freshness) return await recheck();
-			return [403, 404].includes(getHttpStatusCode(cause) ?? 0) ? 'denied' : 'unknown';
+			// Taken over by a newer request, or another workspace now: this answer says nothing (Codex S7 ninth confirmation #2).
+			if (request !== requestNumber || hub?.id !== id || disposed) return 'unknown';
+			if (seen !== freshness) return await recheck();
+			if ([403, 404].includes(getHttpStatusCode(cause) ?? 0)) return 'denied';
+			// A failure that may pass: the asking goes on (it may have taken the timer's load's place; Codex S7 ninth confirmation #3).
+			schedulePoll();
+			return 'unknown';
 		}
 	}
 	function show(next: Screen) {
