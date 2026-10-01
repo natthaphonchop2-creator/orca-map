@@ -68,6 +68,10 @@ test('each account state is one phase of step 2', async () => {
 		[setup({ oauthConnected: true, configured: true }), 'connected'],
 		[setup({ oauthClientConfigured: false }), 'unavailable'],
 		[setup({ setupStatus: 'review_required' }), 'unavailable'],
+		// A record with no field reads as configured; without a grant it still waits (Codex review of deploy41).
+		[setup({ setupStatus: 'review_required', configured: true }), 'unavailable'],
+		[setup({ setupStatus: 'review_required', configured: true, oauthConnected: true }), 'connected'],
+		[setup({ setupStatus: 'review_required', oauthSupported: false, configured: true, fields: [{ key: 'TOKEN', name: 'Token', description: '', required: true, sensitive: true }] }), 'connected'],
 		[setup({ oauthSupported: false, fields: [{ key: 'TOKEN', name: 'Token', description: '', required: true, sensitive: true }] }), 'fields'],
 		[setup({ oauthSupported: false, configured: true, fields: [{ key: 'TOKEN', name: 'Token', description: '', required: true, sensitive: true }] }), 'connected'],
 		[setup({ oauthSupported: false, oauthClientRequired: false, configured: true }), 'check']

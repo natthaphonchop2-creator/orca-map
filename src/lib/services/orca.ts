@@ -664,6 +664,11 @@ export const OrcaService = {
  */
 export const conflictReasons: readonly (readonly [message: string, th: string, en: string])[] = [
   [
+    "this source is waiting for review",
+    "โปรแกรมนี้ยังรอการยืนยันจากผู้ให้บริการ จึงยังลงชื่อเข้าใช้ใหม่ไม่ได้ บัญชีที่เชื่อมไว้แล้วยังตรวจหรือตัดการเชื่อมต่อได้",
+    "This program is waiting for its provider's review, so a new sign-in isn't available yet. An account connected before can still be checked or disconnected.",
+  ],
+  [
     "this email already belongs to a member",
     "อีเมลนี้เป็นสมาชิกของบริษัทอยู่แล้ว ไม่ต้องเชิญใหม่ ดูหรือเปลี่ยนบทบาทได้ที่แท็บ สมาชิก",
     "This email already belongs to a member, so there's no need to invite them. See or change their role under Members.",
@@ -717,7 +722,7 @@ export const sourceReasons: Readonly<Record<string, readonly [th: string, en: st
   "06": ["บัญชีที่บันทึกไว้ไม่ตรงกับคุณหรือบริษัทนี้", "The saved account does not match you or this company."],
   "07": ["บันทึกการตั้งค่าไม่สำเร็จ ตรวจข้อมูลแล้วลองอีกครั้ง", "The settings could not be saved. Check them and try again."],
   "08": ["ORCA ตรวจโปรแกรมนี้ไม่ได้", "ORCA cannot check this program."],
-  "09": ["โปรแกรมไม่ตอบตอนตรวจ ลองอีกครั้งภายหลัง", "The program did not answer the check. Try again later."],
+  "09": ["ตรวจการเชื่อมต่อโปรแกรมไม่สำเร็จ ตรวจการตั้งค่าแล้วลองอีกครั้ง", "The program's connection check did not pass. Check its settings, then try again."],
   "10": ["อ่านการลงชื่อเข้าใช้ที่บันทึกไว้ไม่สำเร็จ ลองอีกครั้ง", "Your saved sign-in could not be read. Try again."],
   "11": ["โปรแกรมนี้ต้องลงชื่อเข้าใช้ แต่ตั้งไว้แบบใช้คีย์", "This program needs a sign-in, but it is set up with a key."],
   "12": ["สร้างการตั้งค่าลงชื่อเข้าใช้ไม่สำเร็จ", "The sign-in settings could not be made."],
@@ -731,6 +736,13 @@ export const sourceReasons: Readonly<Record<string, readonly [th: string, en: st
 function sourceNotReady(message: string): string {
   const code = /^the source is not ready \(SRC-(\d{2})\)/.exec(message)?.[1];
   const reason = code ? sourceReasons[code] : undefined;
+  // Adding a program to a workspace (Discover) refuses this way when its tools
+  // cannot be read yet: say what to finish, as the English text does.
+  if (!code && message.includes("complete its connection and sign-in settings"))
+    return t(
+      "โปรแกรมนี้ยังเชื่อมไม่ครบ ตั้งค่าการเชื่อมต่อและลงชื่อเข้าใช้ให้เสร็จ แล้วลองอีกครั้ง",
+      "This program isn't fully connected yet. Finish its connection and sign-in, then try again.",
+    );
   if (!code || !reason)
     return t(
       `เชื่อมโปรแกรมนี้ยังไม่ได้ ลองอีกครั้ง ถ้ายังไม่ได้ ติดต่อผู้ดูแลบริษัท หรือทีม ORCA ทาง LINE ${ORCA_SUPPORT_LINE_ID}`,

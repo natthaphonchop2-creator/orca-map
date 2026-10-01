@@ -120,7 +120,9 @@ export class ProgramConnector {
 		const setup = this.setup;
 		if (!setup) return false;
 		const needsApp = Boolean(setup.oauthClientRequired && !setup.oauthClientConfigured);
-		const review = setup.setupStatus === 'review_required' && !setup.configured;
+		// A record saved with no field reads as configured: only a grant (or a
+		// saved key, where the program takes one) is an account to keep.
+		const review = setup.setupStatus === 'review_required' && !(setup.oauthSupported ? setup.oauthConnected : setup.configured);
 		return needsApp || review || Boolean(this.#deps.blocked?.(setup));
 	}
 	get signInAvailable() {

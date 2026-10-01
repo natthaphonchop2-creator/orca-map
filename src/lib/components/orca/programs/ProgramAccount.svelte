@@ -45,7 +45,10 @@
 	let help = $state<string>('');
 	const phase = $derived(connector.phase);
 	/** Unavailable because the provider's review is pending (not a missing app). */
-	const waitingForReview = $derived(connector.setup?.setupStatus === 'review_required' && !connector.setup?.configured);
+	const waitingForReview = $derived(
+		connector.setup?.setupStatus === 'review_required' &&
+			!(connector.setup.oauthSupported ? connector.setup.oauthConnected : connector.setup.configured)
+	);
 	const busy = $derived(connector.busy || Boolean(pending));
 	const guide = $derived(apiConnectorSetup(sourceID));
 	const provider = $derived(providerGuide(connector.setup?.endpointHost || endpointHost));
