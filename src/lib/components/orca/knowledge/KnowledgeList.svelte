@@ -247,7 +247,7 @@
 					<ul>
 						{#each shown as item (item.id)}
 							{@const audience = item.canEdit ? chip(item) : undefined}
-							{@const row = item.kind === 'file' ? fileRowState(item, t, files) : undefined}
+							{@const row = item.kind === 'file' ? fileRowState(item, t, files, hub.status === 'active') : undefined}
 							<li>
 								<button type="button" class="kl-r" onclick={() => onopen(item)}>
 									<span class="kl-ic" class:draft={item.status === 'draft' || row?.status === 'reading'} class:archived={item.status === 'archived'} aria-hidden="true">

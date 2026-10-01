@@ -131,10 +131,11 @@
 		const member = members.find((entry) => entry.id === item.ownerID);
 		return member ? member.displayName || member.email : t('ไม่อยู่ในพื้นที่ทำงานนี้แล้ว', 'No longer in this workspace');
 	});
-	// A draft serves no one yet: its notes never say what "the AI keeps using".
-	const live = $derived(item.status === 'published');
 	// "AI ใช้ได้" only when the AI can: file Knowledge on and the workspace active (Codex S7 #11).
 	const aiUses = $derived(features.files && hub.status === 'active');
+	// A draft, or a file the AI does not use now, serves no one: its notes never
+	// say what "the AI keeps using" (Codex S7 confirmation #5).
+	const live = $derived(item.status === 'published' && aiUses);
 	let leaveOpen = $state(false);
 	/** Back to the list, asking first while a new version is on its way (Codex S7 #7). */
 	function back() {

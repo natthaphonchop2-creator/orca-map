@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 	import { ChevronDown, RefreshCw } from '@lucide/svelte';
 	import { getHttpStatusCode, parseErrorContent } from '$lib/errors';
 	import { fileActionProblem, locatorLabel } from '$lib/orca/knowledge';
@@ -34,6 +34,8 @@
 	let loading = $state(true);
 	let error = $state('');
 	let request = 0;
+	// Gone: an answer that comes back after it changes nothing (Codex S7 confirmation #3).
+	onDestroy(() => (request += 1));
 	// The version the pages shown so far come from: the next page must be of it.
 	let reading = untrack(() => version.version);
 	const shown = $derived(chunks.reduce((sum, chunk) => sum + [...chunk.text].length, 0));

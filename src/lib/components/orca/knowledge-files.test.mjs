@@ -448,11 +448,13 @@ test('the page shows files only with library v2, sends uploads in batches, and a
 	// A background ask that fails keeps what is shown and asks again; with unsaved text only the reading comes in.
 	assert.match(page, /if \(quiet && !denied\) \{\s*schedulePoll\(\);\s*return;\s*\}/);
 	assert.match(page, /if \(dirty\) void refreshReading\(id\);\s*else void load\(id, true\);/);
-	assert.match(page, /items = withReading\(items, result\.items\);/);
+	assert.match(page, /items = withReading\(items, result\.items, editing\);/);
 	// What an answer leaves out stays: a save's file block, a takeover's text.
-	assert.equal(page.match(/keepOmitted\(answer, items\.find\(\(known\) => known\.id === answer\.id\)\)/g)?.length, 3, 'saved, archived and changed');
+	assert.match(page, /const item = keepOmitted\(answer, items\.find\(\(known\) => known\.id === answer\.id\)\);/);
+	assert.equal(page.match(/const item = settled\(answer\);\s*if \(!item\) return;/g)?.length, 3, 'saved, archived and changed');
 	// A batch sent in full whose answer did not come is not sent again: the list is asked.
-	assert.match(page, /if \(sent && \(aborted \|\| cause instanceof TypeError \|\| problem\.status >= 500\)\) \{\s*for \(const key of batchKeys\) setRow\(key, \{ state: 'unknown', progress: 1 \}\);/);
+	assert.match(page, /const failure = uploadFailure\(\{ sent, aborted, network: cause instanceof TypeError, status: problem\.status, message: problem\.message \}\);/);
+	assert.match(page, /if \(failure\.outcome === 'unknown'\) \{\s*for \(const key of batchKeys\) setRow\(key, \{ state: 'unknown', progress: 1 \}\);/);
 	// Every item save that sends an item it has goes through libraryInput or the editor.
 	const detail = await readFile(new URL('./knowledge/FileDetail.svelte', import.meta.url), 'utf8');
 	assert.match(detail, /libraryInput\(item, \{ status: 'archived' \}, features\)/);
@@ -498,21 +500,8 @@ test('every knowledge library v2 event the server records has a Thai name in the
 });
 
 test('"ดูต่อ" after the owner published a newer version starts that version once, then goes on in it (Codex S7 #6)', async (t) => {
-	const { compileModule } = await import('svelte/compiler');
-	const { createRequire, stripTypeScriptTypes } = await import('node:module');
-	const { pathToFileURL } = await import('node:url');
 	const client = await import('svelte/internal/client');
-	const require = createRequire(import.meta.url);
-	const source = await readFile(new URL('./knowledge/FilePreview.svelte', import.meta.url), 'utf8');
-	const script = stripTypeScriptTypes(source.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
-		.replace(/^\s*import[^;]+;/gm, '')
-		.replace('$props()', '$state(testProps)')
-		.replace('$props.id()', "'test'");
-	const code = compileModule(`export function harness(testProps, OrcaLibraryService, untrack, t, locatorLabel, fileActionProblem, getHttpStatusCode, parseErrorContent, orcaError) {
-${script}
-return { load, get chunks() { return chunks; }, get next() { return next; } };
-}`, { filename: 'file-preview-test.svelte.js', generate: 'client' }).js.code.replaceAll('svelte/internal/client', pathToFileURL(require.resolve('svelte/internal/client')).href);
-	const { harness } = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+	const harness = await scriptHarness('./knowledge/FilePreview.svelte', '{ load, get chunks() { return chunks; }, get next() { return next; } }');
 	const v = (n) => ({ version: n, state: 'ready', fileName: 'ราคา.xlsx', bytes: 1, createdAt: '', options: { includeHidden: false, includeComments: false, includeNotes: false } });
 	const page = (n, cursor, next) => ({ item: { id: 'f', version: n + 10, file: { published: v(n) } }, which: 'published', version: v(n), preview: [{ text: `ฉบับ ${n} ${cursor || 'หน้าแรก'}` }], totalChars: 100, nextCursor: next });
 	const calls = [];
@@ -523,20 +512,17 @@ return { load, get chunks() { return chunks; }, get next() { return next; } };
 		view = harness(
 			{ hubID: 'sales', itemID: 'f', which: 'published', version: v(1), onitem: (item) => items.push(item) },
 			{
-				file: async (...args) => {
-					calls.push(args[3]);
-					const answer = answers.shift();
-					if (answer === 'changed') throw Object.assign(new Error('version_changed: the file changed'), { status: 409 });
-					return answer;
-				}
-			},
-			client.untrack,
-			(th) => th,
-			() => '',
-			() => undefined,
-			(error) => error.status,
-			(error) => ({ status: error.status, message: error.message }),
-			(error) => error.message
+				OrcaLibraryService: {
+					file: async (...args) => {
+						calls.push(args[3]);
+						const answer = answers.shift();
+						if (answer === 'changed') throw Object.assign(new Error('version_changed: the file changed'), { status: 409 });
+						return answer;
+					}
+				},
+				untrack: client.untrack, onDestroy: () => {}, t: (th) => th, locatorLabel: () => '', fileActionProblem: () => undefined,
+				getHttpStatusCode: (error) => error.status, parseErrorContent: (error) => ({ status: error.status, message: error.message }), orcaError: (error) => error.message
+			}
 		);
 	});
 	t.after(stop);
@@ -565,6 +551,11 @@ test('while file Knowledge is off a file is not edited, published or restored; "
 	const paused = await fileDetail({ item, hub: hub('sales', { status: 'paused' }) });
 	assert.match(paused.html, /<span class="orca-pill neutral[^"]*"[^>]*>(?:<[^>]+>)*เผยแพร่แล้ว/);
 	assert.doesNotMatch(paused.html, /AI ใช้ได้/);
+	// Nor what "the AI keeps using" while a new version is read (Codex S7 confirmation #5).
+	const reading = await fileDetail({ item: { ...item, file: fileInfo({ published: version(2, 'ready', { stats: { chars: 1, hidden: hiddenParts({ comments: 2 }) } }), pending: version(3, 'extracting'), options: options() }) }, hub: hub('sales', { status: 'paused' }) });
+	assert.match(reading.html, /กำลังอ่านฉบับใหม่ \(ฉบับที่ 3\) ด้านล่างยังเป็นฉบับเดิมจนกว่าจะอ่านเสร็จ/);
+	assert.match(reading.html, /เปลี่ยนแล้ว ORCA จะอ่านไฟล์ใหม่ตามที่เลือก/);
+	assert.doesNotMatch(reading.html, /AI ใช้ฉบับเดิม|AI ยังใช้ฉบับเดิม/);
 	const { Component } = await serverComponent(new URL('./knowledge/KnowledgeDetail.svelte', import.meta.url), {
 		...k, term, t: th, tick: async () => {}, StatusPill, ConfirmDialog: noop, WhoCard, TakeoverCard: noop,
 		orcaError: () => '', OrcaLibraryService: {}, getHttpStatusCode: noop, parseErrorContent: noop, KnowledgeRail: noop
@@ -594,4 +585,83 @@ test('leaving a file\'s page while its new version is on its way asks first (Cod
 	// A new version sent in full whose answer did not come: the file is asked for again, not sent twice.
 	assert.match(detail, /if \(sent && \(aborted \|\| cause instanceof TypeError \|\| status >= 500\)\) \{[\s\S]*?void refresh\(\);/);
 	assert.match(detail, /onitem=\{onchanged\}/, 'a preview that met a newer version updates the page');
+});
+
+/** A component's script compiled alone (its props a $state the test changes), with its imports given by name. */
+async function scriptHarness(file, expose) {
+	const { compileModule } = await import('svelte/compiler');
+	const { createRequire, stripTypeScriptTypes } = await import('node:module');
+	const { pathToFileURL } = await import('node:url');
+	const require = createRequire(import.meta.url);
+	const source = await readFile(new URL(file, import.meta.url), 'utf8');
+	const stripped = stripTypeScriptTypes(source.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1]);
+	const names = [...stripped.matchAll(/^\s*import\s+(?:(\w+)|\{([^}]*)\})\s+from\s+['"][^'"]+['"];?/gm)].flatMap(([, single, list]) => (single ? [single] : list.split(',').map((name) => name.trim().split(/\s+as\s+/).pop()).filter((name) => name && !name.startsWith('type '))));
+	const script = stripped.replace(/^\s*import[^;]+;/gm, '').replace('$props()', '$state(testProps)').replace('$props.id()', "'test'");
+	const code = compileModule(`export function harness(testProps, deps) {
+	const { ${[...new Set(names)].join(', ')} } = deps;
+	${script}
+	return ${expose};
+}`, { filename: 'script-harness.svelte.js', generate: 'client' }).js.code.replaceAll('svelte/internal/client', pathToFileURL(require.resolve('svelte/internal/client')).href);
+	return (await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'))).harness;
+}
+
+test('an editor opened with file Knowledge on saves no file once it goes off (Codex S7 confirmation #6)', async (t) => {
+	const client = await import('svelte/internal/client');
+	// `features` is the prop a bootstrap refresh changes while the editor is open.
+	const harness = await scriptHarness('./LibraryEditor.svelte', '{ save, get fileOff() { return fileOff; }, setFeatures(value) { features = value; } }');
+	const saves = [];
+	const existing = fileItem('f', { status: 'draft', version: 2, memberIDs: ['x'], file: fileInfo({ published: version(1, 'ready'), options: options() }) });
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ hub: hub('sales'), kind: 'file', features: ON, existing, initialTitle: '', items: [], members, departments, currentUserID: 'me', now: 0, onsaved: () => {}, onclose: () => {}, ondenied: () => {}, onrecheck: async () => 'open', ondirty: () => {} },
+			{
+				...k, t: th, untrack: client.untrack, onDestroy: () => {}, parseErrorContent: (error) => ({ status: error.status, message: error.message }), orcaError: (error) => error.message,
+				OrcaLibraryService: { save: async (...args) => { saves.push(args); return { ...existing, version: 3 }; } }
+			}
+		);
+	});
+	t.after(stop);
+	client.flush();
+	assert.equal(view.fileOff, false);
+	await view.save('draft');
+	assert.equal(saves.length, 1, 'with the flag on, the file is saved');
+	view.setFeatures(OFF);
+	client.flush();
+	assert.equal(view.fileOff, true, 'fileOff follows the flag');
+	await view.save('draft');
+	await view.save('published');
+	assert.equal(saves.length, 1, 'nothing is sent once it is off');
+});
+
+test('a preview that is gone changes nothing when its answer comes back (Codex S7 confirmation #3)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./knowledge/FilePreview.svelte', '{ load, get chunks() { return chunks; } }');
+	const v = (n) => ({ version: n, state: 'ready', fileName: 'ราคา.xlsx', bytes: 1, createdAt: '', options: { includeHidden: false, includeComments: false, includeNotes: false } });
+	let answer;
+	const pending = new Promise((resolve) => { answer = resolve; });
+	const destroyers = [];
+	const items = [];
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ hubID: 'hub-a', itemID: 'f', which: 'published', version: v(1), onitem: (item) => items.push(item) },
+			{ untrack: client.untrack, onDestroy: (fn) => destroyers.push(fn), OrcaLibraryService: { file: () => pending }, t: th, locatorLabel: () => '', fileActionProblem: () => undefined, getHttpStatusCode: () => undefined, parseErrorContent: (error) => error, orcaError: (error) => error.message }
+		);
+	});
+	t.after(stop);
+	client.flush();
+	// The page moves to another workspace before the answer: the preview is destroyed.
+	for (const destroy of destroyers) destroy();
+	answer({ item: { id: 'f', hubID: 'hub-a', version: 12 }, which: 'published', version: v(2), preview: [{ text: 'ฉบับ 2' }], totalChars: 6, nextCursor: '' });
+	await new Promise((resolve) => setImmediate(resolve));
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(items, [], 'no item of workspace A reaches the page');
+	assert.deepEqual(view.chunks, []);
+	// And the page drops an answer for another workspace anyway.
+	const page = await readFile(new URL('./KnowledgeLibrary.svelte', import.meta.url), 'utf8');
+	assert.match(page, /if \(!hub \|\| \(answer\.hubID && answer\.hubID !== hub\.id\)\) return undefined;/);
+	assert.match(page, /if \(itemIncomplete\(item\)\) void load\(hub\.id\);/, 'an answer still missing what it left out: the library is asked again');
+	assert.match(page, /if \(failure\.reload && hub\?\.id === id\) void load\(id\);/, 'an upload whose outcome is unknown: the list is asked');
+	assert.match(page, /if \(\[403, 404\]\.includes\(getHttpStatusCode\(cause\) \?\? 0\)\) \{\s*stopPolling\(\);\s*return;\s*\}/, 'access lost under an editor: no more asking');
 });

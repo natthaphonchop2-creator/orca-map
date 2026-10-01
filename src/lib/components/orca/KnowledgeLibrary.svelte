@@ -10,6 +10,7 @@
 	import {
 		accessRequestMessage,
 		batchProgress,
+		itemIncomplete,
 		keepOmitted,
 		libraryFeatures,
 		libraryProblem,
@@ -20,6 +21,7 @@
 		refusalCode,
 		refusalText,
 		uploadBatches,
+		uploadFailure,
 		uploadProblem,
 		uploadRows,
 		withReading,
@@ -252,8 +254,17 @@
 		}
 		show({ name: 'editor', kind: next, title });
 	}
-	function saved(answer: LibraryItem, people: number) {
+	/** An answer for this workspace, with what it leaves out kept or, when that is stale, asked for again. */
+	function settled(answer: LibraryItem): LibraryItem | undefined {
+		// An answer for another workspace (the page moved on meanwhile) changes nothing here (Codex S7 confirmation #3).
+		if (!hub || (answer.hubID && answer.hubID !== hub.id)) return undefined;
 		const item = keepOmitted(answer, items.find((known) => known.id === answer.id));
+		if (itemIncomplete(item)) void load(hub.id);
+		return item;
+	}
+	function saved(answer: LibraryItem, people: number) {
+		const item = settled(answer);
+		if (!item) return;
 		items = [...items.filter((known) => known.id !== item.id), item];
 		kind = item.kind;
 		dirty = false;
@@ -267,14 +278,16 @@
 		else showToast(t('บันทึกร่างแล้ว — เห็นแค่คุณ', 'Draft saved — only you see it'));
 	}
 	function archived(answer: LibraryItem) {
-		const item = keepOmitted(answer, items.find((known) => known.id === answer.id));
+		const item = settled(answer);
+		if (!item) return;
 		items = items.map((known) => (known.id === item.id ? item : known));
 		show({ name: 'list' });
 		showToast(t('จัดเก็บแล้ว — AI เลิกใช้เรื่องนี้', 'Archived — AI no longer uses it'));
 	}
 	/** A file action or a takeover answered with the item as it is now. */
 	function changed(answer: LibraryItem) {
-		const item = keepOmitted(answer, items.find((known) => known.id === answer.id));
+		const item = settled(answer);
+		if (!item) return;
 		items = items.some((known) => known.id === item.id) ? items.map((known) => (known.id === item.id ? item : known)) : [...items, item];
 		schedulePoll();
 	}
@@ -321,12 +334,22 @@
 	}
 	async function refreshReading(id: string) {
 		const request = ++readingRequest;
+		const editing = screenID(screen) ?? '';
 		try {
 			const result = await OrcaLibraryService.load(id);
 			if (disposed || request !== readingRequest || hub?.id !== id) return;
-			items = withReading(items, result.items);
-		} catch {
-			// Asked again below, a little slower; a refusal shows once the editor closes.
+			items = withReading(items, result.items, editing);
+			// The item being edited is no longer listed: its save says what changed; nothing more to ask.
+			if (editing && !result.items.some((item) => item.id === editing)) {
+				stopPolling();
+				return;
+			}
+		} catch (cause) {
+			// Access lost: no more asking; the editor keeps its text and its save says so (Codex S7 confirmation #4).
+			if ([403, 404].includes(getHttpStatusCode(cause) ?? 0)) {
+				stopPolling();
+				return;
+			}
 		}
 		if (!disposed && hub?.id === id) schedulePoll();
 	}
@@ -425,20 +448,21 @@
 				} catch (cause) {
 					const aborted = isAbortError(cause);
 					const problem = aborted ? { status: 0, message: '' } : parseErrorContent(cause);
-					// Sent in full, then a cancel, a lost connection or a server failure: the
-					// files may be stored. They are not sent again; the list says what is there.
-					if (sent && (aborted || cause instanceof TypeError || problem.status >= 500)) {
+					const failure = uploadFailure({ sent, aborted, network: cause instanceof TypeError, status: problem.status, message: problem.message });
+					// Sent in full and not refused before storing: the files may be stored. They
+					// are not sent again; the list says what is there.
+					if (failure.outcome === 'unknown') {
 						for (const key of batchKeys) setRow(key, { state: 'unknown', progress: 1 });
 						uploadNote = t('ส่งไฟล์ครบแล้วแต่ไม่ได้รับคำตอบ ORCA อาจบันทึกไว้แล้ว ดูในรายการก่อนส่งซ้ำ', 'The files were sent but no answer came back. ORCA may have saved them: check the list before sending them again.');
-						if (hub?.id === id) void load(id);
 					}
+					if (failure.reload && hub?.id === id) void load(id);
 					if (aborted) {
 						for (const row of uploads) if (row.state === 'sending' || row.state === 'waiting') setRow(row.key, { state: 'cancelled', progress: 0 });
 						return;
 					}
-					const reason = refusalCode(problem.message);
+					const reason = failure.reason;
 					// Every file of this upload was refused for one reason; the rest wait for "ลองอีกครั้ง".
-					if (reason && reason !== 'invalid' && !uploads.some((row) => batchKeys.includes(row.key) && row.state === 'unknown')) {
+					if (failure.outcome === 'refused' && reason) {
 						if (reason === 'quota') await refreshUsage(id);
 						for (const key of batchKeys) setRow(key, { state: 'refused', reason, message: refusalText(reason, t, quotaLimit(usage), usage) });
 						continue;
