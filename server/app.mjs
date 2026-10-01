@@ -303,6 +303,7 @@ export function createBackendMiddleware(options = {}) {
 // whether a request's body has ended (see requestDeadline).
 const REQUEST_STARTED = Symbol('orca.requestStarted');
 const CURRENT_REQUEST = Symbol('orca.currentRequest');
+const CURRENT_RESPONSE = Symbol('orca.currentResponse');
 const ENDED = Symbol('orca.ended');
 
 /**
@@ -332,8 +333,14 @@ function requestDeadline(req, res, ms, headersMaxMs) {
   // headers (its 'end' is still to come): this one starts now (Codex S7 fifth
   // confirmation #1).
   const previous = socket[CURRENT_REQUEST];
+  const previousAnswer = socket[CURRENT_RESPONSE];
   socket[CURRENT_REQUEST] = req;
+  socket[CURRENT_RESPONSE] = res;
   if (previous && previous !== req && previous.complete && !previous[ENDED]) next();
+  // Pipelined: it came while the answer before it was still on its way, so its
+  // start is unknown; it is counted from when its headers had arrived (Codex S7
+  // sixth confirmation #1). Node's own headersTimeout still bounds those.
+  else if (previousAnswer && previousAnswer !== res && !previousAnswer.writableFinished) next();
   if (req.complete) return () => {};
   // From the request's start, its headers included, as Node's own requestTimeout
   // counts (Codex S7 third confirmation #1): the connection's opening, or the end
