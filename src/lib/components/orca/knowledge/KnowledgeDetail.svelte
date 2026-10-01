@@ -154,7 +154,9 @@
 			<h1>{item.title}</h1>
 			<p class="kd-meta">
 				<span class="kd-status" class:draft={item.status === 'draft'}>
-					{#if item.status === 'published'}<StatusPill label={t('AI ใช้ได้', 'AI can use')} tone="ok" dot />
+					<!-- "AI ใช้ได้" only in an active workspace, as "ใครใช้ได้" beside it says (Codex S7 #11). -->
+					{#if item.status === 'published' && hub.status !== 'active'}<StatusPill label={t('เผยแพร่แล้ว', 'Published')} dot />
+					{:else if item.status === 'published'}<StatusPill label={t('AI ใช้ได้', 'AI can use')} tone="ok" dot />
 					{:else if item.status === 'draft'}<StatusPill label={t('ฉบับร่าง', 'Draft')} dot />
 					{:else}<StatusPill label={t('จัดเก็บแล้ว', 'Archived')} />{/if}
 				</span>

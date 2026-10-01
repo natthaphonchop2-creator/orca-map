@@ -10,6 +10,7 @@
 	import {
 		accessRequestMessage,
 		batchProgress,
+		keepOmitted,
 		libraryFeatures,
 		libraryProblem,
 		libraryScope,
@@ -21,6 +22,7 @@
 		uploadBatches,
 		uploadProblem,
 		uploadRows,
+		withReading,
 		withoutCreateIntent,
 		type LibraryFilter,
 		type UploadRow
@@ -174,13 +176,19 @@
 		});
 	});
 
-	async function load(id = hub?.id ?? '') {
-		if (!id) return;
+	/**
+	 * Loads the library. `quiet` is the page asking again by itself (its files
+	 * being read): a failure that may pass keeps what is shown and asks again
+	 * later, a little slower (Codex S7 #9).
+	 */
+	async function load(id = hub?.id ?? '', quiet = false) {
+		if (!id || disposed) return;
 		const request = ++requestNumber;
-		error = '';
+		if (!quiet) error = '';
 		try {
 			const result = await OrcaLibraryService.load(id);
-			if (request !== requestNumber) return;
+			if (request !== requestNumber || disposed) return;
+			error = '';
 			items = result.items;
 			members = result.members;
 			departments = result.departments;
@@ -190,9 +198,13 @@
 			if (open && !result.items.some((item) => item.id === open)) screen = { name: 'list' };
 			schedulePoll();
 		} catch (cause) {
-			if (request !== requestNumber) return;
+			if (request !== requestNumber || disposed) return;
 			// Access changed: nothing of this library stays on screen.
 			const denied = [403, 404].includes(getHttpStatusCode(cause) ?? 0);
+			if (quiet && !denied) {
+				schedulePoll();
+				return;
+			}
 			if (denied) {
 				items = [];
 				screen = { name: 'list' };
@@ -240,7 +252,8 @@
 		}
 		show({ name: 'editor', kind: next, title });
 	}
-	function saved(item: LibraryItem, people: number) {
+	function saved(answer: LibraryItem, people: number) {
+		const item = keepOmitted(answer, items.find((known) => known.id === answer.id));
 		items = [...items.filter((known) => known.id !== item.id), item];
 		kind = item.kind;
 		dirty = false;
@@ -253,13 +266,15 @@
 			);
 		else showToast(t('บันทึกร่างแล้ว — เห็นแค่คุณ', 'Draft saved — only you see it'));
 	}
-	function archived(item: LibraryItem) {
+	function archived(answer: LibraryItem) {
+		const item = keepOmitted(answer, items.find((known) => known.id === answer.id));
 		items = items.map((known) => (known.id === item.id ? item : known));
 		show({ name: 'list' });
 		showToast(t('จัดเก็บแล้ว — AI เลิกใช้เรื่องนี้', 'Archived — AI no longer uses it'));
 	}
 	/** A file action or a takeover answered with the item as it is now. */
-	function changed(item: LibraryItem) {
+	function changed(answer: LibraryItem) {
+		const item = keepOmitted(answer, items.find((known) => known.id === answer.id));
 		items = items.some((known) => known.id === item.id) ? items.map((known) => (known.id === item.id ? item : known)) : [...items, item];
 		schedulePoll();
 	}
@@ -281,11 +296,15 @@
 	let uploadFiles = new Map<string, File>();
 	let pollTimer: ReturnType<typeof setTimeout> | undefined;
 	let pollRound = 0;
+	// The page is gone: no answer that comes back after it sets a timer again (Codex S7 #10).
+	let disposed = false;
+	// A file's new version on its way (FileDetail): leaving the page asks first, as an upload does.
+	let replacing = $state(false);
 	/** Asks again, a little slower each time, while the viewer's own files are still being read (at most ~20 minutes). */
 	function schedulePoll() {
 		clearTimeout(pollTimer);
 		pollTimer = undefined;
-		if (!hub || !features.files || !readingFileIDs(items).length || pollRound > 60) {
+		if (disposed || !hub || !features.files || !readingFileIDs(items).length || pollRound > 60) {
 			if (!readingFileIDs(items).length) pollRound = 0;
 			return;
 		}
@@ -293,14 +312,25 @@
 		pollTimer = setTimeout(() => {
 			pollTimer = undefined;
 			pollRound += 1;
-			if (hub?.id !== id) return;
-			if (dirty) {
-				schedulePoll();
-				return;
-			}
-			void load(id);
+			if (disposed || hub?.id !== id) return;
+			// Unsaved text in the editor: only the files' reading is brought in, so a
+			// file read meanwhile can be published (Codex S7 #8).
+			if (dirty) void refreshReading(id);
+			else void load(id, true);
 		}, readingPollDelay(pollRound));
 	}
+	async function refreshReading(id: string) {
+		const request = ++readingRequest;
+		try {
+			const result = await OrcaLibraryService.load(id);
+			if (disposed || request !== readingRequest || hub?.id !== id) return;
+			items = withReading(items, result.items);
+		} catch {
+			// Asked again below, a little slower; a refusal shows once the editor closes.
+		}
+		if (!disposed && hub?.id === id) schedulePoll();
+	}
+	let readingRequest = 0;
 	function stopPolling() {
 		clearTimeout(pollTimer);
 		pollTimer = undefined;
@@ -310,6 +340,9 @@
 		uploadAbort?.abort();
 	}
 	onDestroy(() => {
+		disposed = true;
+		requestNumber += 1;
+		readingRequest += 1;
 		stopPolling();
 		cancelUpload();
 	});
@@ -365,10 +398,14 @@
 				const batchKeys = batch.map((index) => keys[index]);
 				const batchFiles = batchKeys.map((key) => uploadFiles.get(key)).filter((file): file is File => !!file);
 				for (const key of batchKeys) setRow(key, { state: 'sending', progress: 0 });
+				// Once the whole batch is sent the server may store it, answer or not (Codex S7 #5).
+				let sent = false;
 				try {
 					const result = await OrcaLibraryService.upload(id, batchFiles, {
 						signal: abort.signal,
+						onsent: () => (sent = true),
 						onprogress: (loaded, total) => {
+							if (total > 0 && loaded >= total) sent = true;
 							const shares = batchProgress(batchFiles.map((file) => file.size), loaded, total);
 							batchKeys.forEach((key, index) => setRow(key, { progress: shares[index] }));
 						}
@@ -386,20 +423,28 @@
 						}
 					});
 				} catch (cause) {
-					if (isAbortError(cause)) {
+					const aborted = isAbortError(cause);
+					const problem = aborted ? { status: 0, message: '' } : parseErrorContent(cause);
+					// Sent in full, then a cancel, a lost connection or a server failure: the
+					// files may be stored. They are not sent again; the list says what is there.
+					if (sent && (aborted || cause instanceof TypeError || problem.status >= 500)) {
+						for (const key of batchKeys) setRow(key, { state: 'unknown', progress: 1 });
+						uploadNote = t('ส่งไฟล์ครบแล้วแต่ไม่ได้รับคำตอบ ORCA อาจบันทึกไว้แล้ว ดูในรายการก่อนส่งซ้ำ', 'The files were sent but no answer came back. ORCA may have saved them: check the list before sending them again.');
+						if (hub?.id === id) void load(id);
+					}
+					if (aborted) {
 						for (const row of uploads) if (row.state === 'sending' || row.state === 'waiting') setRow(row.key, { state: 'cancelled', progress: 0 });
 						return;
 					}
-					const problem = parseErrorContent(cause);
 					const reason = refusalCode(problem.message);
 					// Every file of this upload was refused for one reason; the rest wait for "ลองอีกครั้ง".
-					if (reason && reason !== 'invalid') {
+					if (reason && reason !== 'invalid' && !uploads.some((row) => batchKeys.includes(row.key) && row.state === 'unknown')) {
 						if (reason === 'quota') await refreshUsage(id);
 						for (const key of batchKeys) setRow(key, { state: 'refused', reason, message: refusalText(reason, t, quotaLimit(usage), usage) });
 						continue;
 					}
 					if (problem.status === 409 && /library_quota/.test(problem.message)) await refreshUsage(id);
-					uploadNote = uploadProblem(cause instanceof TypeError ? { status: 0, message: '' } : problem, t, usage);
+					if (!uploadNote) uploadNote = uploadProblem(cause instanceof TypeError ? { status: 0, message: '' } : problem, t, usage);
 					for (const row of uploads) if (row.state === 'sending' || row.state === 'waiting') setRow(row.key, { state: 'failed', progress: 0 });
 					if ([403, 404].includes(problem.status) && !/library_files_disabled/.test(problem.message)) void recheck();
 					return;
@@ -431,7 +476,7 @@
 	let leaveTo: URL | undefined;
 	let leaving = false;
 	beforeNavigate((navigation) => {
-		if (leaving || !(dirty || uploading)) return;
+		if (leaving || !(dirty || uploading || replacing)) return;
 		navigation.cancel();
 		if (navigation.type === 'leave') return;
 		leaveTo = navigation.to?.url;
@@ -622,6 +667,7 @@
 					onarchived={archived}
 					ondeleted={deleted}
 					ondenied={denied}
+					onuploading={(busy) => (replacing = busy)}
 				/>
 			{:else}
 				<KnowledgeDetail
@@ -694,7 +740,7 @@
 <ConfirmDialog
 	bind:open={leaveOpen}
 	title={t('ออกโดยไม่บันทึก?', 'Leave without saving?')}
-	message={uploading
+	message={uploading || replacing
 		? t('กำลังอัปโหลดไฟล์ ถ้าออกตอนนี้ ไฟล์ที่ยังส่งไม่เสร็จจะไม่ถูกบันทึก', 'Files are uploading. If you leave now, the ones not sent yet are not saved.')
 		: t('สิ่งที่แก้ไว้ในหน้านี้จะหายไป', 'What you changed here will be lost.')}
 	confirmLabel={t('ออกโดยไม่บันทึก', 'Leave without saving')}

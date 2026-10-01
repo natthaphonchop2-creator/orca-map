@@ -66,7 +66,8 @@
 		onchanged,
 		onarchived,
 		ondeleted,
-		ondenied
+		ondenied,
+		onuploading
 	}: {
 		hub: OrcaHub;
 		item: LibraryItem;
@@ -87,6 +88,8 @@
 		onarchived: (item: LibraryItem) => void;
 		ondeleted: (item: LibraryItem) => void;
 		ondenied: () => void;
+		/** A new version is on its way (true) or done (false): the page asks before it is left. */
+		onuploading?: (busy: boolean) => void;
 	} = $props();
 
 	const file = $derived(item.file);
@@ -130,6 +133,14 @@
 	});
 	// A draft serves no one yet: its notes never say what "the AI keeps using".
 	const live = $derived(item.status === 'published');
+	// "AI ใช้ได้" only when the AI can: file Knowledge on and the workspace active (Codex S7 #11).
+	const aiUses = $derived(features.files && hub.status === 'active');
+	let leaveOpen = $state(false);
+	/** Back to the list, asking first while a new version is on its way (Codex S7 #7). */
+	function back() {
+		if (busy === 'replace') leaveOpen = true;
+		else onback();
+	}
 
 	let busy = $state<'' | 'reextract' | 'publish' | 'options' | 'archive' | 'delete' | 'replace'>('');
 	let actionError = $state('');
@@ -139,7 +150,10 @@
 	let replaceProgress = $state(0);
 	let replaceName = $state('');
 	let replaceAbort: AbortController | undefined;
-	onDestroy(() => replaceAbort?.abort());
+	onDestroy(() => {
+		replaceAbort?.abort();
+		onuploading?.(false);
+	});
 
 	function denied(cause: unknown) {
 		const code = getHttpStatusCode(cause);
@@ -203,20 +217,41 @@
 		replaceName = chosen.name;
 		replaceProgress = 0;
 		replaceAbort = new AbortController();
+		onuploading?.(true);
+		// Once the whole file is sent the server may store it, answer or not (Codex S7 #5).
+		let sent = false;
 		try {
 			const result = await OrcaLibraryService.replace(hub.id, item.id, chosen, {
 				signal: replaceAbort.signal,
-				onprogress: (loaded, total) => (replaceProgress = total > 0 ? Math.min(1, loaded / total) : 0)
+				onsent: () => (sent = true),
+				onprogress: (loaded, total) => {
+					if (total > 0 && loaded >= total) sent = true;
+					replaceProgress = total > 0 ? Math.min(1, loaded / total) : 0;
+				}
 			});
 			const answer = result.files[0];
 			if (answer?.item) onchanged(answer.item);
 			else actionError = refusalText(refusalCode(answer?.error), t);
 		} catch (cause) {
-			if (isAbortError(cause)) actionError = t('ยกเลิกการอัปโหลดแล้ว', 'The upload was cancelled');
+			const aborted = isAbortError(cause);
+			const status = aborted ? 0 : (getHttpStatusCode(cause) ?? parseErrorContent(cause).status);
+			if (sent && (aborted || cause instanceof TypeError || status >= 500)) {
+				actionError = t('ส่งฉบับใหม่ครบแล้วแต่ไม่ได้รับคำตอบ ORCA อาจบันทึกไว้แล้ว ดูสถานะของไฟล์ก่อนส่งซ้ำ', 'The new version was sent but no answer came back. ORCA may have saved it: check the file before sending it again.');
+				void refresh();
+			} else if (aborted) actionError = t('ยกเลิกการอัปโหลดแล้ว', 'The upload was cancelled');
 			else if (!denied(cause)) actionError = uploadProblem(parseErrorContent(cause), t);
 		} finally {
 			busy = '';
 			replaceAbort = undefined;
+			onuploading?.(false);
+		}
+	}
+	/** The file as the server has it now (after an answer that did not come). */
+	async function refresh() {
+		try {
+			onchanged((await OrcaLibraryService.file(hub.id, item.id)).item);
+		} catch (cause) {
+			denied(cause);
 		}
 	}
 	async function archive() {
@@ -252,7 +287,7 @@
 </script>
 
 <div class="kd fd">
-	<button type="button" class="kn-back" onclick={onback}><ArrowLeft size={15} aria-hidden="true" />{term('knowledge', t)} · {hub.name}</button>
+	<button type="button" class="kn-back" onclick={back}><ArrowLeft size={15} aria-hidden="true" />{term('knowledge', t)} · {hub.name}</button>
 	<header class="kd-head">
 		<div class="kd-title">
 			<h1>{item.title}</h1>
@@ -261,7 +296,7 @@
 					{#if item.status === 'archived'}<StatusPill label={t('จัดเก็บแล้ว', 'Archived')} />
 					{:else if !servable && reading === 'failed'}<StatusPill label={readingLabel('failed', t)} tone="deny" dot />
 					{:else if !servable}<StatusPill label={readingLabel('reading', t)} dot />
-					{:else if item.status === 'published' && !features.files}<StatusPill label={t('เผยแพร่แล้ว', 'Published')} dot />
+					{:else if item.status === 'published' && !aiUses}<StatusPill label={t('เผยแพร่แล้ว', 'Published')} dot />
 					{:else if item.status === 'published'}<StatusPill label={t('AI ใช้ได้', 'AI can use')} tone="ok" dot />
 					{:else}<StatusPill label={t('ฉบับร่าง', 'Draft')} dot />{/if}
 				</span>
@@ -274,13 +309,14 @@
 			<div class="kd-actions">
 				{#if item.status !== 'archived'}<button type="button" class="k-button" disabled={!!busy} onclick={() => (archiveOpen = true)}><Archive size={16} aria-hidden="true" />{t('จัดเก็บ', 'Archive')}</button>{/if}
 				<button type="button" class="k-button danger-outline" disabled={!!busy} onclick={() => (deleteOpen = true)}><Trash2 size={16} aria-hidden="true" />{t('ลบ', 'Delete')}</button>
-				<button type="button" class="k-button primary" disabled={!!busy} onclick={onedit}
+				<!-- While file Knowledge is off a file is opened, downloaded, archived and deleted only (Codex S7 #4). -->
+				{#if manage}<button type="button" class="k-button primary" disabled={!!busy} onclick={onedit}
 					><Pencil size={16} aria-hidden="true" />{item.status === 'archived'
 						? t('แก้ไขและนำกลับมาใช้', 'Edit and restore')
 						: item.status === 'draft' && servable
 							? t('ตั้งค่าและเผยแพร่', 'Set up and publish')
 							: t('แก้ไข', 'Edit')}</button
-				>
+				>{/if}
 			</div>
 		{/if}
 	</header>
@@ -368,7 +404,7 @@
 			{/if}
 			{#if previewVersion}
 				{#key `${previewVersion.version}:${which}`}
-					<FilePreview hubID={hub.id} itemID={item.id} which={which === 'pending' && held ? 'pending' : 'published'} version={previewVersion} {ondenied} />
+					<FilePreview hubID={hub.id} itemID={item.id} which={which === 'pending' && held ? 'pending' : 'published'} version={previewVersion} {ondenied} onitem={onchanged} />
 				{/key}
 			{/if}
 		</div>
@@ -435,6 +471,20 @@
 		</div>
 	</div>
 </div>
+
+<ConfirmDialog
+	bind:open={leaveOpen}
+	title={t('ออกโดยไม่บันทึก?', 'Leave without saving?')}
+	message={t('กำลังอัปโหลดฉบับใหม่ ถ้าออกตอนนี้ ฉบับใหม่จะไม่ถูกบันทึก', 'A new version is uploading. If you leave now, it is not saved.')}
+	confirmLabel={t('ออกโดยไม่บันทึก', 'Leave without saving')}
+	cancelLabel={t('อยู่ต่อ', 'Stay')}
+	tone="danger"
+	onconfirm={() => {
+		leaveOpen = false;
+		replaceAbort?.abort();
+		onback();
+	}}
+/>
 
 <ConfirmDialog
 	bind:open={archiveOpen}

@@ -162,6 +162,8 @@
 	const fileItem = $derived(kind === 'file');
 	const fileVersion = $derived(fileItem ? shownVersion(existing?.file) : undefined);
 	const fileReady = $derived(!fileItem || fileServable(existing?.file));
+	// File Knowledge turned off (a rollback, even while this editor is open): a file is not saved (Codex S7 #4).
+	const fileOff = $derived(fileItem && !features.files);
 	const missingReferences = $derived(knowledgeIDs.filter((id) => !available.some((item) => item.id === id)));
 	const chosenArticles = $derived(available.filter((item) => knowledgeIDs.includes(item.id)));
 	const mismatches = $derived(
@@ -200,7 +202,7 @@
 		else onclose();
 	}
 	async function save(status: LibraryStatus) {
-		if (saving) return;
+		if (saving || fileOff) return;
 		error = '';
 		const stored = kind === 'template' ? contentForSaving(content, parameters) : { content, unknown: [] };
 		const problems: Record<string, string> = {};
@@ -388,7 +390,9 @@
 							<small>{factLine([fileTypeLabel(existing?.file?.ext ?? '', t), formatBytes(existing?.file?.bytes ?? 0), fileVersion && fileReading(fileVersion) && readingLabel(fileReading(fileVersion)!, t), fileExtent(fileVersion, t)])}</small>
 						</span>
 					</div>
-					{#if !fileReady && fileVersion && fileReading(fileVersion) === 'failed'}
+					{#if fileOff}
+						<p class="ed-note"><Info size={15} aria-hidden="true" /><span>{t('คลังความรู้แบบไฟล์ของบริษัทปิดอยู่ จึงบันทึกไฟล์นี้ไม่ได้ตอนนี้ ไฟล์ยังเปิดดู ดาวน์โหลด จัดเก็บ และลบได้', 'File Knowledge is off for this company, so this file can’t be saved now. It can still be opened, downloaded, archived and deleted.')}</span></p>
+					{:else if !fileReady && fileVersion && fileReading(fileVersion) === 'failed'}
 						<p class="ed-warn"><TriangleAlert size={15} aria-hidden="true" /><span>{failureText(fileVersion, t)}</span></p>
 					{:else if !fileReady}
 						<p class="ed-note"><Info size={15} aria-hidden="true" /><span>{t('ORCA กำลังอ่านไฟล์นี้ บันทึกร่างได้เลย และเผยแพร่ได้เมื่ออ่านเสร็จ', 'ORCA is reading this file. Save a draft now; publish once it is read.')}</span></p>
@@ -469,8 +473,8 @@
 			disabled={saving}
 		>
 			{#snippet actions()}
-				<button type="button" class="k-button ed-draft" disabled={saving || conflict} onclick={() => save('draft')}>{t('บันทึกร่าง', 'Save draft')}</button>
-				<button type="button" class="k-button primary ed-publish" disabled={saving || conflict || !fileReady} aria-busy={saving} onclick={() => save('published')}>{saving ? t('กำลังบันทึก…', 'Saving…') : t('เผยแพร่ให้ AI ใช้', 'Publish for AI')}</button>
+				<button type="button" class="k-button ed-draft" disabled={saving || conflict || fileOff} onclick={() => save('draft')}>{t('บันทึกร่าง', 'Save draft')}</button>
+				<button type="button" class="k-button primary ed-publish" disabled={saving || conflict || !fileReady || fileOff} aria-busy={saving} onclick={() => save('published')}>{saving ? t('กำลังบันทึก…', 'Saving…') : t('เผยแพร่ให้ AI ใช้', 'Publish for AI')}</button>
 			{/snippet}
 		</AudienceCard>
 		</div>

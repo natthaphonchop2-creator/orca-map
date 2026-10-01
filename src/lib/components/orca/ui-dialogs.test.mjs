@@ -69,5 +69,5 @@ test('Esc or a click outside a confirmation runs ondismiss when given, never the
 	const dismiss = latest.match(/ondismiss=\{([\s\S]*?)\}\s*>/)?.[1] ?? '';
 	assert.ok(dismiss, 'the conflict dialog has its own dismiss');
 	assert.doesNotMatch(dismiss.replace(/\/\/.*$/gm, ''), /keepMine|useLatest|version\s*=|conflict\s*=|latestOpen\s*=/, 'dismissing changes neither the version nor the conflict');
-	assert.match(editor, /disabled=\{saving \|\| conflict\} onclick=\{\(\) => save\('draft'\)\}/, 'no save while the conflict stands');
+	assert.match(editor, /disabled=\{saving \|\| conflict(?: \|\| fileOff)?\} onclick=\{\(\) => save\('draft'\)\}/, 'no save while the conflict stands');
 });

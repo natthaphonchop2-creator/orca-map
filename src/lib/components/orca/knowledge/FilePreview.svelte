@@ -5,7 +5,7 @@
 	import { fileActionProblem, locatorLabel } from '$lib/orca/knowledge';
 	import { t } from '$lib/orca/locale.svelte';
 	import { orcaError } from '$lib/services/orca';
-	import { OrcaLibraryService, type LibraryFileVersion, type LibraryPreviewChunk } from '$lib/services/orca-library';
+	import { OrcaLibraryService, type LibraryFileVersion, type LibraryItem, type LibraryPreviewChunk } from '$lib/services/orca-library';
 
 	// "สิ่งที่ AI จะเห็น" (C4 §14m S5–S7): the text ORCA read from one version
 	// of a file, a page at a time (about 20,000 characters), each piece with
@@ -15,7 +15,8 @@
 		itemID,
 		which,
 		version,
-		ondenied
+		ondenied,
+		onitem
 	}: {
 		hubID: string;
 		itemID: string;
@@ -23,6 +24,8 @@
 		version: LibraryFileVersion;
 		/** The file or the workspace is no longer this person's to read. */
 		ondenied?: () => void;
+		/** The file has another version now: the item as the server has it, for the page (Codex S7 #6). */
+		onitem?: (item: LibraryItem) => void;
 	} = $props();
 	let chunks = $state<LibraryPreviewChunk[]>([]);
 	let total = $state(0);
@@ -31,6 +34,8 @@
 	let loading = $state(true);
 	let error = $state('');
 	let request = 0;
+	// The version the pages shown so far come from: the next page must be of it.
+	let reading = untrack(() => version.version);
 	const shown = $derived(chunks.reduce((sum, chunk) => sum + [...chunk.text].length, 0));
 	const key = $derived(`${hubID}:${itemID}:${which}:${version.version}:${version.state}`);
 	const uid = $props.id();
@@ -48,9 +53,14 @@
 			const page = await OrcaLibraryService.file(hubID, itemID, which, cursor);
 			if (current !== request) return;
 			// A next page of another version means the file changed: start again from the new one.
-			if (cursor && page.version && page.version.version !== version.version) {
+			if (cursor && page.version && page.version.version !== reading) {
 				restart();
 				return;
+			}
+			if (!cursor && page.version) {
+				reading = page.version.version;
+				// The page knows another version than this one shows: it takes the server's item.
+				if (page.version.version !== version.version) onitem?.(page.item);
 			}
 			chunks = cursor ? [...chunks, ...page.preview] : page.preview;
 			total = page.totalChars;

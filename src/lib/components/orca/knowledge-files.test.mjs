@@ -212,7 +212,7 @@ test('a file\'s owner sees what the AI sees, its hidden parts with switches, and
 	// "ใครใช้ได้" for a live audience.
 	assert.match(html, /ทุกคนในพื้นที่ทำงานนี้(?:<!--[^>]*-->)*<small>อัปเดตอัตโนมัติ<\/small>/);
 	assert.match(html, /AI ของ <b>3 คน<\/b>ใช้ได้ตอนนี้/);
-	const remove = dialogs.find((dialog) => dialog.tone === 'danger');
+	const remove = dialogs.find((dialog) => dialog.confirmLabel === 'ลบไฟล์');
 	assert.match(remove.title, /ลบ “ราคาสินค้า 2569”\?/);
 	assert.match(remove.message, /AI ของทุกคนจะหยุดเห็นไฟล์นี้ทันที[\s\S]*ย้อนกลับไม่ได้/);
 	assert.equal(remove.confirmLabel, 'ลบไฟล์');
@@ -440,9 +440,19 @@ test('the page shows files only with library v2, sends uploads in batches, and a
 	assert.match(page, /fileZone=\{features\.files \? fileZone : undefined\}/, 'no drop zone without library v2');
 	assert.match(page, /if \(!hub \|\| uploading \|\| !features\.files\) return;/, 'nothing is sent without it');
 	assert.match(page, /for \(const batch of uploadBatches\(sizes\)\)/);
-	assert.match(page, /if \(!hub \|\| !features\.files \|\| !readingFileIDs\(items\)\.length \|\| pollRound > 60\)/, 'it stops asking once nothing is read');
-	assert.match(page, /onDestroy\(\(\) => \{\s*stopPolling\(\);\s*cancelUpload\(\);/, 'leaving stops both');
-	assert.match(page, /if \(leaving \|\| !\(dirty \|\| uploading\)\) return;/, 'leaving mid-upload asks first');
+	assert.match(page, /if \(disposed \|\| !hub \|\| !features\.files \|\| !readingFileIDs\(items\)\.length \|\| pollRound > 60\)/, 'it stops asking once nothing is read, or once the page is gone');
+	assert.match(page, /onDestroy\(\(\) => \{\s*disposed = true;\s*requestNumber \+= 1;\s*readingRequest \+= 1;\s*stopPolling\(\);\s*cancelUpload\(\);/, 'leaving stops both, and no answer that comes back after it asks again');
+	assert.match(page, /if \(request !== requestNumber \|\| disposed\) return;/);
+	assert.match(page, /if \(leaving \|\| !\(dirty \|\| uploading \|\| replacing\)\) return;/, 'leaving mid-upload, or mid new version, asks first');
+	assert.match(page, /onuploading=\{\(busy\) => \(replacing = busy\)\}/);
+	// A background ask that fails keeps what is shown and asks again; with unsaved text only the reading comes in.
+	assert.match(page, /if \(quiet && !denied\) \{\s*schedulePoll\(\);\s*return;\s*\}/);
+	assert.match(page, /if \(dirty\) void refreshReading\(id\);\s*else void load\(id, true\);/);
+	assert.match(page, /items = withReading\(items, result\.items\);/);
+	// What an answer leaves out stays: a save's file block, a takeover's text.
+	assert.equal(page.match(/keepOmitted\(answer, items\.find\(\(known\) => known\.id === answer\.id\)\)/g)?.length, 3, 'saved, archived and changed');
+	// A batch sent in full whose answer did not come is not sent again: the list is asked.
+	assert.match(page, /if \(sent && \(aborted \|\| cause instanceof TypeError \|\| problem\.status >= 500\)\) \{\s*for \(const key of batchKeys\) setRow\(key, \{ state: 'unknown', progress: 1 \}\);/);
 	// Every item save that sends an item it has goes through libraryInput or the editor.
 	const detail = await readFile(new URL('./knowledge/FileDetail.svelte', import.meta.url), 'utf8');
 	assert.match(detail, /libraryInput\(item, \{ status: 'archived' \}, features\)/);
@@ -485,4 +495,103 @@ test('every knowledge library v2 event the server records has a Thai name in the
 	assert.match(source, /startsWith\("library\."\)\)\s*return \{ label: t\("รายการในคลังความรู้", "A Knowledge item"\), id \};/);
 	const details = await readFile(new URL('./AuditDetails.svelte', import.meta.url), 'utf8');
 	for (const category of ['file_too_large', 'file_unsupported', 'file_hostile', 'file_encrypted', 'extract_timeout', 'extract_memory', 'extract_failed', 'storage_error']) assert.match(details, new RegExp(`${category}: t\\("`), category);
+});
+
+test('"ดูต่อ" after the owner published a newer version starts that version once, then goes on in it (Codex S7 #6)', async (t) => {
+	const { compileModule } = await import('svelte/compiler');
+	const { createRequire, stripTypeScriptTypes } = await import('node:module');
+	const { pathToFileURL } = await import('node:url');
+	const client = await import('svelte/internal/client');
+	const require = createRequire(import.meta.url);
+	const source = await readFile(new URL('./knowledge/FilePreview.svelte', import.meta.url), 'utf8');
+	const script = stripTypeScriptTypes(source.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
+		.replace(/^\s*import[^;]+;/gm, '')
+		.replace('$props()', '$state(testProps)')
+		.replace('$props.id()', "'test'");
+	const code = compileModule(`export function harness(testProps, OrcaLibraryService, untrack, t, locatorLabel, fileActionProblem, getHttpStatusCode, parseErrorContent, orcaError) {
+${script}
+return { load, get chunks() { return chunks; }, get next() { return next; } };
+}`, { filename: 'file-preview-test.svelte.js', generate: 'client' }).js.code.replaceAll('svelte/internal/client', pathToFileURL(require.resolve('svelte/internal/client')).href);
+	const { harness } = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+	const v = (n) => ({ version: n, state: 'ready', fileName: 'ราคา.xlsx', bytes: 1, createdAt: '', options: { includeHidden: false, includeComments: false, includeNotes: false } });
+	const page = (n, cursor, next) => ({ item: { id: 'f', version: n + 10, file: { published: v(n) } }, which: 'published', version: v(n), preview: [{ text: `ฉบับ ${n} ${cursor || 'หน้าแรก'}` }], totalChars: 100, nextCursor: next });
+	const calls = [];
+	const answers = [page(1, '', 'c1'), 'changed', page(2, '', 'c2'), page(2, 'c2', '')];
+	const items = [];
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ hubID: 'sales', itemID: 'f', which: 'published', version: v(1), onitem: (item) => items.push(item) },
+			{
+				file: async (...args) => {
+					calls.push(args[3]);
+					const answer = answers.shift();
+					if (answer === 'changed') throw Object.assign(new Error('version_changed: the file changed'), { status: 409 });
+					return answer;
+				}
+			},
+			client.untrack,
+			(th) => th,
+			() => '',
+			() => undefined,
+			(error) => error.status,
+			(error) => ({ status: error.status, message: error.message }),
+			(error) => error.message
+		);
+	});
+	t.after(stop);
+	client.flush();
+	for (let i = 0; i < 5 && view.next !== 'c1'; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(view.next, 'c1', 'the first page of version 1');
+	await view.load(view.next);
+	for (let i = 0; i < 5 && view.next !== 'c2'; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(items.map((item) => item.version), [12], 'the page takes the server\'s item of version 2, once');
+	assert.equal(view.next, 'c2');
+	await view.load(view.next);
+	assert.deepEqual(calls, ['', 'c1', '', 'c2'], 'version 2\'s next page is read, not started again');
+	assert.deepEqual(view.chunks.map((chunk) => chunk.text), ['ฉบับ 2 หน้าแรก', 'ฉบับ 2 c2']);
+	assert.equal(items.length, 1);
+});
+
+test('while file Knowledge is off a file is not edited, published or restored; "AI ใช้ได้" only in an active workspace (Codex S7 #4, #11)', async () => {
+	const item = fileItem('f', { file: fileInfo({ published: version(2, 'ready'), options: options() }) });
+	const off = await fileDetail({ item, features: OFF });
+	assert.doesNotMatch(off.html, /แก้ไข<\/button>|ตั้งค่าและเผยแพร่|แก้ไขและนำกลับมาใช้/, 'no editor while it is off');
+	const archived = await fileDetail({ item: { ...item, status: 'archived' }, features: OFF });
+	assert.doesNotMatch(archived.html, /แก้ไขและนำกลับมาใช้/);
+	assert.match(archived.html, />ลบ</);
+	assert.match((await fileDetail({ item })).html, /แก้ไข<\/button>/, 'with it, the owner edits');
+	// A workspace not active yet: published, not "AI ใช้ได้", in the file's page and an article's.
+	const paused = await fileDetail({ item, hub: hub('sales', { status: 'paused' }) });
+	assert.match(paused.html, /<span class="orca-pill neutral[^"]*"[^>]*>(?:<[^>]+>)*เผยแพร่แล้ว/);
+	assert.doesNotMatch(paused.html, /AI ใช้ได้/);
+	const { Component } = await serverComponent(new URL('./knowledge/KnowledgeDetail.svelte', import.meta.url), {
+		...k, term, t: th, tick: async () => {}, StatusPill, ConfirmDialog: noop, WhoCard, TakeoverCard: noop,
+		orcaError: () => '', OrcaLibraryService: {}, getHttpStatusCode: noop, parseErrorContent: noop, KnowledgeRail: noop
+	});
+	const props = { items: [], members, departments, currentUserID: 'me', onback: noop, onedit: noop, onarchived: noop, ondenied: noop, onchanged: noop, features: ON };
+	assert.match(show(Component, { ...props, hub: hub('sales', { status: 'draft' }), item: article('a') }), /<span class="orca-pill neutral[^"]*"[^>]*>(?:<[^>]+>)*เผยแพร่แล้ว/);
+	assert.match(show(Component, { ...props, hub: hub('sales'), item: article('a') }), /AI ใช้ได้/);
+	// The editor saves no file while it is off, even opened before.
+	const { Component: Editor } = await serverComponent(new URL('./LibraryEditor.svelte', import.meta.url), {
+		...k, t: th, untrack: (fn) => fn(), onDestroy: noop, parseErrorContent: noop, orcaError: noop, OrcaLibraryService: {},
+		AudienceCard: (renderer, input) => input.actions?.(renderer), TemplateBody: noop, ArticlePicker: noop, ConfirmDialog: noop, FormErrorSummary: noop
+	});
+	const editor = show(Editor, { hub: hub('sales'), items: [], members, departments, currentUserID: 'me', onsaved: noop, onclose: noop, ondenied: noop, ondirty: noop, features: OFF, kind: 'file', existing: item });
+	assert.match(editor, /คลังความรู้แบบไฟล์ของบริษัทปิดอยู่ จึงบันทึกไฟล์นี้ไม่ได้ตอนนี้/);
+	assert.match(editor, /<button type="button" class="k-button ed-draft"[^>]*disabled/);
+	assert.match(editor, /<button type="button" class="k-button primary ed-publish"[^>]*disabled/);
+	const source = await readFile(new URL('./LibraryEditor.svelte', import.meta.url), 'utf8');
+	assert.match(source, /if \(saving \|\| fileOff\) return;/);
+});
+
+test('leaving a file\'s page while its new version is on its way asks first (Codex S7 #7)', async () => {
+	const detail = await readFile(new URL('./knowledge/FileDetail.svelte', import.meta.url), 'utf8');
+	assert.match(detail, /function back\(\) \{\s*if \(busy === 'replace'\) leaveOpen = true;\s*else onback\(\);\s*\}/);
+	assert.match(detail, /<button type="button" class="kn-back" onclick=\{back\}>/);
+	assert.match(detail, /bind:open=\{leaveOpen\}[\s\S]*?กำลังอัปโหลดฉบับใหม่ ถ้าออกตอนนี้ ฉบับใหม่จะไม่ถูกบันทึก/);
+	assert.match(detail, /onuploading\?\.\(true\);[\s\S]*?finally \{[\s\S]*?onuploading\?\.\(false\);/, 'the page knows while it is on its way');
+	// A new version sent in full whose answer did not come: the file is asked for again, not sent twice.
+	assert.match(detail, /if \(sent && \(aborted \|\| cause instanceof TypeError \|\| status >= 500\)\) \{[\s\S]*?void refresh\(\);/);
+	assert.match(detail, /onitem=\{onchanged\}/, 'a preview that met a newer version updates the page');
 });
