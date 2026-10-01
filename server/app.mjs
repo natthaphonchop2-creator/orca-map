@@ -299,8 +299,11 @@ export function createBackendMiddleware(options = {}) {
   };
 }
 
-// When a connection's current request started (see requestDeadline).
+// When a connection's current request started, the request it carries now, and
+// whether a request's body has ended (see requestDeadline).
 const REQUEST_STARTED = Symbol('orca.requestStarted');
+const CURRENT_REQUEST = Symbol('orca.currentRequest');
+const ENDED = Symbol('orca.ended');
 
 /**
  * The 120s the server used to give every request to arrive, now per request:
@@ -321,7 +324,16 @@ function requestDeadline(req, res, ms, headersMaxMs) {
     socket[REQUEST_STARTED] = Date.now();
   };
   res.once('finish', next);
-  req.once('end', next);
+  req.once('end', () => {
+    req[ENDED] = true;
+    next();
+  });
+  // The request before it ended in the same read that brought this one's
+  // headers (its 'end' is still to come): this one starts now (Codex S7 fifth
+  // confirmation #1).
+  const previous = socket[CURRENT_REQUEST];
+  socket[CURRENT_REQUEST] = req;
+  if (previous && previous !== req && previous.complete && !previous[ENDED]) next();
   if (req.complete) return () => {};
   // From the request's start, its headers included, as Node's own requestTimeout
   // counts (Codex S7 third confirmation #1): the connection's opening, or the end

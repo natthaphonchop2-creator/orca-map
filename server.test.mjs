@@ -1132,3 +1132,21 @@ test('after a slow answer the next request\'s 120 s start at that answer, not at
   t.mock.timers.tick(60_000);
   assert.equal(await within(2_000, () => c.closed), true);
 });
+
+test('a request whose headers come in the same read as the end of the one before it starts then (Codex S7 fifth confirmation #1)', async (t) => {
+  const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const c = await rawConnection(t, f);
+  // Refused at once; its body half sent.
+  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\norigin: https://evil.example\r\ncontent-type: application/json\r\ncontent-length: 20\r\n\r\n0123456789`);
+  assert.equal(await within(2_000, () => answers(c.text).length === 1), true);
+  t.mock.timers.tick(100_000);
+  // 100 s later, in one write: the rest of that body and the next request, slow.
+  c.socket.write(`abcdefghijPOST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
+  await within(200, () => false);
+  t.mock.timers.tick(60_000);
+  assert.equal(await within(50, () => c.closed), false, 'counted from the early answer, or with the 65 s cap, it would be cut already');
+  t.mock.timers.tick(60_000);
+  assert.equal(await within(2_000, () => c.closed), true);
+  assert.match(c.text, /HTTP\/1\.1 408 /);
+});
