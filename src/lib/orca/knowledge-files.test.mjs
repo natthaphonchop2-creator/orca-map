@@ -203,7 +203,7 @@ test('a file row: its reading until a version serves, then its status with the n
 	const row = (status, extra) => k.fileRowState(item('f', { status, file: file(extra) }), th);
 	assert.deepEqual(row('draft', { pending: version(1, 'queued') }), { status: 'reading', note: 'ORCA กำลังอ่านข้อความในไฟล์', tone: 'muted' });
 	assert.deepEqual(row('draft', { pending: version(1, 'unsupported', { errorClass: 'encrypted_or_legacy' }) }), { status: 'failed', note: 'อ่านไม่ได้: ตั้งรหัสผ่านไว้ หรือเป็น Office รุ่นเก่า', tone: 'deny' });
-	assert.deepEqual(row('draft', { published: version(1, 'ready') }), { status: 'draft' });
+	assert.deepEqual(row('draft', { published: version(1, 'ready') }), { status: 'draft', note: 'อ่านเสร็จแล้ว พร้อมให้ AI ใช้เมื่อเผยแพร่', tone: 'muted' });
 	assert.deepEqual(row('published', { published: version(1, 'ready') }), { status: 'published' });
 	assert.equal(row('published', { published: version(1, 'partial') }).note, 'อ่านได้บางส่วน');
 	assert.match(row('published', { published: version(1, 'ready'), pending: version(2, 'extracting') }).note, /กำลังอ่านฉบับใหม่ AI ใช้ฉบับเดิมไปก่อน/);
@@ -219,6 +219,7 @@ test('a file row: its reading until a version serves, then its status with the n
 	assert.deepEqual(off('published', { published: version(1, 'ready'), pending: version(2, 'extracting') }), { status: 'published' });
 	assert.equal(off('published', { published: version(1, 'partial') }).note, 'อ่านได้บางส่วน');
 	assert.equal(off('draft', { pending: version(1, 'unsupported', { errorClass: 'encrypted_or_legacy' }) }).status, 'failed');
+	assert.deepEqual(off('draft', { published: version(1, 'ready') }), { status: 'draft' }, 'while it is off, no promise about the AI');
 	// Only the owner's own files still being read are asked about again.
 	const items = [
 		item('mine', { file: file({ pending: version(1, 'extracting') }) }),

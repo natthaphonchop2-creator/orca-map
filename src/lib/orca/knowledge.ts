@@ -1083,6 +1083,8 @@ export function fileRowState(item: Pick<LibraryItem, 'status' | 'file'>, t: Tran
 			return { status, note: live ? t('ฉบับใหม่อ่านไม่ได้ AI ใช้ฉบับเดิมอยู่', 'The new version can’t be read; the AI keeps the current one') : t('ฉบับใหม่อ่านไม่ได้', 'The new version can’t be read'), tone: 'warn' };
 		if (on && pending && versionServable(pending)) return { status, note: t('ฉบับใหม่รอคุณกดใช้', 'A new version waits for you'), tone: 'warn' };
 		if (published?.state === 'partial') return { status, note: t('อ่านได้บางส่วน', 'Partly read'), tone: 'warn' };
+		// Read, and the AI gets it once its owner publishes it.
+		if (on && status === 'draft') return { status, note: t('อ่านเสร็จแล้ว พร้อมให้ AI ใช้เมื่อเผยแพร่', 'Read; ready for AI once published'), tone: 'muted' };
 		return { status };
 	}
 	const version = shownVersion(file);

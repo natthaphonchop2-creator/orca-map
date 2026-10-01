@@ -101,6 +101,9 @@ test('with library v2 the library has three kinds; the file tab has its drop zon
 	// The status pills: the failed one with a solid deny dot, the reading one hollow.
 	assert.match(html, /<span class="kl-s[^"]*"[^>]*>(?:<!--[^>]*-->)*<span class="orca-pill deny"/);
 	assert.doesNotMatch(html, /class="kl-s draft[^"]*"[^>]*>(?:<!--[^>]*-->)*<span class="orca-pill deny"/, 'a failed draft is not drawn as a draft');
+	// A read draft says it is ready for the AI once published.
+	const drafted = await list({ items: [fileItem('d', { status: 'draft', title: 'แนะนำบริษัท' })], kind: 'file', features: ON, fileZone: zone, usage });
+	assert.match(drafted.html, /<small class="kl-fn muted">อ่านเสร็จแล้ว พร้อมให้ AI ใช้เมื่อเผยแพร่<\/small>/);
 });
 
 test('without library v2 the library is today\'s: no file kind, no drop zone, "ความรู้"', async () => {
