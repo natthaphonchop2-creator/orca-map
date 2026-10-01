@@ -3,10 +3,11 @@
 </script>
 
 <script lang="ts">
-	let { label, tone = 'neutral', dot = false, title }: { label: string; tone?: StatusTone; dot?: boolean; title?: string } = $props();
+	// `dotTone`: a neutral pill whose dot alone carries the state's colour (status colours only as dots).
+	let { label, tone = 'neutral', dot = false, dotTone, title }: { label: string; tone?: StatusTone; dot?: boolean; dotTone?: 'ok' | 'warn' | 'deny'; title?: string } = $props();
 </script>
 
-<span class="orca-pill {tone}" {title}>{#if dot}<span class="orca-pill-dot" aria-hidden="true"></span>{/if}{label}</span>
+<span class="orca-pill {tone}" {title}>{#if dot}<span class="orca-pill-dot {dotTone ? `tone-${dotTone}` : ''}" aria-hidden="true"></span>{/if}{label}</span>
 
 <style>
 	.orca-pill {
@@ -58,5 +59,14 @@
 	/* A neutral state ("ยังไม่ได้เชื่อม") has a quiet dot, as on the pinned button. */
 	.orca-pill.neutral .orca-pill-dot {
 		background: var(--orca-muted);
+	}
+	.orca-pill .orca-pill-dot.tone-ok {
+		background: var(--orca-ok);
+	}
+	.orca-pill .orca-pill-dot.tone-warn {
+		background: var(--orca-warn);
+	}
+	.orca-pill .orca-pill-dot.tone-deny {
+		background: var(--orca-deny);
 	}
 </style>

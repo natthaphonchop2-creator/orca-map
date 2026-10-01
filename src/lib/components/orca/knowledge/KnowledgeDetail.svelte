@@ -85,6 +85,8 @@
 		const member = members.find((entry) => entry.id === id);
 		return member ? member.displayName || member.email : t('สมาชิกพื้นที่ทำงาน', 'Workspace member');
 	}
+	// A workspace not active yet, on library v2's pages: the AI uses nothing in it now.
+	const idle = $derived(features.files && hub.status !== 'active');
 	// Gone (the page moved on): a late answer changes nothing of the page now (Codex S7 second confirmation #2).
 	let gone = false;
 	onDestroy(() => (gone = true));
@@ -157,8 +159,8 @@
 			<h1>{item.title}</h1>
 			<p class="kd-meta">
 				<span class="kd-status" class:draft={item.status === 'draft'}>
-					<!-- "AI ใช้ได้" only in an active workspace, as "ใครใช้ได้" beside it says (Codex S7 #11). -->
-					{#if item.status === 'published' && hub.status !== 'active'}<StatusPill label={t('เผยแพร่แล้ว', 'Published')} dot />
+					<!-- With library v2, "AI ใช้ได้" only in an active workspace, as "ใครใช้ได้" beside it says (Codex S7 #11); today's page keeps its words. -->
+					{#if item.status === 'published' && idle}<StatusPill label={t('เผยแพร่แล้ว', 'Published')} dot />
 					{:else if item.status === 'published'}<StatusPill label={t('AI ใช้ได้', 'AI can use')} tone="ok" dot />
 					{:else if item.status === 'draft'}<StatusPill label={t('ฉบับร่าง', 'Draft')} dot />
 					{:else}<StatusPill label={t('จัดเก็บแล้ว', 'Archived')} />{/if}
@@ -258,7 +260,7 @@
 		<div class="kd-side">
 			<WhoCard {hub} {item} {members} {departments} {currentUserID} />
 			{#if takeover && onchanged}<TakeoverCard hubID={hub.id} {item} ontaken={onchanged} {ondenied} />{/if}
-			<KnowledgeRail item={item} ask={item.status === 'published'} {connected} {app} workspace={hub} legend={false} />
+			<KnowledgeRail item={item} ask={item.status === 'published' && !idle} {connected} {app} workspace={hub} legend={false} />
 		</div>
 	</div>
 </div>

@@ -341,22 +341,34 @@
 			const result = await OrcaLibraryService.load(id);
 			if (disposed || request !== readingRequest || hub?.id !== id) return;
 			items = withReading(items, result.items, editing);
-			// The item being edited is no longer listed: its save says what changed; nothing more to ask.
+			// The item being edited is no longer listed: nothing more to ask; the editor says so and keeps the text.
 			if (editing && !result.items.some((item) => item.id === editing)) {
 				stopPolling();
+				editorNote = t('เรื่องนี้ไม่อยู่ในรายการของคุณแล้ว (อาจถูกลบหรือเปลี่ยนสิทธิ์) ข้อความที่พิมพ์ยังอยู่ คัดลอกเก็บไว้ก่อนออก', 'This item is no longer in your list (it may have been deleted, or access changed). Your text is still here: copy it before you leave.');
 				return;
 			}
 		} catch (cause) {
 			// Another workspace's, or an older, answer: nothing of this page's asking changes (Codex S7 second confirmation #3).
 			if (disposed || request !== readingRequest || hub?.id !== id) return;
-			// Access lost: no more asking; the editor keeps its text and its save says so (Codex S7 confirmation #4).
+			// Access lost: no more asking; the editor keeps its text and says so (Codex S7 third confirmation #9, C4).
 			if ([403, 404].includes(getHttpStatusCode(cause) ?? 0)) {
 				stopPolling();
+				editorNote = t('เปิดคลังความรู้ของพื้นที่ทำงานนี้ไม่ได้แล้ว ข้อความที่พิมพ์ยังอยู่ คัดลอกเก็บไว้ก่อนออก', 'This workspace’s knowledge no longer opens for you. Your text is still here: copy it before you leave.');
 				return;
 			}
 		}
 		if (!disposed && hub?.id === id) schedulePoll();
 	}
+	// What the quiet asks under an editor learned; once the editor closes, the library comes again in full.
+	let editorNote = $state('');
+	$effect(() => {
+		const editing = screen.name === 'editor';
+		if (editing || !editorNote) return;
+		untrack(() => {
+			editorNote = '';
+			if (hub) void load(hub.id);
+		});
+	});
 	function stopPolling() {
 		clearTimeout(pollTimer);
 		pollTimer = undefined;
@@ -652,6 +664,7 @@
 			</div>
 		</section>
 	{:else if screen.name === 'editor' && loadedHub === hub!.id}
+		{#if editorNote}<p class="editor-note" role="alert"><Info size={16} aria-hidden="true" /><span>{editorNote}</span></p>{/if}
 		{#key `${screen.kind}:${screen.id ?? 'new'}`}
 			<LibraryEditor
 				hub={hub!}
@@ -778,6 +791,24 @@
 />
 
 <style>
+	.editor-note {
+		display: flex;
+		align-items: flex-start;
+		gap: 8px;
+		margin: 0 0 16px;
+		padding: 10px 14px;
+		border: 1px solid var(--orca-line-strong);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-surface-2);
+		color: var(--orca-ink);
+		font-size: 14px;
+		line-height: 1.55;
+	}
+	.editor-note :global(svg) {
+		flex: none;
+		margin-top: 3px;
+		color: var(--orca-deny);
+	}
 	.gate {
 		display: flex;
 		flex-wrap: wrap;

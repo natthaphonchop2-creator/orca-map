@@ -99,8 +99,10 @@ test('with library v2 the library has three kinds; the file tab has its drop zon
 	assert.equal(rails[0].usage, usage);
 	assert.equal(rails[0].item?.id, 'ready', 'ask about a file the AI can read');
 	// The status pills: the failed one with a solid deny dot, the reading one hollow.
-	assert.match(html, /<span class="kl-s[^"]*"[^>]*>(?:<!--[^>]*-->)*<span class="orca-pill deny"/);
-	assert.doesNotMatch(html, /class="kl-s draft[^"]*"[^>]*>(?:<!--[^>]*-->)*<span class="orca-pill deny"/, 'a failed draft is not drawn as a draft');
+	// Status colours only as dots: a neutral pill with a red dot (Codex S7 second confirmation #5).
+	assert.match(html, /<span class="kl-s[^"]*"[^>]*>(?:<!--[^>]*-->)*<span class="orca-pill neutral"[^>]*><span class="orca-pill-dot tone-deny"/);
+	assert.doesNotMatch(html, /class="kl-s draft[^"]*"[^>]*>(?:<!--[^>]*-->)*<span class="orca-pill neutral"[^>]*><span class="orca-pill-dot tone-deny"/, 'a failed draft is not drawn as a draft');
+	assert.doesNotMatch(html, /orca-pill deny/);
 	// A read draft says it is ready for the AI once published.
 	const drafted = await list({ items: [fileItem('d', { status: 'draft', title: 'แนะนำบริษัท' })], kind: 'file', features: ON, fileZone: zone, usage });
 	assert.match(drafted.html, /<small class="kl-fn muted">อ่านเสร็จแล้ว พร้อมให้ AI ใช้เมื่อเผยแพร่<\/small>/);
@@ -254,7 +256,7 @@ test('a file still being read, or that did not read, says so and what to do', as
 	assert.match(failed.html, /ไฟล์นี้ตั้งรหัสผ่านไว้ หรือเป็นไฟล์ Office รุ่นเก่า/);
 	assert.doesNotMatch(failed.html, /อ่านไฟล์ใหม่<\/button>/, 'reading it again can\'t help');
 	assert.equal(failed.html.match(/อัปโหลดฉบับใหม่/g)?.length, 1, 'one way to upload a new version');
-	assert.match(failed.html, /<span class="kd-status(?! draft)[^"]*"[^>]*>(?:<!--[^>]*-->)*<span class="orca-pill deny"/, 'a solid deny dot');
+	assert.match(failed.html, /<span class="kd-status(?! draft)[^"]*"[^>]*>(?:<!--[^>]*-->)*<span class="orca-pill neutral"[^>]*><span class="orca-pill-dot tone-deny"/, 'a solid red dot on a neutral pill');
 	const transient = await fileDetail({ item: fileItem('t', { status: 'draft', file: fileInfo({ ext: 'docx', pending: version(1, 'failed', { errorClass: 'timeout' }), options: options() }) }) });
 	assert.match(transient.html, /อ่านนานเกินเวลาที่กำหนด/);
 	assert.match(transient.html, /อ่านไฟล์ใหม่<\/button>/, 'a time-out may pass');
@@ -663,7 +665,7 @@ test('a preview that is gone changes nothing when its answer comes back (Codex S
 	assert.match(page, /if \(!hub \|\| \(answer\.hubID && answer\.hubID !== hub\.id\)\) return undefined;/);
 	assert.match(page, /if \(reload\) void load\(hub\.id\);/, 'an answer still missing what it left out: the library is asked again');
 	assert.match(page, /if \(failure\.reload && hub\?\.id === id\) void load\(id\);/, 'an upload whose outcome is unknown: the list is asked');
-	assert.match(page, /if \(\[403, 404\]\.includes\(getHttpStatusCode\(cause\) \?\? 0\)\) \{\s*stopPolling\(\);\s*return;\s*\}/, 'access lost under an editor: no more asking');
+	assert.match(page, /if \(\[403, 404\]\.includes\(getHttpStatusCode\(cause\) \?\? 0\)\) \{\s*stopPolling\(\);\s*editorNote = t\(/, 'access lost under an editor: no more asking, and the editor says so');
 });
 
 test('a workspace not active yet: its lists say "เผยแพร่แล้ว", never "AI ใช้ได้", and the legend says why (Codex S7 second confirmation #4)', async () => {
@@ -819,4 +821,122 @@ test('under an editor, an older reading answer that is refused never stops the n
 	refuse(Object.assign(new Error('not found'), { status: 404 }));
 	await older;
 	assert.ok(view.pollTimer, 'the older refusal stops nothing');
+});
+
+test('a held version that read in part says so on its tab, in what the AI will see (Codex S7 third confirmation #2, #3)', async () => {
+	const item = fileItem('p', { file: fileInfo({ ext: 'pptx', published: version(1, 'ready', { stats: { chars: 1, slides: 18, hidden: hiddenParts() } }), pending: version(2, 'partial', { options: { includeHidden: false, includeComments: false, includeNotes: true }, stats: { chars: 1, slides: 240, partialReason: 'slides', hidden: hiddenParts({ notesSlides: 7, trackedChanges: 2 }) } }), options: options({ reviewBeforeUpdate: true, includeNotes: true }) }) });
+	const { Component } = await serverComponent(new URL('./knowledge/FileDetail.svelte', import.meta.url), {
+		...k, term, t: th, onDestroy: noop, getHttpStatusCode: noop, isAbortError: () => false, parseErrorContent: noop, orcaError: () => '',
+		OrcaLibraryService: { downloadHref: () => '#' }, StatusPill, Switch, WhoCard, ConfirmDialog: noop, FilePreview: noop, KnowledgeRail: noop, TakeoverCard: noop
+	});
+	const source = await readFile(new URL('./knowledge/FileDetail.svelte', import.meta.url), 'utf8');
+	// The note follows the version shown (the held one too), and a held one serves no one yet.
+	assert.match(source, /\{#if previewVersion\?\.state === 'partial'\}/);
+	assert.match(source, /const previewLive = \$derived\(live && !\(which === 'pending' && held\)\);/);
+	assert.match(source, /partialText\(previewVersion\.stats\?\.partialReason \|\| previewVersion\.errorClass, t, previewLive\)/);
+	assert.ok(Component);
+	assert.equal(k.partialText('slides', th, false), 'ไฟล์มีมากกว่า 200 สไลด์ AI จะเห็นเฉพาะ 200 สไลด์แรก');
+	assert.equal(k.partialText('slides', th), 'ไฟล์มีมากกว่า 200 สไลด์ AI เห็นเฉพาะ 200 สไลด์แรก');
+	assert.equal(k.partialText(undefined, th, false), 'AI จะเห็นเฉพาะบางส่วนของไฟล์นี้');
+	const tracked = (live) => k.hiddenLines(version(1, 'ready', { stats: { chars: 1, hidden: hiddenParts({ trackedChanges: 2 }) } }), th, undefined, live).map((line) => line.text);
+	assert.deepEqual(tracked(true), ['ไฟล์นี้มีการแก้ไขที่ติดตามไว้ 2 จุด AI เห็นเฉพาะข้อความฉบับปัจจุบัน']);
+	assert.deepEqual(tracked(false), ['ไฟล์นี้มีการแก้ไขที่ติดตามไว้ 2 จุด AI จะเห็นเฉพาะข้อความฉบับปัจจุบัน']);
+	// A paused workspace: no "ลองถาม AI" for the file.
+	const rails = [];
+	const { html } = await fileDetail({ item: fileItem('f'), hub: hub('sales', { status: 'paused' }) });
+	assert.doesNotMatch(html, /AI ใช้ได้/);
+	const paused = await (async () => {
+		const { Component: Detail } = await serverComponent(new URL('./knowledge/FileDetail.svelte', import.meta.url), {
+			...k, term, t: th, onDestroy: noop, getHttpStatusCode: noop, isAbortError: () => false, parseErrorContent: noop, orcaError: () => '',
+			OrcaLibraryService: { downloadHref: () => '#' }, StatusPill, Switch, WhoCard, ConfirmDialog: noop, FilePreview: noop, TakeoverCard: noop,
+			KnowledgeRail: (_renderer, input) => rails.push(input)
+		});
+		show(Detail, { hub: hub('sales', { status: 'paused' }), item: fileItem('f'), members, departments, currentUserID: 'me', features: ON, now: 0, onback: noop, onedit: noop, onchanged: noop, onarchived: noop, ondeleted: noop, ondenied: noop });
+		return rails[0];
+	})();
+	assert.equal(paused.ask, false, 'nothing to ask an AI that uses nothing here now');
+});
+
+test('without library v2 a workspace not active keeps today\'s page; with it, no "ลองถาม AI" there', async () => {
+	const draftHub = hub('sales', { status: 'draft' });
+	const today = await list({ hub: draftHub, choices: [draftHub], items: [article('a')], features: OFF, fileZone: zone });
+	assert.match(today.html, /AI ใช้ได้/, 'today\'s words: the release\'s floor');
+	assert.equal(today.rails[0].ask, true);
+	assert.equal(today.rails[0].paused, undefined);
+	const v2 = await list({ hub: draftHub, choices: [draftHub], items: [article('a')], features: ON, fileZone: zone });
+	assert.equal(v2.rails[0].ask, false);
+	const { Component } = await serverComponent(new URL('./knowledge/KnowledgeDetail.svelte', import.meta.url), {
+		...k, term, t: th, tick: async () => {}, StatusPill, ConfirmDialog: noop, WhoCard, TakeoverCard: noop,
+		orcaError: () => '', OrcaLibraryService: {}, getHttpStatusCode: noop, parseErrorContent: noop, KnowledgeRail: noop
+	});
+	const props = { items: [], members, departments, currentUserID: 'me', onback: noop, onedit: noop, onarchived: noop, ondenied: noop, onchanged: noop, hub: draftHub, item: article('a') };
+	assert.match(show(Component, { ...props, features: OFF }), /AI ใช้ได้/, 'an article\'s page without library v2: today\'s');
+	assert.doesNotMatch(show(Component, { ...props, features: ON }), /AI ใช้ได้/);
+});
+
+test('an article\'s page that is gone changes nothing when its archive answer comes back', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./knowledge/KnowledgeDetail.svelte', '{ archive }');
+	const destroyers = [];
+	const told = [];
+	let answer;
+	const pending = new Promise((resolve) => { answer = resolve; });
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ hub: hub('sales'), item: article('a'), items: [], members, departments, currentUserID: 'me', canManage: false, features: ON, now: 0, connected: false, app: '', onback: noop, onedit: noop, onarchived: () => told.push('archived'), ondenied: () => told.push('denied'), onchanged: noop, onrecheck: async () => 'open' },
+			{ ...k, t: th, term, tick: async () => {}, onDestroy: (fn) => destroyers.push(fn), getHttpStatusCode: (error) => error.status, parseErrorContent: (error) => error, orcaError: (error) => error.message, OrcaLibraryService: { save: () => pending } }
+		);
+	});
+	t.after(stop);
+	client.flush();
+	const archiving = view.archive();
+	for (const destroy of destroyers) destroy();
+	answer(article('a', { status: 'archived', version: 2 }));
+	await archiving;
+	assert.deepEqual(told, []);
+});
+
+test('access lost under an editor: the editor says so and keeps the text; once it closes the library comes again (Codex S7 third confirmation #9, C4)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ refreshReading, show, get editorNote() { return editorNote; }, get items() { return items; } }');
+	const loads = [];
+	const salesHub = hub('sales', { memberIDs: ['me'] });
+	let refuse = false;
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ data: { hubs: [salesHub], currentUserID: 'me', canManage: true, features: { libraryV2: true }, members, units: [] }, hubID: 'sales', initialKind: undefined, initialCreate: false, onchanged: async () => {} },
+			{
+				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
+				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales'), state: {} },
+				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', localeHref: (value) => value,
+				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
+				OrcaLibraryService: {
+					load: async (id) => {
+						loads.push(id);
+						if (refuse) throw Object.assign(new Error('forbidden'), { status: 403 });
+						return { items: [article('a')], members, departments: [] };
+					},
+					usage: async () => ({ bytes: 0, bytesLimit: 1, chars: 0, charsLimit: 1, uploadsToday: 0, uploadsLimit: 50, items: 0, itemsLimit: 1000 })
+				}
+			}
+		);
+	});
+	t.after(stop);
+	client.flush();
+	for (let i = 0; i < 5 && !loads.length; i++) await new Promise((resolve) => setImmediate(resolve));
+	view.show({ name: 'editor', kind: 'knowledge', id: 'a' });
+	client.flush();
+	refuse = true;
+	await view.refreshReading('sales');
+	assert.match(view.editorNote, /เปิดคลังความรู้ของพื้นที่ทำงานนี้ไม่ได้แล้ว ข้อความที่พิมพ์ยังอยู่ คัดลอกเก็บไว้ก่อนออก/);
+	assert.equal(view.items.length, 1, 'the editor\'s item stays under it');
+	const before = loads.length;
+	view.show({ name: 'list' });
+	client.flush();
+	for (let i = 0; i < 5 && loads.length === before; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(view.editorNote, '');
+	assert.equal(loads.length, before + 1, 'the library comes again in full: its refusal shows on the list');
 });

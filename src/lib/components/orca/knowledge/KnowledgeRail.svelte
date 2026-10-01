@@ -111,7 +111,7 @@
 				<li><span class="pill"><Archive size={12} aria-hidden="true" />{t('จัดเก็บแล้ว', 'Archived')}</span>{t('AI เลิกใช้ แต่ยังเปิดดูย้อนหลังได้', 'AI no longer uses it; you can still open it')}</li>
 				{#if files}
 					<li><span class="pill"><i class="dt draft"></i>{t('กำลังอ่าน', 'Reading')}</span>{t('ORCA กำลังอ่านข้อความในไฟล์ AI ยังไม่เห็น', 'ORCA is reading the file; AI does not see it yet')}</li>
-					<li><span class="pill deny"><i class="dt"></i>{t('อ่านไม่ได้', 'Can’t be read')}</span>{paused === 'files' ? t('เปิดไฟล์เพื่อดูเหตุผล', 'Open the file to see why') : t('เปิดไฟล์เพื่อดูเหตุผล แล้วอัปโหลดฉบับใหม่', 'Open the file to see why, then upload a new version')}</li>
+					<li><span class="pill"><i class="dt deny"></i>{t('อ่านไม่ได้', 'Can’t be read')}</span>{paused === 'files' ? t('เปิดไฟล์เพื่อดูเหตุผล', 'Open the file to see why') : t('เปิดไฟล์เพื่อดูเหตุผล แล้วอัปโหลดฉบับใหม่', 'Open the file to see why, then upload a new version')}</li>
 				{/if}
 			</ul>
 		</div>
@@ -250,11 +250,6 @@
 		background: var(--orca-ok-bg);
 		color: var(--orca-ok);
 	}
-	.pill.deny {
-		border-color: var(--orca-deny-line);
-		background: var(--orca-deny-bg);
-		color: var(--orca-deny);
-	}
 	.dt {
 		width: 7px;
 		height: 7px;
@@ -264,6 +259,10 @@
 	/* A neutral state (published while file Knowledge is off): a grey dot in either theme. */
 	.dt.plain {
 		background: var(--orca-subtle);
+	}
+	/* Status colours only as dots: "อ่านไม่ได้" is a neutral pill with a red dot. */
+	.dt.deny {
+		background: var(--orca-deny);
 	}
 	.dt.draft {
 		width: 8px;

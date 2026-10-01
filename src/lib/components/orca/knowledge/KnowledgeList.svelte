@@ -107,7 +107,9 @@
 	// The AI uses nothing here now, so a published item is "เผยแพร่แล้ว", not "AI ใช้ได้": the file list
 	// after a rollback (file Knowledge off), or any list of a workspace not active yet (Codex S7 second confirmation #4).
 	const filesOff = $derived(kind === 'file' && !features.files);
-	const paused = $derived(filesOff || hub.status !== 'active');
+	// A workspace not active yet, on library v2's pages (today's page keeps its words: it is the release's floor).
+	const idle = $derived(features.files && hub.status !== 'active');
+	const paused = $derived(filesOff || idle);
 	const fileTab = $derived(features.files || items.some((item) => item.kind === 'file'));
 	const rows = $derived(filterLibrary(items, kind, filter, query));
 	const shown = $derived(expanded ? rows : rows.slice(0, LIBRARY_PAGE));
@@ -274,7 +276,7 @@
 									</span>
 									<span class="kl-s" class:draft={row ? row.status === 'reading' || row.status === 'draft' : item.status === 'draft'}>
 										{#if row?.status === 'reading'}<StatusPill label={readingLabel('reading', t)} dot />
-										{:else if row?.status === 'failed'}<StatusPill label={readingLabel('failed', t)} tone="deny" dot />
+										{:else if row?.status === 'failed'}<StatusPill label={readingLabel('failed', t)} dot dotTone="deny" />
 										{:else if item.status === 'published' && paused}<StatusPill label={t('เผยแพร่แล้ว', 'Published')} dot />
 										{:else if item.status === 'published'}<StatusPill label={t('AI ใช้ได้', 'AI can use')} tone="ok" dot />
 										{:else if item.status === 'draft'}<StatusPill label={t('ฉบับร่าง', 'Draft')} dot />
@@ -318,7 +320,7 @@
 			{/if}
 		</div>
 
-		<KnowledgeRail item={ask} ask={counted} {connected} {app} workspace={hub} files={kind === 'file'} paused={filesOff ? 'files' : paused ? 'workspace' : undefined} usage={kind === 'file' ? usage : undefined} />
+		<KnowledgeRail item={ask} ask={counted && !idle} {connected} {app} workspace={hub} files={kind === 'file'} paused={filesOff ? 'files' : idle ? 'workspace' : undefined} usage={kind === 'file' ? usage : undefined} />
 	</div>
 </div>
 

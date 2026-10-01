@@ -875,20 +875,22 @@ export function shownVersion(file: Pick<LibraryFileInfo, 'published' | 'pending'
 }
 
 /** Why part of a file is left out, from its partial reason. */
-export function partialText(reason: string | undefined, t: Translate): string {
+export function partialText(reason: string | undefined, t: Translate, live = true): string {
+	// A version that serves no one now says what the AI will see (Codex S7 third confirmation #3).
+	const [th, en] = live ? ['AI เห็น', 'the AI sees'] : ['AI จะเห็น', 'the AI will see'];
 	switch (reason) {
 		case 'slides':
-			return t('ไฟล์มีมากกว่า 200 สไลด์ AI เห็นเฉพาะ 200 สไลด์แรก', 'The file has more than 200 slides; the AI sees the first 200.');
+			return t(`ไฟล์มีมากกว่า 200 สไลด์ ${th}เฉพาะ 200 สไลด์แรก`, `The file has more than 200 slides; ${en} the first 200.`);
 		case 'sheets':
-			return t('ไฟล์มีมากกว่า 50 แผ่นงาน AI เห็นเฉพาะ 50 แผ่นแรก', 'The file has more than 50 sheets; the AI sees the first 50.');
+			return t(`ไฟล์มีมากกว่า 50 แผ่นงาน ${th}เฉพาะ 50 แผ่นแรก`, `The file has more than 50 sheets; ${en} the first 50.`);
 		case 'rows':
-			return t('บางแผ่นงานมีมากกว่า 50,000 แถว AI เห็นเฉพาะ 50,000 แถวแรก (นับแถวหัวตารางด้วย)', 'A sheet has more than 50,000 rows; the AI sees the first 50,000 (the header row counts).');
+			return t(`บางแผ่นงานมีมากกว่า 50,000 แถว ${th}เฉพาะ 50,000 แถวแรก (นับแถวหัวตารางด้วย)`, `A sheet has more than 50,000 rows; ${en} the first 50,000 (the header row counts).`);
 		case 'text_cap':
-			return t('ไฟล์มีข้อความเกิน 2 ล้านตัวอักษร AI เห็นเฉพาะส่วนแรก', 'The file has more than 2 million characters; the AI sees the first part.');
+			return t(`ไฟล์มีข้อความเกิน 2 ล้านตัวอักษร ${th}เฉพาะส่วนแรก`, `The file has more than 2 million characters; ${en} the first part.`);
 		case 'quota':
-			return t('ข้อความของบริษัทเต็มโควตา AI เห็นเฉพาะส่วนแรก ลบไฟล์ที่ไม่ใช้แล้วกด อ่านไฟล์ใหม่', 'The company’s text quota is full, so the AI sees the first part. Delete files you no longer use, then choose Read again.');
+			return t(`ข้อความของบริษัทเต็มโควตา ${th}เฉพาะส่วนแรก ลบไฟล์ที่ไม่ใช้แล้วกด อ่านไฟล์ใหม่`, `The company’s text quota is full, so ${en} the first part. Delete files you no longer use, then choose Read again.`);
 	}
-	return t('AI เห็นเฉพาะบางส่วนของไฟล์นี้', 'The AI sees only part of this file.');
+	return live ? t('AI เห็นเฉพาะบางส่วนของไฟล์นี้', 'The AI sees only part of this file.') : t('AI จะเห็นเฉพาะบางส่วนของไฟล์นี้', 'The AI will see only part of this file.');
 }
 
 /** Why a version did not read, from its state and reason code (never a parser message). */
@@ -1026,7 +1028,9 @@ export function hiddenLines(version: Pick<LibraryFileVersion, 'stats' | 'options
 		lines.push({
 			part: 'tracked',
 			included: false,
-			text: t(`ไฟล์นี้มีการแก้ไขที่ติดตามไว้ ${n(hidden.trackedChanges)} จุด AI เห็นเฉพาะข้อความฉบับปัจจุบัน`, `This file has ${n(hidden.trackedChanges)} tracked changes; the AI sees only the current text`)
+			text: live
+				? t(`ไฟล์นี้มีการแก้ไขที่ติดตามไว้ ${n(hidden.trackedChanges)} จุด AI เห็นเฉพาะข้อความฉบับปัจจุบัน`, `This file has ${n(hidden.trackedChanges)} tracked changes; the AI sees only the current text`)
+				: t(`ไฟล์นี้มีการแก้ไขที่ติดตามไว้ ${n(hidden.trackedChanges)} จุด AI จะเห็นเฉพาะข้อความฉบับปัจจุบัน`, `This file has ${n(hidden.trackedChanges)} tracked changes; the AI will see only the current text`)
 		});
 	return lines;
 }

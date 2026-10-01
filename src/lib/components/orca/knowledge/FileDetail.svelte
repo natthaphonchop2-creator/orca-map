@@ -116,7 +116,9 @@
 	const options = $derived<LibraryFileOptions | undefined>(manage ? file?.options : undefined);
 	// The parts hidden in the version shown, against what the owner chose now.
 	// Only while the owner can switch them: after a rollback the AI uses no file at all.
-	const lines = $derived(manage ? hiddenLines(previewVersion ?? current, t, options, live) : []);
+	// A newer version held for review serves no one yet: its tab says what the AI will see (Codex S7 third confirmation #3).
+	const previewLive = $derived(live && !(which === 'pending' && held));
+	const lines = $derived(manage ? hiddenLines(previewVersion ?? current, t, options, previewLive) : []);
 	const encoding = $derived(owner ? encodingNote((previewVersion ?? current)?.stats, t) : undefined);
 	const offered = $derived.by(() => {
 		const parts = new Set(lines.map((line) => line.option).filter(Boolean));
@@ -305,7 +307,7 @@
 			<p class="kd-meta">
 				<span class="kd-status" class:draft={servable ? item.status === 'draft' : reading !== 'failed'}>
 					{#if item.status === 'archived'}<StatusPill label={t('จัดเก็บแล้ว', 'Archived')} />
-					{:else if !servable && reading === 'failed'}<StatusPill label={readingLabel('failed', t)} tone="deny" dot />
+					{:else if !servable && reading === 'failed'}<StatusPill label={readingLabel('failed', t)} dot dotTone="deny" />
 					{:else if !servable}<StatusPill label={readingLabel('reading', t)} dot />
 					{:else if item.status === 'published' && !aiUses}<StatusPill label={t('เผยแพร่แล้ว', 'Published')} dot />
 					{:else if item.status === 'published'}<StatusPill label={t('AI ใช้ได้', 'AI can use')} tone="ok" dot />
@@ -379,8 +381,9 @@
 				{/if}
 			{/if}
 
-			{#if servable && current?.state === 'partial' && which === 'published'}
-				<p class="fd-note warn"><TriangleAlert size={15} aria-hidden="true" /><span>{t('อ่านได้บางส่วน:', 'Partly read:')} {partialText(current.stats?.partialReason || current.errorClass, t)}</span></p>
+			<!-- The version shown, the held one too, before it is put in use (Codex S7 third confirmation #2). -->
+			{#if previewVersion?.state === 'partial'}
+				<p class="fd-note warn"><TriangleAlert size={15} aria-hidden="true" /><span>{t('อ่านได้บางส่วน:', 'Partly read:')} {partialText(previewVersion.stats?.partialReason || previewVersion.errorClass, t, previewLive)}</span></p>
 			{/if}
 			{#if encoding}
 				<p class="fd-note" class:warn={encoding.tone === 'warn'}>{#if encoding.tone === 'warn'}<TriangleAlert size={15} aria-hidden="true" />{:else}<Info size={15} aria-hidden="true" />{/if}<span>{encoding.text}</span></p>
@@ -478,7 +481,7 @@
 
 			{#if takeover}<TakeoverCard hubID={hub.id} {item} ontaken={tell.changed} ondenied={tell.denied} />{/if}
 
-			<KnowledgeRail item={item} ask={item.status === 'published' && servable && features.files} {connected} {app} workspace={hub} legend={false} />
+			<KnowledgeRail item={item} ask={item.status === 'published' && servable && aiUses} {connected} {app} workspace={hub} legend={false} />
 		</div>
 	</div>
 </div>
