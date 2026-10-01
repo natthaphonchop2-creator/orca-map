@@ -1347,3 +1347,8 @@ test('a draft or a workspace not active, with review on: its banner and lines te
 		assert.doesNotMatch(html, /จนกว่าจะอ่านเสร็จ/, label);
 	}
 });
+
+test('the quota meter takes the newest answer only', async () => {
+	const page = await readFile(new URL('./KnowledgeLibrary.svelte', import.meta.url), 'utf8');
+	assert.match(page, /const request = \+\+usageRequest;\s*try \{\s*const next = await OrcaLibraryService\.usage\(id\);\s*if \(request === usageRequest && hub\?\.id === id && !disposed\) usage = next;/);
+});

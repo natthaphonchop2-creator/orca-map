@@ -459,11 +459,15 @@
 		stopPolling();
 		cancelUpload();
 	});
+	// The usage asks, in order: an older answer never replaces a newer one (the day's
+	// uploads decide whether anything is sent at all).
+	let usageRequest = 0;
 	async function refreshUsage(id = hub?.id ?? '') {
 		if (!id || !features.files) return;
+		const request = ++usageRequest;
 		try {
 			const next = await OrcaLibraryService.usage(id);
-			if (hub?.id === id) usage = next;
+			if (request === usageRequest && hub?.id === id && !disposed) usage = next;
 		} catch {
 			// The meter is a convenience: without it the server still refuses what is over the quota.
 		}
