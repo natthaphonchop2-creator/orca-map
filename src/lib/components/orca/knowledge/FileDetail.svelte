@@ -107,7 +107,8 @@
 	const previewVersion = $derived(which === 'pending' && held ? pending : versionServable(published) ? published : undefined);
 	const options = $derived<LibraryFileOptions | undefined>(manage ? file?.options : undefined);
 	// The parts hidden in the version shown, against what the owner chose now.
-	const lines = $derived(owner ? hiddenLines(previewVersion ?? current, t, options) : []);
+	// Only while the owner can switch them: after a rollback the AI uses no file at all.
+	const lines = $derived(manage ? hiddenLines(previewVersion ?? current, t, options) : []);
 	const encoding = $derived(owner ? encodingNote((previewVersion ?? current)?.stats, t) : undefined);
 	const offered = $derived.by(() => {
 		const parts = new Set(lines.map((line) => line.option).filter(Boolean));
@@ -122,6 +123,13 @@
 	const failedCard = $derived(!servable && reading === 'failed');
 	const switches = $derived(!!options && (offered.includeNotes || offered.includeHidden || offered.includeComments));
 	const fileFacts = $derived(factLine([typeLabel, formatBytes(file?.bytes ?? 0), current && t(`ฉบับที่ ${current.version}`, `Version ${current.version}`)]));
+	// Someone the workspace no longer lists is not "สมาชิกพื้นที่ทำงาน": the owner left (the takeover card says what to do).
+	const ownerName = $derived.by(() => {
+		const member = members.find((entry) => entry.id === item.ownerID);
+		return member ? member.displayName || member.email : t('ไม่อยู่ในพื้นที่ทำงานนี้แล้ว', 'No longer in this workspace');
+	});
+	// A draft serves no one yet: its notes never say what "the AI keeps using".
+	const live = $derived(item.status === 'published');
 
 	let busy = $state<'' | 'reextract' | 'publish' | 'options' | 'archive' | 'delete' | 'replace'>('');
 	let actionError = $state('');
@@ -253,11 +261,12 @@
 					{#if item.status === 'archived'}<StatusPill label={t('จัดเก็บแล้ว', 'Archived')} />
 					{:else if !servable && reading === 'failed'}<StatusPill label={readingLabel('failed', t)} tone="deny" dot />
 					{:else if !servable}<StatusPill label={readingLabel('reading', t)} dot />
+					{:else if item.status === 'published' && !features.files}<StatusPill label={t('เผยแพร่แล้ว', 'Published')} dot />
 					{:else if item.status === 'published'}<StatusPill label={t('AI ใช้ได้', 'AI can use')} tone="ok" dot />
 					{:else}<StatusPill label={t('ฉบับร่าง', 'Draft')} dot />{/if}
 				</span>
 				<span>{t(`ไฟล์ ${typeLabel}`, `${typeLabel} file`)}</span>
-				<span>{t('เจ้าของ', 'Owner')} {item.ownerID === currentUserID ? t('คุณ', 'You') : (members.find((member) => member.id === item.ownerID)?.displayName ?? t('สมาชิกพื้นที่ทำงาน', 'Workspace member'))}</span>
+				<span>{t('เจ้าของ', 'Owner')} {item.ownerID === currentUserID ? t('คุณ', 'You') : ownerName}</span>
 				<span>{t('อัปเดต', 'Updated')} {relativeTime(item.updatedAt, now, t)}</span>
 			</p>
 		</div>
@@ -289,7 +298,7 @@
 				</section>
 			{:else if !servable && reading === 'failed' && current}
 				<section class="fd-state failed" role="status">
-					<h2>{t('อ่านไฟล์นี้ไม่ได้', 'This file can’t be read')}</h2>
+					<h2><i class="fd-dot" aria-hidden="true"></i>{t('อ่านไฟล์นี้ไม่ได้', 'This file can’t be read')}</h2>
 					<p>{failureText(current, t)}</p>
 					{#if manage}
 						<div class="fd-state-actions">
@@ -302,11 +311,15 @@
 
 			{#if manage && pending && servable}
 				{#if fileReading(pending) === 'reading'}
-					<p class="fd-note" aria-live="polite"><Info size={15} aria-hidden="true" /><span>{t(`กำลังอ่านฉบับใหม่ (ฉบับที่ ${pending.version}) AI ใช้ฉบับเดิมจนกว่าจะอ่านเสร็จ`, `Reading the new version (version ${pending.version}). The AI keeps the current one until it is read.`)}</span></p>
+					<p class="fd-note" aria-live="polite"><Info size={15} aria-hidden="true" /><span>{live
+								? t(`กำลังอ่านฉบับใหม่ (ฉบับที่ ${pending.version}) AI ใช้ฉบับเดิมจนกว่าจะอ่านเสร็จ`, `Reading the new version (version ${pending.version}). The AI keeps the current one until it is read.`)
+								: t(`กำลังอ่านฉบับใหม่ (ฉบับที่ ${pending.version}) ด้านล่างยังเป็นฉบับเดิมจนกว่าจะอ่านเสร็จ`, `Reading the new version (version ${pending.version}). Below is the current one until it is read.`)}</span></p>
 				{:else if fileReading(pending) === 'failed'}
 					<div class="fd-note warn">
 						<TriangleAlert size={15} aria-hidden="true" />
-						<span>{t(`ฉบับใหม่ (ฉบับที่ ${pending.version}) อ่านไม่ได้: ${failureText(pending, t)} AI ยังใช้ฉบับเดิม`, `The new version (version ${pending.version}) can’t be read: ${failureText(pending, t)} The AI keeps the current one.`)}</span>
+						<span>{live
+								? t(`ฉบับใหม่ (ฉบับที่ ${pending.version}) อ่านไม่ได้: ${failureText(pending, t)} AI ยังใช้ฉบับเดิม`, `The new version (version ${pending.version}) can’t be read: ${failureText(pending, t)} The AI keeps the current one.`)
+								: t(`ฉบับใหม่ (ฉบับที่ ${pending.version}) อ่านไม่ได้: ${failureText(pending, t)} ไฟล์นี้ยังเป็นฉบับเดิม`, `The new version (version ${pending.version}) can’t be read: ${failureText(pending, t)} The file stays as it was.`)}</span>
 						{#if canReadAgain(file)}<button type="button" class="k-button small" disabled={!!busy} onclick={readAgain}>{t('อ่านไฟล์ใหม่', 'Read again')}</button>{/if}
 					</div>
 				{:else if held}
@@ -340,7 +353,9 @@
 							{#if offered.includeHidden}<Switch checked={options.includeHidden} disabled={!!busy} label={t('ให้ AI เห็นส่วนที่ซ่อนไว้', 'Let the AI see hidden parts')} description={t('สไลด์ แผ่นงาน และข้อความที่ซ่อนไว้', 'Hidden slides, sheets and text')} onchange={(value) => setOption('includeHidden', value)} />{/if}
 							{#if offered.includeComments}<Switch checked={options.includeComments} disabled={!!busy} label={t('ให้ AI เห็นความคิดเห็น', 'Let the AI see comments')} onchange={(value) => setOption('includeComments', value)} />{/if}
 						</div>
-						<p class="fd-hint">{t('เปลี่ยนแล้ว ORCA จะอ่านไฟล์ใหม่ AI ใช้ฉบับเดิมจนกว่าจะอ่านเสร็จ', 'A change reads the file again; the AI keeps the current version until that is done.')}</p>
+						<p class="fd-hint">{live
+								? t('เปลี่ยนแล้ว ORCA จะอ่านไฟล์ใหม่ AI ใช้ฉบับเดิมจนกว่าจะอ่านเสร็จ', 'A change reads the file again; the AI keeps the current version until that is done.')
+								: t('เปลี่ยนแล้ว ORCA จะอ่านไฟล์ใหม่ตามที่เลือก', 'A change reads the file again as you chose.')}</p>
 					{/if}
 				</section>
 			{/if}
@@ -359,7 +374,7 @@
 		</div>
 
 		<div class="kd-side">
-			<WhoCard {hub} {item} {members} {departments} {currentUserID} />
+			<WhoCard {hub} {item} {members} {departments} {currentUserID} paused={!features.files} />
 
 			<section class="fd-card" aria-labelledby={`fd-file-${item.id}`}>
 				<h2 id={`fd-file-${item.id}`}>{t('ไฟล์ต้นฉบับ', 'Original file')}</h2>
@@ -416,7 +431,7 @@
 
 			{#if takeover}<TakeoverCard hubID={hub.id} {item} ontaken={onchanged} {ondenied} />{/if}
 
-			<KnowledgeRail item={item} ask={item.status === 'published' && servable} {connected} {app} workspace={hub} legend={false} />
+			<KnowledgeRail item={item} ask={item.status === 'published' && servable && features.files} {connected} {app} workspace={hub} legend={false} />
 		</div>
 	</div>
 </div>
@@ -556,9 +571,18 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface-2);
 	}
-	.fd-state.failed {
-		border-color: var(--orca-deny-line);
-		background: var(--orca-deny-bg);
+	/* Status colours only as dots: a failed reading is told by its words and one red dot. */
+	.fd-state h2 {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.fd-dot {
+		flex: none;
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--orca-deny);
 	}
 	.fd-state h2,
 	.fd-card h2 {
@@ -601,8 +625,6 @@
 	}
 	.fd-note.warn,
 	.fd-note.held {
-		border-color: var(--orca-warn-line);
-		background: var(--orca-warn-bg);
 		color: var(--orca-ink);
 	}
 	.fd-note.warn :global(svg),

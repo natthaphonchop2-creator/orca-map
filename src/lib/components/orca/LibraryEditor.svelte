@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
-	import { ArrowLeft, ChevronRight, FileText, Info, TriangleAlert } from '@lucide/svelte';
+	import { ArrowLeft, ChevronRight, FileSpreadsheet, FileText, Info, Presentation, TriangleAlert } from '@lucide/svelte';
 	import { parseErrorContent } from '$lib/errors';
 	import {
 		LIBRARY_CONTENT_MAX,
@@ -173,8 +173,8 @@
 		kind === 'file'
 			? t('แก้ไขไฟล์', 'Edit file')
 			: existing
-				? kind === 'template' ? t('แก้ไขคำสั่งสำเร็จรูป', 'Edit ready-made prompt') : t('แก้ไขความรู้', 'Edit knowledge')
-				: kind === 'template' ? t('เพิ่มคำสั่งสำเร็จรูป', 'Add a ready-made prompt') : t('เพิ่มความรู้', 'Add knowledge')
+				? kind === 'template' ? t('แก้ไขคำสั่งสำเร็จรูป', 'Edit ready-made prompt') : features.files ? t('แก้ไขบทความ', 'Edit article') : t('แก้ไขความรู้', 'Edit knowledge')
+				: kind === 'template' ? t('เพิ่มคำสั่งสำเร็จรูป', 'Add a ready-made prompt') : features.files ? t('เพิ่มบทความ', 'Add an article') : t('เพิ่มความรู้', 'Add knowledge')
 	);
 	const saveState = $derived(
 		!existing
@@ -381,7 +381,8 @@
 				<div class="field" id="kn-file" tabindex="-1">
 					<span class="field-label">{t('ไฟล์', 'File')}</span>
 					<div class="ed-file">
-						<FileText size={18} aria-hidden="true" />
+						<!-- The same file-type mark as the list's row. -->
+						{#if ['xlsx', 'csv'].includes(existing?.file?.ext ?? '')}<FileSpreadsheet size={18} aria-hidden="true" />{:else if existing?.file?.ext === 'pptx'}<Presentation size={18} aria-hidden="true" />{:else}<FileText size={18} aria-hidden="true" />{/if}
 						<span>
 							<b>{existing?.file?.fileName ?? title}</b>
 							<small>{factLine([fileTypeLabel(existing?.file?.ext ?? '', t), formatBytes(existing?.file?.bytes ?? 0), fileVersion && fileReading(fileVersion) && readingLabel(fileReading(fileVersion)!, t), fileExtent(fileVersion, t)])}</small>

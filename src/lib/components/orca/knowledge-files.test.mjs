@@ -223,11 +223,20 @@ test('the switches say what the version that serves still holds while the new on
 		file: fileInfo({ ext: 'pptx', published: version(1, 'ready', { stats: { chars: 1, slides: 18, hidden: hiddenParts({ notesSlides: 12 }) } }), pending: version(2, 'queued', { options: { includeHidden: false, includeComments: false, includeNotes: true } }), options: options({ includeNotes: true }) })
 	});
 	const { html } = await fileDetail({ item });
-	assert.match(html, /กำลังอ่านฉบับใหม่ \(ฉบับที่ 2\) AI ใช้ฉบับเดิมจนกว่าจะอ่านเสร็จ/);
+	// A draft serves no one: nothing about what "the AI keeps using".
+	assert.match(html, /กำลังอ่านฉบับใหม่ \(ฉบับที่ 2\) ด้านล่างยังเป็นฉบับเดิมจนกว่าจะอ่านเสร็จ/);
+	assert.match(html, /เปลี่ยนแล้ว ORCA จะอ่านไฟล์ใหม่ตามที่เลือก/);
+	assert.doesNotMatch(html, /AI ใช้ฉบับเดิม/);
 	assert.match(html, /ไฟล์นี้มีโน้ตผู้บรรยาย 12 สไลด์ ORCA กำลังอ่านใหม่ให้ AI เห็น/);
 	assert.match(html, /role="switch"[^>]*aria-checked="true"/);
 	assert.match(html, /ตั้งค่าและเผยแพร่/, 'a read draft is set up and published from the editor');
 	assert.doesNotMatch(html, /อ่านไฟล์ใหม่<\/button>/, 'a version is on its way: no second reading');
+	// Published, the AI keeps the version that serves until the new one is read.
+	const published = await fileDetail({ item: { ...item, status: 'published' } });
+	assert.match(published.html, /กำลังอ่านฉบับใหม่ \(ฉบับที่ 2\) AI ใช้ฉบับเดิมจนกว่าจะอ่านเสร็จ/);
+	assert.match(published.html, /เปลี่ยนแล้ว ORCA จะอ่านไฟล์ใหม่ AI ใช้ฉบับเดิมจนกว่าจะอ่านเสร็จ/);
+	const failedDraft = await fileDetail({ item: { ...item, file: { ...item.file, pending: version(2, 'failed', { errorClass: 'timeout' }) } } });
+	assert.match(failedDraft.html, /ฉบับใหม่ \(ฉบับที่ 2\) อ่านไม่ได้: อ่านนานเกินเวลาที่กำหนด ลองกด อ่านไฟล์ใหม่ ไฟล์นี้ยังเป็นฉบับเดิม/);
 });
 
 test('a file still being read, or that did not read, says so and what to do', async () => {
@@ -284,13 +293,48 @@ test('a manager may take over a file whose owner left; nobody else is offered it
 });
 
 test('after the flag went off, the owner still sees, downloads, archives and deletes a file, nothing else', async () => {
-	const item = fileItem('f', { file: fileInfo({ published: version(2, 'ready', { stats: { chars: 1, hidden: hiddenParts({ comments: 4 }) } }), options: options() }) });
-	const { html, previews } = await fileDetail({ item, features: OFF });
+	const item = fileItem('f', { audienceMode: 'everyone_live', file: fileInfo({ published: version(2, 'ready', { stats: { chars: 1, hidden: hiddenParts({ comments: 4 }) } }), options: options() }) });
+	const { html, previews, rails } = await fileDetail({ item, features: OFF });
 	assert.equal(previews.length, 1);
 	assert.match(html, /download\?version=published/);
 	assert.match(html, />จัดเก็บ</);
 	assert.match(html, />ลบ</);
-	assert.doesNotMatch(html, /role="switch"|อัปโหลดฉบับใหม่|อ่านไฟล์ใหม่|ตั้งค่าไฟล์/, 'what needs library v2 is not offered');
+	assert.doesNotMatch(html, /role="switch"|อัปโหลดฉบับใหม่|อ่านไฟล์ใหม่|ตั้งค่าไฟล์|ส่วนที่ซ่อนอยู่ในไฟล์/, 'what needs library v2 is not offered');
+	// The AI uses no file while it is off: never "AI ใช้ได้", and nothing to ask it.
+	assert.doesNotMatch(html, /AI ใช้ได้|ใช้ได้ตอนนี้/);
+	assert.match(html, /<span class="orca-pill neutral[^"]*"[^>]*>(?:<[^>]+>)*เผยแพร่แล้ว/);
+	assert.match(html, /คลังความรู้แบบไฟล์ปิดอยู่ เปิดอีกครั้งแล้ว AI ของ 3 คนจะใช้ได้/);
+	assert.equal(rails[0].ask, false);
+});
+
+test('after the flag went off, the file list says เผยแพร่แล้ว, not AI ใช้ได้, and the legend says why', async () => {
+	const items = [article('a'), fileItem('f'), fileItem('p', { title: 'นโยบาย', file: fileInfo({ ext: 'docx', published: version(1, 'ready'), pending: version(2, 'ready'), options: options({ reviewBeforeUpdate: true }) }) })];
+	const { html, rails } = await list({ items, kind: 'file', features: OFF, fileZone: zone });
+	assert.match(html, /<i class="dt"[^>]*><\/i>เผยแพร่แล้ว <b>2<\/b>/, 'the strip counts published files, without the ok dot');
+	assert.match(html, /aria-pressed="false"[^>]*>เผยแพร่แล้ว<\/button>/, 'the chip too');
+	assert.doesNotMatch(html, /AI ใช้ได้/);
+	assert.doesNotMatch(html, /ฉบับใหม่รอคุณกดใช้/, 'nothing to put in use while it is off');
+	assert.equal(rails[0].paused, true);
+	// With the flag the same rows are "AI ใช้ได้".
+	const on = await list({ items, kind: 'file', features: ON, fileZone: zone });
+	assert.match(on.html, /AI ใช้ได้/);
+	assert.match(on.html, /ฉบับใหม่รอคุณกดใช้/);
+	assert.equal(on.rails[0].paused, false);
+});
+
+test('an owner who left is not called a workspace member; the takeover card names the kind', async () => {
+	const departed = fileItem('c', { ownerID: 'gone', canEdit: false, audienceMode: undefined });
+	const { html } = await fileDetail({ item: departed, canManage: true });
+	assert.match(html, /เจ้าของ ไม่อยู่ในพื้นที่ทำงานนี้แล้ว/);
+	assert.doesNotMatch(html, /สมาชิกพื้นที่ทำงาน/);
+	const dialogs = [];
+	const { warnings, Component } = await serverComponent(new URL('./knowledge/TakeoverCard.svelte', import.meta.url), { ...k, t: th, orcaError: () => '', getHttpStatusCode: noop, parseErrorContent: noop, OrcaLibraryService: {}, ConfirmDialog: (_renderer, input) => dialogs.push(input) });
+	assert.deepEqual(warnings, []);
+	const card = show(Component, { hubID: 'sales', item: departed, ontaken: noop, ondenied: noop });
+	assert.match(card, /เจ้าของไฟล์นี้ไม่อยู่แล้ว/);
+	assert.match(card, /ไม่มีใครแก้ไขไฟล์นี้ได้ จนกว่าเจ้าของบริษัทหรือผู้ดูแลจะรับช่วงดูแล/);
+	assert.match(dialogs[0].message, /^คุณจะเป็นเจ้าของไฟล์นี้ แก้ไข เผยแพร่ และลบได้/);
+	assert.match(show(Component, { hubID: 'sales', item: article('a', { ownerID: 'gone', canEdit: false }), ontaken: noop, ondenied: noop }), /เจ้าของเรื่องนี้ไม่อยู่แล้ว/);
 });
 
 test('"ใครใช้ได้" of an article: live, a list, or its author\'s choice', async () => {
@@ -318,6 +362,8 @@ test('"ทุกคน (อัปเดตอัตโนมัติ)" sits fir
 	assert.match(offered, /AI ของ <b[^>]*>3 คน<\/b>จะใช้ไฟล์นี้ได้/, 'everyone in the workspace now');
 	assert.match(offered, /เลือกว่า AI ของใครจะตอบจากไฟล์นี้ได้/);
 	assert.doesNotMatch(show(Component, { ...props, kind: 'knowledge', mode: 'everyone' }), /อัปเดตอัตโนมัติ/, 'without library v2: today\'s four choices');
+	assert.match(show(Component, { ...props, kind: 'knowledge', live: true, mode: 'everyone' }), /เลือกว่า AI ของใครจะตอบจากบทความนี้ได้[\s\S]*จะใช้บทความนี้ได้/, 'with library v2 an article is บทความ');
+	assert.match(show(Component, { ...props, kind: 'knowledge', mode: 'everyone' }), /เลือกว่า AI ของใครจะตอบจากความรู้นี้ได้[\s\S]*จะใช้ความรู้นี้ได้/, 'without it, today\'s words');
 	assert.match(show(Component, { ...props, kind: 'knowledge', mode: 'everyone_live' }), /ทุกคน \(อัปเดตอัตโนมัติ\)/, 'a live item keeps showing its choice');
 });
 
@@ -354,6 +400,10 @@ test('a file is edited in the editor: its title, its file, who can use it; publi
 	show(Component, { ...props, kind: 'knowledge', features: OFF });
 	assert.equal(cards.at(-1).mode, 'everyone');
 	assert.equal(cards.at(-1).live, false);
+	// Beside ไฟล์ an article is บทความ; without library v2 it stays ความรู้.
+	assert.match(show(Component, { ...props, kind: 'knowledge' }), /<h1[^>]*>เพิ่มบทความ<\/h1>/);
+	assert.match(show(Component, { ...props, kind: 'knowledge', existing: article('a') }), /<h1[^>]*>แก้ไขบทความ<\/h1>/);
+	assert.match(show(Component, { ...props, kind: 'knowledge', features: OFF }), /<h1[^>]*>เพิ่มความรู้<\/h1>/);
 	// The mode goes only to a server that knows it.
 	const editor = await readFile(new URL('./LibraryEditor.svelte', import.meta.url), 'utf8');
 	assert.match(editor, /if \(features\.audienceModes\) input\.audienceMode = audienceWireMode\(mode\);/);
@@ -427,6 +477,9 @@ test('every knowledge library v2 event the server records has a Thai name in the
 	// The switch's events say which way it went.
 	assert.match(source, /event\.action === "library\.v2"\)\s*return event\.version === 1 \? t\("ทีม ORCA เปิดคลังความรู้แบบไฟล์"/);
 	assert.match(source, /event\.action === "platform\.company\.library_v2"\)\s*return event\.version === 1 \? t\("เปิดคลังความรู้แบบไฟล์ให้บริษัทลูกค้า"/);
+	// The history keeps no title: a knowledge item is named by its kind, its code only in the title attribute.
+	assert.match(source, /startsWith\("library\.file\."\)\)\s*return \{ label: t\("ไฟล์ในคลังความรู้", "A file in Knowledge"\), id \};/);
+	assert.match(source, /startsWith\("library\."\)\)\s*return \{ label: t\("รายการในคลังความรู้", "A Knowledge item"\), id \};/);
 	const details = await readFile(new URL('./AuditDetails.svelte', import.meta.url), 'utf8');
 	for (const category of ['file_too_large', 'file_unsupported', 'file_hostile', 'file_encrypted', 'extract_timeout', 'extract_memory', 'extract_failed', 'storage_error']) assert.match(details, new RegExp(`${category}: t\\("`), category);
 });

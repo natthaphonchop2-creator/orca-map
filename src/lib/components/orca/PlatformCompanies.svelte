@@ -336,8 +336,8 @@
     : t(`เปิดคลังความรู้ v2 ให้ ${flagTarget?.displayName ?? ""}?`, `Turn on Knowledge v2 for ${flagTarget?.displayName ?? ""}?`)}
   message={flagTarget?.libraryV2
     ? t(
-        "AI จะกลับไปค้นเฉพาะบทความ คนในบริษัทอัปโหลดไฟล์ใหม่ไม่ได้ ไฟล์ที่มีอยู่ยังเปิดดูและลบได้ ORCA บันทึกไว้ทั้งในประวัติของบริษัทนี้และของแพลตฟอร์ม",
-        "AI goes back to searching articles only, and its people can't upload new files. Files already there can still be opened and deleted. ORCA records it in this company's history and the platform's.",
+        "AI จะกลับไปค้นเฉพาะบทความ คนในบริษัทอัปโหลดไฟล์ใหม่ไม่ได้ ไฟล์ที่มีอยู่ยังเปิดดู ดาวน์โหลด และลบได้ ORCA บันทึกไว้ทั้งในประวัติของบริษัทนี้และของแพลตฟอร์ม",
+        "AI goes back to searching articles only, and its people can't upload new files. Files already there can still be opened, downloaded and deleted. ORCA records it in this company's history and the platform's.",
       )
     : t(
         "คนในบริษัทนี้จะอัปโหลดไฟล์ Word, Excel และ PowerPoint เข้าคลังความรู้ได้ และ AI จะค้นจากไฟล์ด้วย แอป AI อาจต้องรีเฟรชการเชื่อม 1 ครั้งจึงเห็นเครื่องมือใหม่ ORCA บันทึกไว้ทั้งในประวัติของบริษัทนี้และของแพลตฟอร์ม",

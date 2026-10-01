@@ -104,6 +104,8 @@
 	const fileCount = $derived(libraryCounts(items, 'file').current);
 	// Uploads need library v2; files already there stay listed after it is turned off (a rollback).
 	const files = $derived(features.files);
+	// The file list after a rollback: the AI uses no file, so a published one is "เผยแพร่แล้ว", not "AI ใช้ได้".
+	const paused = $derived(kind === 'file' && !features.files);
 	const fileTab = $derived(features.files || items.some((item) => item.kind === 'file'));
 	const rows = $derived(filterLibrary(items, kind, filter, query));
 	const shown = $derived(expanded ? rows : rows.slice(0, LIBRARY_PAGE));
@@ -116,7 +118,7 @@
 	const workspaceMemberIDs = $derived(members.map((member) => member.id));
 	const filters = $derived<{ id: LibraryFilter; label: string }[]>([
 		{ id: 'all', label: t('ทั้งหมด', 'All') },
-		{ id: 'published', label: t('AI ใช้ได้', 'AI can use') },
+		{ id: 'published', label: paused ? t('เผยแพร่แล้ว', 'Published') : t('AI ใช้ได้', 'AI can use') },
 		{ id: 'draft', label: t('ฉบับร่าง', 'Drafts') },
 		{ id: 'archived', label: t('จัดเก็บแล้ว', 'Archived') }
 	]);
@@ -173,7 +175,7 @@
 			{#if choices.length > 1}<ScopeChip {hub} {choices} onchoose={onchoose} />{/if}
 			{#if counted}
 				<p class="kn-strip">
-					<span><i class="dt ok" aria-hidden="true"></i>{t('AI ใช้ได้', 'AI can use')} <b>{counts.published}</b></span>
+					<span><i class="dt" class:ok={!paused} aria-hidden="true"></i>{paused ? t('เผยแพร่แล้ว', 'Published') : t('AI ใช้ได้', 'AI can use')} <b>{counts.published}</b></span>
 					<i class="sep" aria-hidden="true"></i>
 					<span><i class="dt draft" aria-hidden="true"></i>{t('ฉบับร่าง', 'Drafts')} <b>{counts.draft}</b></span>
 				</p>
@@ -245,10 +247,10 @@
 					<ul>
 						{#each shown as item (item.id)}
 							{@const audience = item.canEdit ? chip(item) : undefined}
-							{@const row = item.kind === 'file' ? fileRowState(item, t) : undefined}
+							{@const row = item.kind === 'file' ? fileRowState(item, t, files) : undefined}
 							<li>
 								<button type="button" class="kl-r" onclick={() => onopen(item)}>
-									<span class="kl-ic" class:draft={item.status === 'draft' || row?.status === 'reading'} class:archived={item.status === 'archived'} class:failed={row?.status === 'failed'} aria-hidden="true">
+									<span class="kl-ic" class:draft={item.status === 'draft' || row?.status === 'reading'} class:archived={item.status === 'archived'} aria-hidden="true">
 										{#if item.kind === 'template'}<Zap size={17} />{:else if item.kind === 'file' && ['xlsx', 'csv'].includes(item.file?.ext ?? '')}<FileSpreadsheet size={17} />{:else if item.kind === 'file' && item.file?.ext === 'pptx'}<Presentation size={17} />{:else}<FileText size={17} />{/if}
 									</span>
 									{#if item.kind === 'file'}
@@ -271,6 +273,7 @@
 									<span class="kl-s" class:draft={row ? row.status === 'reading' || row.status === 'draft' : item.status === 'draft'}>
 										{#if row?.status === 'reading'}<StatusPill label={readingLabel('reading', t)} dot />
 										{:else if row?.status === 'failed'}<StatusPill label={readingLabel('failed', t)} tone="deny" dot />
+										{:else if item.status === 'published' && paused}<StatusPill label={t('เผยแพร่แล้ว', 'Published')} dot />
 										{:else if item.status === 'published'}<StatusPill label={t('AI ใช้ได้', 'AI can use')} tone="ok" dot />
 										{:else if item.status === 'draft'}<StatusPill label={t('ฉบับร่าง', 'Draft')} dot />
 										{:else}<span class="archived-pill"><Archive size={12} aria-hidden="true" />{t('จัดเก็บแล้ว', 'Archived')}</span>{/if}
@@ -313,7 +316,7 @@
 			{/if}
 		</div>
 
-		<KnowledgeRail item={ask} ask={counted} {connected} {app} workspace={hub} files={kind === 'file'} usage={kind === 'file' ? usage : undefined} />
+		<KnowledgeRail item={ask} ask={counted} {connected} {app} workspace={hub} files={kind === 'file'} {paused} usage={kind === 'file' ? usage : undefined} />
 	</div>
 </div>
 
@@ -597,11 +600,6 @@
 	.kl-ic.archived {
 		color: var(--orca-subtle);
 	}
-	.kl-ic.failed {
-		border: 1.5px solid var(--orca-deny-line);
-		background: var(--orca-deny-bg);
-		color: var(--orca-deny);
-	}
 	.kl-t {
 		display: block;
 		min-width: 0;
@@ -628,12 +626,13 @@
 	.kl-t small.kl-fn {
 		color: var(--orca-muted);
 	}
-	.kl-t small.kl-fn.deny {
-		color: var(--orca-deny);
-		white-space: normal;
-	}
+	/* Status colours only as dots: the pill beside it says the state. */
+	.kl-t small.kl-fn.deny,
 	.kl-t small.kl-fn.warn {
-		color: var(--orca-warn);
+		color: var(--orca-text-2);
+	}
+	.kl-t small.kl-fn.deny {
+		white-space: normal;
 	}
 	.kl-a {
 		min-width: 0;

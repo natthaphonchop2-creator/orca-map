@@ -158,7 +158,7 @@
 					{:else if item.status === 'draft'}<StatusPill label={t('ฉบับร่าง', 'Draft')} dot />
 					{:else}<StatusPill label={t('จัดเก็บแล้ว', 'Archived')} />{/if}
 				</span>
-				<span>{item.kind === 'template' ? term('readyPrompt', t) : t('ความรู้', 'Knowledge')}</span>
+				<span>{item.kind === 'template' ? term('readyPrompt', t) : features.files ? t('บทความ', 'Article') : t('ความรู้', 'Knowledge')}</span>
 				<span>{t('ผู้เขียน', 'By')} {personName(item.ownerID)}</span>
 				<span>{t('อัปเดต', 'Updated')} {relativeTime(item.updatedAt, now, t)}</span>
 			</p>

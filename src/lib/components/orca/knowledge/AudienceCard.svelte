@@ -60,7 +60,8 @@
 				)
 			: t(`ตอนนี้มี ${members.length} คนในพื้นที่ทำงานนี้`, `${members.length} people in this workspace now`)
 	);
-	const noun = $derived(kind === 'template' ? t('คำสั่งนี้', 'this prompt') : kind === 'file' ? t('ไฟล์นี้', 'this file') : t('ความรู้นี้', 'this knowledge'));
+	// With library v2 (`live`) an article is บทความ, beside ไฟล์.
+	const noun = $derived(kind === 'template' ? t('คำสั่งนี้', 'this prompt') : kind === 'file' ? t('ไฟล์นี้', 'this file') : live ? t('บทความนี้', 'this article') : t('ความรู้นี้', 'this knowledge'));
 	function name(id: string) {
 		const member = members.find((item) => item.id === id);
 		return member ? member.displayName || member.email : t('สมาชิก', 'Member');
@@ -111,7 +112,9 @@
 				? t('เลือกว่า AI ของใครจะใช้คำสั่งนี้ได้', 'Choose whose AI can use this prompt')
 				: kind === 'file'
 					? t('เลือกว่า AI ของใครจะตอบจากไฟล์นี้ได้', 'Choose whose AI can answer from this file')
-					: t('เลือกว่า AI ของใครจะตอบจากความรู้นี้ได้', 'Choose whose AI can answer from this')}
+					: live
+						? t('เลือกว่า AI ของใครจะตอบจากบทความนี้ได้', 'Choose whose AI can answer from this article')
+						: t('เลือกว่า AI ของใครจะตอบจากความรู้นี้ได้', 'Choose whose AI can answer from this')}
 		</p>
 	</div>
 	<div class="opts" role="radiogroup" aria-labelledby={`wc-${uid}`}>

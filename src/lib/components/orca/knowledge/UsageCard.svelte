@@ -76,7 +76,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 6px;
-		color: var(--orca-deny);
+		color: var(--orca-ink);
 		font-size: 12.5px;
 		font-weight: 600;
 	}

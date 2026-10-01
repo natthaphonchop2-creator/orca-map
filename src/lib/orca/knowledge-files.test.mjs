@@ -210,6 +210,15 @@ test('a file row: its reading until a version serves, then its status with the n
 	assert.match(row('published', { published: version(1, 'ready'), pending: version(2, 'failed') }).note, /ฉบับใหม่อ่านไม่ได้/);
 	assert.equal(row('published', { published: version(1, 'ready'), pending: version(2, 'ready') }).note, 'ฉบับใหม่รอคุณกดใช้');
 	assert.deepEqual(row('archived', { published: version(1, 'ready') }), { status: 'archived' });
+	// A draft serves no one: its notes never say what the AI keeps using.
+	assert.equal(row('draft', { published: version(1, 'ready'), pending: version(2, 'extracting') }).note, 'กำลังอ่านฉบับใหม่');
+	assert.equal(row('draft', { published: version(1, 'ready'), pending: version(2, 'failed') }).note, 'ฉบับใหม่อ่านไม่ได้');
+	// With library v2 off (a rollback) a newer version can't be put in use: no note about one.
+	const off = (status, extra) => k.fileRowState(item('f', { status, file: file(extra) }), th, false);
+	assert.deepEqual(off('published', { published: version(1, 'ready'), pending: version(2, 'ready') }), { status: 'published' });
+	assert.deepEqual(off('published', { published: version(1, 'ready'), pending: version(2, 'extracting') }), { status: 'published' });
+	assert.equal(off('published', { published: version(1, 'partial') }).note, 'อ่านได้บางส่วน');
+	assert.equal(off('draft', { pending: version(1, 'unsupported', { errorClass: 'encrypted_or_legacy' }) }).status, 'failed');
 	// Only the owner's own files still being read are asked about again.
 	const items = [
 		item('mine', { file: file({ pending: version(1, 'extracting') }) }),

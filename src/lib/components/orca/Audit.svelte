@@ -327,6 +327,11 @@
         return connectionDisplay(id);
       if (id === event.hubID || (event.action ?? "").startsWith("hub."))
         return hubDisplay(id);
+      // A knowledge item: the history keeps no title, so it is named by its kind (its code in the title).
+      if ((event.action ?? "").startsWith("library.file."))
+        return { label: t("ไฟล์ในคลังความรู้", "A file in Knowledge"), id };
+      if ((event.action ?? "").startsWith("library."))
+        return { label: t("รายการในคลังความรู้", "A Knowledge item"), id };
       return { id };
     }
     if (event.connectionID && names.connections[event.connectionID])

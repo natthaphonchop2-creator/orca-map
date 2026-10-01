@@ -21,6 +21,7 @@
 		legend = true,
 		ask = true,
 		files = false,
+		paused = false,
 		usage
 	}: {
 		/** The item to ask about: the open one, or the newest published article. */
@@ -36,6 +37,8 @@
 		ask?: boolean;
 		/** The file list (knowledge library v2): the legend tells the reading states too. */
 		files?: boolean;
+		/** The file list after library v2 was turned off: the AI uses no file. */
+		paused?: boolean;
 		/** The company's file quota, beside the file list. */
 		usage?: LibraryUsage;
 	} = $props();
@@ -97,12 +100,16 @@
 		<div class="kn-card lg">
 			<h2>{t('สถานะหมายถึงอะไร', 'What the statuses mean')}</h2>
 			<ul>
-				<li><span class="pill ok"><i class="dt"></i>{t('AI ใช้ได้', 'AI can use')}</span>{t('AI ของคนที่เลือกไว้ใช้ตอบได้ทันที', 'The chosen people’s AI can answer from it now')}</li>
+				{#if paused}
+					<li><span class="pill"><i class="dt"></i>{t('เผยแพร่แล้ว', 'Published')}</span>{t('ตอนนี้ AI ไม่ได้ใช้ไฟล์ เพราะคลังความรู้แบบไฟล์ของบริษัทปิดอยู่', 'AI does not use files now: file Knowledge is off for this company')}</li>
+				{:else}
+					<li><span class="pill ok"><i class="dt"></i>{t('AI ใช้ได้', 'AI can use')}</span>{t('AI ของคนที่เลือกไว้ใช้ตอบได้ทันที', 'The chosen people’s AI can answer from it now')}</li>
+				{/if}
 				<li><span class="pill"><i class="dt draft"></i>{t('ฉบับร่าง', 'Draft')}</span>{t('เห็นแค่คุณ AI ยังไม่ใช้', 'Only you see it. AI does not use it yet')}</li>
 				<li><span class="pill"><Archive size={12} aria-hidden="true" />{t('จัดเก็บแล้ว', 'Archived')}</span>{t('AI เลิกใช้ แต่ยังเปิดดูย้อนหลังได้', 'AI no longer uses it; you can still open it')}</li>
 				{#if files}
 					<li><span class="pill"><i class="dt draft"></i>{t('กำลังอ่าน', 'Reading')}</span>{t('ORCA กำลังอ่านข้อความในไฟล์ AI ยังไม่เห็น', 'ORCA is reading the file; AI does not see it yet')}</li>
-					<li><span class="pill deny"><i class="dt"></i>{t('อ่านไม่ได้', 'Can’t be read')}</span>{t('เปิดไฟล์เพื่อดูเหตุผล แล้วอัปโหลดฉบับใหม่', 'Open the file to see why, then upload a new version')}</li>
+					<li><span class="pill deny"><i class="dt"></i>{t('อ่านไม่ได้', 'Can’t be read')}</span>{paused ? t('เปิดไฟล์เพื่อดูเหตุผล', 'Open the file to see why') : t('เปิดไฟล์เพื่อดูเหตุผล แล้วอัปโหลดฉบับใหม่', 'Open the file to see why, then upload a new version')}</li>
 				{/if}
 			</ul>
 		</div>

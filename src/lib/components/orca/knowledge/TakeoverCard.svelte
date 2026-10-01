@@ -24,6 +24,7 @@
 	let open = $state(false);
 	let busy = $state(false);
 	let error = $state('');
+	const noun = $derived(item.kind === 'file' ? t('ไฟล์นี้', 'this file') : item.kind === 'template' ? t('คำสั่งนี้', 'this prompt') : t('เรื่องนี้', 'this item'));
 
 	async function take() {
 		if (busy) return;
@@ -52,8 +53,8 @@
 </script>
 
 <section class="tk" aria-labelledby={`tk-${item.id}`}>
-	<h2 id={`tk-${item.id}`}>{t('เจ้าของเรื่องนี้ไม่อยู่แล้ว', 'Its owner has left')}</h2>
-	<p>{t('ไม่มีใครแก้ไขเรื่องนี้ได้ จนกว่าเจ้าของบริษัทหรือผู้ดูแลจะรับช่วงดูแล', 'Nobody can change it until a company owner or admin takes it over.')}</p>
+	<h2 id={`tk-${item.id}`}>{t(`เจ้าของ${noun}ไม่อยู่แล้ว`, 'Its owner has left')}</h2>
+	<p>{t(`ไม่มีใครแก้ไข${noun}ได้ จนกว่าเจ้าของบริษัทหรือผู้ดูแลจะรับช่วงดูแล`, 'Nobody can change it until a company owner or admin takes it over.')}</p>
 	<button type="button" class="k-button" onclick={() => (open = true)}><UserRoundCheck size={16} aria-hidden="true" />{t('รับช่วงดูแล', 'Take over')}</button>
 </section>
 
@@ -62,7 +63,7 @@
 	icon={UserRoundCheck}
 	title={t(`รับช่วงดูแล “${item.title}”?`, `Take over “${item.title}”?`)}
 	message={t(
-		'คุณจะเป็นเจ้าของเรื่องนี้ แก้ไข เผยแพร่ และลบได้ ส่วนคนที่ใช้ได้ยังเหมือนเดิม ORCA บันทึกไว้ในประวัติการตั้งค่า',
+		`คุณจะเป็นเจ้าของ${noun} แก้ไข เผยแพร่ และลบได้ ส่วนคนที่ใช้ได้ยังเหมือนเดิม ORCA บันทึกไว้ในประวัติการตั้งค่า`,
 		'You become its owner and can edit, publish and delete it. Who can use it stays the same. ORCA records it in the settings history.'
 	)}
 	confirmLabel={busy ? t('กำลังรับช่วง…', 'Taking over…') : t('รับช่วงดูแล', 'Take over')}
@@ -76,9 +77,9 @@
 <style>
 	.tk {
 		padding: 18px 20px;
-		border: 1px solid var(--orca-warn-line);
+		border: 1px solid var(--orca-line-strong);
 		border-radius: var(--orca-radius-lg);
-		background: var(--orca-warn-bg);
+		background: var(--orca-surface-2);
 	}
 	.tk h2 {
 		margin: 0 0 6px;

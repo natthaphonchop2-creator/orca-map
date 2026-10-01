@@ -132,6 +132,7 @@
 		margin-bottom: 16px;
 	}
 	.fz-drop {
+		container: fz-drop / inline-size;
 		display: grid;
 		justify-items: center;
 		gap: 6px;
@@ -176,6 +177,16 @@
 	.fz-rules span + span::before {
 		content: '·';
 		margin-right: 6px;
+	}
+	/* Too narrow for one line: one rule a line, no dot starting the second. */
+	@container fz-drop (max-width: 600px) {
+		.fz-rules {
+			flex-direction: column;
+			align-items: center;
+		}
+		.fz-rules span + span::before {
+			content: none;
+		}
 	}
 	.fz-pick {
 		margin: 8px 0 4px;
@@ -293,9 +304,10 @@
 		font-size: 12.5px;
 		line-height: 1.5;
 	}
+	/* Status colours only as dots: the red dot marks it, the reason reads in ink. */
 	.fz-row.refused .fz-state,
 	.fz-row.failed .fz-state {
-		color: var(--orca-deny);
+		color: var(--orca-text-2);
 	}
 	.fz-size {
 		color: var(--orca-subtle);

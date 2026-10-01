@@ -13,7 +13,8 @@
 		item,
 		members,
 		departments,
-		currentUserID
+		currentUserID,
+		paused = false
 	}: {
 		hub: Pick<OrcaHub, 'status'>;
 		item: LibraryItem;
@@ -21,6 +22,8 @@
 		members: OrcaMember[];
 		departments: LibraryDepartment[];
 		currentUserID: string;
+		/** A file after library v2 was turned off: the AI uses no file until it is on again. */
+		paused?: boolean;
 	} = $props();
 	const live = $derived(item.audienceMode === 'everyone_live');
 	const people = $derived([...audiencePeople(item, departments, members.map((member) => member.id))]);
@@ -46,13 +49,14 @@
 	{#if !item.canEdit}
 		<p class="kd-hint">{item.kind === 'file' ? t('เจ้าของไฟล์เป็นคนเลือกว่าใครใช้ได้', 'Its owner chooses who can use it') : t('ผู้เขียนเป็นคนเลือกว่าใครใช้ได้', 'Its author chooses who can use it')}</p>
 	{:else}
-		<div class="live" class:off={item.status !== 'published' || hub.status !== 'active'}>
+		<div class="live" class:off={item.status !== 'published' || hub.status !== 'active' || paused}>
 			<div class="avs" aria-hidden="true">
 				{#each ordered.slice(0, 4) as id (id)}<span class:me={id === currentUserID}>{initial(id)}</span>{/each}
 				{#if ordered.length > 4}<span class="more-n">+{ordered.length - 4}</span>{/if}
 			</div>
 			<p>
-				{#if item.status === 'published' && hub.status !== 'active'}{t(`AI ของ ${people.length} คนจะใช้ได้เมื่อเปิดใช้งานพื้นที่ทำงานนี้`, `${people.length} people’s AI can use it once this workspace is active`)}
+				{#if item.status === 'published' && paused}{t(`คลังความรู้แบบไฟล์ปิดอยู่ เปิดอีกครั้งแล้ว AI ของ ${people.length} คนจะใช้ได้`, `File Knowledge is off. Once it is on again, ${people.length} people’s AI can use it`)}
+				{:else if item.status === 'published' && hub.status !== 'active'}{t(`AI ของ ${people.length} คนจะใช้ได้เมื่อเปิดใช้งานพื้นที่ทำงานนี้`, `${people.length} people’s AI can use it once this workspace is active`)}
 				{:else if item.status === 'published'}{t('AI ของ', 'The AI of')} <b>{t(`${people.length} คน`, `${people.length} people`)}</b>{t('ใช้ได้ตอนนี้', ' can use it now')}
 				{:else if item.status === 'draft'}{t(`ฉบับร่าง เห็นแค่คุณ เผยแพร่แล้ว AI ของ ${people.length} คนจะใช้ได้`, `A draft only you see. Once published, ${people.length} people’s AI can use it`)}
 				{:else}{t('จัดเก็บแล้ว AI ไม่ใช้เรื่องนี้', 'Archived. AI does not use it')}{/if}

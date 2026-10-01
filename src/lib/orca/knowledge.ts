@@ -1066,16 +1066,22 @@ export type FileRowState = {
 	tone?: 'deny' | 'warn' | 'muted';
 };
 
-export function fileRowState(item: Pick<LibraryItem, 'status' | 'file'>, t: Translate): FileRowState {
+export function fileRowState(item: Pick<LibraryItem, 'status' | 'file'>, t: Translate, on = true): FileRowState {
 	const file = item.file;
 	const published = file?.published;
 	const pending = file?.pending;
 	if (item.status === 'archived') return { status: 'archived' };
 	if (versionServable(published)) {
 		const status = item.status;
-		if (pending && fileReading(pending) === 'reading') return { status, note: t('กำลังอ่านฉบับใหม่ AI ใช้ฉบับเดิมไปก่อน', 'Reading a new version; the AI keeps the current one'), tone: 'muted' };
-		if (pending && fileReading(pending) === 'failed') return { status, note: t('ฉบับใหม่อ่านไม่ได้ AI ใช้ฉบับเดิมอยู่', 'The new version can’t be read; the AI keeps the current one'), tone: 'warn' };
-		if (pending && versionServable(pending)) return { status, note: t('ฉบับใหม่รอคุณกดใช้', 'A new version waits for you'), tone: 'warn' };
+		// With library v2 off (a rollback) the AI uses no file and a newer
+		// version can't be put in use: nothing to say about one until it is on.
+		// A draft serves no one: its notes never say what the AI keeps using.
+		const live = status === 'published';
+		if (on && pending && fileReading(pending) === 'reading')
+			return { status, note: live ? t('กำลังอ่านฉบับใหม่ AI ใช้ฉบับเดิมไปก่อน', 'Reading a new version; the AI keeps the current one') : t('กำลังอ่านฉบับใหม่', 'Reading a new version'), tone: 'muted' };
+		if (on && pending && fileReading(pending) === 'failed')
+			return { status, note: live ? t('ฉบับใหม่อ่านไม่ได้ AI ใช้ฉบับเดิมอยู่', 'The new version can’t be read; the AI keeps the current one') : t('ฉบับใหม่อ่านไม่ได้', 'The new version can’t be read'), tone: 'warn' };
+		if (on && pending && versionServable(pending)) return { status, note: t('ฉบับใหม่รอคุณกดใช้', 'A new version waits for you'), tone: 'warn' };
 		if (published?.state === 'partial') return { status, note: t('อ่านได้บางส่วน', 'Partly read'), tone: 'warn' };
 		return { status };
 	}
