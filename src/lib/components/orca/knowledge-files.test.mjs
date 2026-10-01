@@ -1128,7 +1128,7 @@ test('a save\'s answer, an upload\'s or a recheck\'s, supersedes the quiet asks 
 	assert.deepEqual(view.items.map((item) => item.id).sort(), ['a', 'b']);
 	const page = await readFile(new URL('./KnowledgeLibrary.svelte', import.meta.url), 'utf8');
 	// Every fresher list marks itself: a recheck's, a load's, an answer settled (save, archive, file action), a delete's, an upload's.
-	for (const where of [/return 'denied';\s*fresher\(\);\s*items = result\.items;/, /error = '';\s*fresher\(\);\s*items = result\.items;/, /return undefined;\s*\/\/[^\n]*\n\s*fresher\(\);\s*const \{ item, reload \} = settleAnswer/, /function deleted\(item: LibraryItem\) \{\s*fresher\(\);/, /fresher\(\);\s*items = \[\.\.\.items\.filter\(\(known\) => known\.id !== answer\.item!\.id\), answer\.item\];/])
+	for (const where of [/return 'denied';\s*fresher\(\);\s*const wasReading = readingFileIDs\(items\);\s*items = result\.items;/, /error = '';\s*fresher\(\);\s*const wasReading = readingFileIDs\(items\);\s*items = result\.items;/, /return undefined;\s*\/\/[^\n]*\n\s*fresher\(\);\s*const \{ item, reload \} = settleAnswer/, /function deleted\(item: LibraryItem\) \{\s*fresher\(\);/, /fresher\(\);\s*items = \[\.\.\.items\.filter\(\(known\) => known\.id !== answer\.item!\.id\), answer\.item\];/])
 		assert.match(page, where);
 });
 
@@ -1406,6 +1406,8 @@ test('a read of the file is older than a newer item from the page too; one that 
 });
 
 test('a file action or an upload starts a fresh polling budget and asks for the quota again (Codex S7 tenth confirmation #2, #3)', async (t) => {
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+	let loadCount = 0;
 	const client = await import('svelte/internal/client');
 	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ changed, upload, setPollRound(value) { pollRound = value; }, get pollRound() { return pollRound; }, get pollTimer() { return pollTimer; }, stopPolling, get items() { return items; } }');
 	const reading = (id) => fileItem(id, { status: 'draft', file: fileInfo({ pending: version(1, 'extracting'), options: options() }) });
@@ -1422,7 +1424,7 @@ test('a file action or an upload starts a fresh polling budget and asks for the 
 				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', localeHref: (value) => value,
 				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
 				OrcaLibraryService: {
-					load: async () => ({ items: [reading('old')], members, departments: [] }),
+					load: async () => { loadCount += 1; return { items: [reading('old')], members, departments: [] }; },
 					usage: async () => { usageAsks += 1; return { bytes: 0, bytesLimit: 1024 * 1024 * 1024, chars: 0, charsLimit: 10_000_000, uploadsToday: 1, uploadsLimit: 50, items: 1, itemsLimit: 1000 }; },
 					upload: async (_id, files, progress) => { progress.onsent?.(); return { files: files.map((file) => ({ fileName: file.name, item: reading(`new-${file.name}`) })) }; }
 				}
@@ -1442,6 +1444,10 @@ test('a file action or an upload starts a fresh polling budget and asks for the 
 	view.changed(reading('old'));
 	assert.equal(view.pollRound, 0, 'a file action starts a fresh budget');
 	assert.ok(view.pollTimer, 'and the page asks again');
+	const loadsBefore = loadCount;
+	t.mock.timers.tick(3_000);
+	for (let i = 0; i < 10 && loadCount === loadsBefore; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(loadCount, loadsBefore + 1, 'the timer really asks');
 	await new Promise((resolve) => setImmediate(resolve));
 	assert.ok(usageAsks > asked, 'the quota is asked for again');
 	view.stopPolling();
@@ -1449,4 +1455,62 @@ test('a file action or an upload starts a fresh polling budget and asks for the 
 	await view.upload([new File(['x'], 'ราคา.xlsx')]);
 	assert.equal(view.pollRound, 0, 'an upload starts a fresh budget');
 	assert.ok(view.pollTimer);
+});
+
+
+test('the quota meter asks again when a reading ends, and keeps only its newest answer (Codex S7 eleventh confirmation #1, tenth #3)', async (t) => {
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ refreshUsage, stopPolling, get usage() { return usage; }, get items() { return items; } }');
+	const reading = fileItem('r', { status: 'draft', file: fileInfo({ pending: version(1, 'queued'), options: options() }) });
+	const read = fileItem('r', { status: 'draft', file: fileInfo({ published: version(1, 'ready', { stats: { chars: 100_000, hidden: hiddenParts() } }), options: options() }) });
+	const lists = [{ items: [reading] }, { items: [read] }];
+	const usageAnswers = [];
+	const meter = (chars, uploads = 1) => ({ bytes: 0, bytesLimit: 1024 * 1024 * 1024, chars, charsLimit: 10_000_000, uploadsToday: uploads, uploadsLimit: 50, items: 1, itemsLimit: 1000 });
+	const salesHub = hub('sales', { memberIDs: ['me'] });
+	let usageAsks = 0;
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ data: { hubs: [salesHub], currentUserID: 'me', canManage: true, features: { libraryV2: true }, members, units: [] }, hubID: 'sales', initialKind: 'file', initialCreate: false, onchanged: async () => {} },
+			{
+				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
+				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
+				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', localeHref: (value) => value,
+				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
+				OrcaLibraryService: {
+					load: async () => ({ ...(lists.length > 1 ? lists.shift() : lists[0]), members, departments: [] }),
+					usage: () => {
+						usageAsks += 1;
+						return usageAnswers.length ? usageAnswers.shift()() : Promise.resolve(meter(0));
+					}
+				}
+			}
+		);
+	});
+	t.after(() => {
+		view.stopPolling();
+		stop();
+	});
+	client.flush();
+	for (let i = 0; i < 20 && !(view.items.length && view.usage); i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(view.usage?.chars, 0);
+	const asked = usageAsks;
+	// The reading ends on the timer's next ask: the meter asks again and shows the characters read.
+	usageAnswers.push(async () => meter(100_000));
+	t.mock.timers.tick(3_000);
+	for (let i = 0; i < 20 && view.usage?.chars !== 100_000; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(view.items[0].file.published?.state, 'ready', 'the timer\'s ask brought the reading\'s end');
+	assert.equal(usageAsks, asked + 1, 'the meter asked again');
+	assert.equal(view.usage?.chars, 100_000, 'the meter shows the characters read');
+	// Two asks out of order: the newest answer stays.
+	let older;
+	usageAnswers.push(() => new Promise((resolve) => { older = resolve; }));
+	usageAnswers.push(async () => meter(100_000, 50));
+	const first = view.refreshUsage('sales');
+	await view.refreshUsage('sales');
+	older(meter(0, 49));
+	await first;
+	assert.equal(view.usage.uploadsToday, 50, 'the older answer never replaces the newer one');
 });

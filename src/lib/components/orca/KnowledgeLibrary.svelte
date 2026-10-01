@@ -213,9 +213,11 @@
 			if (applyUnderEditor(result)) return;
 			error = '';
 			fresher();
+			const wasReading = readingFileIDs(items);
 			items = result.items;
 			members = result.members;
 			departments = result.departments;
+			readingsDone(wasReading);
 			loadedHub = id;
 			now = Date.now();
 			const open = screenID(screen);
@@ -264,9 +266,11 @@
 			const open = screenID(screen);
 			if (open && !result.items.some((item) => item.id === open)) return 'denied';
 			fresher();
+			const wasReading = readingFileIDs(items);
 			items = result.items;
 			members = result.members;
 			departments = result.departments;
+			readingsDone(wasReading);
 			now = Date.now();
 			// It may have taken the place of a load the timer started: ask again while files are read (Codex S7 eighth confirmation #3).
 			schedulePoll();
@@ -427,7 +431,9 @@
 		const editing = dirtyEditor();
 		if (editing === undefined) return false;
 		fresher();
+		const wasReading = readingFileIDs(items);
 		items = withReading(items, result.items, editing);
+		readingsDone(wasReading);
 		if (editing && !result.items.some((item) => item.id === editing)) {
 			stopPolling();
 			editorNote = t('เรื่องนี้ไม่อยู่ในรายการของคุณแล้ว (อาจถูกลบหรือเปลี่ยนสิทธิ์) ข้อความที่พิมพ์ยังอยู่ คัดลอกเก็บไว้ก่อนออก', 'This item is no longer in your list (it may have been deleted, or access changed). Your text is still here: copy it before you leave.');
@@ -466,6 +472,11 @@
 		stopPolling();
 		cancelUpload();
 	});
+	/** A reading that ended (read, or not) settles the company's characters: the meter asks again (Codex S7 eleventh confirmation #1). */
+	function readingsDone(wasReading: string[]) {
+		const still = new Set(readingFileIDs(items));
+		if (wasReading.some((id) => !still.has(id))) void refreshUsage();
+	}
 	// The usage asks, in order: an older answer never replaces a newer one (the day's
 	// uploads decide whether anything is sent at all).
 	let usageRequest = 0;
