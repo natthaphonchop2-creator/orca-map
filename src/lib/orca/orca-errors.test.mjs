@@ -16,10 +16,10 @@ import { ORCA_SUPPORT_LINE_ID } from ${JSON.stringify(supportURL)};
 export function errors(stubs) {
 	const { doDelete, doGet, doPatch, doPost, doPut, doWithBody, parseErrorContent, t, orcaLocale } = stubs;
 	${code};
-	return { orcaError, conflictReasons };
+	return { orcaError, conflictReasons, sourceReasons };
 }`).toString('base64'));
 
-const { orcaError, conflictReasons } = errors({ parseErrorContent: (cause) => cause, t: (th) => th, orcaLocale: { value: 'th' } });
+const { orcaError, conflictReasons, sourceReasons } = errors({ parseErrorContent: (cause) => cause, t: (th) => th, orcaLocale: { value: 'th' } });
 const refusal = (status, message) => ({ status, message });
 
 test('invitation conflicts say what happened and the next step, never "reload and save again"', () => {
@@ -45,4 +45,24 @@ test('a break-glass reset refused for a customer\'s Google account says it can n
 	assert.match(text, /เข้าสู่ระบบด้วย Google/);
 	assert.match(text, /ไม่ต้องลองอีก/);
 	assert.doesNotMatch(text, /โหลดข้อมูลล่าสุด/);
+});
+
+// 2026-10-01: Google Drive showed only "the source is not ready". Each step now
+// has a code; the person sees it in Thai with what to do, and the code stays.
+test('a program that cannot be set up says the step that failed, with its code', () => {
+	const drive = orcaError(refusal(424, 'the source is not ready (SRC-13); check your account configuration or ask the organization manager'));
+	assert.match(drive, /^เชื่อมโปรแกรมนี้ยังไม่ได้ \(รหัส SRC-13\) เริ่มลงชื่อเข้าใช้กับโปรแกรมไม่สำเร็จ/);
+	assert.match(drive, /ส่งรหัสนี้ให้ทีม ORCA ทาง LINE @147njpwd/);
+	assert.doesNotMatch(drive, /the source is not ready/);
+	for (let n = 1; n <= 17; n++) {
+		const code = String(n).padStart(2, '0');
+		assert.ok(sourceReasons[code], code);
+		assert.match(orcaError(refusal(424, `the source is not ready (SRC-${code}); check your account configuration or ask the organization manager`)), new RegExp(`\\(รหัส SRC-${code}\\) ${sourceReasons[code][0]}`));
+	}
+	// The text before codes, and a code this page does not know, still read in Thai.
+	for (const message of ['the source is not ready; check your account configuration or ask the organization manager', 'the source is not ready (SRC-99); check']) {
+		assert.match(orcaError(refusal(424, message)), /^เชื่อมโปรแกรมนี้ยังไม่ได้ ลองอีกครั้ง/, message);
+	}
+	// Another 424 keeps its own words.
+	assert.equal(orcaError(refusal(424, 'the API token was not accepted')), 'the API token was not accepted');
 });
