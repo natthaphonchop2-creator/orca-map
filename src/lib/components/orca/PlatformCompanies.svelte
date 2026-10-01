@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
-  import { Building2, Check, Copy, ExternalLink, Link2, MailPlus, Plus, Send, TriangleAlert, X } from "@lucide/svelte";
+  import { Building2, Check, Copy, ExternalLink, Files, Link2, MailPlus, Plus, Send, TriangleAlert, X } from "@lucide/svelte";
   import { parseErrorContent } from "$lib/errors";
   import { invitationLink, lineShareURL } from "$lib/orca/invitations";
   import { localeHref, t } from "$lib/orca/locale.svelte";
@@ -10,6 +10,7 @@
   import { externalBrowserLink } from "$lib/services/orca-platform";
   import PlatformBadge from "./platform/PlatformBadge.svelte";
   import ConfirmDialog from "./ui/ConfirmDialog.svelte";
+  import { showToast } from "./ui/toast-store.svelte";
   import PageHeader from "./ui/PageHeader.svelte";
   import StatusPill, { type StatusTone } from "./ui/StatusPill.svelte";
 
@@ -41,6 +42,12 @@
   // Whether Google sign-in is on: owners can't make an account without it.
   let googleOn = $state<boolean>();
   let request = 0;
+  // คลังความรู้ v2 (C4 §14m S5–S7): the operator turns file uploads on per
+  // company; the server records it in both logs. An older server sends no flag.
+  let flagTarget = $state<OrcaPlatformCompany>();
+  let flagBusy = $state(false);
+  let flagError = $state("");
+  const flagsKnown = $derived(items.some((company) => typeof company.libraryV2 === "boolean"));
 
   const statusText = (status: OwnerStatus, owners: number) =>
     ({
@@ -188,6 +195,28 @@
     }
   }
 
+  async function setLibraryV2() {
+    const company = flagTarget;
+    if (!company || flagBusy) return;
+    const enabled = company.libraryV2 !== true;
+    flagBusy = true;
+    flagError = "";
+    try {
+      const result = await OrcaService.setCompanyLibraryV2(company.id, enabled);
+      items = items.map((item) => (item.id === company.id ? { ...item, libraryV2: result.libraryV2 } : item));
+      flagTarget = undefined;
+      showToast(
+        result.libraryV2
+          ? t(`เปิดคลังความรู้ v2 ให้ ${company.displayName} แล้ว คนในบริษัทเห็นหน้าจอไฟล์เมื่อโหลดหน้าใหม่`, `Knowledge v2 is on for ${company.displayName}. Its people see the file screens after a reload.`)
+          : t(`ปิดคลังความรู้ v2 ของ ${company.displayName} แล้ว`, `Knowledge v2 is off for ${company.displayName}.`),
+      );
+    } catch (cause) {
+      flagError = explain(cause);
+    } finally {
+      flagBusy = false;
+    }
+  }
+
   async function copy(text: string, what: "link" | "message") {
     try {
       await navigator.clipboard.writeText(text);
@@ -226,6 +255,7 @@
           <th scope="col">{t("บริษัท", "Company")}</th>
           <th scope="col">{t("คนที่ใช้งานได้", "People")}</th>
           <th scope="col">{t("เจ้าของ", "Owner")}</th>
+          {#if flagsKnown}<th scope="col">{t("คลังความรู้ v2", "Knowledge v2")}</th>{/if}
           <th scope="col" class="companies-actions-col"><span class="companies-sr">{t("การจัดการ", "Actions")}</span></th>
         </tr>
       </thead>
@@ -255,6 +285,24 @@
                 </div>
               {/each}
             </td>
+            {#if flagsKnown}
+              <td class="company-flag">
+                <span class="company-seats-label">{t("คลังความรู้ v2:", "Knowledge v2:")}</span>
+                <button
+                  type="button"
+                  class="flag-switch"
+                  class:on={company.libraryV2 === true}
+                  role="switch"
+                  aria-checked={company.libraryV2 === true}
+                  aria-label={t(`คลังความรู้ v2 ของ ${company.displayName}`, `Knowledge v2 for ${company.displayName}`)}
+                  disabled={flagBusy}
+                  onclick={() => {
+                    flagError = "";
+                    flagTarget = company;
+                  }}><span class="flag-track" aria-hidden="true"><span class="flag-thumb"></span></span>{company.libraryV2 ? t("เปิดอยู่", "On") : t("ปิดอยู่", "Off")}</button
+                >
+              </td>
+            {/if}
             <td class="companies-actions-col">
               {#if canInviteOwner(company)}<button type="button" class="k-button small" onclick={() => show("invite", company)}
                   ><MailPlus size={14} aria-hidden="true" />{status === "none" ? t("เชิญเจ้าของ", "Invite the owner") : t("ส่งลิงก์ใหม่", "Send a new link")}</button
@@ -279,6 +327,30 @@
   oncancel={() => (revoking = "")}
   onconfirm={() => revokingTarget && revoke(revokingTarget.company, revokingTarget.invitation.id)}
 />
+
+<ConfirmDialog
+  open={!!flagTarget}
+  icon={Files}
+  title={flagTarget?.libraryV2
+    ? t(`ปิดคลังความรู้ v2 ของ ${flagTarget.displayName}?`, `Turn off Knowledge v2 for ${flagTarget?.displayName}?`)
+    : t(`เปิดคลังความรู้ v2 ให้ ${flagTarget?.displayName ?? ""}?`, `Turn on Knowledge v2 for ${flagTarget?.displayName ?? ""}?`)}
+  message={flagTarget?.libraryV2
+    ? t(
+        "AI จะกลับไปค้นเฉพาะบทความ คนในบริษัทอัปโหลดไฟล์ใหม่ไม่ได้ ไฟล์ที่มีอยู่ยังเปิดดูและลบได้ ORCA บันทึกไว้ทั้งในประวัติของบริษัทนี้และของแพลตฟอร์ม",
+        "AI goes back to searching articles only, and its people can't upload new files. Files already there can still be opened and deleted. ORCA records it in this company's history and the platform's.",
+      )
+    : t(
+        "คนในบริษัทนี้จะอัปโหลดไฟล์ Word, Excel และ PowerPoint เข้าคลังความรู้ได้ และ AI จะค้นจากไฟล์ด้วย แอป AI อาจต้องรีเฟรชการเชื่อม 1 ครั้งจึงเห็นเครื่องมือใหม่ ORCA บันทึกไว้ทั้งในประวัติของบริษัทนี้และของแพลตฟอร์ม",
+        "Its people can upload Word, Excel and PowerPoint files to Knowledge, and AI searches the files too. AI apps may need one connector refresh to see the new tools. ORCA records it in this company's history and the platform's.",
+      )}
+  confirmLabel={flagBusy ? t("กำลังบันทึก…", "Saving…") : flagTarget?.libraryV2 ? t("ปิดคลังความรู้ v2", "Turn off") : t("เปิดคลังความรู้ v2", "Turn on")}
+  cancelLabel={t("ไม่เปลี่ยน", "Keep it")}
+  busy={flagBusy}
+  oncancel={() => (flagTarget = undefined)}
+  onconfirm={setLibraryV2}
+>
+  {#if flagError}<p class="dialog-error" role="alert">{flagError}</p>{/if}
+</ConfirmDialog>
 
 <!-- The one-time link is shown once: Escape does not close it before it is copied (เสร็จสิ้น does). -->
 <dialog bind:this={dialog} class="company-dialog" aria-labelledby="company-dialog-title" oncancel={(event) => { if (busy || (step === "issued" && !copied)) event.preventDefault(); }}>
@@ -406,6 +478,17 @@
   .owner-invitation-email { font-weight: 500; overflow-wrap: anywhere; }
   .owner-invitation small { display: inline; }
   .owner-invitation :global(.k-button) { min-height: 28px; padding: 0 8px; }
+  .company-flag { white-space: nowrap; }
+  .flag-switch { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 0; border: 0; background: transparent; color: var(--orca-text-2); font-size: 13.5px; font-weight: 600; cursor: pointer; }
+  .flag-switch:disabled { cursor: not-allowed; opacity: 0.6; }
+  .flag-switch:focus-visible { outline: 2px solid var(--orca-focus); outline-offset: 2px; border-radius: var(--orca-radius-sm); }
+  .flag-track { position: relative; flex: none; width: 36px; height: 20px; border-radius: 999px; background: var(--orca-line-strong); transition: background-color 0.15s var(--orca-ease); }
+  .flag-thumb { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--orca-surface); transition: left 0.15s var(--orca-ease); }
+  .flag-switch.on .flag-track { background: var(--orca-control); }
+  .flag-switch.on .flag-thumb { left: 18px; }
+  .flag-switch.on { color: var(--orca-ink); }
+  :global(:root[data-orca-theme='dark']) .flag-switch:not(.on) .flag-thumb { background: var(--orca-muted); }
+  @media (prefers-reduced-motion: reduce) { .flag-track, .flag-thumb { transition: none; } }
 
   .company-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 28px 28px 24px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-xl); background: var(--orca-surface); color: var(--orca-ink); box-shadow: var(--orca-dialog-shadow); }
   .company-dialog::backdrop { background: var(--orca-scrim, rgba(21, 24, 35, 0.45)); }
@@ -443,6 +526,7 @@
     .companies-table td.company-seats { padding-left: 46px; }
     .company-seats-label { display: inline; margin-right: 4px; color: var(--orca-muted); font-size: 13px; }
     .companies-table td.company-owner { padding-left: 46px; }
+    .companies-table td.company-flag { padding-left: 46px; }
     .companies-actions-col { padding-left: 46px !important; text-align: left; }
   }
 </style>

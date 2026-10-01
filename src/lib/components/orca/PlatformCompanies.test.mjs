@@ -21,11 +21,12 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(dependencies) {
-  const { OrcaService, onMount, tick, parseErrorContent, invitationLink, lineShareURL, t, canInviteOwner, canRevokeOwnerInvitation, emailDomain, ownerStatus, platformRefusal, resendEmail, signInWarnings, displayDate, orcaError, externalBrowserLink, window, navigator } = dependencies;
+  const { OrcaService, onMount, tick, parseErrorContent, invitationLink, lineShareURL, t, canInviteOwner, canRevokeOwnerInvitation, emailDomain, ownerStatus, platformRefusal, resendEmail, signInWarnings, displayDate, orcaError, externalBrowserLink, showToast, window, navigator } = dependencies;
   ${script}
   return {
-    load, loadGoogle, show, openCompany, inviteOwner, revoke, copy, explain,
-    setName(value) { name = value; }, setEmail(value) { email = value; }, setRevoking(value) { revoking = value; },
+    load, loadGoogle, show, openCompany, inviteOwner, revoke, copy, explain, setLibraryV2,
+    setName(value) { name = value; }, setEmail(value) { email = value; }, setRevoking(value) { revoking = value; }, setFlagTarget(value) { flagTarget = value; },
+    get flagTarget() { return flagTarget; }, get flagBusy() { return flagBusy; }, get flagError() { return flagError; }, get flagsKnown() { return flagsKnown; },
     get items() { return items; }, get loaded() { return loaded; }, get listError() { return listError; }, get step() { return step; },
     get target() { return target; }, get justOpened() { return justOpened; }, get formError() { return formError; }, get issued() { return issued; },
     get message() { return message; }, get copied() { return copied; }, get revoking() { return revoking; }, get actionID() { return actionID; },
@@ -43,7 +44,7 @@ const company = (id, extra = {}) => ({ id, displayName: id === "default" ? "ORCA
 const refusal = (status, message) => Object.assign(new Error(message), { status });
 
 function mount(service) {
-  const calls = { open: [], invite: [], revoke: [], copied: [] };
+  const calls = { open: [], invite: [], revoke: [], copied: [], flag: [], toasts: [] };
   let view;
   const stop = effect_root(() => {
     view = harness({
@@ -53,6 +54,7 @@ function mount(service) {
         openCompany: async (...args) => { calls.open.push(args); return service.open(...args); },
         inviteCompanyOwner: async (...args) => { calls.invite.push(args); return service.invite(...args); },
         revokeCompanyOwnerInvitation: async (...args) => { calls.revoke.push(args); return service.revoke(...args); },
+        setCompanyLibraryV2: async (...args) => { calls.flag.push(args); return service.flag(...args); },
         googleSignIn: async () => { if (service.google === undefined) throw new Error("unavailable"); return { enabled: service.google }; },
       },
       onMount: () => {},
@@ -61,6 +63,7 @@ function mount(service) {
       t: (th) => th,
       displayDate: (value) => value ?? "—",
       orcaError: (error) => `generic: ${error.message}`,
+      showToast: (text) => calls.toasts.push(text),
       window: { location: { origin: "https://orca.example.test" } },
       navigator: { clipboard: { writeText: async (text) => { calls.copied.push(text); } } },
     });
@@ -236,4 +239,51 @@ test("an expired owner link has nothing to revoke; the resend picks the newest w
   assert.match(component, /@container companies \(max-width: 860px\)/);
   // The domain warning names the server's list and warns off the Google joining domains.
   assert.match(component, /Email domains ของผู้ให้บริการเข้าสู่ระบบบนเซิร์ฟเวอร์ ORCA/);
+});
+
+test("the operator turns คลังความรู้ v2 on or off for one company, after a confirmation", async () => {
+  const { view, calls, stop } = mount({
+    list: async () => [company(B, { libraryV2: false }), company("default", { owners: 1, libraryV2: true })],
+    flag: async (id, enabled) => {
+      if (id === "default") throw refusal(403, "only the platform operator can manage customer companies");
+      return { companyID: id, libraryV2: enabled };
+    },
+  });
+  try {
+    await view.load();
+    assert.equal(view.flagsKnown, true, "the server sends the flag: the column shows");
+    await view.setLibraryV2();
+    assert.deepEqual(calls.flag, [], "nothing is sent before the operator picks a company");
+    view.setFlagTarget(view.items[0]);
+    await view.setLibraryV2();
+    assert.deepEqual(calls.flag, [[B, true]], "off goes on");
+    assert.equal(view.items[0].libraryV2, true, "the row follows the server's answer");
+    assert.equal(view.flagTarget, undefined, "the dialog closes");
+    assert.equal(view.flagBusy, false);
+    assert.match(calls.toasts[0], /^เปิดคลังความรู้ v2 ให้ Hotel A แล้ว คนในบริษัทเห็นหน้าจอไฟล์เมื่อโหลดหน้าใหม่$/);
+    view.setFlagTarget(view.items[0]);
+    await view.setLibraryV2();
+    assert.deepEqual(calls.flag[1], [B, false], "on goes off");
+    assert.equal(view.items[0].libraryV2, false);
+    assert.match(calls.toasts[1], /^ปิดคลังความรู้ v2 ของ Hotel A แล้ว$/);
+    // A refusal stays in the dialog, in words the operator can act on; the row is unchanged.
+    view.setFlagTarget(view.items[1]);
+    await view.setLibraryV2();
+    assert.equal(view.flagTarget?.id, "default");
+    assert.match(view.flagError, /^generic: only the platform operator/);
+    assert.equal(view.items[1].libraryV2, true);
+    assert.equal(calls.toasts.length, 2);
+  } finally { stop(); }
+  // An older server sends no flag: no column, nothing to switch.
+  const older = mount({ list: async () => [company(B)] });
+  try {
+    await older.view.load();
+    assert.equal(older.view.flagsKnown, false);
+  } finally { older.stop(); }
+  // The switch says its state and its company, and the dialog asks first.
+  assert.match(component, /\{#if flagsKnown\}<th scope="col">\{t\("คลังความรู้ v2", "Knowledge v2"\)\}<\/th>\{\/if\}/);
+  assert.match(component, /role="switch"\s+aria-checked=\{company\.libraryV2 === true\}\s+aria-label=\{t\(`คลังความรู้ v2 ของ \$\{company\.displayName\}`/);
+  assert.match(component, /<ConfirmDialog\s+open=\{!!flagTarget\}/);
+  assert.match(component, /ORCA บันทึกไว้ทั้งในประวัติของบริษัทนี้และของแพลตฟอร์ม/);
+  assert.match(component, /cancelLabel=\{t\("ไม่เปลี่ยน", "Keep it"\)\}/);
 });
