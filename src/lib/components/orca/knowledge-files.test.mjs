@@ -1826,3 +1826,88 @@ test('"AI ใช้ได้" on library v2\'s pages is a neutral pill whose dot
 	assert.match(legend(false), /<span class="pill ok"><i class="dt"><\/i>AI ใช้ได้<\/span>/, 'today\'s legend');
 	assert.match(show(Rail, { item: undefined, connected: true, ask: false }), /<span class="pill ok"><i class="dt"><\/i>AI ใช้ได้<\/span>/, 'by default');
 });
+
+test('under an editor holding unsaved text, an older reading answer refused while the newer one is on its way says nothing and stops nothing (Codex S7 second confirmation #3)', async (t) => {
+	const reading = fileItem('r', { status: 'draft', file: fileInfo({ pending: version(1, 'extracting'), options: options() }) });
+	const queue = [];
+	const { view, flush } = await libraryPage(t, () => (queue.length ? queue.shift()() : Promise.resolve({ items: [reading], members, departments: [] })));
+	for (let i = 0; i < 10 && !view.items.length; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.ok(view.pollTimer, 'its file is read: the page asks again');
+	view.show({ name: 'editor', kind: 'knowledge' });
+	view.setDirty(true);
+	flush();
+	let refuse;
+	let answer;
+	queue.push(() => new Promise((_resolve, reject) => { refuse = reject; }));
+	queue.push(() => new Promise((resolve) => { answer = resolve; }));
+	const older = view.refreshReading('sales');
+	const newer = view.refreshReading('sales');
+	// The older ask is refused first, while the newer one is still on its way: the list is not fresher yet.
+	refuse(Object.assign(new Error('not found'), { status: 404 }));
+	await older;
+	assert.equal(view.editorNote, '', 'the older refusal says nothing');
+	assert.ok(view.pollTimer, 'and stops nothing');
+	answer({ items: [reading], members, departments: [] });
+	await newer;
+	assert.equal(view.editorNote, '');
+	assert.ok(view.pollTimer, 'the newer answer asks again: the file is still read');
+});
+
+test('a quiet ask dropped while an upload goes on in batches keeps the asking going (Codex S7 seventh confirmation #3)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ upload, refreshReading, stopPolling, get items() { return items; }, get pollTimer() { return pollTimer; } }');
+	const reading = (id) => fileItem(id, { status: 'draft', file: fileInfo({ pending: version(1, 'extracting'), options: options() }) });
+	const queue = [];
+	const batches = [];
+	const salesHub = hub('sales', { memberIDs: ['me'] });
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ data: { hubs: [salesHub], currentUserID: 'me', canManage: true, features: { libraryV2: true }, members, units: [] }, hubID: 'sales', initialKind: 'file', initialCreate: false, onchanged: async () => {} },
+			{
+				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
+				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
+				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', localeHref: (value) => value,
+				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
+				OrcaLibraryService: {
+					load: () => (queue.length ? queue.shift()() : Promise.resolve({ items: [reading('r')], members, departments: [] })),
+					usage: async () => ({ bytes: 0, bytesLimit: 1024 * 1024 * 1024, chars: 0, charsLimit: 10_000_000, uploadsToday: 0, uploadsLimit: 50, items: 0, itemsLimit: 1000 }),
+					upload: (_id, files, progress) => {
+						progress.onsent();
+						const answer = { files: files.map((file) => ({ item: reading(`u-${file.name}`) })) };
+						// The first batch is answered at once; the second waits.
+						if (!batches.length) {
+							batches.push(() => {});
+							return Promise.resolve(answer);
+						}
+						return new Promise((resolve) => batches.push(() => resolve(answer)));
+					}
+				}
+			}
+		);
+	});
+	t.after(() => {
+		view.stopPolling();
+		stop();
+	});
+	client.flush();
+	for (let i = 0; i < 10 && !view.items.length; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.ok(view.pollTimer, 'its file is read: the page asks again');
+	// The timer fired: its quiet ask is on its way (no timer meanwhile).
+	view.stopPolling();
+	let quiet;
+	queue.push(() => new Promise((resolve) => { quiet = resolve; }));
+	const asking = view.refreshReading('sales');
+	// Eleven files: two batches. The first one's stored files make the list fresher than the quiet ask.
+	const uploading = view.upload(Array.from({ length: 11 }, (_, index) => new File(['x'], `ไฟล์ ${index + 1}.docx`)));
+	for (let i = 0; i < 20 && batches.length < 2; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(batches.length, 2, 'the second batch is on its way');
+	assert.equal(view.items.filter((item) => item.id.startsWith('u-')).length, 10, 'the first batch\'s files are listed');
+	quiet({ items: [reading('r')], members, departments: [] });
+	await asking;
+	assert.ok(view.pollTimer, 'its answer is dropped, and the asking goes on while the second batch is sent');
+	batches[1]();
+	await uploading;
+	assert.ok(view.pollTimer);
+});
