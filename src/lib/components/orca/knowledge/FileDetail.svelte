@@ -134,13 +134,15 @@
 		return { includeNotes: on('includeNotes'), includeHidden: on('includeHidden'), includeComments: on('includeComments') };
 	});
 	const downloadable = $derived(!!file && (owner || (file.allowDownload && servable)));
-	// The owner takes the version shown (the published one, or a first one still pending); readers the published one.
-	const downloadWhich = $derived<'published' | 'pending'>(owner && !published && pending ? 'pending' : 'published');
+	// The version the page shows: the held one while its tab is open (G3, Codex #8).
+	const shown = $derived(which === 'pending' && held ? pending : current);
+	// The owner takes the version shown (the published one, the held one whose tab is open, or a first one still pending); readers the published one.
+	const downloadWhich = $derived<'published' | 'pending'>(owner && pending && ((which === 'pending' && held) || !published) ? 'pending' : 'published');
 	const takeover = $derived(canTakeOver(item, { files: features.files, canManage, me: currentUserID, workspaceMembers: members }));
 	const typeLabel = $derived(fileTypeLabel(file?.ext ?? '', t));
 	const failedCard = $derived(!servable && reading === 'failed');
 	const switches = $derived(!!options && (offered.includeNotes || offered.includeHidden || offered.includeComments));
-	const fileFacts = $derived(factLine([typeLabel, formatBytes(file?.bytes ?? 0), current && t(`ฉบับที่ ${current.version}`, `Version ${current.version}`)]));
+	const fileFacts = $derived(factLine([typeLabel, formatBytes(shown?.bytes ?? file?.bytes ?? 0), shown && t(`ฉบับที่ ${shown.version}`, `Version ${shown.version}`)]));
 	// Someone the workspace no longer lists is not "สมาชิกพื้นที่ทำงาน": the owner left (the takeover card says what to do).
 	const ownerName = $derived.by(() => {
 		const member = members.find((entry) => entry.id === item.ownerID);
@@ -208,15 +210,22 @@
 		}
 	}
 	async function publishPending() {
-		if (busy) return;
+		// The version this page shows held is the one the owner reviewed: the server
+		// publishes it only while it is still the pending one (G3, Codex #1).
+		const reviewed = held ? pending?.version : undefined;
+		if (busy || reviewed === undefined) return;
 		busy = 'publish';
 		actionError = '';
 		try {
-			const next = await OrcaLibraryService.publishPending(hub.id, item.id);
+			const next = await OrcaLibraryService.publishPending(hub.id, item.id, reviewed);
 			which = 'published';
 			tell.changed(next);
 		} catch (cause) {
-			if (!denied(cause)) actionError = problem(cause);
+			if (!denied(cause)) {
+				actionError = problem(cause);
+				// Another version took its place: the page reads the file again, so the owner sees what waits now.
+				if (getHttpStatusCode(cause) === 409) void refresh();
+			}
 		} finally {
 			busy = '';
 		}
@@ -226,7 +235,8 @@
 		busy = 'options';
 		actionError = '';
 		try {
-			tell.changed(await OrcaLibraryService.setOptions(hub.id, item.id, { ...options, [key]: value }));
+			// Only the switch turned: what another page changed meanwhile stays (G3, Codex #2).
+			tell.changed(await OrcaLibraryService.setOptions(hub.id, item.id, { [key]: value }));
 		} catch (cause) {
 			if (!denied(cause)) actionError = problem(cause);
 		} finally {
@@ -462,10 +472,10 @@
 			<section class="fd-card" aria-labelledby={`fd-file-${item.id}`}>
 				<h2 id={`fd-file-${item.id}`}>{t('ไฟล์ต้นฉบับ', 'Original file')}</h2>
 				{#if file}
-					<p class="fd-name">{file.fileName}</p>
+					<p class="fd-name">{shown?.fileName || file.fileName}</p>
 					<p class="fd-meta">{fileFacts}</p>
-					{#if current && fileExtent(current, t)}<p class="fd-meta">{fileExtent(current, t)}</p>{/if}
-					{#if current}<p class="fd-meta">{t('อัปโหลด', 'Uploaded')} {relativeTime(current.createdAt, now, t)}</p>{/if}
+					{#if shown && fileExtent(shown, t)}<p class="fd-meta">{fileExtent(shown, t)}</p>{/if}
+					{#if shown}<p class="fd-meta">{t('อัปโหลด', 'Uploaded')} {relativeTime(shown.createdAt, now, t)}</p>{/if}
 				{/if}
 				<div class="fd-buttons">
 					{#if downloadable}

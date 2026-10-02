@@ -1282,7 +1282,11 @@ test('a read of the file that began before a settings change never brings the ol
 				...k, t: th, term, onDestroy: () => {}, getHttpStatusCode: () => undefined, isAbortError: () => false, parseErrorContent: (error) => error, orcaError: (error) => error.message,
 				OrcaLibraryService: {
 					file: () => new Promise((resolve) => { read = resolve; }),
-					setOptions: async (_hub, _item, value) => { puts.push(value); return { ...item, file: { ...item.file, allowDownload: value.allowDownload, options: value } }; }
+					setOptions: async (_hub, _item, value) => {
+						puts.push(value);
+						const merged = { ...item.file.options, ...value };
+						return { ...item, file: { ...item.file, allowDownload: merged.allowDownload, options: merged } };
+					}
 				}
 			}
 		);
@@ -1297,10 +1301,9 @@ test('a read of the file that began before a settings change never brings the ol
 	await reading;
 	client.flush();
 	assert.equal(told.length, 1, 'the older read is dropped');
-	// The next change sends the settings as the owner left them.
+	// Each change names its own switch only, so nothing the page read before can come back (G3, Codex #2).
 	await view.setOption('reviewBeforeUpdate', true);
-	assert.equal(puts.at(-1).allowDownload, false, 'downloads stay off');
-	assert.equal(puts.at(-1).reviewBeforeUpdate, true);
+	assert.deepEqual(puts, [{ allowDownload: false }, { reviewBeforeUpdate: true }], 'downloads stay off: the next change never names them');
 });
 
 test('a recheck taken over by a newer request says nothing; one that failed for a moment keeps the asking going (Codex S7 ninth confirmation #2, #3)', async (t) => {
@@ -1370,7 +1373,7 @@ test('a read of the file is older than a newer item from the page too; one that 
 				...k, t: th, term, onDestroy: () => {}, getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => error, orcaError: (error) => error.message,
 				OrcaLibraryService: {
 					file: () => new Promise((resolve, reject) => reads.push({ resolve, reject })),
-					setOptions: async (_hub, _item, value) => { puts.push(value); return withDownload(value.allowDownload); }
+					setOptions: async (_hub, _item, value) => { puts.push(value); return withDownload(value.allowDownload ?? false); }
 				}
 			}
 		);
@@ -1385,7 +1388,7 @@ test('a read of the file is older than a newer item from the page too; one that 
 	await first;
 	assert.equal(told.length, 0, 'dropped: the page had a newer item');
 	await view.setOption('reviewBeforeUpdate', true);
-	assert.equal(puts.at(-1).allowDownload, false, 'the next change keeps downloads off');
+	assert.deepEqual(puts.at(-1), { reviewBeforeUpdate: true }, 'the next change names its switch only: downloads stay as the server has them');
 	// 2. Its refusal is dropped the same way.
 	const second = view.refresh();
 	view.setItem(withDownload(false));
@@ -1910,4 +1913,64 @@ test('a quiet ask dropped while an upload goes on in batches keeps the asking go
 	batches[1]();
 	await uploading;
 	assert.ok(view.pollTimer);
+});
+
+
+test('"ใช้ฉบับใหม่" names the held version the page shows; another in its place is never put in use (G3, Codex #1)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./knowledge/FileDetail.svelte', '{ publishPending, setItem(next) { item = next; }, get actionError() { return actionError; } }');
+	const held = (pendingVersion) => fileItem('f', { status: 'published', file: fileInfo({ published: version(1, 'ready'), pending: version(pendingVersion, 'ready'), options: options({ reviewBeforeUpdate: true }) }) });
+	const posts = [];
+	let reads = 0;
+	let answer = async (_hub, _item, number) => ({ ...held(number), file: fileInfo({ published: version(number, 'ready'), options: options({ reviewBeforeUpdate: true }) }) });
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ hub: hub('sales'), item: held(2), members, departments, currentUserID: 'me', canManage: false, features: ON, now: 0, onback: noop, onedit: noop, onchanged: (next) => view.setItem(next), onarchived: noop, ondeleted: noop, ondenied: noop },
+			{
+				...k, t: th, term, onDestroy: () => {}, getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => error, orcaError: (error) => error.message,
+				OrcaLibraryService: {
+					publishPending: async (hubID, itemID, number) => { posts.push([hubID, itemID, number]); return answer(hubID, itemID, number); },
+					file: async () => { reads += 1; return { item: held(3), which: 'published', preview: [], totalChars: 0 }; }
+				}
+			}
+		);
+	});
+	t.after(stop);
+	client.flush();
+	answer = async () => { throw Object.assign(new Error('version_changed: the file changed; open it again'), { status: 409, message: 'version_changed: the file changed; open it again' }); };
+	await view.publishPending();
+	assert.deepEqual(posts, [['sales', 'f', 2]], 'the reviewed version, by number');
+	assert.equal(view.actionError, 'ไฟล์นี้เปลี่ยนแล้ว เปิดใหม่อีกครั้ง');
+	for (let i = 0; i < 5 && !reads; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(reads, 1, 'the page reads the file again to show what waits now');
+	client.flush();
+	answer = async (_hub, _item, number) => ({ ...held(number), file: fileInfo({ published: version(number, 'ready'), options: options({ reviewBeforeUpdate: true }) }) });
+	await view.publishPending();
+	assert.deepEqual(posts.at(-1), ['sales', 'f', 3], 'after the read, the version now held');
+});
+
+test('the original card and its download follow the version shown: the held one while its tab is open (G3, Codex #8)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./knowledge/FileDetail.svelte', '{ setWhich(value) { which = value; }, get downloadWhich() { return downloadWhich; }, get fileFacts() { return fileFacts; } }');
+	const item = fileItem('f', { status: 'published', file: fileInfo({ bytes: 1000, published: version(1, 'ready', { bytes: 1000 }), pending: version(2, 'ready', { bytes: 2_500_000 }), options: options({ reviewBeforeUpdate: true }) }) });
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ hub: hub('sales'), item, members, departments, currentUserID: 'me', canManage: false, features: ON, now: 0, onback: noop, onedit: noop, onchanged: noop, onarchived: noop, ondeleted: noop, ondenied: noop },
+			{ ...k, t: th, term, onDestroy: () => {}, getHttpStatusCode: () => undefined, isAbortError: () => false, parseErrorContent: (error) => error, orcaError: (error) => error.message, OrcaLibraryService: {} }
+		);
+	});
+	t.after(stop);
+	client.flush();
+	assert.equal(view.downloadWhich, 'published');
+	assert.match(view.fileFacts, /ฉบับที่ 1/);
+	view.setWhich('pending');
+	client.flush();
+	assert.equal(view.downloadWhich, 'pending', 'the held original, while its tab is open');
+	assert.match(view.fileFacts, /ฉบับที่ 2/);
+	assert.match(view.fileFacts, /2\.4 MB|2\.5 MB/);
+	view.setWhich('published');
+	client.flush();
+	assert.equal(view.downloadWhich, 'published');
 });

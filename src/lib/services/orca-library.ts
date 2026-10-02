@@ -272,11 +272,13 @@ export const OrcaLibraryService = {
 		const result = (await doGet(`${fileBase(hubID, itemID)}?${query}`, options)) as LibraryFileDetail;
 		return { ...result, item: normalizeItem(result.item), preview: result.preview ?? [], totalChars: result.totalChars ?? 0 };
 	},
-	async setOptions(hubID: string, itemID: string, value: LibraryFileOptions): Promise<LibraryItem> {
-		return normalizeItem((await doPut(`${fileBase(hubID, itemID)}/options`, value, options)) as LibraryItem);
+	/** Changes only the options it names: a page holding an older read never sets back what another page changed (G3, Codex #2). */
+	async setOptions(hubID: string, itemID: string, change: Partial<LibraryFileOptions>): Promise<LibraryItem> {
+		return normalizeItem((await doPut(`${fileBase(hubID, itemID)}/options`, change, options)) as LibraryItem);
 	},
-	async publishPending(hubID: string, itemID: string): Promise<LibraryItem> {
-		return normalizeItem((await doPost(`${fileBase(hubID, itemID)}/publish-pending`, {}, options)) as LibraryItem);
+	/** Puts the held version the owner reviewed in use, named by number: a newer one in its place answers 409 version_changed (G3, Codex #1). */
+	async publishPending(hubID: string, itemID: string, version: number): Promise<LibraryItem> {
+		return normalizeItem((await doPost(`${fileBase(hubID, itemID)}/publish-pending`, { version }, options)) as LibraryItem);
 	},
 	/** "อ่านไฟล์ใหม่": a failed version runs again; a read one gets a new pending version. */
 	async reextract(hubID: string, itemID: string): Promise<LibraryItem> {
