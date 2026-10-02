@@ -161,6 +161,9 @@
 				query = '';
 			}
 			if (id && !dirty) void load(id);
+			// Unsaved text in the editor: no load, but the files' reading is asked for again
+			// (file Knowledge may have come back on; Codex S7 thirteenth confirmation #1).
+			else if (id && dirty) schedulePoll();
 		});
 	});
 	// An entry link (…&kind=template&create=1) is an intent, used once.
@@ -507,19 +510,23 @@
 		const id = hub.id;
 		const rows = uploadRows(files, t);
 		uploadFiles = new Map(rows.map((row, index) => [row.key, files[index]]));
-		// The day's uploads are used up: nothing is sent.
-		if (quotaLimit(usage) === 'uploads')
-			for (const row of rows) if (row.state === 'waiting') Object.assign(row, { state: 'refused', reason: 'quota', message: refusalText('quota', t, 'uploads', usage) });
+		gateRows(rows);
 		uploads = rows;
 		uploadNote = '';
 		await send(id, rows.filter((row) => row.state === 'waiting').map((row) => row.key));
 	}
+	/** The day's uploads are used up: the rows waiting are refused here, nothing is sent (upload and retry alike; Codex S7 thirteenth confirmation #3). */
+	function gateRows(rows: UploadRow[]) {
+		if (quotaLimit(usage) !== 'uploads') return;
+		for (const row of rows) if (row.state === 'waiting') Object.assign(row, { state: 'refused', reason: 'quota', message: refusalText('quota', t, 'uploads', usage) });
+	}
 	async function retryUpload() {
 		if (!hub || uploading) return;
-		const keys = uploads.filter((row) => row.state === 'failed').map((row) => row.key);
-		for (const key of keys) setRow(key, { state: 'waiting', progress: 0 });
+		const rows = uploads.map((row) => (row.state === 'failed' ? { ...row, state: 'waiting' as const, progress: 0 } : row));
+		gateRows(rows);
+		uploads = rows;
 		uploadNote = '';
-		await send(hub.id, keys);
+		await send(hub.id, rows.filter((row) => row.state === 'waiting').map((row) => row.key));
 	}
 	async function send(id: string, keys: string[]) {
 		if (!keys.length) return;

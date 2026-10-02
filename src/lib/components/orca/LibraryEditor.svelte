@@ -473,6 +473,7 @@
 		<AudienceCard
 			{kind}
 			live={features.files}
+			keepLive={existing?.audienceMode === 'everyone_live'}
 			bind:mode
 			bind:unitIDs
 			bind:memberIDs={chosenMembers}

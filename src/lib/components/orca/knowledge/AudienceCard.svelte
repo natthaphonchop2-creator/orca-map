@@ -22,11 +22,14 @@
 		members,
 		me,
 		disabled = false,
+		keepLive = false,
 		actions
 	}: {
 		kind: LibraryKind;
 		/** Offer "ทุกคน (อัปเดตอัตโนมัติ)" (the company has knowledge library v2). A live item shows it anyway. */
 		live?: boolean;
+		/** The item is saved live: it may stay live even while library v2 is off. */
+		keepLive?: boolean;
 		mode?: AudienceMode;
 		/** The departments chosen under "เฉพาะแผนก" (kept when another choice is picked). */
 		unitIDs?: string[];
@@ -45,7 +48,10 @@
 	// An older item may mix departments and people; that choice shows only for it.
 	const showMixed = untrack(() => mode === 'mixed');
 	let showNames = $state(false);
-	const showLive = untrack(() => live || mode === 'everyone_live');
+	// Offered while library v2 is on, for an item saved live, or while it is the choice
+	// made (so the choice stays visible): once library v2 goes off, a choice moved away
+	// from it can't come back to it (Codex S7 thirteenth confirmation, twelfth #2).
+	const showLive = $derived(live || keepLive || mode === 'everyone_live');
 	const selection = $derived(audienceFor(mode, { unitIDs, memberIDs }, everyone));
 	const people = $derived([...audiencePeople({ ownerID: me, ...selection, audienceMode: audienceWireMode(mode) }, departments, members.map((member) => member.id))]);
 	const ordered = $derived([me, ...people.filter((id) => id !== me)]);

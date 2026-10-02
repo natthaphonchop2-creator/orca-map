@@ -598,7 +598,7 @@ async function scriptHarness(file, expose) {
 	const source = await readFile(new URL(file, import.meta.url), 'utf8');
 	const stripped = stripTypeScriptTypes(source.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1]);
 	const names = [...stripped.matchAll(/^\s*import\s+(?:(\w+)|\{([^}]*)\})\s+from\s+['"][^'"]+['"];?/gm)].flatMap(([, single, list]) => (single ? [single] : list.split(',').map((name) => name.trim().split(/\s+as\s+/).pop()).filter((name) => name && !name.startsWith('type '))));
-	const script = stripped.replace(/^\s*import[^;]+;/gm, '').replace('$props()', '$state(testProps)').replace('$props.id()', "'test'");
+	const script = stripped.replace(/^\s*import[^;]+;/gm, '').replace('$props()', '$state(testProps)').replace('$props.id()', "'test'").replace(/\$bindable\(\)/g, 'undefined').replace(/\$bindable\(([^()]*)\)/g, '$1');
 	const code = compileModule(`export function harness(testProps, deps) {
 	const { ${[...new Set(names)].join(', ')} } = deps;
 	${script}
@@ -1661,5 +1661,126 @@ test('the meter asks again when a recheck, or the reading under an editor, shows
 		for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
 		assert.equal(view.items.find((item) => item.id === 'r').file.published?.state, 'ready', path);
 		assert.equal(usageAsks, asked + 1, `${path}: the meter asked again`);
+	}
+});
+
+test('once file Knowledge is off, a choice moved away from "ทุกคน (อัปเดตอัตโนมัติ)" can\'t come back to it; a saved live item keeps it (Codex S7 thirteenth confirmation)', async () => {
+	const { Component } = await serverComponent(new URL('./knowledge/AudienceCard.svelte', import.meta.url), { ...k, t: th, untrack: (fn) => fn(), memberRole: () => 'พนักงาน', PersonPicker: noop });
+	const everyone = k.workspaceEveryone(hub('sales'), departments, members.map((m) => m.id), 'me');
+	const props = { kind: 'knowledge', everyone, departments, members, me: 'me', unitIDs: [], memberIDs: [] };
+	assert.doesNotMatch(show(Component, { ...props, live: false, mode: 'everyone' }), /อัปเดตอัตโนมัติ/, 'off, and another choice made: not offered');
+	assert.match(show(Component, { ...props, live: false, mode: 'everyone_live' }), /ทุกคน \(อัปเดตอัตโนมัติ\)/, 'still the choice made: shown, so the guard can say why');
+	assert.match(show(Component, { ...props, live: false, keepLive: true, mode: 'everyone' }), /ทุกคน \(อัปเดตอัตโนมัติ\)/, 'a saved live item may go back to live');
+	const card = await readFile(new URL('./knowledge/AudienceCard.svelte', import.meta.url), 'utf8');
+	assert.match(card, /const showLive = \$derived\(live \|\| keepLive \|\| mode === 'everyone_live'\);/, 'it follows the flag, not the moment the editor opened');
+	const editor = await readFile(new URL('./LibraryEditor.svelte', import.meta.url), 'utf8');
+	assert.match(editor, /keepLive=\{existing\?\.audienceMode === 'everyone_live'\}/);
+});
+
+test('"ลองอีกครั้ง" goes through the same quota gate; unsaved text under an editor never stops the reading from being asked again (Codex S7 thirteenth confirmation #1, #3)', async (t) => {
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ upload, retryUpload, refreshUsage, show, setDirty(value) { dirty = value; }, setData(value) { data = value; }, stopPolling, get uploads() { return uploads; }, get pollTimer() { return pollTimer; }, get items() { return items; } }');
+	const reading = fileItem('r', { status: 'draft', file: fileInfo({ pending: version(1, 'queued'), options: options() }) });
+	const salesHub = hub('sales', { memberIDs: ['me'] });
+	const data = (on) => ({ hubs: [salesHub], currentUserID: 'me', canManage: true, features: { libraryV2: on }, members, units: [] });
+	let full = false;
+	const sends = [];
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ data: data(true), hubID: 'sales', initialKind: 'file', initialCreate: false, onchanged: async () => {} },
+			{
+				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
+				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
+				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', localeHref: (value) => value,
+				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
+				OrcaLibraryService: {
+					load: async () => ({ items: [reading, article('a')], members, departments: [] }),
+					usage: async () => ({ bytes: 0, bytesLimit: 1024 * 1024 * 1024, chars: 0, charsLimit: 10_000_000, uploadsToday: full ? 50 : 49, uploadsLimit: 50, items: 1, itemsLimit: 1000 }),
+					upload: async (...args) => {
+						sends.push(args);
+						throw Object.assign(new Error('library_uploads_busy: other uploads are in progress; try again shortly'), { status: 429 });
+					}
+				}
+			}
+		);
+	});
+	t.after(() => {
+		view.stopPolling();
+		stop();
+	});
+	client.flush();
+	for (let i = 0; i < 20 && !view.items.length; i++) await new Promise((resolve) => setImmediate(resolve));
+	// A busy library: the file is not sent; then the day's uploads fill up elsewhere.
+	await view.upload([new File(['a'], 'ราคา.xlsx')]);
+	assert.equal(sends.length, 1);
+	assert.equal(view.uploads[0].state, 'failed');
+	full = true;
+	await view.refreshUsage('sales');
+	await view.retryUpload();
+	assert.equal(sends.length, 1, '"ลองอีกครั้ง" sends nothing once the day\'s uploads are used up');
+	assert.deepEqual([view.uploads[0].state, view.uploads[0].reason], ['refused', 'quota']);
+	// Unsaved text under an editor; file Knowledge goes off (the asking stops), then on again.
+	view.show({ name: 'editor', kind: 'knowledge', id: 'a' });
+	view.setDirty(true);
+	view.setData(data(false));
+	client.flush();
+	view.stopPolling();
+	view.setData(data(true));
+	client.flush();
+	assert.ok(view.pollTimer, 'back on: the reading is asked for again, the text kept');
+});
+
+test('a held version\'s tab goes back to the version in use once it is put in use, and a later held one never opens by itself (Codex S7 thirteenth confirmation NOTE)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./knowledge/FileDetail.svelte', '{ setWhich(value) { which = value; }, setItem(next) { item = next; }, get which() { return which; } }');
+	const held = (n) => fileItem('h', { file: fileInfo({ published: version(n - 1, 'ready'), pending: version(n, 'ready'), options: options({ reviewBeforeUpdate: true }) }) });
+	const inUse = (n) => fileItem('h', { file: fileInfo({ published: version(n, 'ready'), options: options({ reviewBeforeUpdate: true }) }) });
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ hub: hub('sales'), item: held(2), members, departments, currentUserID: 'me', canManage: false, features: ON, now: 0, onback: noop, onedit: noop, onchanged: noop, onarchived: noop, ondeleted: noop, ondenied: noop },
+			{ ...k, t: th, term, onDestroy: () => {}, getHttpStatusCode: () => undefined, isAbortError: () => false, parseErrorContent: (error) => error, orcaError: (error) => error.message, OrcaLibraryService: {} }
+		);
+	});
+	t.after(stop);
+	client.flush();
+	view.setWhich('pending');
+	client.flush();
+	assert.equal(view.which, 'pending');
+	view.setItem(inUse(2));
+	client.flush();
+	assert.equal(view.which, 'published', 'put in use: back to the version in use');
+	view.setItem(held(3));
+	client.flush();
+	assert.equal(view.which, 'published', 'a later held version waits for the owner to open it');
+});
+
+test('while the card is open the live choice follows the flag: moved away from while library v2 is off, it is gone; a saved live item keeps it (Codex S7 thirteenth confirmation)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./knowledge/AudienceCard.svelte', '{ get showLive() { return showLive; }, setLive(value) { live = value; }, setMode(value) { mode = value; } }');
+	const everyone = k.workspaceEveryone(hub('sales'), departments, members.map((m) => m.id), 'me');
+	for (const keepLive of [false, true]) {
+		let view;
+		const stop = client.effect_root(() => {
+			view = harness(
+				{ kind: 'knowledge', live: true, keepLive, mode: 'everyone_live', everyone, departments, members, me: 'me', unitIDs: [], memberIDs: [] },
+				{ ...k, t: th, untrack: client.untrack, memberRole: () => 'พนักงาน', PersonPicker: noop, Briefcase: noop, UserPlus: noop }
+			);
+		});
+		t.after(stop);
+		client.flush();
+		assert.equal(view.showLive, true, 'opened with library v2 on');
+		view.setLive(false);
+		client.flush();
+		assert.equal(view.showLive, true, 'off, still the choice made: shown, so the guard can say why');
+		view.setMode('everyone');
+		client.flush();
+		assert.equal(view.showLive, keepLive, keepLive ? 'a saved live item may go back to live' : 'off, and another choice made: no longer offered');
+		view.setLive(true);
+		client.flush();
+		assert.equal(view.showLive, true, 'back on: offered again');
 	}
 });
