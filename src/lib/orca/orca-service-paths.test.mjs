@@ -101,7 +101,7 @@ const fileArgs = {
 	replace: ['id-1', 'item-1', new File(['x'], 'ราคา.xlsx')],
 	file: ['id-1', 'item-1', 'pending', 'cur-1'],
 	setOptions: ['id-1', 'item-1', { includeHidden: false, includeComments: false, includeNotes: true, allowDownload: true, reviewBeforeUpdate: false }],
-	publishPending: ['id-1', 'item-1'],
+	publishPending: ['id-1', 'item-1', 3],
 	reextract: ['id-1', 'item-1'],
 	remove: ['id-1', 'item-1'],
 	takeover: ['id-1', 'item-1'],
@@ -171,4 +171,16 @@ test('an upload sends each file as a named multipart part, one form a batch', as
 	// The server reads every part that has a file name (C4 §14m S5); the field is "files".
 	assert.deepEqual([...forms[0][1].entries()].map(([field, file]) => [field, file.name]), [['files', 'ราคา.xlsx'], ['files', 'ลูกค้า.csv']]);
 	assert.deepEqual([...forms[1][1].entries()].map(([field, file]) => [field, file.name]), [['files', 'ราคา ฉบับใหม่.xlsx']]);
+});
+
+test('"ใช้ฉบับใหม่" names the reviewed version; a switch sends only itself (G3, Codex #1, #2)', async () => {
+	const bodies = [];
+	const send = (method) => async (path, body) => { bodies.push([method, path, body]); return { item: {} }; };
+	const service = library(async () => ({}), send('POST'), send('PUT'), async () => ({}), async () => ({}), BASE);
+	await service.publishPending('id-1', 'item-1', 3);
+	await service.setOptions('id-1', 'item-1', { allowDownload: false });
+	assert.deepEqual(bodies, [
+		['POST', '/orca/hubs/id-1/library/files/item-1/publish-pending', { version: 3 }],
+		['PUT', '/orca/hubs/id-1/library/files/item-1/options', { allowDownload: false }]
+	]);
 });
