@@ -159,8 +159,9 @@
 			<h1>{item.title}</h1>
 			<p class="kd-meta">
 				<span class="kd-status" class:draft={item.status === 'draft'}>
-					<!-- With library v2, "AI ใช้ได้" only in an active workspace, as "ใครใช้ได้" beside it says (Codex S7 #11); today's page keeps its words. -->
+					<!-- With library v2, "AI ใช้ได้" only in an active workspace, as "ใครใช้ได้" beside it says (Codex S7 #11), and its colour only as the dot (Codex S7 thirteenth confirmation #4); today's page keeps its words and its pill. -->
 					{#if item.status === 'published' && idle}<StatusPill label={t('เผยแพร่แล้ว', 'Published')} dot />
+					{:else if item.status === 'published' && features.files}<StatusPill label={t('AI ใช้ได้', 'AI can use')} dot dotTone="ok" />
 					{:else if item.status === 'published'}<StatusPill label={t('AI ใช้ได้', 'AI can use')} tone="ok" dot />
 					{:else if item.status === 'draft'}<StatusPill label={t('ฉบับร่าง', 'Draft')} dot />
 					{:else}<StatusPill label={t('จัดเก็บแล้ว', 'Archived')} />{/if}

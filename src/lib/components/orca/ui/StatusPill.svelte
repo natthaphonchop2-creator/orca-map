@@ -4,10 +4,11 @@
 
 <script lang="ts">
 	// `dotTone`: a neutral pill whose dot alone carries the state's colour (status colours only as dots).
+	// Without it the dot is the pill's own, as before.
 	let { label, tone = 'neutral', dot = false, dotTone, title }: { label: string; tone?: StatusTone; dot?: boolean; dotTone?: 'ok' | 'warn' | 'deny'; title?: string } = $props();
 </script>
 
-<span class="orca-pill {tone}" {title}>{#if dot}<span class="orca-pill-dot {dotTone ? `tone-${dotTone}` : ''}" aria-hidden="true"></span>{/if}{label}</span>
+<span class="orca-pill {tone}" {title}>{#if dot}<span class="orca-pill-dot" class:tone-ok={dotTone === 'ok'} class:tone-warn={dotTone === 'warn'} class:tone-deny={dotTone === 'deny'} aria-hidden="true"></span>{/if}{label}</span>
 
 <style>
 	.orca-pill {

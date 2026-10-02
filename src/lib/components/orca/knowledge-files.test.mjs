@@ -1784,3 +1784,37 @@ test('while the card is open the live choice follows the flag: moved away from w
 		assert.equal(view.showLive, true, 'back on: offered again');
 	}
 });
+
+test('"AI ใช้ได้" on library v2\'s pages is a neutral pill whose dot alone is green, for a file read in full or in part, in the list and on its page; today\'s page keeps its own (Codex S7 thirteenth confirmation #4)', async () => {
+	// Status colours only as dots: the pill neutral, its dot the ok colour.
+	const okDot = /<span class="orca-pill neutral"[^>]*><span class="orca-pill-dot tone-ok"[^>]*><\/span>AI ใช้ได้<\/span>/g;
+	const green = /orca-pill ok/;
+	const ready = fileItem('r');
+	const partial = fileItem('p', { title: 'สรุปยอดขาย', file: fileInfo({ published: version(2, 'partial', { stats: { chars: 1, sheets: 2, rows: 50_000, partialReason: 'rows', hidden: hiddenParts() } }), options: options() }) });
+	const files = await list({ items: [ready, partial], kind: 'file', features: ON, fileZone: zone });
+	assert.equal(files.html.match(okDot)?.length, 2, 'both rows: the ready file and the partly read one');
+	assert.match(files.html, /<small class="kl-fn warn">อ่านได้บางส่วน<\/small>/);
+	assert.doesNotMatch(files.html, green);
+	for (const item of [ready, partial]) {
+		const { html } = await fileDetail({ item });
+		assert.equal(html.match(okDot)?.length, 1, `the page of ${item.id}`);
+		assert.doesNotMatch(html, green, `the page of ${item.id}`);
+	}
+	// An article on library v2's pages is told the same way, in the list and on its page.
+	const articles = await list({ items: [article('a')], features: ON, fileZone: zone });
+	assert.equal(articles.html.match(okDot)?.length, 1);
+	assert.doesNotMatch(articles.html, green);
+	const { Component } = await serverComponent(new URL('./knowledge/KnowledgeDetail.svelte', import.meta.url), {
+		...k, term, t: th, tick: async () => {}, StatusPill, ConfirmDialog: noop, WhoCard, TakeoverCard: noop,
+		orcaError: () => '', OrcaLibraryService: {}, getHttpStatusCode: noop, parseErrorContent: noop, KnowledgeRail: noop
+	});
+	const props = { items: [], members, departments, currentUserID: 'me', onback: noop, onedit: noop, onarchived: noop, ondenied: noop, onchanged: noop, hub: hub('sales'), item: article('a') };
+	const page = show(Component, { ...props, features: ON });
+	assert.equal(page.match(okDot)?.length, 1);
+	assert.doesNotMatch(page, green);
+	// Without library v2, today's page as it is live: the green pill (owner's open point O-2).
+	const todayPill = /<span class="orca-pill ok"[^>]*><span class="orca-pill-dot"[^>]*><\/span>AI ใช้ได้<\/span>/;
+	assert.match((await list({ items: [article('a')], features: OFF, fileZone: zone })).html, todayPill);
+	assert.match((await list({ items: [article('a')], fileZone: zone })).html, todayPill, 'an older server too');
+	assert.match(show(Component, { ...props, features: OFF }), todayPill);
+});

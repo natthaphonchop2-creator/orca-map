@@ -274,10 +274,12 @@
 											</span>
 										{:else}<span class="aud-none">{item.kind === 'file' ? t('ตั้งโดยเจ้าของ', 'Set by its owner') : t('ตั้งโดยผู้เขียน', 'Set by its author')}</span>{/if}
 									</span>
+									<!-- Status colours only as dots on library v2's pages, "AI ใช้ได้" too (Codex S7 thirteenth confirmation #4); today's page keeps its green pill. -->
 									<span class="kl-s" class:draft={row ? row.status === 'reading' || row.status === 'draft' : item.status === 'draft'}>
 										{#if row?.status === 'reading'}<StatusPill label={readingLabel('reading', t)} dot />
 										{:else if row?.status === 'failed'}<StatusPill label={readingLabel('failed', t)} dot dotTone="deny" />
 										{:else if item.status === 'published' && paused}<StatusPill label={t('เผยแพร่แล้ว', 'Published')} dot />
+										{:else if item.status === 'published' && files}<StatusPill label={t('AI ใช้ได้', 'AI can use')} dot dotTone="ok" />
 										{:else if item.status === 'published'}<StatusPill label={t('AI ใช้ได้', 'AI can use')} tone="ok" dot />
 										{:else if item.status === 'draft'}<StatusPill label={t('ฉบับร่าง', 'Draft')} dot />
 										{:else}<span class="archived-pill"><Archive size={12} aria-hidden="true" />{t('จัดเก็บแล้ว', 'Archived')}</span>{/if}

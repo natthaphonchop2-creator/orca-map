@@ -337,7 +337,7 @@
 					{:else if !servable && reading === 'failed'}<StatusPill label={readingLabel('failed', t)} dot dotTone="deny" />
 					{:else if !servable}<StatusPill label={readingLabel('reading', t)} dot />
 					{:else if item.status === 'published' && !aiUses}<StatusPill label={t('เผยแพร่แล้ว', 'Published')} dot />
-					{:else if item.status === 'published'}<StatusPill label={t('AI ใช้ได้', 'AI can use')} tone="ok" dot />
+					{:else if item.status === 'published'}<StatusPill label={t('AI ใช้ได้', 'AI can use')} dot dotTone="ok" />
 					{:else}<StatusPill label={t('ฉบับร่าง', 'Draft')} dot />{/if}
 				</span>
 				<span>{t(`ไฟล์ ${typeLabel}`, `${typeLabel} file`)}</span>
