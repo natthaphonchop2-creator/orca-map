@@ -659,12 +659,15 @@ const LEGACY_EXTENSIONS = ['doc', 'xls', 'ppt', 'dot', 'xlt', 'pot', 'pps', 'xls
 
 /**
  * A file's name as the server keeps it (gateway OrcaCleanFileName): the last
- * path part, without control characters, trimmed.
+ * path part, without control characters or invisible ones (orcathai's
+ * IsInvisible: format characters such as an RTL override or Unicode tag
+ * characters, variation selectors and the other default-ignorable code
+ * points), trimmed.
  */
 export function cleanFileName(name: string): string {
 	const base = name.split(/[/\\]/).pop() ?? '';
 	// eslint-disable-next-line no-control-regex
-	return base.replace(/[\u0000-\u001f\u007f-\u009f\ufffd]/g, '').trim();
+	return base.replace(/[\u0000-\u001f\u007f-\u009f\ufffd]|[\p{Cf}\p{Default_Ignorable_Code_Point}]/gu, '').trim();
 }
 
 /** A file name's extension, lower case, without the dot ("" when it has none), as the server's path.Ext reads it (Codex S7 sixth confirmation #4). */

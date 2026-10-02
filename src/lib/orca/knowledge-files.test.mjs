@@ -26,6 +26,13 @@ test('the server\'s file table, before anything is sent: type by the name, then 
 	for (const name of ['คู่มือ.docx', 'ราคา.XLSX', 'deck.pptx', 'list.csv', 'note.txt', 'readme.md', 'guide.markdown', 'C:\\Users\\a\\ราคา.xlsx', 'notes.txt ', ' ราคา.xlsx', '.txt', '.docx', 'a/b\\c.csv', 'tab\t.md'])
 		assert.deepEqual(k.classifyFile(name, 10).ok, true, JSON.stringify(name));
 	assert.equal(k.cleanFileName('C:\\Users\\a\\ราคา ฉบับใหม่.xlsx '), 'ราคา ฉบับใหม่.xlsx');
+	// Invisible characters leave the name as on the server (orcathai.IsInvisible): an RTL override that would show
+	// "…exe.docx" as "…xcod.exe", isolates and marks, zero-width characters, and Unicode tag characters spelling text.
+	assert.equal(k.cleanFileName('ใบแจ้งหนี้\u202Eexe.docx'), 'ใบแจ้งหนี้exe.docx');
+	assert.equal(k.cleanFileName('\u2066สัญญา\u2069\u200F\u200B\u061C\uFEFF ฉบับจริง.docx'), 'สัญญา ฉบับจริง.docx');
+	assert.equal(k.cleanFileName('ราคา' + String.fromCodePoint(0xE0049, 0xE0047, 0xE004E) + '\uFE0F.docx'), 'ราคา.docx');
+	assert.equal(k.fileExtension('สรุป\u202Excod.docx'), 'docx', 'the extension is the one the server reads');
+	assert.deepEqual(k.classifyFile('\u202E\u200B', 10), { ok: false, reason: 'invalid_name' });
 	for (const name of ['', '   ', 'a/', '\u0001'])
 		assert.deepEqual(k.classifyFile(name, 10), { ok: false, reason: 'invalid_name' }, JSON.stringify(name));
 	for (const [name, reason] of [
