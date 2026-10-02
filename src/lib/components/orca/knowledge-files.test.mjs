@@ -1974,3 +1974,26 @@ test('the original card and its download follow the version shown: the held one 
 	client.flush();
 	assert.equal(view.downloadWhich, 'published');
 });
+
+test('the held version\'s card names its own type, and a new version\'s progress its cleaned name (G3, Codex round 2 #16, #17)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./knowledge/FileDetail.svelte', '{ setWhich(value) { which = value; }, replace, get typeLabel() { return typeLabel; }, get replaceName() { return replaceName; } }');
+	const item = fileItem('f', { status: 'published', file: fileInfo({ ext: 'docx', fileName: 'ราคา.docx', published: version(1, 'ready', { fileName: 'ราคา.docx' }), pending: version(2, 'ready', { fileName: 'ราคา.xlsx' }), options: options({ reviewBeforeUpdate: true }) }) });
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ hub: hub('sales'), item, members, departments, currentUserID: 'me', canManage: false, features: ON, now: 0, onback: noop, onedit: noop, onchanged: noop, onarchived: noop, ondeleted: noop, ondenied: noop, onuploading: noop },
+			{ ...k, t: th, term, onDestroy: () => {}, getHttpStatusCode: () => undefined, isAbortError: () => false, parseErrorContent: (error) => error, orcaError: (error) => error.message,
+				OrcaLibraryService: { replace: () => new Promise(() => {}) } }
+		);
+	});
+	t.after(stop);
+	client.flush();
+	assert.equal(view.typeLabel, 'Word');
+	view.setWhich('pending');
+	client.flush();
+	assert.equal(view.typeLabel, 'Excel', 'the held version is a workbook');
+	void view.replace([{ name: 'ราคา\u202Eexe.docx', size: 10 }]);
+	client.flush();
+	assert.equal(view.replaceName, 'ราคาexe.docx');
+});

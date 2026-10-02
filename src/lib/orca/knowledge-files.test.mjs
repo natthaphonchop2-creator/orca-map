@@ -495,3 +495,11 @@ test('a turned switch says where the newer version is: being read, waiting for "
 	// The default is the reading.
 	assert.deepEqual(k.hiddenLines(read({}, { notesSlides: 12 }), th, on).map((line) => line.text), ['ไฟล์นี้มีโน้ตผู้บรรยาย 12 สไลด์ ORCA กำลังอ่านใหม่ให้ AI เห็น']);
 });
+
+test('an upload row shows the name as the server keeps it: no RTL override, no tag characters (G3, Codex round 2 #16)', () => {
+	const tags = String.fromCodePoint(0xE0049, 0xE0047, 0xE004E);
+	const rows = k.uploadRows([{ name: 'ใบแจ้งหนี้\u202Eexe.docx', size: 10 }, { name: 'ราคา' + tags + '.xlsx', size: 10 }, { name: '\u202E\u200B', size: 10 }], th, 1);
+	assert.deepEqual(rows.map((row) => row.name), ['ใบแจ้งหนี้exe.docx', 'ราคา.xlsx', 'ไฟล์ไม่มีชื่อ']);
+	assert.equal(rows[2].reason, 'invalid_name');
+	for (const row of rows) assert.doesNotMatch(row.name, /[\p{Cf}\p{Default_Ignorable_Code_Point}]/u);
+});

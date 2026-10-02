@@ -1267,7 +1267,8 @@ export type UploadRow = {
 export function uploadRows(files: readonly { name: string; size: number }[], t: Translate, keyBase = Date.now()): UploadRow[] {
 	return files.map((file, index) => {
 		const verdict = classifyFile(file.name, file.size);
-		const row: UploadRow = { key: `${keyBase}-${index}`, name: file.name, size: file.size, state: 'waiting', progress: 0 };
+		// The name as the server keeps it (cleanFileName): no RTL override or tag characters on the row (G3, Codex round 2 #16).
+		const row: UploadRow = { key: `${keyBase}-${index}`, name: cleanFileName(file.name) || t('ไฟล์ไม่มีชื่อ', 'A file with no name'), size: file.size, state: 'waiting', progress: 0 };
 		if (!verdict.ok) return { ...row, state: 'refused', reason: verdict.reason, message: refusalText(verdict.reason, t) };
 		return row;
 	});

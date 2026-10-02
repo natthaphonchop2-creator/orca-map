@@ -7,11 +7,13 @@
 		canReadAgain,
 		canTakeOver,
 		classifyFile,
+		cleanFileName,
 		encodingNote,
 		factLine,
 		FILE_ACCEPT,
 		failureText,
 		fileActionProblem,
+		fileExtension,
 		fileExtent,
 		fileReading,
 		fileServable,
@@ -139,7 +141,8 @@
 	// The owner takes the version shown (the published one, the held one whose tab is open, or a first one still pending); readers the published one.
 	const downloadWhich = $derived<'published' | 'pending'>(owner && pending && ((which === 'pending' && held) || !published) ? 'pending' : 'published');
 	const takeover = $derived(canTakeOver(item, { files: features.files, canManage, me: currentUserID, workspaceMembers: members }));
-	const typeLabel = $derived(fileTypeLabel(file?.ext ?? '', t));
+	// The type of the version shown: a replacement may be of another type (G3, Codex round 2 #17).
+	const typeLabel = $derived(fileTypeLabel(shown?.fileName ? fileExtension(shown.fileName) : (file?.ext ?? ''), t));
 	const failedCard = $derived(!servable && reading === 'failed');
 	const switches = $derived(!!options && (offered.includeNotes || offered.includeHidden || offered.includeComments));
 	const fileFacts = $derived(factLine([typeLabel, formatBytes(shown?.bytes ?? file?.bytes ?? 0), shown && t(`ฉบับที่ ${shown.version}`, `Version ${shown.version}`)]));
@@ -253,7 +256,8 @@
 			return;
 		}
 		busy = 'replace';
-		replaceName = chosen.name;
+		// The name as the server keeps it: no RTL override reverses it here (G3, Codex round 2 #16).
+		replaceName = cleanFileName(chosen.name);
 		replaceProgress = 0;
 		replaceAbort = new AbortController();
 		onuploading?.(true);
