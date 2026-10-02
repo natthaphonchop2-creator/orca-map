@@ -1817,4 +1817,12 @@ test('"AI ใช้ได้" on library v2\'s pages is a neutral pill whose dot
 	assert.match((await list({ items: [article('a')], features: OFF, fileZone: zone })).html, todayPill);
 	assert.match((await list({ items: [article('a')], fileZone: zone })).html, todayPill, 'an older server too');
 	assert.match(show(Component, { ...props, features: OFF }), todayPill);
+	// The legend beside the list says it as the rows do.
+	assert.deepEqual([files.rails[0].dots, articles.rails[0].dots], [true, true]);
+	assert.equal((await list({ items: [article('a')], features: OFF, fileZone: zone })).rails[0].dots, false);
+	const { Component: Rail } = await serverComponent(new URL('./knowledge/KnowledgeRail.svelte', import.meta.url), { ...k, t: th, term, localeHref: (value) => value, copyFeedback: () => ({ dispose: noop, copied: noop }), copyText: noop, showToast: noop, onDestroy: noop });
+	const legend = (dots) => show(Rail, { item: undefined, connected: true, ask: false, dots });
+	assert.match(legend(true), /<span class="pill"><i class="dt ok"><\/i>AI ใช้ได้<\/span>/);
+	assert.match(legend(false), /<span class="pill ok"><i class="dt"><\/i>AI ใช้ได้<\/span>/, 'today\'s legend');
+	assert.match(show(Rail, { item: undefined, connected: true, ask: false }), /<span class="pill ok"><i class="dt"><\/i>AI ใช้ได้<\/span>/, 'by default');
 });

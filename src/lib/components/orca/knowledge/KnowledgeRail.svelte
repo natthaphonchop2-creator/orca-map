@@ -22,7 +22,8 @@
 		ask = true,
 		files = false,
 		paused,
-		usage
+		usage,
+		dots = false
 	}: {
 		/** The item to ask about: the open one, or the newest published article. */
 		item?: LibraryItem;
@@ -41,6 +42,8 @@
 		paused?: 'files' | 'workspace';
 		/** The company's file quota, beside the file list. */
 		usage?: LibraryUsage;
+		/** Library v2's pages: "AI ใช้ได้" as the rows show it, a neutral pill with the ok dot (status colours only as dots). */
+		dots?: boolean;
 	} = $props();
 	const prompt = $derived(item ? askPrompt(item, t) : '');
 	let copied = $state(false);
@@ -107,7 +110,7 @@
 							? t('ตอนนี้ AI ไม่ได้ใช้ไฟล์ เพราะคลังความรู้แบบไฟล์ของบริษัทปิดอยู่', 'AI does not use files now: file Knowledge is off for this company')
 							: t('AI จะใช้ได้เมื่อเปิดใช้งานพื้นที่ทำงานนี้', 'AI can use it once this workspace is active')}</li>
 				{:else}
-					<li><span class="pill ok"><i class="dt"></i>{t('AI ใช้ได้', 'AI can use')}</span>{t('AI ของคนที่เลือกไว้ใช้ตอบได้ทันที', 'The chosen people’s AI can answer from it now')}</li>
+					<li><span class="pill" class:ok={!dots}><i class="dt" class:ok={dots}></i>{t('AI ใช้ได้', 'AI can use')}</span>{t('AI ของคนที่เลือกไว้ใช้ตอบได้ทันที', 'The chosen people’s AI can answer from it now')}</li>
 				{/if}
 				<li><span class="pill"><i class="dt draft"></i>{t('ฉบับร่าง', 'Draft')}</span>{t('เห็นแค่คุณ AI ยังไม่ใช้', 'Only you see it. AI does not use it yet')}</li>
 				<li><span class="pill"><Archive size={12} aria-hidden="true" />{t('จัดเก็บแล้ว', 'Archived')}</span>{t('AI เลิกใช้ แต่ยังเปิดดูย้อนหลังได้', 'AI no longer uses it; you can still open it')}</li>
@@ -257,6 +260,10 @@
 		height: 7px;
 		border-radius: 50%;
 		background: currentColor;
+	}
+	/* "AI ใช้ได้" on library v2's pages: a neutral pill, its dot alone the ok colour. */
+	.dt.ok {
+		background: var(--orca-ok);
 	}
 	/* A neutral state (published while file Knowledge is off): a grey dot in either theme. */
 	.dt.plain {

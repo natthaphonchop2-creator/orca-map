@@ -322,7 +322,7 @@
 			{/if}
 		</div>
 
-		<KnowledgeRail item={ask} ask={counted && !idle} {connected} {app} workspace={hub} files={kind === 'file'} paused={filesOff ? 'files' : idle ? 'workspace' : undefined} usage={kind === 'file' ? usage : undefined} />
+		<KnowledgeRail item={ask} ask={counted && !idle} {connected} {app} workspace={hub} files={kind === 'file'} paused={filesOff ? 'files' : idle ? 'workspace' : undefined} usage={kind === 'file' ? usage : undefined} dots={files} />
 	</div>
 </div>
 
