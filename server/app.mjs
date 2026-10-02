@@ -299,8 +299,22 @@ export function createBackendMiddleware(options = {}) {
   };
 }
 
-// When a connection's current request started, the request it carries now, and
-// whether a request's body has ended (see requestDeadline).
+// When the request a connection carries now began: its first byte as Node's
+// HTTP parser read it (llhttp's on_message_begin), the clock Node's own
+// requestTimeout keeps, pipelined requests included. Node 24 calls a parser's
+// slot 0 (kOnMessageBegin) there, and its server leaves that slot empty. One
+// function serves every parser, so a parser Node reuses marks its new
+// connection. Where the slot is taken, or never called, requestDeadline
+// estimates the start instead.
+const ON_MESSAGE_BEGIN = 0;
+const MESSAGE_BEGAN = Symbol('orca.messageBegan');
+function messageBegan() {
+  const socket = this?.socket;
+  if (socket) socket[MESSAGE_BEGAN] = Date.now();
+}
+
+// For the estimate: when a connection's current request started, the request
+// it carries now, and whether a request's body has ended (see requestDeadline).
 const REQUEST_STARTED = Symbol('orca.requestStarted');
 const CURRENT_REQUEST = Symbol('orca.currentRequest');
 const CURRENT_RESPONSE = Symbol('orca.currentResponse');
@@ -317,10 +331,15 @@ const ENDED = Symbol('orca.ended');
  */
 function requestDeadline(req, res, ms, headersMaxMs) {
   const socket = req.socket;
-  // The next request on this connection starts after this one's answer and its
-  // whole body, whichever comes later (an early answer leaves the body still
-  // arriving: Codex S7 fourth confirmation #3); a pipelined one counts from
-  // there. Every request marks it, one already read in full too.
+  // This request's first byte, from Node's parser: each request takes its own
+  // mark (the next one is made at the next request's first byte).
+  const began = socket[MESSAGE_BEGAN];
+  socket[MESSAGE_BEGAN] = undefined;
+  // The estimate, kept for a parser that does not say. The next request on this
+  // connection starts after this one's answer and its whole body, whichever
+  // comes later (an early answer leaves the body still arriving: Codex S7 fourth
+  // confirmation #3); a pipelined one counts from there. Every request marks it,
+  // one already read in full too.
   const next = () => {
     socket[REQUEST_STARTED] = Date.now();
   };
@@ -337,18 +356,21 @@ function requestDeadline(req, res, ms, headersMaxMs) {
   socket[CURRENT_REQUEST] = req;
   socket[CURRENT_RESPONSE] = res;
   if (previous && previous !== req && previous.complete && !previous[ENDED]) next();
-  // Pipelined: it came while the answer before it was still on its way, so its
-  // start is unknown; it is counted from when its headers had arrived (Codex S7
-  // sixth confirmation #1). Node's own headersTimeout still bounds those.
+  // Pipelined: it came while the answer before it was still on its way, so the
+  // estimate counts it from when its headers had arrived (Codex S7 sixth
+  // confirmation #1); Node's own headersTimeout still bounds those.
   else if (previousAnswer && previousAnswer !== res && !previousAnswer.writableFinished) next();
   if (req.complete) return () => {};
   // From the request's start, its headers included, as Node's own requestTimeout
-  // counts (Codex S7 third confirmation #1): the connection's opening, or the end
-  // of the request before it on a kept-alive connection. Its headers took at
-  // most headersTimeout (Node refuses slower ones), and a kept-alive connection
-  // idles at most keepAliveTimeout, so no more is ever taken off.
-  const started = socket[REQUEST_STARTED] ?? Date.now();
-  ms = Math.max(0, ms - Math.min(Date.now() - started, headersMaxMs));
+  // counts (Codex S7 third confirmation #1). Exactly from its first byte when
+  // the parser said: a pipelined request too, however slowly its headers came
+  // (Codex S7 thirteenth confirmation #2). Otherwise from the estimate: the
+  // connection's opening, or the end of the request before it on a kept-alive
+  // connection. Its headers took at most headersTimeout (Node refuses slower
+  // ones), and a kept-alive connection idles at most keepAliveTimeout, so the
+  // estimate never takes more off.
+  const elapsed = began !== undefined ? Date.now() - began : Math.min(Date.now() - (socket[REQUEST_STARTED] ?? Date.now()), headersMaxMs);
+  ms = Math.max(0, ms - elapsed);
   let timer;
   const done = () => {
     clearTimeout(timer);
@@ -413,6 +435,10 @@ export function createAppServer(options = {}) {
   server.headersTimeout = 60_000;
   server.on('connection', (socket) => {
     socket[REQUEST_STARTED] = Date.now();
+    // Node's parser for this connection, set up before this listener: each
+    // request's first byte, exactly, unless the slot has another use.
+    const parser = socket.parser;
+    if (parser && (parser[ON_MESSAGE_BEGIN] == null || parser[ON_MESSAGE_BEGIN] === messageBegan)) parser[ON_MESSAGE_BEGIN] = messageBegan;
   });
   server.on('upgrade', (_req, socket) => socket.end('HTTP/1.1 501 Not Implemented\r\nConnection: close\r\nContent-Length: 0\r\n\r\n'));
   server.on('connect', (_req, socket) => socket.end('HTTP/1.1 405 Method Not Allowed\r\nConnection: close\r\nContent-Length: 0\r\n\r\n'));

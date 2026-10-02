@@ -969,62 +969,6 @@ test('a keep-alive connection keeps no listener of the requests it carried', asy
   assert.deepEqual(warnings.filter((name) => name === 'MaxListenersExceededWarning'), []);
 });
 
-test('an ordinary request\'s 120 seconds count from its start, its headers included (Codex S7 third confirmation #1)', async (t) => {
-  const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-  const connected = once(f.app, 'connection');
-  const target = new URL(f.appURL);
-  const socket = net.connect(Number(target.port), target.hostname);
-  socket.on('error', () => {});
-  t.after(() => socket.destroy());
-  let closed = false;
-  socket.on('close', () => { closed = true; });
-  let text = '';
-  socket.on('data', (chunk) => { text += chunk; });
-  await connected;
-  // 50 s of slow headers, then the body slowly: 120 s in all, not 50 + 120.
-  socket.write('POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\n');
-  t.mock.timers.tick(50_000);
-  socket.write(`host: ${target.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
-  await within(200, () => false);
-  t.mock.timers.tick(69_000);
-  assert.equal(await within(50, () => closed), false, 'at 119 s it is still arriving');
-  t.mock.timers.tick(1_000);
-  assert.equal(await within(2_000, () => closed), true, 'at 120 s from its start it is cut');
-  assert.match(text, /^HTTP\/1\.1 408 /);
-});
-
-test('on a kept-alive connection each request has its own 120 seconds, from the answer before it', async (t) => {
-  const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-  const connected = once(f.app, 'connection');
-  const target = new URL(f.appURL);
-  const socket = net.connect(Number(target.port), target.hostname);
-  socket.on('error', () => {});
-  t.after(() => socket.destroy());
-  let closed = false;
-  socket.on('close', () => { closed = true; });
-  let text = '';
-  socket.on('data', (chunk) => { text += chunk; });
-  await connected;
-  const head = `host: ${target.host}\r\ncontent-type: application/json\r\n`;
-  // A first request whose body takes 100 s, within its 120 s.
-  socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\n${head}content-length: 4\r\n\r\n{"`);
-  await within(200, () => false);
-  t.mock.timers.tick(100_000);
-  socket.write('":');
-  assert.equal(await within(2_000, () => /\r\n\r\nok$/.test(text)), true, 'the first request is answered');
-  // 4 s later (within the keep-alive time) a slow second request: its 120 s start at the answer before it.
-  t.mock.timers.tick(4_000);
-  socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\n${head}content-length: 1000\r\n\r\n{"a":`);
-  await within(200, () => false);
-  t.mock.timers.tick(60_000);
-  assert.equal(await within(50, () => closed), false, 'counting from the connection would have cut it already');
-  t.mock.timers.tick(60_000);
-  assert.equal(await within(2_000, () => closed), true, 'cut at its own 120 s');
-  assert.match(text, /HTTP\/1\.1 408 /);
-});
-
 /** A raw kept-alive connection the test writes to; it collects the answers and tells when it closes. */
 async function rawConnection(t, f) {
   const connected = once(f.app, 'connection');
@@ -1039,46 +983,6 @@ async function rawConnection(t, f) {
   return state;
 }
 const answers = (text) => (text.match(/HTTP\/1\.1 \d{3}/g) ?? []);
-
-test('after an early answer whose body arrived later, the next request\'s 120 s start at that body\'s end (Codex S7 fourth confirmation #3)', async (t) => {
-  const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-  const c = await rawConnection(t, f);
-  // Refused at once (a foreign Origin), while its body takes 100 s more: the connection stays kept alive.
-  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\norigin: https://evil.example\r\ncontent-type: application/json\r\ncontent-length: 20\r\n\r\n0123456789`);
-  assert.equal(await within(2_000, () => answers(c.text).length === 1), true);
-  assert.match(c.text, /^HTTP\/1\.1 403 /);
-  t.mock.timers.tick(100_000);
-  c.socket.write('abcdefghij');
-  await within(200, () => false);
-  // The next request, slow: counted from the first one's body end, not from its early answer.
-  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
-  await within(200, () => false);
-  t.mock.timers.tick(60_000);
-  assert.equal(await within(50, () => c.closed), false, 'counted from the early answer it would be cut already');
-  t.mock.timers.tick(60_000);
-  assert.equal(await within(2_000, () => c.closed), true);
-  assert.match(c.text, /HTTP\/1\.1 408 /);
-});
-
-test('requests read in full mark the next one\'s start too: a slow request after a run of quick ones keeps its 120 s', async (t) => {
-  const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-  const c = await rawConnection(t, f);
-  // 40 quick reads, 4 s apart (within the keep-alive time): 160 s on one connection.
-  for (let i = 1; i <= 40; i++) {
-    c.socket.write(`GET /assets/app.js HTTP/1.1\r\nhost: ${c.host}\r\n\r\n`);
-    assert.equal(await within(2_000, () => answers(c.text).length === i), true, `read ${i}`);
-    t.mock.timers.tick(4_000);
-  }
-  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
-  await within(200, () => false);
-  t.mock.timers.tick(100_000);
-  assert.equal(await within(50, () => c.closed), false, 'its 120 s count from the read before it');
-  t.mock.timers.tick(20_000);
-  assert.equal(await within(2_000, () => c.closed), true);
-  assert.match(c.text, /HTTP\/1\.1 408 /);
-});
 
 test('a proxied call cut by its 408 is stopped, and the server goes on serving (Codex S7 fourth confirmation #1)', async (t) => {
   let upstreamResponse;
@@ -1108,98 +1012,323 @@ test('a proxied call cut by its 408 is stopped, and the server goes on serving (
   assert.match(source, /if \(!relayed \|\| !res\.writableFinished\) upstream\.destroy\(\);/, 'and its call stops');
 });
 
-test('after a slow answer the next request\'s 120 s start at that answer, not at its own body\'s end', async (t) => {
-  let release;
-  const f = await fixture(t, (req, res) => {
-    req.resume();
-    req.on('end', () => {
-      // The first call's backend answers 100 s later; the others at once.
-      if (!release) release = () => res.end('slow');
-      else res.end('ok');
-    });
-  });
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-  const c = await rawConnection(t, f);
-  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 2\r\n\r\n{}`);
-  assert.equal(await within(2_000, () => !!release), true);
-  t.mock.timers.tick(100_000);
-  release();
-  assert.equal(await within(2_000, () => /\r\n\r\nslow$/.test(c.text) || /slow\r\n0\r\n\r\n$/.test(c.text)), true, 'the slow answer came');
-  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
-  await within(200, () => false);
-  t.mock.timers.tick(60_000);
-  assert.equal(await within(50, () => c.closed), false, 'counted from its own body\'s end it would be cut already');
-  t.mock.timers.tick(60_000);
-  assert.equal(await within(2_000, () => c.closed), true);
-});
-
-test('a request whose headers come in the same read as the end of the one before it starts then (Codex S7 fifth confirmation #1)', async (t) => {
-  const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-  const c = await rawConnection(t, f);
-  // Refused at once; its body half sent.
-  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\norigin: https://evil.example\r\ncontent-type: application/json\r\ncontent-length: 20\r\n\r\n0123456789`);
-  assert.equal(await within(2_000, () => answers(c.text).length === 1), true);
-  t.mock.timers.tick(100_000);
-  // 100 s later, in one write: the rest of that body and the next request, slow.
-  c.socket.write(`abcdefghijPOST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
-  await within(200, () => false);
-  t.mock.timers.tick(60_000);
-  assert.equal(await within(50, () => c.closed), false, 'counted from the early answer, or with the 65 s cap, it would be cut already');
-  t.mock.timers.tick(60_000);
-  assert.equal(await within(2_000, () => c.closed), true);
-  assert.match(c.text, /HTTP\/1\.1 408 /);
-});
-
-test('a pipelined request, sent while the answer before it is on its way, keeps its 120 s (Codex S7 sixth confirmation #1)', async (t) => {
-  let release;
-  const f = await fixture(t, (req, res) => {
-    req.resume();
-    req.on('end', () => {
-      if (!release) release = () => res.end('first');
-      else res.end('ok');
-    });
-  });
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-  const c = await rawConnection(t, f);
-  // A's body is complete at 0; its backend answers at 110.
-  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 2\r\n\r\n{}`);
-  assert.equal(await within(2_000, () => !!release), true);
-  t.mock.timers.tick(100_000);
-  // B, pipelined at 100: headers and part of its body.
-  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
-  await within(200, () => false);
-  t.mock.timers.tick(10_000);
-  release();
-  await within(200, () => false);
-  t.mock.timers.tick(100_000);
-  assert.equal(await within(50, () => c.closed), false, '110 s after B arrived it is still within its 120 s');
-  t.mock.timers.tick(10_000);
-  assert.equal(await within(2_000, () => c.closed), true, 'cut at its own 120 s');
-});
-
-test('a pipelined request whose 408 would wait behind a streaming answer closes its connection at its deadline (Codex S7 seventh confirmation #1)', async (t) => {
+test('a request whose answer is already streaming at its 120 s is closed, never answered 408 over it, and the server goes on', async (t) => {
   let streaming;
   const f = await fixture(t, (req, res) => {
+    // The backend answers before the body has arrived, and goes on writing.
     req.resume();
-    req.on('end', () => {
-      if (!streaming) {
-        // A's answer starts and never ends.
-        streaming = res;
-        res.writeHead(200, { 'content-type': 'text/plain' });
-        res.write('part');
-      } else res.end('ok');
-    });
+    streaming = res;
+    res.writeHead(200, { 'content-type': 'text/plain' });
+    res.write('part');
   });
+  const errors = [];
+  const record = (error) => errors.push(error);
+  process.on('uncaughtException', record);
+  t.after(() => process.off('uncaughtException', record));
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-  const c = await rawConnection(t, f);
-  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 2\r\n\r\n{}`);
-  assert.equal(await within(2_000, () => /part/.test(c.text)), true, 'A is streaming');
-  t.mock.timers.tick(100_000);
-  c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
-  await within(200, () => false);
+  const held = heldRequest(f.appURL, '/api/orca/hubs/hub-sales/library/items', { 'content-type': 'application/json' });
+  t.after(() => held.socket.destroy());
+  assert.equal((await held.answer).status, 200, 'the answer began');
   t.mock.timers.tick(119_000);
-  assert.equal(await within(50, () => c.closed), false);
+  assert.equal(await within(50, held.isClosed), false);
   t.mock.timers.tick(1_000);
-  assert.equal(await within(2_000, () => c.closed), true, 'B\'s deadline closes the connection, not A\'s end');
+  assert.equal(await within(2_000, held.isClosed), true, 'its connection closes at its 120 s');
+  await within(100, () => false);
+  assert.deepEqual(errors, [], 'no 408 written over the answer');
+  assert.ok(streaming);
+  t.mock.timers.reset();
+  assert.equal((await request(f.appURL, '/assets/app.js')).status, 200, 'the server goes on serving');
 });
+
+// Each request's start comes from Node's parser (this Node calls the slot the
+// server fills), or from requestDeadline's estimate where a parser does not:
+// the slot emptied again once the server has filled it, or a parser that tells
+// only a connection's first request (a later one is estimated, never given an
+// older request's start). `first` and `later`: whether the first request on a
+// connection, and the ones after it, are counted exactly.
+const CLOCKS = [
+  { name: 'parser', first: true, later: true, use: () => {} },
+  { name: 'estimate', first: false, later: false, use: (app) => app.on('connection', (socket) => { socket.parser[0] = null; }) },
+  {
+    name: 'parser, first request only', first: true, later: false,
+    use: (app) => app.on('connection', (socket) => {
+      const mark = socket.parser[0];
+      let told = false;
+      socket.parser[0] = function () {
+        if (told) return;
+        told = true;
+        mark.call(this);
+      };
+    }),
+  },
+];
+
+for (const clock of CLOCKS) {
+  test(`${clock.name}: an ordinary request\'s 120 seconds count from its start, its headers included (Codex S7 third confirmation #1)`, async (t) => {
+    const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
+    clock.use(f.app);
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+    const connected = once(f.app, 'connection');
+    const target = new URL(f.appURL);
+    const socket = net.connect(Number(target.port), target.hostname);
+    socket.on('error', () => {});
+    t.after(() => socket.destroy());
+    let closed = false;
+    socket.on('close', () => { closed = true; });
+    let text = '';
+    socket.on('data', (chunk) => { text += chunk; });
+    await connected;
+    // 50 s of slow headers, then the body slowly: 120 s in all, not 50 + 120.
+    // The first line reaches the server before the clock moves on.
+    socket.write('POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\n');
+    await within(200, () => false);
+    t.mock.timers.tick(50_000);
+    socket.write(`host: ${target.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
+    await within(200, () => false);
+    t.mock.timers.tick(69_000);
+    assert.equal(await within(50, () => closed), false, 'at 119 s it is still arriving');
+    t.mock.timers.tick(1_000);
+    assert.equal(await within(2_000, () => closed), true, 'at 120 s from its start it is cut');
+    assert.match(text, /^HTTP\/1\.1 408 /);
+  });
+
+  test(`${clock.name}: on a kept-alive connection each request has its own 120 seconds, from the answer before it`, async (t) => {
+    const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
+    clock.use(f.app);
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+    const connected = once(f.app, 'connection');
+    const target = new URL(f.appURL);
+    const socket = net.connect(Number(target.port), target.hostname);
+    socket.on('error', () => {});
+    t.after(() => socket.destroy());
+    let closed = false;
+    socket.on('close', () => { closed = true; });
+    let text = '';
+    socket.on('data', (chunk) => { text += chunk; });
+    await connected;
+    const head = `host: ${target.host}\r\ncontent-type: application/json\r\n`;
+    // A first request whose body takes 100 s, within its 120 s.
+    socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\n${head}content-length: 4\r\n\r\n{"`);
+    await within(200, () => false);
+    t.mock.timers.tick(100_000);
+    socket.write('":');
+    assert.equal(await within(2_000, () => /\r\n\r\nok$/.test(text)), true, 'the first request is answered');
+    // 4 s later (within the keep-alive time) a slow second request: its 120 s start at the answer before it.
+    t.mock.timers.tick(4_000);
+    socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\n${head}content-length: 1000\r\n\r\n{"a":`);
+    await within(200, () => false);
+    t.mock.timers.tick(60_000);
+    assert.equal(await within(50, () => closed), false, 'counting from the connection would have cut it already');
+    t.mock.timers.tick(60_000);
+    assert.equal(await within(2_000, () => closed), true, 'cut at its own 120 s');
+    assert.match(text, /HTTP\/1\.1 408 /);
+  });
+
+  test(`${clock.name}: after an early answer whose body arrived later, the next request\'s 120 s start at that body\'s end (Codex S7 fourth confirmation #3)`, async (t) => {
+    const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
+    clock.use(f.app);
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+    const c = await rawConnection(t, f);
+    // Refused at once (a foreign Origin), while its body takes 100 s more: the connection stays kept alive.
+    c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\norigin: https://evil.example\r\ncontent-type: application/json\r\ncontent-length: 20\r\n\r\n0123456789`);
+    assert.equal(await within(2_000, () => answers(c.text).length === 1), true);
+    assert.match(c.text, /^HTTP\/1\.1 403 /);
+    t.mock.timers.tick(100_000);
+    c.socket.write('abcdefghij');
+    await within(200, () => false);
+    // The next request, slow: counted from the first one's body end, not from its early answer.
+    c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
+    await within(200, () => false);
+    t.mock.timers.tick(60_000);
+    assert.equal(await within(50, () => c.closed), false, 'counted from the early answer it would be cut already');
+    t.mock.timers.tick(60_000);
+    assert.equal(await within(2_000, () => c.closed), true);
+    assert.match(c.text, /HTTP\/1\.1 408 /);
+  });
+
+  test(`${clock.name}: requests read in full mark the next one\'s start too: a slow request after a run of quick ones keeps its 120 s`, async (t) => {
+    const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
+    clock.use(f.app);
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+    const c = await rawConnection(t, f);
+    // 40 quick reads, 4 s apart (within the keep-alive time): 160 s on one connection.
+    for (let i = 1; i <= 40; i++) {
+      c.socket.write(`GET /assets/app.js HTTP/1.1\r\nhost: ${c.host}\r\n\r\n`);
+      assert.equal(await within(2_000, () => answers(c.text).length === i), true, `read ${i}`);
+      t.mock.timers.tick(4_000);
+    }
+    c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
+    await within(200, () => false);
+    t.mock.timers.tick(100_000);
+    assert.equal(await within(50, () => c.closed), false, 'its 120 s count from the read before it');
+    t.mock.timers.tick(20_000);
+    assert.equal(await within(2_000, () => c.closed), true);
+    assert.match(c.text, /HTTP\/1\.1 408 /);
+  });
+
+  test(`${clock.name}: after a slow answer the next request\'s 120 s start at that answer, not at its own body\'s end`, async (t) => {
+    let release;
+    const f = await fixture(t, (req, res) => {
+      req.resume();
+      req.on('end', () => {
+        // The first call's backend answers 100 s later; the others at once.
+        if (!release) release = () => res.end('slow');
+        else res.end('ok');
+      });
+    });
+    clock.use(f.app);
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+    const c = await rawConnection(t, f);
+    c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 2\r\n\r\n{}`);
+    assert.equal(await within(2_000, () => !!release), true);
+    t.mock.timers.tick(100_000);
+    release();
+    assert.equal(await within(2_000, () => /\r\n\r\nslow$/.test(c.text) || /slow\r\n0\r\n\r\n$/.test(c.text)), true, 'the slow answer came');
+    c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
+    await within(200, () => false);
+    t.mock.timers.tick(60_000);
+    assert.equal(await within(50, () => c.closed), false, 'counted from its own body\'s end it would be cut already');
+    t.mock.timers.tick(60_000);
+    assert.equal(await within(2_000, () => c.closed), true);
+  });
+
+  test(`${clock.name}: a request whose headers come in the same read as the end of the one before it starts then (Codex S7 fifth confirmation #1)`, async (t) => {
+    const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
+    clock.use(f.app);
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+    const c = await rawConnection(t, f);
+    // Refused at once; its body half sent.
+    c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\norigin: https://evil.example\r\ncontent-type: application/json\r\ncontent-length: 20\r\n\r\n0123456789`);
+    assert.equal(await within(2_000, () => answers(c.text).length === 1), true);
+    t.mock.timers.tick(100_000);
+    // 100 s later, in one write: the rest of that body and the next request, slow.
+    c.socket.write(`abcdefghijPOST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
+    await within(200, () => false);
+    t.mock.timers.tick(60_000);
+    assert.equal(await within(50, () => c.closed), false, 'counted from the early answer, or with the 65 s cap, it would be cut already');
+    t.mock.timers.tick(60_000);
+    assert.equal(await within(2_000, () => c.closed), true);
+    assert.match(c.text, /HTTP\/1\.1 408 /);
+  });
+
+  test(`${clock.name}: a pipelined request, sent while the answer before it is on its way, keeps its 120 s (Codex S7 sixth confirmation #1)`, async (t) => {
+    let release;
+    const f = await fixture(t, (req, res) => {
+      req.resume();
+      req.on('end', () => {
+        if (!release) release = () => res.end('first');
+        else res.end('ok');
+      });
+    });
+    clock.use(f.app);
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+    const c = await rawConnection(t, f);
+    // A's body is complete at 0; its backend answers at 110.
+    c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 2\r\n\r\n{}`);
+    assert.equal(await within(2_000, () => !!release), true);
+    t.mock.timers.tick(100_000);
+    // B, pipelined at 100: headers and part of its body.
+    c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
+    await within(200, () => false);
+    t.mock.timers.tick(10_000);
+    release();
+    await within(200, () => false);
+    t.mock.timers.tick(100_000);
+    assert.equal(await within(50, () => c.closed), false, '110 s after B arrived it is still within its 120 s');
+    t.mock.timers.tick(10_000);
+    assert.equal(await within(2_000, () => c.closed), true, 'cut at its own 120 s');
+  });
+
+  test(`${clock.name}: a pipelined request whose 408 would wait behind a streaming answer closes its connection at its deadline (Codex S7 seventh confirmation #1)`, async (t) => {
+    let streaming;
+    const f = await fixture(t, (req, res) => {
+      req.resume();
+      req.on('end', () => {
+        if (!streaming) {
+          // A's answer starts and never ends.
+          streaming = res;
+          res.writeHead(200, { 'content-type': 'text/plain' });
+          res.write('part');
+        } else res.end('ok');
+      });
+    });
+    clock.use(f.app);
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+    const c = await rawConnection(t, f);
+    c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 2\r\n\r\n{}`);
+    assert.equal(await within(2_000, () => /part/.test(c.text)), true, 'A is streaming');
+    t.mock.timers.tick(100_000);
+    c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
+    await within(200, () => false);
+    t.mock.timers.tick(119_000);
+    assert.equal(await within(50, () => c.closed), false);
+    t.mock.timers.tick(1_000);
+    assert.equal(await within(2_000, () => c.closed), true, 'B\'s deadline closes the connection, not A\'s end');
+  });
+
+  test(`${clock.name}: a pipelined request whose headers come slowly while the answer before it streams counts from its first byte (Codex S7 thirteenth confirmation #2)`, async (t) => {
+    let streaming;
+    const f = await fixture(t, (req, res) => {
+      req.resume();
+      req.on('end', () => {
+        if (!streaming) {
+          // A's answer starts and never ends.
+          streaming = res;
+          res.writeHead(200, { 'content-type': 'text/plain' });
+          res.write('part');
+        } else res.end('ok');
+      });
+    });
+    clock.use(f.app);
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+    const c = await rawConnection(t, f);
+    c.socket.write(`POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\nhost: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 2\r\n\r\n{}`);
+    assert.equal(await within(2_000, () => /part/.test(c.text)), true, 'A is streaming');
+    t.mock.timers.tick(100_000);
+    // B's headers begin at 100 and take 50 s (within Node's headersTimeout) while A's answer goes on.
+    c.socket.write('POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\n');
+    await within(200, () => false);
+    t.mock.timers.tick(50_000);
+    c.socket.write(`host: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
+    await within(200, () => false);
+    t.mock.timers.tick(69_000);
+    assert.equal(await within(50, () => c.closed), false, 'at 119 s from its first byte it is still arriving');
+    t.mock.timers.tick(1_000);
+    if (clock.later) {
+      assert.equal(await within(2_000, () => c.closed), true, 'this Node\'s parser tells its first byte: cut 120 s from there, not from when its headers had arrived');
+      return;
+    }
+    // The estimate's bound: from when its headers had arrived, so at most headersTimeout late.
+    assert.equal(await within(50, () => c.closed), false);
+    t.mock.timers.tick(49_000);
+    assert.equal(await within(50, () => c.closed), false);
+    t.mock.timers.tick(1_000);
+    assert.equal(await within(2_000, () => c.closed), true, 'the estimate: 120 s after its headers had arrived');
+  });
+
+  test(`${clock.name}: headers that took longer than the estimate takes off still count in full`, async (t) => {
+    const f = await fixture(t, (req, res) => { req.resume(); req.on('end', () => res.end('ok')); });
+    clock.use(f.app);
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+    const c = await rawConnection(t, f);
+    // 80 s of headers: Node checks its 60 s headersTimeout only every 30 s, so these can arrive.
+    c.socket.write('POST /api/orca/hubs/hub-sales/library/items HTTP/1.1\r\n');
+    await within(200, () => false);
+    t.mock.timers.tick(80_000);
+    c.socket.write(`host: ${c.host}\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{"a":`);
+    await within(200, () => false);
+    t.mock.timers.tick(39_000);
+    assert.equal(await within(50, () => c.closed), false, 'at 119 s from its first byte it is still arriving');
+    t.mock.timers.tick(1_000);
+    if (clock.first) {
+      assert.equal(await within(2_000, () => c.closed), true, 'cut at 120 s from its first byte, the 80 s of headers counted in full');
+      return;
+    }
+    // The estimate takes off at most headersTimeout + keepAliveTimeout (65 s): cut at 135 s.
+    assert.equal(await within(50, () => c.closed), false);
+    t.mock.timers.tick(14_000);
+    assert.equal(await within(50, () => c.closed), false);
+    t.mock.timers.tick(1_000);
+    assert.equal(await within(2_000, () => c.closed), true, 'the estimate: 55 s after its headers had arrived');
+  });
+}
