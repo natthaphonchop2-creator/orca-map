@@ -113,6 +113,11 @@
 	// A newer version the owner checks before it serves ("ต้องตรวจก่อนอัปเดต").
 	const held = $derived(!!pending && servable && versionServable(pending));
 	let which = $state<'published' | 'pending'>('published');
+	// The held version was put in use, or is gone: back to the version in use, so a
+	// later held one never opens by itself.
+	$effect(() => {
+		if (!held && which === 'pending') which = 'published';
+	});
 	const previewVersion = $derived(which === 'pending' && held ? pending : versionServable(published) ? published : undefined);
 	const options = $derived<LibraryFileOptions | undefined>(manage ? file?.options : undefined);
 	// The parts hidden in the version shown, against what the owner chose now.

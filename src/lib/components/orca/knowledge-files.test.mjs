@@ -1514,3 +1514,152 @@ test('the quota meter asks again when a reading ends, and keeps only its newest 
 	await first;
 	assert.equal(view.usage.uploadsToday, 50, 'the older answer never replaces the newer one');
 });
+
+test('a preview whose version is gone (put in use elsewhere) shows nothing of it and has the page read the file as it is (Codex S7 twelfth confirmation #1)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./knowledge/FilePreview.svelte', '{ load, get chunks() { return chunks; }, get next() { return next; }, get total() { return total; } }');
+	const v = (n) => ({ version: n, state: 'ready', fileName: 'ราคา.xlsx', bytes: 1, createdAt: '', options: { includeHidden: false, includeComments: false, includeNotes: false } });
+	for (const cursor of ['', 'c1']) {
+		const items = [];
+		const answers = cursor ? [{ item: { id: 'f' }, which: 'pending', version: v(2), preview: [{ text: 'ฉบับ 2' }], totalChars: 100, nextCursor: 'c1' }] : [];
+		answers.push({ item: { id: 'f', version: 9, file: { published: v(2) } }, which: 'pending', preview: [], totalChars: 0 });
+		let view;
+		const stop = client.effect_root(() => {
+			view = harness(
+				{ hubID: 'sales', itemID: 'f', which: 'pending', version: v(2), onitem: (item) => items.push(item) },
+				{ untrack: client.untrack, onDestroy: () => {}, OrcaLibraryService: { file: async () => answers.shift() }, t: th, locatorLabel: () => '', fileActionProblem: () => undefined, getHttpStatusCode: (error) => error.status, parseErrorContent: (error) => error, orcaError: (error) => error.message }
+			);
+		});
+		t.after(stop);
+		client.flush();
+		for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
+		if (cursor) await view.load(view.next);
+		assert.deepEqual(view.chunks, [], `${cursor || 'first page'}: nothing of the gone version stays`);
+		assert.equal(view.next, '');
+		assert.deepEqual(items.map((item) => item.version), [9], `${cursor || 'first page'}: the page reads the file as it is now`);
+	}
+	const detail = await readFile(new URL('./knowledge/FileDetail.svelte', import.meta.url), 'utf8');
+	assert.match(detail, /\$effect\(\(\) => \{\s*if \(!held && which === 'pending'\) which = 'published';\s*\}\);/, 'the tab goes back to the version in use');
+});
+
+test('"ทุกคน (อัปเดตอัตโนมัติ)" chosen while file Knowledge was on is not sent once it is off; a live item stays live (Codex S7 twelfth confirmation #2)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./LibraryEditor.svelte', '{ save, setFeatures(value) { features = value; }, setTitle(value) { title = value; }, setContent(value) { content = value; }, get fieldErrors() { return fieldErrors; }, get error() { return error; } }');
+	const run = async (existing, refuse = false) => {
+		const saves = [];
+		let view;
+		const stop = client.effect_root(() => {
+			view = harness(
+				{ hub: hub('sales'), kind: 'knowledge', features: ON, existing, initialTitle: '', items: [], members, departments, currentUserID: 'me', now: 0, onsaved: () => {}, onclose: () => {}, ondenied: () => {}, onrecheck: async () => 'open', ondirty: () => {} },
+				{
+					...k, t: th, untrack: client.untrack, onDestroy: () => {}, parseErrorContent: (error) => ({ status: error.status, message: error.message }), orcaError: (error) => error.message,
+					OrcaLibraryService: { save: async (...args) => { saves.push(args); if (refuse) throw Object.assign(new Error('library_files_disabled: knowledge library v2 is off for this company'), { status: 404 }); return { ...(existing ?? article('n')), version: 2 }; } }
+				}
+			);
+		});
+		t.after(stop);
+		client.flush();
+		view.setTitle('นโยบายใหม่');
+		view.setContent('เนื้อหา');
+		view.setFeatures(OFF);
+		client.flush();
+		await view.save('published');
+		return { view, saves };
+	};
+	// A new article set to live while it was on.
+	const fresh = await run(undefined);
+	assert.equal(fresh.saves.length, 0, 'nothing is sent');
+	assert.match(fresh.view.fieldErrors['kn-audience'], /คลังความรู้แบบไฟล์ของบริษัทปิดอยู่ตอนนี้ จึงเลือก “ทุกคน \(อัปเดตอัตโนมัติ\)” ไม่ได้/);
+	// An item live already stays live: the server allows it.
+	const kept = await run(article('l', { audienceMode: 'everyone_live' }));
+	assert.equal(kept.saves.length, 1);
+	assert.equal(kept.saves[0][1].audienceMode, 'everyone_live');
+	// The server's own refusal, should it come, is told in Thai, the text kept.
+	const refused = await run(article('l2', { audienceMode: 'everyone_live' }), true);
+	assert.match(refused.view.error, /จึงเลือก “ทุกคน \(อัปเดตอัตโนมัติ\)” ไม่ได้/);
+});
+
+test('with the day\'s uploads used up nothing is sent, and each file says why (the upload gate)', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ upload, refreshUsage, stopPolling, get uploads() { return uploads; }, get usage() { return usage; }, get items() { return items; } }');
+	const salesHub = hub('sales', { memberIDs: ['me'] });
+	const sends = [];
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ data: { hubs: [salesHub], currentUserID: 'me', canManage: true, features: { libraryV2: true }, members, units: [] }, hubID: 'sales', initialKind: 'file', initialCreate: false, onchanged: async () => {} },
+			{
+				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
+				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
+				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', localeHref: (value) => value,
+				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
+				OrcaLibraryService: {
+					load: async () => ({ items: [], members, departments: [] }),
+					usage: async () => ({ bytes: 0, bytesLimit: 1024 * 1024 * 1024, chars: 0, charsLimit: 10_000_000, uploadsToday: 50, uploadsLimit: 50, items: 0, itemsLimit: 1000 }),
+					upload: async (...args) => { sends.push(args); return { files: [] }; }
+				}
+			}
+		);
+	});
+	t.after(() => {
+		view.stopPolling();
+		stop();
+	});
+	client.flush();
+	for (let i = 0; i < 20 && !view.usage; i++) await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(view.usage?.uploadsToday, 50);
+	await view.upload([new File(['a'], 'ราคา.xlsx'), new File(['b'], 'ลูกค้า.csv')]);
+	assert.equal(sends.length, 0, 'nothing is sent');
+	assert.deepEqual(view.uploads.map((row) => [row.state, row.reason]), [['refused', 'quota'], ['refused', 'quota']]);
+	assert.equal(view.uploads[0].message, 'วันนี้อัปโหลดครบ 50 ไฟล์แล้ว อัปโหลดต่อได้พรุ่งนี้');
+});
+
+test('the meter asks again when a recheck, or the reading under an editor, shows a reading ended', async (t) => {
+	const reading = fileItem('r', { status: 'draft', file: fileInfo({ pending: version(1, 'queued'), options: options() }) });
+	const read = fileItem('r', { status: 'draft', file: fileInfo({ published: version(1, 'ready'), options: options() }) });
+	for (const path of ['recheck', 'editor']) {
+		const lists = [[reading, article('a')]];
+		let usageAsks = 0;
+		const client = await import('svelte/internal/client');
+		const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ recheck, refreshReading, show, setDirty(value) { dirty = value; }, stopPolling, get items() { return items; } }');
+		const salesHub = hub('sales', { memberIDs: ['me'] });
+		let view;
+		const stop = client.effect_root(() => {
+			view = harness(
+				{ data: { hubs: [salesHub], currentUserID: 'me', canManage: true, features: { libraryV2: true }, members, units: [] }, hubID: 'sales', initialKind: 'file', initialCreate: false, onchanged: async () => {} },
+				{
+					...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
+					page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
+					getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
+					aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', localeHref: (value) => value,
+					memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
+					OrcaLibraryService: {
+						load: async () => ({ items: lists.length > 1 ? lists.shift() : lists[0], members, departments: [] }),
+						usage: async () => { usageAsks += 1; return { bytes: 0, bytesLimit: 1, chars: 0, charsLimit: 1, uploadsToday: 0, uploadsLimit: 50, items: 0, itemsLimit: 1000 }; }
+					}
+				}
+			);
+		});
+		t.after(() => {
+			view.stopPolling();
+			stop();
+		});
+		client.flush();
+		for (let i = 0; i < 20 && !view.items.length; i++) await new Promise((resolve) => setImmediate(resolve));
+		for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
+		const asked = usageAsks;
+		lists.push([read, article('a')]);
+		lists.shift();
+		if (path === 'recheck') await view.recheck();
+		else {
+			view.show({ name: 'editor', kind: 'knowledge', id: 'a' });
+			view.setDirty(true);
+			client.flush();
+			await view.refreshReading('sales');
+		}
+		for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
+		assert.equal(view.items.find((item) => item.id === 'r').file.published?.state, 'ready', path);
+		assert.equal(usageAsks, asked + 1, `${path}: the meter asked again`);
+	}
+});

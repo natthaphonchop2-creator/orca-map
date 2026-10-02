@@ -54,12 +54,21 @@
 		try {
 			const page = await OrcaLibraryService.file(hubID, itemID, which, cursor);
 			if (current !== request) return;
+			// The version asked for is gone (another tab put it in use, or deleted it): nothing
+			// of it to show; the page reads the file as it is now (Codex S7 twelfth confirmation #1).
+			if (!page.version) {
+				chunks = [];
+				total = 0;
+				next = '';
+				onitem?.(page.item);
+				return;
+			}
 			// A next page of another version means the file changed: start again from the new one.
-			if (cursor && page.version && page.version.version !== reading) {
+			if (cursor && page.version.version !== reading) {
 				restart();
 				return;
 			}
-			if (!cursor && page.version) {
+			if (!cursor) {
 				reading = page.version.version;
 				// The page knows another version than this one shows: it takes the server's item.
 				if (page.version.version !== version.version) onitem?.(page.item);

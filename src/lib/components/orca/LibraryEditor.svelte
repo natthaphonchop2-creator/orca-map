@@ -217,6 +217,9 @@
 		if (status === 'published' && mode === 'departments' && !unitIDs.length) problems['kn-audience'] = t('เลือกอย่างน้อย 1 แผนก หรือเลือก เฉพาะฉัน', 'Choose at least one department, or Only me');
 		if (status === 'published' && mode === 'people' && !chosenMembers.length) problems['kn-audience'] = t('เลือกอย่างน้อย 1 คน หรือเลือก เฉพาะฉัน', 'Choose at least one person, or Only me');
 		if (missingReferences.length) problems['kn-articles'] = t('เอาเรื่องที่เลิกเผยแพร่แล้วออกก่อนบันทึก', 'Remove the articles that are no longer published');
+		// "ทุกคน (อัปเดตอัตโนมัติ)" needs library v2, unless the item is live already (it stays live):
+		// file Knowledge may have been turned off while this editor was open (Codex S7 twelfth confirmation #2).
+		if (live && !features.files && existing?.audienceMode !== 'everyone_live') problems['kn-audience'] = liveOff();
 		fieldErrors = problems;
 		if (Object.keys(problems).length) {
 			errorKey += 1;
@@ -243,6 +246,10 @@
 			onsaved(saved, people);
 		} catch (cause) {
 			const problem = parseErrorContent(cause);
+			if (/library_files_disabled/.test(problem.message)) {
+				error = liveOff();
+				return;
+			}
 			if (libraryStale(problem)) {
 				// A person, a department or an article changed since the page
 				// loaded, or my access did. Only lost access leaves the editor;
@@ -263,6 +270,9 @@
 		} finally {
 			saving = false;
 		}
+	}
+	function liveOff() {
+		return t('คลังความรู้แบบไฟล์ของบริษัทปิดอยู่ตอนนี้ จึงเลือก “ทุกคน (อัปเดตอัตโนมัติ)” ไม่ได้ เลือก “ทุกคนในพื้นที่ทำงานนี้” แทน ข้อความที่พิมพ์ยังอยู่', 'File Knowledge is off for this company now, so “Everyone (updates itself)” can’t be chosen. Choose “Everyone in this workspace” instead; your text is kept.');
 	}
 	/** What a refused save says, once the lists were checked again. */
 	function refusal(problem: { status: number; message: string }, access: 'open' | 'unknown', cause: unknown) {
