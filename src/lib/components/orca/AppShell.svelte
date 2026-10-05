@@ -362,11 +362,16 @@
             href={localeHref(item.href)}
             onclick={closeDrawer}
             class:active={activeView === item.id}
+            class:workspace-nav-ai={item.id === "knowledge"}
             aria-current={activeView === item.id ? "page" : undefined}
             aria-label={item.count ? t(`${item.label} รออนุมัติ ${item.count} รายการ`, `${item.label}, ${item.count} waiting`) : item.label}
             title={item.label}
           >
-            <item.icon size={18} strokeWidth={1.7} aria-hidden="true" />
+            {#if item.id === "knowledge"}
+              <span class="workspace-nav-ai-icon" aria-hidden="true"><item.icon size={16} strokeWidth={1.8} /></span>
+            {:else}
+              <item.icon size={18} strokeWidth={1.7} aria-hidden="true" />
+            {/if}
             <span class="workspace-nav-label">{item.label}</span>
             {#if item.count}<span class="workspace-nav-count" aria-hidden="true">{item.count > 99 ? "99+" : item.count}</span>{/if}
           </a>
