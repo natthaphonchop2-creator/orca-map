@@ -15,13 +15,18 @@ export interface PersonalSource {
   manageHubID: string;
 }
 
-/** An organization management role never adds someone else's sources to this list. */
+/**
+ * The programs this person signs in to with their own account. An
+ * organization management role never adds someone else's sources to this
+ * list, and a program on a company account (บัญชีกลาง) needs nothing from its
+ * members, so it is never here (company accounts design §7).
+ */
 export function personalSources(data: OrcaBootstrap): PersonalSource[] {
   const records = new Map<string, PersonalSource>();
   for (const hub of data.hubs) {
     if (!gatewayHasMember(hub, data.currentUserID)) continue;
     for (const connection of gatewayConnections(hub, data.connections)) {
-    if (!connection?.mcpID) continue;
+    if (!connection?.mcpID || connection.programAccountID) continue;
     const usable =
       hub.status === "active" && workspaceToolingReady(hub, connection);
     let record = records.get(connection.mcpID);
@@ -45,6 +50,26 @@ export function personalSources(data: OrcaBootstrap): PersonalSource[] {
   return [...records.values()].sort((a, b) =>
     a.connections[0].name.localeCompare(b.connections[0].name),
   );
+}
+
+/** A program this person's workspaces use on a company account (บัญชีกลาง): nobody signs in to it themselves. */
+export interface CompanyAccountSource {
+  sourceID: string;
+  name: string;
+  hubs: OrcaHub[];
+}
+export function companyAccountSources(data: OrcaBootstrap): CompanyAccountSource[] {
+  const records = new Map<string, CompanyAccountSource>();
+  for (const hub of data.hubs) {
+    if (!gatewayHasMember(hub, data.currentUserID) || hub.status !== "active") continue;
+    for (const connection of gatewayConnections(hub, data.connections)) {
+      if (!connection?.mcpID || !connection.programAccountID) continue;
+      const record = records.get(connection.mcpID) ?? { sourceID: connection.mcpID, name: connection.name, hubs: [] };
+      if (!record.hubs.some((item) => item.id === hub.id)) record.hubs.push(hub);
+      records.set(connection.mcpID, record);
+    }
+  }
+  return [...records.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export type PersonalSetup = Pick<

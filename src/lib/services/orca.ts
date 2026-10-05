@@ -87,6 +87,43 @@ export interface OrcaConnection {
   version: number;
   createdAt: string;
   updatedAt: string;
+  /** The company account (บัญชีกลาง) every member's calls use; absent when each person uses their own account. */
+  programAccountID?: string;
+}
+
+/** A company account (บัญชีกลาง): one program account a manager connects once, used by every member's calls. */
+export type OrcaProgramAccountStatus = "connecting" | "ready" | "needs_reconnect" | "disconnected";
+export interface OrcaProgramAccount {
+  id: string;
+  sourceID: string;
+  label: string;
+  status: OrcaProgramAccountStatus;
+  /** Why it isn't ready: connector_lost_manager, disconnected, app_changed, record_lost or policy_changed. */
+  pausedReason?: string;
+  generation: number;
+  /** The policy revision a manager last acknowledged for it (0 when none was needed). */
+  acknowledgedRevision: number;
+  /** A connection or reconnect is being prepared. */
+  staged: boolean;
+  connectedBy?: string;
+  connectedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+/** Whether a program may have company accounts, and the revision a manager acknowledges first ("warn"). */
+export interface OrcaCompanyAccountPolicy {
+  mode: "allowed" | "warn" | "personal_only";
+  revision: number;
+}
+/** What a manager needs to connect a company account's next generation; never its record or credential. */
+export interface OrcaProgramAccountStage {
+  accountID: string;
+  label: string;
+  generation: number;
+  protocol?: string;
+  fields: { key: string; name: string; description: string; required: boolean; sensitive: boolean }[];
+  requiresURL: boolean;
+  oauthSupported: boolean;
 }
 
 export type HubStatus = "draft" | "active" | "paused" | "archived" | "deleted";
@@ -236,6 +273,14 @@ export interface OrcaApproval {
   note?: string;
   result?: string;
   errorCategory?: string;
+  /** Runs so far: 1 at approval, one more for each retry of a LINE write (design §14l). */
+  attempts?: number;
+  /** The server's word that a manager may run this LINE write again now, with the same retry key. */
+  retryable?: boolean;
+  /** On a waiting LINE send: when a manager approved the same one in the last 24 hours. */
+  sameApprovedAt?: string;
+  /** The server deleted the arguments and result 30 days after the decision (design §14l); both read {"redacted":true}. */
+  redacted?: boolean;
 }
 
 /** A company's managers invite employees and admins. */
@@ -440,7 +485,11 @@ export type ConnectionInput = Pick<
   | "reviewedReadOnly"
   | "reviewedTools"
   | "enabled"
-> & { version?: number };
+> & {
+  version?: number;
+  /** A company account to use, or "" for each person's own; left out, a save keeps the current choice. */
+  programAccountID?: string;
+};
 export type HubInput = Pick<
   OrcaHub,
   | "name"
@@ -627,6 +676,8 @@ export const OrcaService = {
   approveRequest: (id: string) => doPost(orcaPath(`/approvals/${part(id)}/approve`), {}, options) as Promise<OrcaApproval>,
   rejectRequest: (id: string, note: string) =>
     doPost(orcaPath(`/approvals/${part(id)}/reject`), { note }, options) as Promise<OrcaApproval>,
+  /** Runs an approved LINE write again with the same retry key, after LINE didn't answer (design §14l). */
+  retryRequest: (id: string) => doPost(orcaPath(`/approvals/${part(id)}/retry`), {}, options) as Promise<OrcaApproval>,
   connectionHealth: () =>
     doGet(orcaPath("/connections/health"), options) as Promise<{ since: string; items: OrcaConnectionHealth[] }>,
   /** Metadata only; administrators revoke a leaver's keys and AI app sign-ins here. */
@@ -642,6 +693,28 @@ export const OrcaService = {
     doPost(orcaPath(`/sources/${part(id)}/oauth`), {}, options) as Promise<{
       oauthURL: string;
     }>,
+  /** The company's accounts (บัญชีกลาง); managers only. */
+  programAccounts: () => list<OrcaProgramAccount>(orcaPath("/program-accounts")),
+  programAccountPolicy: (sourceID: string) =>
+    doGet(orcaPath(`/sources/${part(sourceID)}/program-account-policy`), options) as Promise<OrcaCompanyAccountPolicy>,
+  createProgramAccount: (sourceID: string, label: string, acknowledgedRevision: number) =>
+    doPost(orcaPath("/program-accounts"), { sourceID, label, acknowledgedRevision }, options) as Promise<OrcaProgramAccount>,
+  renameProgramAccount: (id: string, label: string) =>
+    doPut(orcaPath(`/program-accounts/${part(id)}`), { label }, options) as Promise<OrcaProgramAccount>,
+  deleteProgramAccount: (id: string) =>
+    doWithBody("DELETE", orcaPath(`/program-accounts/${part(id)}`), {}, options) as Promise<{ deleted: boolean }>,
+  /** Prepares the account's next generation; `acknowledgedRevision` acknowledges a changed policy first. */
+  stageProgramAccount: (id: string, acknowledgedRevision?: number) =>
+    doPost(orcaPath(`/program-accounts/${part(id)}/stage`), acknowledgedRevision ? { acknowledgedRevision } : {}, options) as Promise<OrcaProgramAccountStage>,
+  /** Saves a key or token on the stage, checks it with the program, and on success makes it the one in use. */
+  configureProgramAccount: (id: string, generation: number, values: Record<string, string>, url?: string) =>
+    doPost(orcaPath(`/program-accounts/${part(id)}/configure`), { generation, values, ...(url ? { url } : {}) }, options) as Promise<OrcaProgramAccount>,
+  startProgramAccountOAuth: (id: string, generation: number) =>
+    doPost(orcaPath(`/program-accounts/${part(id)}/oauth`), { generation }, options) as Promise<{ oauthURL: string }>,
+  checkProgramAccount: (id: string) =>
+    doPost(orcaPath(`/program-accounts/${part(id)}/check`), {}, options) as Promise<{ checked: boolean; generation: number }>,
+  disconnectProgramAccount: (id: string) =>
+    doPost(orcaPath(`/program-accounts/${part(id)}/disconnect`), {}, options) as Promise<OrcaProgramAccount>,
   disconnectSourceOAuth: (id: string) =>
     doPost(
       orcaPath(`/sources/${part(id)}/oauth/disconnect`),
@@ -676,6 +749,11 @@ export const OrcaService = {
  * each gets its own words and the next step, never "reload and save again".
  */
 export const conflictReasons: readonly (readonly [message: string, th: string, en: string])[] = [
+  [
+    "this source is waiting for review",
+    "โปรแกรมนี้ยังรอการยืนยันจากผู้ให้บริการ จึงยังลงชื่อเข้าใช้ใหม่ไม่ได้ บัญชีที่เชื่อมไว้แล้วยังตรวจหรือตัดการเชื่อมต่อได้",
+    "This program is waiting for its provider's review, so a new sign-in isn't available yet. An account connected before can still be checked or disconnected.",
+  ],
   [
     "this email already belongs to a member",
     "อีเมลนี้เป็นสมาชิกของบริษัทอยู่แล้ว ไม่ต้องเชิญใหม่ ดูหรือเปลี่ยนบทบาทได้ที่แท็บ สมาชิก",
@@ -718,8 +796,53 @@ export const conflictReasons: readonly (readonly [message: string, th: string, e
   ],
 ];
 
+// The step at which a program could not be set up ("the source is not ready
+// (SRC-nn)", orcaSourceReason in the backend). The code stays in the text, so
+// a screenshot tells the ORCA team which step failed.
+export const sourceReasons: Readonly<Record<string, readonly [th: string, en: string]>> = {
+  "01": ["ตรวจสิทธิ์ในพื้นที่ทำงานไม่สำเร็จ ลองอีกครั้ง", "Your workspace access could not be checked. Try again."],
+  "02": ["ข้อมูลของโปรแกรมนี้ใน ORCA ไม่ครบ", "ORCA's record of this program is incomplete."],
+  "03": ["อ่านบัญชีที่คุณบันทึกไว้ไม่สำเร็จ ลองอีกครั้ง", "Your saved account could not be read. Try again."],
+  "04": ["แอปลงชื่อเข้าใช้ของโปรแกรมนี้อ่านไม่ได้หรือไม่ถูกต้อง", "This program's sign-in app could not be read or is not valid."],
+  "05": ["ORCA เตรียมบัญชีของคุณสำหรับโปรแกรมนี้ไม่สำเร็จ ลองอีกครั้ง", "ORCA could not prepare your account for this program. Try again."],
+  "06": ["บัญชีที่บันทึกไว้ไม่ตรงกับคุณหรือบริษัทนี้", "The saved account does not match you or this company."],
+  "07": ["บันทึกการตั้งค่าไม่สำเร็จ ตรวจข้อมูลแล้วลองอีกครั้ง", "The settings could not be saved. Check them and try again."],
+  "08": ["ORCA ตรวจโปรแกรมนี้ไม่ได้", "ORCA cannot check this program."],
+  "09": ["ตรวจการเชื่อมต่อโปรแกรมไม่สำเร็จ ตรวจการตั้งค่าแล้วลองอีกครั้ง", "The program's connection check did not pass. Check its settings, then try again."],
+  "10": ["อ่านการลงชื่อเข้าใช้ที่บันทึกไว้ไม่สำเร็จ ลองอีกครั้ง", "Your saved sign-in could not be read. Try again."],
+  "11": ["โปรแกรมนี้ต้องลงชื่อเข้าใช้ แต่ตั้งไว้แบบใช้คีย์", "This program needs a sign-in, but it is set up with a key."],
+  "12": ["สร้างการตั้งค่าลงชื่อเข้าใช้ไม่สำเร็จ", "The sign-in settings could not be made."],
+  "13": ["เริ่มลงชื่อเข้าใช้กับโปรแกรมไม่สำเร็จ ลองอีกครั้ง", "The program's sign-in could not start. Try again."],
+  "14": ["ลิงก์ลงชื่อเข้าใช้ที่โปรแกรมส่งมาไม่ปลอดภัย ORCA จึงไม่เปิด", "The program's sign-in link is not safe, so ORCA did not open it."],
+  "15": ["ยกเลิกการลงชื่อเข้าใช้ไม่สำเร็จ ลองอีกครั้ง", "The sign-in could not be removed. Try again."],
+  "16": ["บันทึกหรือลบแอปลงชื่อเข้าใช้ไม่สำเร็จ ลองอีกครั้ง", "The sign-in app could not be saved or removed. Try again."],
+  "17": ["ตรวจการกลับมาจากหน้าลงชื่อเข้าใช้ไม่ผ่าน เริ่มเชื่อมใหม่อีกครั้ง", "The return from the sign-in could not be verified. Start connecting again."],
+};
+
+function sourceNotReady(message: string): string {
+  const code = /^the source is not ready \(SRC-(\d{2})\)/.exec(message)?.[1];
+  const reason = code ? sourceReasons[code] : undefined;
+  // Adding a program to a workspace (Discover) refuses this way when its tools
+  // cannot be read yet: say what to finish, as the English text does.
+  if (!code && message.includes("complete its connection and sign-in settings"))
+    return t(
+      "โปรแกรมนี้ยังเชื่อมไม่ครบ ตั้งค่าการเชื่อมต่อและลงชื่อเข้าใช้ให้เสร็จ แล้วลองอีกครั้ง",
+      "This program isn't fully connected yet. Finish its connection and sign-in, then try again.",
+    );
+  if (!code || !reason)
+    return t(
+      `เชื่อมโปรแกรมนี้ยังไม่ได้ ลองอีกครั้ง ถ้ายังไม่ได้ ติดต่อผู้ดูแลบริษัท หรือทีม ORCA ทาง LINE ${ORCA_SUPPORT_LINE_ID}`,
+      `This program can't connect yet. Try again; if it keeps happening, ask your company admin or the ORCA team on LINE (${ORCA_SUPPORT_LINE_ID}).`,
+    );
+  return t(
+    `เชื่อมโปรแกรมนี้ยังไม่ได้ (รหัส SRC-${code}) ${reason[0]} ถ้ายังไม่ได้ ส่งรหัสนี้ให้ทีม ORCA ทาง LINE ${ORCA_SUPPORT_LINE_ID}`,
+    `This program can't connect yet (code SRC-${code}). ${reason[1]} If it keeps happening, send this code to the ORCA team on LINE (${ORCA_SUPPORT_LINE_ID}).`,
+  );
+}
+
 export function orcaError(error: unknown): string {
   const parsed = parseErrorContent(error);
+  if (parsed.status === 424 && parsed.message.startsWith("the source is not ready")) return sourceNotReady(parsed.message);
   if (parsed.status === 412 && parsed.message.includes("orca_account_changed"))
     return t(
       "คุณเข้าสู่ระบบด้วยบัญชีอื่นในอีกแท็บ โหลดหน้านี้ใหม่",

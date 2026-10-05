@@ -9,6 +9,7 @@ const company = await import(await typescriptModuleURL(new URL('../../orca/compa
 const navigation = await import(await typescriptModuleURL(new URL('../../orca/navigation.ts', import.meta.url)));
 const { term } = await import(await typescriptModuleURL(new URL('../../orca/glossary.ts', import.meta.url)));
 const { aiConnectionLine } = await import(await typescriptModuleURL(new URL('../../orca/ai-connection.ts', import.meta.url)));
+const { hubAsksApproval } = await import(await typescriptModuleURL(new URL('../../orca/approvals.ts', import.meta.url)));
 const shell = new URL('./AppShell.svelte', import.meta.url);
 const B = 'org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const companies = [
@@ -23,7 +24,7 @@ const data = {
 async function renderShell(props) {
 	const { warnings, Component } = await serverComponent(shell, {
 		...company, localeHref: (path) => path, t: (_th, en) => en, orcaLocale: { value: 'en' },
-		activeNavigationView: navigation.activeNavigationView, platformHref: navigation.platformHref, showsPlatformSwitch: navigation.showsPlatformSwitch, term, aiConnectionLine,
+		activeNavigationView: navigation.activeNavigationView, platformHref: navigation.platformHref, showsPlatformSwitch: navigation.showsPlatformSwitch, term, aiConnectionLine, hubAsksApproval,
 		aiConnection: { state: 'none' }, memberName: (member) => member.displayName, memberRole: () => 'Member',
 		writesInFlight: () => 0, onMount: () => {},
 	});
@@ -197,6 +198,12 @@ test("an employee's oversight pages are named for them, and My requests lights o
 	assert.deepEqual(lit(html), []);
 	({ html } = await renderShell({ data, companies: [companies[1]], account: '7', view: 'audit' }));
 	assert.equal(current(html), 'Settings history');
+	// LINE's writes wait for a manager even in a workspace that runs at once (design §14l).
+	const line = { ...data, connections: [{ id: 'c-line', mcpID: 'default-orca-api-line-messaging' }], hubs: [{ id: 'h', status: 'active', writeMode: 'direct', sources: [{ connectionID: 'c-line', toolNames: ['line_push_text'] }] }] };
+	({ html } = await renderShell({ data: line, companies: [companies[1]], account: '7', view: 'approvals' }));
+	assert.deepEqual(lit(html), ['My requests']);
+	({ html } = await renderShell({ data: { ...line, hubs: [{ ...line.hubs[0], sources: [{ connectionID: 'c-line', toolNames: ['line_profile_get'] }] }] }, companies: [companies[1]], account: '7', view: 'dashboard' }));
+	assert.equal(sidebarLinks(html).some((item) => item.label === 'My requests'), false, 'reads alone never wait');
 	// Owners and Admins keep ตรวจสอบ lit on every oversight tab.
 	({ html } = await renderShell({ data: owner, companies: [companies[0]], account: '7', view: 'executions' }));
 	assert.equal(current(html), 'Oversight');

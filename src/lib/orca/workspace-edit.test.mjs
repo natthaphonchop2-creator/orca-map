@@ -40,6 +40,49 @@ test('a program reviewed as read-only never holds anything; otherwise any change
 	assert.deepEqual(edit.readOnlyToolNames(drive), ['search_files', 'read_file']);
 });
 
+// LINE's sends and changes are held for an admin every time, even in a
+// workspace set to "ทำได้เลย" and whatever the review (design §14l; Codex
+// release review deploy41): the overview and the narrowing sheet say so.
+const { lineTools, lineReadNames, lineWriteNames } = await import(new URL('./line-messaging-tools.fixture.mjs', import.meta.url).href);
+const line = {
+	id: 'conn-line', name: 'LINE OA (Messaging API)', description: '', mcpID: 'default-orca-api-line-messaging', enabled: true, reviewedTools: true, reviewedReadOnly: false,
+	tools: lineTools, toolNames: lineTools.map((tool) => tool.name), scopeNote: '', version: 1, createdAt: '', updatedAt: ''
+};
+
+test('the tools held every time are the ones marked so, whatever the review', () => {
+	assert.deepEqual(edit.alwaysHeldToolNames(line, line.toolNames), lineWriteNames);
+	assert.deepEqual(edit.alwaysHeldToolNames(line, lineReadNames), []);
+	assert.deepEqual(edit.alwaysHeldToolNames({ ...line, reviewedReadOnly: true }, ['line_broadcast_text']), ['line_broadcast_text'], 'a read-only review frees nothing marked so');
+	assert.deepEqual(edit.alwaysHeldToolNames(flow, flow.toolNames), []);
+	assert.deepEqual(edit.alwaysHeldToolNames(line, ['gone_tool']), []);
+	assert.deepEqual(edit.alwaysHeldToolNames(undefined, ['line_push_text']), []);
+});
+
+test('ภาพรวม never says a LINE send or change runs without approval in a workspace set to "ทำได้เลย"', () => {
+	const flowWrite = { connection: flow, toolNames: ['list_invoices', 'create_quotation'] };
+	const lineWrite = { connection: line, toolNames: ['line_followers_get', 'line_broadcast_text'] };
+	const lineRead = { connection: line, toolNames: lineReadNames };
+	assert.equal(edit.changesNote([flowWrite], 'direct', th), 'AI สร้างหรือแก้ข้อมูลได้ทันที ไม่ต้องรออนุมัติ');
+	assert.equal(edit.changesNote([flowWrite, lineWrite], 'direct', th), 'AI สร้างหรือแก้ข้อมูลได้ทันที แต่งานที่ต้องอนุมัติทุกครั้งใน LINE OA (Messaging API) ยังรอผู้ดูแลอนุมัติก่อน');
+	assert.equal(edit.changesNote([flowWrite, lineWrite], 'direct', en), "AI creates or changes data right away, but actions in LINE OA (Messaging API) that always need approval still wait for an admin.");
+	assert.equal(edit.changesNote([lineWrite], 'direct', th), 'งานที่ต้องอนุมัติทุกครั้งใน LINE OA (Messaging API) รอผู้ดูแลอนุมัติก่อนเสมอ', 'nothing else here changes data');
+	assert.equal(edit.changesNote([{ connection: { ...line, reviewedReadOnly: true }, toolNames: ['line_push_text'] }], '', th), 'งานที่ต้องอนุมัติทุกครั้งใน LINE OA (Messaging API) รอผู้ดูแลอนุมัติก่อนเสมอ', 'held even when reviewed as read-only');
+	assert.equal(edit.changesNote([flowWrite, lineWrite], 'approval', th), 'เมื่อ AI จะสร้างหรือแก้ข้อมูล ต้องรอผู้ดูแลอนุมัติก่อน');
+	assert.equal(edit.changesNote([lineRead], 'direct', th), undefined, 'reads only: no line');
+	assert.equal(edit.changesNote([{ connection: drive, toolNames: drive.toolNames }], 'direct', th), undefined);
+});
+
+test('the narrowing sheet\'s change hint never says "ไม่ต้องรออนุมัติ" over a tool held every time', () => {
+	const flowChanges = ['create_quotation', 'send_email'];
+	assert.equal(edit.changeGroupHint(false, flowChanges, [], th), 'พื้นที่นี้ตั้งให้ทำได้ทันที ไม่ต้องรออนุมัติ เปลี่ยนได้ในแท็บ “ตั้งค่า”');
+	assert.equal(edit.changeGroupHint(false, lineWriteNames, lineWriteNames, th), 'รอผู้ดูแลอนุมัติก่อนทุกครั้ง แม้พื้นที่นี้ตั้งให้ทำได้ทันที');
+	assert.equal(edit.changeGroupHint(false, [...flowChanges, 'line_push_text'], ['line_push_text'], th), 'พื้นที่นี้ตั้งให้ทำได้ทันที ยกเว้นรายการที่ “ต้องอนุมัติทุกครั้ง” เปลี่ยนได้ในแท็บ “ตั้งค่า”');
+	assert.equal(edit.changeGroupHint(true, lineWriteNames, lineWriteNames, th), 'รอผู้ดูแลอนุมัติก่อน ORCA จึงทำจริง');
+	assert.equal(edit.changeGroupHint(undefined, lineWriteNames, lineWriteNames, th), 'รอผู้ดูแลอนุมัติก่อน ORCA จึงทำจริง', 'held whatever the workspace turns out to be');
+	assert.equal(edit.changeGroupHint(undefined, flowChanges, [], th), 'ถ้าพื้นที่นี้ตั้งให้ผู้ดูแลอนุมัติก่อน จะรออนุมัติก่อนทำจริง');
+	assert.equal(edit.changeGroupHint(false, [], [], en), 'This workspace runs changes at once, without approval. Change it under “Settings”.');
+});
+
 test('a program card reads "อ่านอย่างเดียว · N อย่าง" or "อ่านและแก้ไข", and says when it is narrowed', () => {
 	assert.equal(edit.programSummaryLabel(edit.programSummary(drive, drive.toolNames), th), 'อ่านอย่างเดียว · 2 อย่าง');
 	assert.equal(edit.programSummaryLabel(edit.programSummary(flow, flow.toolNames), th), 'อ่านและแก้ไข · 4 อย่าง');

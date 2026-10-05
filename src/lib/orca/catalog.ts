@@ -56,7 +56,7 @@ export type CatalogAuthMethod = 'oauth' | 'secrets' | 'none';
 // availability and authentication; an explanatory guide alone cannot install one.
 const apiReferenceAliases: Record<string, { guideID: string; provider: string }> = {
 	'default-orca-api-facebook-pages': { guideID: 'guide-facebook-pages-api', provider: 'facebook-pages' },
-	'default-orca-api-line-messaging': { guideID: 'guide-line-messaging-api', provider: 'line-messaging' },
+	'default-orca-api-line-messaging': { guideID: 'orca-native-line-messaging', provider: 'line-messaging' },
 	'default-orca-api-instagram': { guideID: 'guide-instagram-api', provider: 'instagram' }
 };
 

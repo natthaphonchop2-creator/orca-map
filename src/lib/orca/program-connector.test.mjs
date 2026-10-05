@@ -68,6 +68,10 @@ test('each account state is one phase of step 2', async () => {
 		[setup({ oauthConnected: true, configured: true }), 'connected'],
 		[setup({ oauthClientConfigured: false }), 'unavailable'],
 		[setup({ setupStatus: 'review_required' }), 'unavailable'],
+		// A record with no field reads as configured; without a grant it still waits (Codex review of deploy41).
+		[setup({ setupStatus: 'review_required', configured: true }), 'unavailable'],
+		[setup({ setupStatus: 'review_required', configured: true, oauthConnected: true }), 'connected'],
+		[setup({ setupStatus: 'review_required', oauthSupported: false, configured: true, fields: [{ key: 'TOKEN', name: 'Token', description: '', required: true, sensitive: true }] }), 'connected'],
 		[setup({ oauthSupported: false, fields: [{ key: 'TOKEN', name: 'Token', description: '', required: true, sensitive: true }] }), 'fields'],
 		[setup({ oauthSupported: false, configured: true, fields: [{ key: 'TOKEN', name: 'Token', description: '', required: true, sensitive: true }] }), 'connected'],
 		[setup({ oauthSupported: false, oauthClientRequired: false, configured: true }), 'check']
@@ -196,4 +200,33 @@ test('"ใช้บัญชีอื่น" signs the old account out first; a 
 	await first;
 	assert.equal(slow.view.sourceID, 'new');
 	assert.equal(slow.view.phase, 'signin');
+});
+
+// Codex review 2 of deploy41: while the provider reviews a program, the saved
+// grant is never signed out for a sign-in the review would stop.
+test('a program under review keeps the saved account: no switch, no sign-in again, and an expired grant says why', async () => {
+	let connected = true;
+	const { view, calls } = connector({
+		sourceSetup: async () => setup({ configured: true, oauthConnected: connected, setupStatus: 'review_required', setupReason: 'provider_review' }),
+		checkSource: async () => ({ ready: false, oauthRequired: true }),
+		disconnectSourceOAuth: async () => { connected = false; return { disconnected: true }; }
+	});
+	await view.load('src');
+	assert.equal(view.underReview, true);
+	assert.equal(view.phase, 'connected');
+	await view.signInAgain();
+	await view.verify();
+	assert.equal(view.phase, 'connected', 'never "sign in again" while the review is pending');
+	assert.match(view.error, /^บัญชี FlowAccount นี้ต้องลงชื่อเข้าใช้ใหม่ แต่ระหว่างรอการยืนยันจาก FlowAccount ยังลงชื่อเข้าใช้ใหม่ไม่ได้/);
+	assert.equal(connected, true, 'the saved grant stays');
+	assert.deepEqual(calls.filter((call) => call[0] === 'disconnect' || call[0] === 'oauth'), []);
+	// The same program without the review asks for the new sign-in as before.
+	const open = connector({
+		sourceSetup: async () => setup({ configured: true, oauthConnected: true }),
+		checkSource: async () => ({ ready: false, oauthRequired: true })
+	});
+	await open.view.load('src');
+	await open.view.verify();
+	assert.equal(open.view.phase, 'reconnect');
+	assert.equal(open.view.error, '');
 });

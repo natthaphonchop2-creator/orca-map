@@ -46,10 +46,13 @@ test('recommended for Thai businesses: FlowAccount, PEAK, Google Drive and LINE 
 	assert.deepEqual(recommendedPrograms(tools).map((item) => item.id), ['s-flow', 's-peak', 's-drive', 'default-orca-api-line-messaging']);
 	assert.deepEqual(recommendedPrograms(tools.filter((item) => item.name !== 'PEAK')).map((item) => item.name), ['FlowAccount', 'Google Drive', 'LINE Messaging API', 'Gmail']);
 	const line = tools.find((item) => item.id === 'default-orca-api-line-messaging');
-	assert.equal(programDisplayName(line), 'LINE Official Account');
+	// Both names the owner knows: LINE OA, and the Messaging API it connects through (C4 §14l).
+	assert.equal(programDisplayName(line), 'LINE OA (Messaging API)');
 	assert.equal(programDisplayName(tools[0]), 'FlowAccount');
-	// The LINE line never promises reading customer chats: the connector only reads the account and its message usage.
+	assert.equal(programDisplayName({ id: 'custom-line', name: 'LINE Messaging API' }), 'LINE Messaging API', 'only the native connector is renamed');
+	// The LINE line never promises reading customer chats (there is no webhook), and says every send waits for approval.
 	assert.doesNotMatch(programLine(line)[0], /แชทลูกค้า/);
+	assert.deepEqual(programLine(line), ['ดูสถิติเพื่อน ส่งข้อความ ตั้งริชเมนู ทุกการส่งรอผู้ดูแลอนุมัติ', "Friend statistics, messages and rich menus; every send waits for an admin's approval"]);
 	assert.equal(programLine(tools[0])[0], 'ดูใบเสนอราคา ใบแจ้งหนี้ และรายรับรายจ่าย');
 	assert.ok(programLine(tools.find((item) => item.name === 'Stripe'))[0]);
 });

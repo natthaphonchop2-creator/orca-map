@@ -118,6 +118,62 @@ function scopeCookie(cookie, backend) {
   return cookie.replace(/;\s*domain=([^;]+)/ig, (attribute, domain) => domain.trim().replace(/^\./, '').toLowerCase() === backend.hostname.toLowerCase() ? '' : attribute);
 }
 
+// A source sign-in's return that ORCA's server handed here (orca_handoff=1)
+// arrives at the end of a provider -> server -> workspace redirect chain, and
+// Safari sends no session cookie there (2026-10-01: the same sign-in finished
+// in Chrome and failed in Safari). Answer it once with a page that reloads the
+// same address as a same-origin navigation, which every browser sends with the
+// session, and forward that reload as before. The address is this request's
+// own, so the page can send the one-time code nowhere else.
+const RELAY_PARAM = 'orca_relay';
+const RELAY_SAFE_TARGET = /^\/oauth\/mcp\/callback\?[A-Za-z0-9\-._~%!$&'()*+,;=:@/?]*$/;
+const RELAY_CSP = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
+function relaySourceReturn(req, res, pathname) {
+  if (req.method !== 'GET' || pathname !== '/oauth/mcp/callback') return false;
+  const raw = req.url ?? '';
+  const query = new URL(raw, 'http://orca.invalid').searchParams;
+  if (query.get('orca_handoff') !== '1' || query.has(RELAY_PARAM) || !RELAY_SAFE_TARGET.test(raw)) return false;
+  const href = (raw + '&' + RELAY_PARAM + '=1').replaceAll('&', '&amp;').replaceAll("'", '&#39;');
+  const page = `<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="0;url=${href}">
+<title>กำลังกลับไปที่ ORCA</title>
+<style>
+:root{color-scheme:dark}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px;background:#08090a;color:#f7f8f8;font:16px/1.6 "IBM Plex Sans Thai","Noto Sans Thai",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:center}
+.brand{margin:0 0 12px;font-weight:700;letter-spacing:.14em;font-size:14px;color:#d7f471}
+p{margin:0 0 12px;color:rgba(255,255,255,.8)}
+a{color:#d7f471}
+</style>
+</head>
+<body>
+<main>
+<p class="brand">ORCA</p>
+<p>กำลังพากลับไปที่ ORCA…</p>
+<p><a href="${href}">ไปต่อ</a></p>
+</main>
+</body>
+</html>
+`;
+  res.writeHead(200, {
+    'content-type': 'text/html; charset=utf-8',
+    'content-length': Buffer.byteLength(page),
+    'cache-control': 'no-store',
+    'referrer-policy': 'no-referrer',
+    'content-security-policy': RELAY_CSP,
+    'x-content-type-options': 'nosniff',
+    'x-frame-options': 'DENY'
+  });
+  res.end(page);
+  return true;
+}
+
 function canonicalOAuthNavigation(req, res, config, appOrigin, pathname) {
   const origin = (config.backendPublicOrigin ?? config.backend).origin;
   if (req.method !== 'GET' || !ORCA_OAUTH_NAVIGATION.has(pathname) || origin === appOrigin) return false;
@@ -291,6 +347,7 @@ export function createBackendMiddleware(options = {}) {
       if (pathname === null) return json(res, 400, { error: 'invalid_path' });
       if (!validBrowserRequest(req, appOrigin, rootCallback ? '/oauth2/callback' : pathname, true)) return json(res, 403, { error: 'cross_origin_request' });
       if (canonicalOAuthNavigation(req, res, config, appOrigin, pathname)) return;
+      if (relaySourceReturn(req, res, pathname)) return;
       return proxy(req, res, config, appOrigin, rootCallback ? '/oauth2/callback' + url.search : req.url);
     } catch {
       if (!res.headersSent && !res.destroyed) json(res, 500, { error: 'internal_error' });
@@ -418,6 +475,7 @@ export function createAppServer(options = {}) {
       if (pathname === '/healthz') return await health(req, res, config);
       if (pathname === '/home') return publicSite(req, res, config, url);
       if (canonicalOAuthNavigation(req, res, config, appOrigin, pathname)) return;
+      if (relaySourceReturn(req, res, pathname)) return;
       if (backendRoute) {
         // Only an upload that is served has the backend's 15 minutes to arrive.
         if (libraryUploadRoute(req.method, pathname)) deadline();

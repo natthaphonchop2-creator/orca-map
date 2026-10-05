@@ -72,7 +72,9 @@
   const needsOAuthClient = $derived(Boolean(setup?.oauthClientRequired && !setup.oauthClientConfigured));
   const providerSetup = $derived(oauthProviderSetup(sourceID, setup?.endpointHost || endpointHost, setup ? setup.managedProvider : managedProvider));
   const providerReviewRequired = $derived(Boolean(
-    (setup?.setupStatus === "review_required" && !setup.configured) ||
+    // A record saved with no field reads as configured: only a grant (or a
+    // saved key, where the program takes one) is an account to keep.
+    (setup?.setupStatus === "review_required" && !(setup.oauthSupported ? setup.oauthConnected : setup.configured)) ||
     (providerSetup?.vendorConfirmationRequired && needsOAuthClient)
   ));
   const appSetupRequired = $derived(needsOAuthClient || providerReviewRequired);
@@ -126,9 +128,13 @@
         ((requiresURL || fields.length > 0) && !appSetupRequired) ||
         Boolean(setup?.oauthSupported && (setup.oauthConnected || oauthURL))),
   );
+  // While the provider (or ORCA) reviews this program, nobody signs in anew
+  // or is asked to reconnect: the review would stop the sign-in after the old
+  // account was disconnected. A saved account keeps Check and Disconnect.
   const signInAvailable = $derived(
     Boolean(
       setup?.oauthSupported &&
+      setup.setupStatus !== "review_required" &&
       (directSignIn ||
         (!fields.length && !requiresURL) ||
         setup.oauthConnected ||
@@ -395,6 +401,12 @@
       error = t(
         "ยังเชื่อมต่อไม่ได้ ตรวจข้อมูลบัญชีแล้วลองอีกครั้ง",
         "Not connected yet. Check the account details and try again.",
+      );
+    } else if (latest.oauthConnected && latest.setupStatus === "review_required") {
+      // The saved grant needs a new sign-in, which the review does not allow yet.
+      error = t(
+        `บัญชี ${providerName} นี้ต้องลงชื่อเข้าใช้ใหม่ แต่ระหว่างรอการยืนยันจาก ${providerName} ยังลงชื่อเข้าใช้ใหม่ไม่ได้ ลองอีกครั้งเมื่อการยืนยันเสร็จ`,
+        `This ${providerName} account needs a new sign-in, which isn't possible while ${providerName}'s review is pending. Try again once the review is done.`,
       );
     }
   }
@@ -1212,7 +1224,14 @@
             >{t("โหลดสถานะล่าสุด", "Reload status")}</button
           >
         </div>
-        {#if setup.oauthConnected}
+        {#if setup.oauthConnected && setup.setupStatus === "review_required"}
+          <p class="k-small k-muted" style="margin-top:10px">
+            {t(
+              `${providerName} ยังรอการยืนยัน ถ้าตัดการเชื่อมต่อตอนนี้ จะเชื่อมบัญชีกลับไม่ได้จนกว่าการยืนยันจะเสร็จ`,
+              `${providerName} is waiting for review. If you disconnect now, you can't connect an account again until the review is done.`,
+            )}
+          </p>
+        {:else if setup.oauthConnected}
           <p class="k-small k-muted" style="margin-top:10px">
             {t(
               `ถ้าจะเปลี่ยนบัญชี ให้ตัดการเชื่อมต่อก่อน การตัดใน ORCA ไม่ได้ยกเลิกสิทธิ์ที่คุณอนุญาตไว้ใน ${providerName}`,

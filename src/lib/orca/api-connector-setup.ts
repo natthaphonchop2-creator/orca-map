@@ -51,21 +51,21 @@ const connectors: Record<string, ApiConnectorSetupCopy> = {
     }
   },
   'default-orca-api-line-messaging': {
-    name: 'LINE Messaging API',
+    name: 'LINE OA (Messaging API)',
     summary: [
-      'เชื่อมต่อ LINE OA ของธุรกิจ เพื่อดูข้อมูลบัญชี โควตา และยอดข้อความที่ใช้ในเดือนนี้',
-      'Connect your LINE Official Account to check its profile, message quota, and usage this month.'
+      'เชื่อมต่อ LINE OA ของธุรกิจผ่าน Messaging API เพื่อดูโควตาและสถิติเพื่อน ส่งข้อความ และเปลี่ยนริชเมนู ทุกการส่งและการเปลี่ยนรอผู้ดูแลอนุมัติใน ORCA',
+      'Connect your LINE Official Account through the Messaging API to read its quota and friend statistics, send messages and change rich menus. Every send and change waits for an admin’s approval in ORCA.'
     ],
     result: [
-      'LINE ยืนยันแล้วว่า ORCA อ่านข้อมูล LINE OA นี้ได้',
-      'LINE confirmed that ORCA can read this Official Account.'
+      'LINE ยืนยันแล้วว่าคีย์นี้ใช้กับ LINE OA นี้ได้',
+      'LINE confirmed that this key works for this Official Account.'
     ],
     fields: {
       Authorization: {
         label: ['คีย์ของ LINE OA', 'LINE OA key'],
         hint: [
-          'เปิด LINE Developers เลือกช่องทาง Messaging API ของ LINE OA นี้ แล้วคัดลอก Channel access token จากแท็บ Messaging API',
-          'Open LINE Developers, choose this Official Account’s Messaging API channel, and copy its Channel access token from the Messaging API tab.'
+          'เปิด LINE Developers เลือกช่องทาง Messaging API ของ LINE OA นี้ แล้วคัดลอก Channel access token (long-lived) จากแท็บ Messaging API',
+          'Open LINE Developers, choose this Official Account’s Messaging API channel, and copy its long-lived Channel access token from the Messaging API tab.'
         ],
         linkLabel: ['เปิด LINE Developers', 'Open LINE Developers'],
         href: 'https://developers.line.biz/console/'

@@ -115,18 +115,29 @@ export class ProgramConnector {
 	get directSignIn() {
 		return Boolean(this.setup && !this.requiresURL && !this.fields.some((field) => field.required));
 	}
+	/**
+	 * The provider (or ORCA) is reviewing this program. Nobody signs in anew or
+	 * switches accounts until it is done: the review would stop the new sign-in
+	 * after the old account was signed out. A saved account keeps its check.
+	 */
+	get underReview() {
+		return this.setup?.setupStatus === 'review_required';
+	}
 	/** The ORCA team still has to set the program up (its OAuth app, or a provider review). */
 	get unavailable() {
 		const setup = this.setup;
 		if (!setup) return false;
 		const needsApp = Boolean(setup.oauthClientRequired && !setup.oauthClientConfigured);
-		const review = setup.setupStatus === 'review_required' && !setup.configured;
+		// A record saved with no field reads as configured: only a grant (or a
+		// saved key, where the program takes one) is an account to keep.
+		const review = setup.setupStatus === 'review_required' && !(setup.oauthSupported ? setup.oauthConnected : setup.configured);
 		return needsApp || review || Boolean(this.#deps.blocked?.(setup));
 	}
 	get signInAvailable() {
 		const setup = this.setup;
 		return Boolean(
 			setup?.oauthSupported &&
+				!this.underReview &&
 				(this.directSignIn || (!this.fields.length && !this.requiresURL) || setup.oauthConnected || this.oauthRequired || this.oauthURL)
 		);
 	}
@@ -203,6 +214,14 @@ export class ProgramConnector {
 			this.error = t(
 				`${this.#deps.programName()} ยังไม่รับบัญชีนี้ ตรวจข้อมูลแล้วลองอีกครั้ง`,
 				`${this.#deps.programName()} did not accept this account. Check the details and try again.`
+			);
+		} else if (latest.oauthConnected && this.underReview) {
+			// The saved grant needs a new sign-in, which the review does not allow yet.
+			const { t } = this.#deps;
+			const name = this.#deps.programName();
+			this.error = t(
+				`บัญชี ${name} นี้ต้องลงชื่อเข้าใช้ใหม่ แต่ระหว่างรอการยืนยันจาก ${name} ยังลงชื่อเข้าใช้ใหม่ไม่ได้ ลองอีกครั้งเมื่อการยืนยันเสร็จ`,
+				`This ${name} account needs a new sign-in, which isn't possible while ${name}'s review is pending. Try again once the review is done.`
 			);
 		}
 	}
@@ -396,7 +415,7 @@ export class ProgramConnector {
 
 	/** "ลงชื่อเข้าใช้ใหม่": signs the old account out, then opens the sign-in page. */
 	signInAgain() {
-		if (this.busy || !this.setup?.oauthSupported || this.unavailable) return Promise.resolve();
+		if (this.busy || !this.setup?.oauthSupported || this.unavailable || this.underReview) return Promise.resolve();
 		// The window is reserved now, while the click still counts.
 		this.#closeReserved();
 		const browser = this.#deps.browser;

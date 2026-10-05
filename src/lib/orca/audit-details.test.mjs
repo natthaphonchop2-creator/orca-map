@@ -139,3 +139,10 @@ test("knowledge library v2 records name the file's version, the reasons a file f
   assert.equal(auditLibraryRefs(Array.from({ length: 40 }, (_, i) => ({ itemID: `orl-${i}`, kind: "file", title: "", version: 1 }))).length, 25, "at most the 25 a call releases");
   assert.deepEqual(auditLibraryRefs(undefined), []);
 });
+
+test("LINE's fixed error categories keep their own name in the activity log (design §14l)", () => {
+  for (const category of ["audit_unconfirmed", "provider_token", "provider_access", "provider_not_found", "provider_rejected", "provider_quota", "provider_rate_limited", "recipient_mismatch", "unknown_outcome", "approval_required", "account_changed", "account_needs_reconnect", "program_account_changed"]) {
+    assert.equal(auditDetailValues({ errorCategory: category }).errorCategory, category);
+  }
+  assert.equal(auditDetailValues({ errorCategory: "provider_something_else" }).errorCategory, "unknown");
+});

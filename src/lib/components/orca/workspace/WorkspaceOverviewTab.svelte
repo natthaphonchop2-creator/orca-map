@@ -7,7 +7,7 @@
 	import { gatewayHasMember, gatewaySources } from '$lib/orca/gateway-sources';
 	import { lineShareURL } from '$lib/orca/invitations';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
-	import { aiReachesWorkspace, connectAILink, programSummary, programSummaryLabel, samplePrompt, sourceChangesData, workspaceInviteMessage } from '$lib/orca/workspace-edit';
+	import { aiReachesWorkspace, changesNote, connectAILink, programSummary, programSummaryLabel, samplePrompt, workspaceInviteMessage } from '$lib/orca/workspace-edit';
 	import { sourceAccountState } from '$lib/orca/connection-presentation';
 	import { accountStateFrom, type AccountState } from '$lib/orca/home-setup';
 	import { personalAccountReader, personalSetup, personalSources } from '$lib/orca/personal-connections';
@@ -45,7 +45,8 @@
 			return { ...source, connection, ready: workspaceToolingReady({ ...hub, sources: [source] }, connection) };
 		})
 	);
-	const changesData = $derived(sources.some((source) => sourceChangesData(source.connection, source.toolNames)));
+	// Who approves changes here; LINE's sends and changes wait for an admin even in a workspace set to "ทำได้เลย" (design §14l).
+	const changes = $derived(changesNote(sources, hub.writeMode, t));
 	const programNames = $derived(sources.map((source) => source.connection?.name ?? '').filter(Boolean));
 	const used = $derived(hub.usedToday ?? 0);
 	const percent = $derived(Math.min(100, Math.round((used / Math.max(hub.dailyLimit, 1)) * 100)));
@@ -179,7 +180,8 @@
 							<strong>{source.connection?.name ?? t('โปรแกรมที่ถูกลบ', 'Removed program')}</strong>
 							<span>{programSummaryLabel(programSummary(source.connection, source.toolNames), t)}</span>
 						</div>
-						{#if source.ready && signInNeeded(source.connection?.mcpID)}
+						<!-- A program on the company account (บัญชีกลาง) needs no sign-in from anyone (Codex CA1 review 2, finding 10). -->
+						{#if source.ready && !source.connection?.programAccountID && signInNeeded(source.connection?.mcpID)}
 							<a class="ov-signin" href={localeHref('/app?view=connect-ai#accounts')}>{t('ลงชื่อเข้าใช้ก่อน', 'Sign in first')}</a>
 						{:else}
 							<StatusPill label={source.ready ? t('พร้อมใช้', 'Ready') : t('ต้องตรวจสอบ', 'Needs a look')} tone={source.ready ? 'ok' : 'warn'} />
@@ -188,7 +190,7 @@
 				{/each}
 			</ul>
 		{:else}<p class="ov-empty">{t('ยังไม่ได้เปิดโปรแกรมในพื้นที่นี้', 'No programs are on here yet.')}</p>{/if}
-		{#if changesData}<p class="ov-card-foot"><ShieldCheck size={15} aria-hidden="true" />{hub.writeMode === 'approval' ? t('เมื่อ AI จะสร้างหรือแก้ข้อมูล ต้องรอผู้ดูแลอนุมัติก่อน', 'When AI would create or change data, an admin approves first.') : t('AI สร้างหรือแก้ข้อมูลได้ทันที ไม่ต้องรออนุมัติ', 'AI creates or changes data right away, without approval.')}</p>{/if}
+		{#if changes}<p class="ov-card-foot"><ShieldCheck size={15} aria-hidden="true" />{changes}</p>{/if}
 	</section>
 
 	<section class="ov-card" aria-labelledby="ov-usage-title">

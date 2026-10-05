@@ -52,9 +52,13 @@ export function programCard(
 
 const LINE_API = 'default-orca-api-line-messaging';
 
-/** The name people know a program by (the catalog keeps its own for logos). */
+/**
+ * The name people know a program by (the catalog keeps its own for logos).
+ * ORCA's LINE connector is the Messaging API of a LINE Official Account, so
+ * both names the owner knows appear (design §14l).
+ */
 export function programDisplayName(source: Pick<CatalogTool, 'id' | 'name'>): string {
-	return source.id === LINE_API ? 'LINE Official Account' : source.name;
+	return source.id === LINE_API ? 'LINE OA (Messaging API)' : source.name;
 }
 
 // Short, owner-approved lines for the recommended programs (the mockup).
@@ -62,7 +66,7 @@ const shortCopy: Record<string, readonly [string, string]> = {
 	FlowAccount: ['ดูใบเสนอราคา ใบแจ้งหนี้ และรายรับรายจ่าย', 'Quotations, invoices, income and expenses'],
 	PEAK: ['ดูเอกสารขาย ค่าใช้จ่าย และรายงานบัญชีของบริษัท', "Sales documents, expenses and your company's accounts"],
 	'Google Drive': ['ค้นหาและอ่านไฟล์เอกสารของบริษัท', "Search and read your company's files"],
-	[LINE_API]: ['ดูข้อมูลบัญชี LINE OA และยอดข้อความ', "Your LINE OA's profile and message usage"]
+	[LINE_API]: ['ดูสถิติเพื่อน ส่งข้อความ ตั้งริชเมนู ทุกการส่งรอผู้ดูแลอนุมัติ', "Friend statistics, messages and rich menus; every send waits for an admin's approval"]
 };
 
 // The catalog's Thai-only line for a program it has no copy for (catalog-data.ts);

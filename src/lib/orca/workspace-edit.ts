@@ -5,7 +5,7 @@
 import type { HubInput, OrcaConnection, OrcaHub, OrcaHubSource, OrcaMember, OrcaUnit, UnitInput } from '../services/orca';
 import { connectionReady } from './activation';
 import { gatewaySources } from './gateway-sources';
-import { toolChangesData } from './program-tools';
+import { toolAlwaysApproved, toolChangesData } from './program-tools';
 
 type Translate = (th: string, en: string) => string;
 type ToolLike = { name: string; definition?: unknown };
@@ -40,6 +40,60 @@ export function sourceChangesData(connection: ProgramLike | undefined, toolNames
 		const tool = connection.tools.find((item) => item.name === name);
 		return !tool || toolChangesData(tool as ToolLike);
 	});
+}
+
+/**
+ * The tools among toolNames that ORCA holds for an admin every time,
+ * whatever the workspace's mode and the program's review ("ต้องอนุมัติทุกครั้ง";
+ * design §14l: LINE's sends and changes; the backend's orcaHoldsWrites).
+ */
+export function alwaysHeldToolNames(connection: Pick<OrcaConnection, 'tools'> | undefined, toolNames: readonly string[]): string[] {
+	if (!connection) return [];
+	return toolNames.filter((name) => {
+		const tool = connection.tools.find((item) => item.name === name);
+		return !!tool && toolAlwaysApproved(tool as ToolLike);
+	});
+}
+
+type SourceLike = { connection: (ProgramLike & { name?: string }) | undefined; toolNames: readonly string[] };
+
+/**
+ * ภาพรวม's line on changes, or undefined when nothing here changes data. In a
+ * workspace set to "ทำได้เลย", the programs whose chosen tools ORCA holds every
+ * time are named, since the server holds those whatever the mode (Codex
+ * release review deploy41).
+ */
+export function changesNote(sources: readonly SourceLike[], writeMode: string | undefined, t: Translate): string | undefined {
+	const held = sources.map((source) => ({ source, names: alwaysHeldToolNames(source.connection, source.toolNames) }));
+	const programs = [...new Set(held.filter((item) => item.names.length).map((item) => item.source.connection?.name ?? '').filter(Boolean))];
+	const others = held.some(({ source, names }) => sourceChangesData(source.connection, source.toolNames.filter((name) => !names.includes(name))));
+	if (!others && !held.some((item) => item.names.length)) return undefined;
+	if (writeMode === 'approval') return t('เมื่อ AI จะสร้างหรือแก้ข้อมูล ต้องรอผู้ดูแลอนุมัติก่อน', 'When AI would create or change data, an admin approves first.');
+	if (!programs.length) return t('AI สร้างหรือแก้ข้อมูลได้ทันที ไม่ต้องรออนุมัติ', 'AI creates or changes data right away, without approval.');
+	const names = programs.join(', ');
+	return others
+		? t(`AI สร้างหรือแก้ข้อมูลได้ทันที แต่งานที่ต้องอนุมัติทุกครั้งใน ${names} ยังรอผู้ดูแลอนุมัติก่อน`, `AI creates or changes data right away, but actions in ${names} that always need approval still wait for an admin.`)
+		: t(`งานที่ต้องอนุมัติทุกครั้งใน ${names} รอผู้ดูแลอนุมัติก่อนเสมอ`, `Actions in ${names} that always need approval wait for an admin first.`);
+}
+
+/**
+ * The hint under "สร้าง / แก้ไข / ลบ" in the sheet that narrows a program: approval
+ * is whether this workspace holds changes (true, false, or unknown), heldNames
+ * the change tools ORCA holds every time, which wait whatever the workspace.
+ */
+export function changeGroupHint(approval: boolean | undefined, changeNames: readonly string[], heldNames: readonly string[], t: Translate): string {
+	const all = changeNames.length > 0 && changeNames.every((name) => heldNames.includes(name));
+	if (approval === true || all) {
+		return approval === false
+			? t('รอผู้ดูแลอนุมัติก่อนทุกครั้ง แม้พื้นที่นี้ตั้งให้ทำได้ทันที', 'Always waits for an admin to approve, even though this workspace runs changes at once.')
+			: t('รอผู้ดูแลอนุมัติก่อน ORCA จึงทำจริง', 'Waits for an admin to approve before ORCA runs it.');
+	}
+	if (approval === false) {
+		return heldNames.length
+			? t('พื้นที่นี้ตั้งให้ทำได้ทันที ยกเว้นรายการที่ “ต้องอนุมัติทุกครั้ง” เปลี่ยนได้ในแท็บ “ตั้งค่า”', 'This workspace runs changes at once, except those marked “Always needs approval”. Change it under “Settings”.')
+			: t('พื้นที่นี้ตั้งให้ทำได้ทันที ไม่ต้องรออนุมัติ เปลี่ยนได้ในแท็บ “ตั้งค่า”', 'This workspace runs changes at once, without approval. Change it under “Settings”.');
+	}
+	return t('ถ้าพื้นที่นี้ตั้งให้ผู้ดูแลอนุมัติก่อน จะรออนุมัติก่อนทำจริง', 'Waits for approval when this workspace asks for it.');
 }
 
 /** The allowed tools that only read. All of them for a program reviewed as read-only. */

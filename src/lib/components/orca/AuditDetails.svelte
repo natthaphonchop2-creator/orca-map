@@ -4,6 +4,7 @@
     auditDuration,
     type AuditErrorCategory,
   } from "$lib/orca/audit-details";
+  import { failureText } from "$lib/orca/approvals";
   import { orcaLocale, t } from "$lib/orca/locale.svelte";
   import { displayDate, type OrcaAuditEvent } from "$lib/services/orca";
   import { Copy } from "@lucide/svelte";
@@ -57,6 +58,12 @@
     extract_memory: t("อ่านไฟล์ใช้หน่วยความจำเกินที่กำหนด", "Reading the file needed more memory than allowed"),
     extract_failed: t("ORCA อ่านไฟล์ไม่สำเร็จ", "ORCA could not read the file"),
     storage_error: t("ORCA เก็บหรือเปิดไฟล์ไม่สำเร็จ", "ORCA could not store or open the file"),
+    // LINE's fixed errors read as on the approval (design §14l).
+    ...Object.fromEntries(
+      (["audit_unconfirmed", "provider_token", "provider_access", "provider_not_found", "provider_rejected", "provider_quota", "provider_rate_limited", "recipient_mismatch", "unknown_outcome", "approval_required", "account_changed", "account_needs_reconnect", "program_account_changed"] as const).map(
+        (category) => [category, failureText(category, orcaLocale.value === "en" ? "en" : "th")],
+      ),
+    ) as Record<"audit_unconfirmed" | "provider_token" | "provider_access" | "provider_not_found" | "provider_rejected" | "provider_quota" | "provider_rate_limited" | "recipient_mismatch" | "unknown_outcome" | "approval_required" | "account_changed" | "account_needs_reconnect" | "program_account_changed", string>,
     unknown: t(
       "ประวัตินี้ไม่ได้บอกสาเหตุ",
       "The cause is not available in this record",

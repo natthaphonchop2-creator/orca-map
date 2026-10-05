@@ -118,7 +118,12 @@
 .orca-workspace.orca-app .workspace-brand {
   --orca-brand-size: 24px;
   min-height: 34px;
+  border-radius: var(--orca-radius);
+  color: inherit;
+  text-decoration: none;
 }
+.orca-workspace.orca-app .workspace-brand:hover { text-decoration: none; opacity: 0.85; }
+.orca-workspace.orca-app .workspace-brand:focus-visible { outline: 2px solid var(--orca-ink); outline-offset: 3px; }
 .orca-workspace.orca-app .workspace-collapse.workspace-icon-button {
   width: 28px;
   height: 28px;
@@ -308,28 +313,156 @@
 .orca-workspace.orca-app .compact .workspace-mode-label {
   display: none;
 }
+/* "เชื่อม AI ของฉัน" reads as the AI button (owner, 2026-10-01): a citron light running round the
+   edge, the sparkle on an ink tile with a citron glyph (like the ORCA app icon) that twinkles, a
+   soft citron glow, and one light sweep on hover. No motion under prefers-reduced-motion. */
 .orca-workspace.orca-app .workspace-pin {
+  --pin-mid: rgba(21, 24, 35, 0.16);
+  --pin-light: #b8dc32; /* a deeper citron, so the running light shows on white */
+  --pin-glow: rgba(150, 180, 30, 0.42);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 11px 12px;
-  border: 1px solid var(--orca-line-strong);
+  padding: 10px 12px 10px 10px;
+  border: 1px solid transparent;
   border-radius: var(--orca-radius-lg);
-  background: var(--orca-surface);
+  background:
+    linear-gradient(var(--orca-surface), var(--orca-surface)) padding-box,
+    conic-gradient(from var(--pin-angle), var(--pin-light) 0deg, var(--pin-mid) 95deg, var(--pin-mid) 265deg, var(--pin-light) 360deg) border-box;
+  box-shadow: 0 8px 20px -14px var(--pin-glow);
   color: var(--orca-ink);
   text-decoration: none;
-  transition: border-color 0.15s var(--orca-ease), box-shadow 0.15s var(--orca-ease);
+  transition: box-shadow 0.2s var(--orca-ease);
+  animation: orca-pin-orbit 4.5s linear infinite;
+}
+/* The citron light runs round the edge (an animatable angle; browsers without @property keep
+   a still edge). */
+@property --pin-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 135deg;
+}
+@keyframes orca-pin-orbit {
+  to { --pin-angle: 495deg; }
+}
+.orca-workspace.orca-app .workspace-pin::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(215, 244, 113, 0.32) 50%, transparent 70%);
+  transform: translateX(-120%);
+  pointer-events: none;
 }
 .orca-workspace.orca-app .workspace-pin:hover {
-  border-color: var(--orca-line-hover, var(--orca-line-strong));
+  box-shadow: 0 10px 24px -12px var(--pin-glow);
   text-decoration: none;
 }
+.orca-workspace.orca-app .workspace-pin:hover::after {
+  animation: orca-pin-sweep 0.9s var(--orca-ease) 1;
+}
+@keyframes orca-pin-sweep {
+  to { transform: translateX(120%); }
+}
 .orca-workspace.orca-app .workspace-pin.active {
-  border-color: var(--orca-chosen);
-  box-shadow: 0 0 0 1px var(--orca-chosen);
+  box-shadow: 0 0 0 1px var(--orca-chosen), 0 10px 24px -12px var(--pin-glow);
+}
+.orca-workspace.orca-app .workspace-pin-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: #151823;
+  color: var(--orca-citron);
+  box-shadow: 0 0 0 3px rgba(215, 244, 113, 0.22);
 }
 .orca-workspace.orca-app .workspace-pin svg {
   flex: none;
+}
+/* The sparkle twinkles now and then. */
+.orca-workspace.orca-app .workspace-pin-icon svg {
+  animation: orca-pin-twinkle 3.2s var(--orca-ease) infinite;
+}
+@keyframes orca-pin-twinkle {
+  0%, 70%, 100% { transform: scale(1) rotate(0deg); opacity: 1; filter: none; }
+  80% { transform: scale(1.18) rotate(12deg); opacity: 1; filter: drop-shadow(0 0 4px rgba(215, 244, 113, 0.9)); }
+  90% { transform: scale(0.92) rotate(-4deg); opacity: 0.85; filter: none; }
+}
+@media screen {
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-pin {
+    --pin-mid: rgba(255, 255, 255, 0.12);
+    --pin-light: var(--orca-citron);
+    --pin-glow: rgba(215, 244, 113, 0.3);
+  }
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-pin-icon {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 0 0 3px rgba(215, 244, 113, 0.14);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orca-workspace.orca-app .workspace-pin,
+  .orca-workspace.orca-app .workspace-pin:hover::after,
+  .orca-workspace.orca-app .workspace-pin-icon svg { animation: none; }
+}
+/* "คลังความรู้" in the side menu is the AI item too (owner, 2026-10-05): the same citron light
+   running round a thin edge as the AI button, and its book on an ink tile with a citron glyph that
+   glows now and then. As the current page it takes the citron fill like every other item. */
+.orca-workspace.orca-app .workspace-nav a.workspace-nav-ai {
+  --pin-mid: rgba(21, 24, 35, 0.12);
+  --pin-light: #b8dc32;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--orca-sidebar), var(--orca-sidebar)) padding-box,
+    conic-gradient(from var(--pin-angle), var(--pin-light) 0deg, var(--pin-mid) 95deg, var(--pin-mid) 265deg, var(--pin-light) 360deg) border-box;
+  animation: orca-pin-orbit 5.5s linear infinite;
+}
+.orca-workspace.orca-app .workspace-nav a.workspace-nav-ai:hover {
+  background:
+    linear-gradient(var(--orca-hover), var(--orca-hover)) padding-box,
+    linear-gradient(var(--orca-sidebar), var(--orca-sidebar)) padding-box,
+    conic-gradient(from var(--pin-angle), var(--pin-light) 0deg, var(--pin-mid) 95deg, var(--pin-mid) 265deg, var(--pin-light) 360deg) border-box;
+}
+.orca-workspace.orca-app .workspace-nav a.workspace-nav-ai.active {
+  border-color: var(--orca-citron);
+  background: var(--orca-citron);
+  animation: none;
+}
+.orca-workspace.orca-app .workspace-nav a .workspace-nav-ai-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin: -4px -4px -4px -4px;
+  border-radius: 7px;
+  background: #151823;
+}
+.orca-workspace.orca-app .workspace-nav a .workspace-nav-ai-icon svg {
+  width: 15px;
+  height: 15px;
+  color: var(--orca-citron);
+  animation: orca-ai-glow 3.6s var(--orca-ease) infinite;
+}
+@keyframes orca-ai-glow {
+  0%, 65%, 100% { filter: none; }
+  80% { filter: drop-shadow(0 0 4px rgba(215, 244, 113, 0.95)); }
+}
+@media screen {
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-nav a.workspace-nav-ai {
+    --pin-mid: rgba(255, 255, 255, 0.1);
+    --pin-light: var(--orca-citron);
+  }
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-nav a .workspace-nav-ai-icon {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orca-workspace.orca-app .workspace-nav a.workspace-nav-ai,
+  .orca-workspace.orca-app .workspace-nav a .workspace-nav-ai-icon svg { animation: none; }
 }
 .orca-workspace.orca-app .workspace-pin-copy {
   display: flex;
@@ -365,7 +498,7 @@
 }
 .orca-workspace.orca-app .compact .workspace-pin {
   justify-content: center;
-  padding: 10px 5px;
+  padding: 8px 5px;
 }
 .orca-workspace.orca-app .compact .workspace-pin-copy {
   display: none;
@@ -384,6 +517,16 @@
   font-size: 14px;
   color: var(--orca-muted);
 }
+/* The top bar's company name and page title go to หน้าหลัก (owner, 2026-10-05). */
+.orca-workspace.orca-app .workspace-home-link {
+  display: inline-flex;
+  min-width: 0;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+.orca-workspace.orca-app .workspace-home-link:hover { color: var(--orca-ink); text-decoration: underline; text-underline-offset: 3px; }
+.orca-workspace.orca-app .workspace-home-link:focus-visible { outline: 2px solid var(--orca-ink); outline-offset: 2px; }
 .orca-workspace.orca-app .workspace-current-page {
   font-size: 14px;
   font-weight: 600;

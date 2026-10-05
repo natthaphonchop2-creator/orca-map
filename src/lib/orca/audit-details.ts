@@ -9,6 +9,21 @@ const categories = [
   "upstream_error",
   "tool_error",
   "invalid_response",
+  // A native connector's fixed errors (design §14l); none carries a provider's words.
+  "audit_unconfirmed",
+  "provider_token",
+  "provider_access",
+  "provider_not_found",
+  "provider_rejected",
+  "provider_quota",
+  "provider_rate_limited",
+  "recipient_mismatch",
+  "unknown_outcome",
+  "approval_required",
+  "account_changed",
+  // A company account (บัญชีกลาง): paused, or changed since a request read or held it.
+  "account_needs_reconnect",
+  "program_account_changed",
   // Knowledge library v2 (C4 §14m S5): why a file was refused or could not be read.
   "file_too_large",
   "file_unsupported",

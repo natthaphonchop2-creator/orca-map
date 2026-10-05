@@ -4,6 +4,7 @@
   import { writesInFlight } from "$lib/services/writes";
   import { activeNavigationView, platformHref, showsPlatformSwitch, type PlatformSection } from "$lib/orca/navigation";
   import { aiConnectionLine, type AIConnectionStatus } from "$lib/orca/ai-connection";
+  import { hubAsksApproval } from "$lib/orca/approvals";
   import { aiConnection } from "$lib/orca/ai-connection.svelte";
   import { term } from "$lib/orca/glossary";
   import {
@@ -123,7 +124,8 @@
   const operator = $derived(data?.platformOperator === true);
   const platformSwitch = $derived(showsPlatformSwitch(data));
   const platformMode = $derived(view === "platform" && operator);
-  const requestsApproval = $derived(!!data?.hubs.some((hub) => hub.writeMode === "approval" && hub.status !== "archived" && hub.status !== "deleted"));
+  // LINE's writes wait for a manager even in a workspace that runs at once (design §14l).
+  const requestsApproval = $derived(!!data?.hubs.some((hub) => hubAsksApproval(hub, data?.connections ?? [])));
   type NavigationItem = { id: string; label: string; href: string; icon: typeof House; count?: number };
   const platformItem = (id: PlatformSection, key: Parameters<typeof term>[0], icon: typeof House): NavigationItem => ({ id: `platform:${id}`, label: term(key, t), href: platformHref(id), icon });
   const navigationItems = $derived<NavigationItem[]>(
@@ -153,6 +155,8 @@
             ...(requestsApproval ? [{ id: "oversight", label: term("myRequests", t), href: "/app?view=approvals", icon: Inbox }] : []),
           ],
   );
+  // หน้าหลัก: where the logo and the top bar's text go (owner, 2026-10-05).
+  const homeHref = $derived(localeHref(navigationItems[0]?.href ?? "/app"));
   const utilityNavigation = $derived([
     { id: "settings", label: term("settings", t), href: "/app?view=settings", icon: Settings },
     { id: "help", label: term("help", t), href: "/app?view=help", icon: CircleHelp },
@@ -272,13 +276,16 @@
 
 {#snippet sidebar(compact: boolean = false, mobile: boolean = false)}
   <div class="workspace-sidebar-header">
-    <div
+    <!-- The logo goes home (owner, 2026-10-05): the workspace's หน้าหลัก, or the platform overview. -->
+    <a
       class="workspace-brand"
-      aria-label="ORCA"
-      title={compact ? "ORCA" : undefined}
+      href={homeHref}
+      onclick={closeDrawer}
+      aria-label={t("ORCA หน้าหลัก", "ORCA home")}
+      title={compact ? t("หน้าหลัก", "Home") : undefined}
     >
       <Brand {compact} />
-    </div>
+    </a>
     {#if !mobile}
       <button
         class="workspace-collapse workspace-icon-button"
@@ -360,11 +367,16 @@
             href={localeHref(item.href)}
             onclick={closeDrawer}
             class:active={activeView === item.id}
+            class:workspace-nav-ai={item.id === "knowledge"}
             aria-current={activeView === item.id ? "page" : undefined}
             aria-label={item.count ? t(`${item.label} รออนุมัติ ${item.count} รายการ`, `${item.label}, ${item.count} waiting`) : item.label}
             title={item.label}
           >
-            <item.icon size={18} strokeWidth={1.7} aria-hidden="true" />
+            {#if item.id === "knowledge"}
+              <span class="workspace-nav-ai-icon" aria-hidden="true"><item.icon size={16} strokeWidth={1.8} /></span>
+            {:else}
+              <item.icon size={18} strokeWidth={1.7} aria-hidden="true" />
+            {/if}
             <span class="workspace-nav-label">{item.label}</span>
             {#if item.count}<span class="workspace-nav-count" aria-hidden="true">{item.count > 99 ? "99+" : item.count}</span>{/if}
           </a>
@@ -383,7 +395,7 @@
         aria-label={aiLine ? `${term("connectMyAI", t)} · ${aiLine}` : term("connectMyAI", t)}
         title={compact ? (aiLine ? `${term("connectMyAI", t)} · ${aiLine}` : term("connectMyAI", t)) : undefined}
       >
-        <Sparkles size={18} strokeWidth={1.7} aria-hidden="true" />
+        <span class="workspace-pin-icon" aria-hidden="true"><Sparkles size={17} strokeWidth={1.8} /></span>
         <span class="workspace-pin-copy">
           <strong>{term("connectMyAI", t)}</strong>
           <!-- Unknown (B1 not read, or not on this server): no state rather than a wrong one. -->
@@ -497,10 +509,12 @@
             <span title={term("platform", t)}>{term("platform", t)}</span>
           {:else}
             <Building2 size={16} strokeWidth={1.6} aria-hidden="true" />
+            <a class="workspace-home-link" href={homeHref} aria-label={t(`${organization} หน้าหลัก`, `${organization} home`)}
+              ><span title={organization}>{organization}</span></a
+            >
             {#if switchable}
               <details class="workspace-company-switch">
                 <summary aria-label={t(`บริษัท ${organization} เปลี่ยนบริษัท`, `Company: ${organization}. Switch company`)}>
-                  <span title={organization}>{organization}</span>
                   <ChevronDown size={14} aria-hidden="true" />
                 </summary>
                 <div class="workspace-company-menu">
@@ -508,14 +522,12 @@
                   {@render companyLinks()}
                 </div>
               </details>
-            {:else}
-              <span title={organization}>{organization}</span>
             {/if}
           {/if}
         </div>
         <span class="workspace-breadcrumb-divider" aria-hidden="true">/</span>
-        <strong class="workspace-current-page" aria-current="page"
-          >{currentPage}</strong
+        <a class="workspace-home-link workspace-current-link" href={homeHref} aria-current={activeView === "dashboard" ? "page" : undefined}
+          ><strong class="workspace-current-page">{currentPage}</strong></a
         >
       </div>
       <div class="workspace-header-actions">

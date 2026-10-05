@@ -1,12 +1,16 @@
 import { importTypeScript } from "../../orca/test-import.mjs";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createRequire, stripTypeScriptTypes } from "node:module";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 import { compile, compileModule } from "svelte/compiler";
 // eslint-disable-next-line svelte/no-svelte-internal -- Exercise the shipped component's reactive script.
 import { effect_root, flush } from "svelte/internal/client";
+import { render } from "svelte/server";
+import { serverComponent } from "./test-render.mjs";
 
 const component = await readFile(new URL("./Approvals.svelte", import.meta.url), "utf8");
 const approvals = await importTypeScript(new URL("../../orca/approvals.ts", import.meta.url));
@@ -18,15 +22,16 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 const require = createRequire(import.meta.url);
 const code = compileModule(
   `export function harness(testProps, dependencies) {
-  const { OrcaService, onMount, onDestroy, tick, approvalTone, argumentEntries, orcaLocale, t, term, eventToolLabel, displayDate, memberName, orcaError, showToast } = dependencies;
+  const { OrcaService, onMount, onDestroy, tick, approvalTone, argumentEntries, canRetry, failureText, lineSend, sameSendApprovedAt, orcaLocale, t, term, eventToolLabel, displayDate, memberName, orcaError, showToast } = dependencies;
   ${script}
   return {
-    load, approve, reject, switchTab, toolLabel, person, requester, inputSchema, workspace, statusLabel, failureLabel, decisionLine,
+    load, approve, reject, retry, switchTab, toolLabel, person, requester, inputSchema, workspace, statusLabel, failureLabel, decisionLine,
     get items() { return items; }, get error() { return error; }, get notice() { return notice; },
     get busyID() { return busyID; }, get loaded() { return loaded; }, get tab() { return tab; },
-    get confirming() { return confirming; }, get rejecting() { return rejecting; },
-    get approving() { return approving; }, get declining() { return declining; }, pillTone,
-    setRejecting(id, value) { rejecting = id; note = value; }, setConfirming(id) { confirming = id; },
+    get confirming() { return confirming; }, get rejecting() { return rejecting; }, get retrying() { return retrying; },
+    get approving() { return approving; }, get declining() { return declining; }, get rerunning() { return rerunning; }, get approvingSend() { return approvingSend; },
+    get now() { return now; }, pillTone,
+    setRejecting(id, value) { rejecting = id; note = value; }, setConfirming(id) { confirming = id; }, setRetrying(id) { retrying = id; },
   };
 }`,
   { filename: "approvals-test.svelte.js", generate: "client" },
@@ -43,7 +48,7 @@ const data = (canManage = true) => ({
 const waiting = (id, extra = {}) => ({ id, createdAt: "2026-09-25T08:00:00Z", expiresAt: "2026-10-02T08:00:00Z", userID: "2", hubID: "khh-1", connectionID: "khc-1", toolName: "create_quote", arguments: { customer: "Synthetic Co" }, status: "pending", ...extra });
 
 function mount(props, service) {
-  const calls = { list: [], approve: [], reject: [], changed: 0, toasts: [] };
+  const calls = { list: [], approve: [], reject: [], retry: [], changed: 0, toasts: [] };
   let view;
   const stop = effect_root(() => {
     view = harness({ ...props, onchanged: () => calls.changed++ }, {
@@ -52,6 +57,7 @@ function mount(props, service) {
         approvals: async (status, mine) => { calls.list.push([status, mine]); return service.list(status, mine); },
         approveRequest: async (id) => { calls.approve.push(id); return service.approve(id); },
         rejectRequest: async (id, note) => { calls.reject.push([id, note]); return service.reject(id, note); },
+        retryRequest: async (id) => { calls.retry.push(id); return service.retry(id); },
       },
       onMount: () => {},
       onDestroy: () => {},
@@ -181,6 +187,103 @@ test("switching tabs ignores the slower earlier answer", async () => {
     assert.equal(view.failureLabel("timeout"), "โปรแกรมตอบช้าเกินไป");
     assert.deepEqual(["pending", "running", "succeeded", "failed", "rejected", "expired"].map(view.pillTone), ["warn", "warn", "ok", "deny", "neutral", "neutral"]);
   } finally { stop(); }
+});
+
+// LINE Messaging API v2 (design §14l).
+const lineData = () => ({ ...data(), connections: [{ id: "khc-line", name: "LINE OA (Messaging API)", mcpID: "default-orca-api-line-messaging", tools: [] }] });
+const lineSend = (id, extra = {}) => waiting(id, { connectionID: "khc-line", toolName: "line_push_text", arguments: { userId: "U0123456789abcdef0123456789abcdef", recipientName: "สมชาย", text: "ออเดอร์พร้อมรับแล้ว" }, ...extra });
+
+test("a waiting LINE send says what it sends, and the list alone tells whether it repeats an approved one", async () => {
+  const again = lineSend("apr-1", { sameApprovedAt: "2026-09-30T08:00:00Z" });
+  const { view, calls, stop } = mount({ data: lineData() }, { list: async () => [again, lineSend("apr-2")] });
+  try {
+    await view.load();
+    assert.deepEqual(calls.list, [["pending", false]], "the server matches the same send; no second list, no limit");
+    assert.equal(view.items.length, 2);
+    view.setConfirming("apr-1");
+    flush();
+    assert.equal(view.approvingSend?.recipientName, "สมชาย", "the confirm dialog names who gets it");
+  } finally { stop(); }
+});
+
+test("a LINE send LINE didn't answer is retried once with the same request, never re-requested", async () => {
+  const unknown = lineSend("apr-5", { status: "failed", errorCategory: "unknown_outcome", decidedBy: "1", decidedAt: new Date().toISOString(), attempts: 1, retryable: true });
+  let release;
+  const { view, calls, stop } = mount({ data: lineData() }, {
+    list: async () => [unknown],
+    retry: (id) => new Promise((resolve) => { release = () => resolve({ ...unknown, id, status: "succeeded", attempts: 2, result: '{"accepted":true,"acceptedEarlier":true}' }); }),
+  });
+  try {
+    await view.load();
+    assert.match(view.failureLabel(unknown.errorCategory), /อย่าขอส่งใหม่/);
+    view.setRetrying("apr-5");
+    flush();
+    assert.equal(view.rerunning?.id, "apr-5", "retrying asks in a modal first");
+    const first = view.retry(view.items[0]);
+    await view.retry(view.items[0]);
+    assert.deepEqual(calls.retry, ["apr-5"], "a double click never runs it twice");
+    release();
+    await first;
+    flush();
+    assert.equal(view.retrying, "");
+    assert.match(view.notice, /รับ .* ไว้ตั้งแต่ครั้งก่อนแล้ว จึงไม่ได้ส่งซ้ำ/, "LINE's 409: accepted before, not sent again");
+    assert.deepEqual(calls.toasts.at(-1), [view.notice, "ok"]);
+    assert.equal(calls.changed, 1);
+  } finally { stop(); }
+  const accepted = mount({ data: lineData() }, { list: async () => [unknown], retry: async () => ({ ...unknown, status: "succeeded", attempts: 2, result: '{"accepted":true,"acceptedEarlier":false}' }) });
+  try {
+    await accepted.view.load();
+    await accepted.view.retry(accepted.view.items[0]);
+    assert.match(accepted.view.notice, /LINE รับ .* แล้ว$/, "accepted, not \"customers received it\"");
+    assert.doesNotMatch(accepted.view.notice, /ลูกค้าได้รับ/);
+  } finally { accepted.stop(); }
+  const failing = mount({ data: lineData() }, { list: async () => [unknown], retry: async () => ({ ...unknown, errorCategory: "unknown_outcome", attempts: 2 }) });
+  try {
+    await failing.view.load();
+    await failing.view.retry(failing.view.items[0]);
+    assert.match(failing.view.notice, /ยังไม่สำเร็จ: ORCA ยังไม่รู้ว่า LINE ส่งข้อความนี้ไปแล้วหรือยัง/);
+    assert.deepEqual(failing.calls.toasts.at(-1), [failing.view.notice, "error"]);
+  } finally { failing.stop(); }
+  const refused = mount({ data: lineData() }, { list: async () => [unknown], retry: async () => { throw new Error("เกิน 23 ชั่วโมงหลังการส่งครั้งแรกแล้ว ลองซ้ำด้วยรหัสกันส่งซ้ำเดิมไม่ได้ ตรวจในแชต LINE OA ก่อนว่าส่งไปหรือยัง แล้วค่อยขอส่งใหม่"); } });
+  try {
+    await refused.view.load();
+    await refused.view.retry(refused.view.items[0]);
+    assert.match(refused.view.error, /ตรวจในแชต LINE OA/);
+  } finally { refused.stop(); }
+});
+
+// Owner decision 1 of design §14l, rendered: 30 days after the decision the
+// card says the details were deleted, in place of the message and result.
+test("a redacted request's card reads “ลบรายละเอียดแล้วหลัง 30 วัน” instead of its message, and shows no result", async () => {
+  const gone = lineSend("apr-7", { status: "succeeded", decidedBy: "1", decidedAt: "2026-08-30T08:00:00Z", arguments: { redacted: true }, result: '{"redacted":true}', redacted: true });
+  const kept = lineSend("apr-8", { status: "succeeded", decidedBy: "1", decidedAt: "2026-09-30T08:00:00Z", result: '{"accepted":true}' });
+  const fields = waiting("apr-9", { status: "rejected", decidedBy: "1", decidedAt: "2026-08-30T08:00:00Z", note: "Wrong customer", arguments: { redacted: true }, redacted: true });
+  const seeded = component
+    .replace("let items = $state<OrcaApproval[]>([]);", `let items = $state<OrcaApproval[]>(${JSON.stringify([gone, kept, fields])});`)
+    .replace("let loaded = $state(false);", "let loaded = $state(true);")
+    .replace('let tab = $state<"pending" | "decided">("pending");', 'let tab = $state<"pending" | "decided">("decided");');
+  assert.notEqual(seeded, component);
+  const dir = await mkdtemp(join(tmpdir(), "orca-approvals-"));
+  const file = join(dir, "SeededApprovals.svelte");
+  await writeFile(file, seeded);
+  const { warnings, Component } = await serverComponent(pathToFileURL(file), {
+    ...approvals, OrcaService: {}, onMount: () => {}, onDestroy: () => {}, tick: async () => {}, orcaLocale: { value: "th" }, t: (th) => th,
+    term: (key, translate) => translate(...glossary[key]), eventToolLabel: programTools.eventToolLabel, displayDate: (value) => value ?? "—",
+    memberName: (member) => member.displayName || member.id, orcaError: (error) => error.message, showToast: () => {},
+  });
+  assert.deepEqual(warnings, []);
+  const body = render(Component, { props: { data: { ...lineData(), connections: [...lineData().connections, ...data().connections] } } }).body;
+  const cards = Object.fromEntries([...body.matchAll(/<article[^>]*aria-labelledby="approval-(apr-\d+)"[^>]*>([\s\S]*?)<\/article>/g)].map((match) => [match[1], match[2]]));
+  assert.deepEqual(Object.keys(cards), ["apr-7", "apr-8", "apr-9"]);
+  for (const id of ["apr-7", "apr-9"]) {
+    assert.match(cards[id], /class="approval-redacted[^"]*"[^>]*>[\s\S]*ลบรายละเอียดแล้วหลัง 30 วัน/, id);
+    assert.doesNotMatch(cards[id], /redacted&quot;|"redacted"|ผลลัพธ์จากโปรแกรม|approval-args|line-send/, id);
+  }
+  assert.match(cards["apr-7"], /อนุมัติโดย Owner/, "the decision stays");
+  assert.match(cards["apr-9"], /เหตุผล: Wrong customer/, "the reason stays");
+  assert.match(cards["apr-8"], /ออเดอร์พร้อมรับแล้ว/);
+  assert.match(cards["apr-8"], /ผลลัพธ์จากโปรแกรม/);
+  assert.doesNotMatch(cards["apr-8"], /ลบรายละเอียดแล้ว/);
 });
 
 test("the inbox compiles without warnings", () => {
