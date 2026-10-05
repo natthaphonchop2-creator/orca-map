@@ -28,6 +28,9 @@ const accountLevel = new Set([
 	'requestPilot', 'listPilotRequests', 'updatePilotRequest', 'localUsers', 'authProviders', 'createLocalUser',
 	'resetLocalPassword', 'createRemoteEntry', 'configureSourceOAuthClient', 'removeSourceOAuthClient',
 	'platformCompanies', 'openCompany', 'inviteCompanyOwner', 'revokeCompanyOwnerInvitation', 'setCompanyLibraryV2',
+	// The platform console (C6 PC1): the operator's calls about a company, never under its path.
+	'platformCompany', 'platformCompanyMembers', 'platformCompanyProfile', 'savePlatformCompanyProfile',
+	'suspendCompany', 'restoreCompany', 'renameCompany',
 ]);
 
 async function paths(company) {
@@ -82,6 +85,14 @@ test('"default" keeps every legacy path', async () => {
 	assert.deepEqual(byName.revokeCompanyOwnerInvitation, ['/orca/platform/companies/id-1/owner-invitations/name/revoke']);
 	// The operator's knowledge library v2 switch is the platform's call for that company (C4 §14m S5).
 	assert.deepEqual(byName.setCompanyLibraryV2, ['/orca/platform/companies/id-1/library-v2']);
+	// The platform console's looks and changes (C6 PC1).
+	assert.deepEqual(byName.platformCompany, ['/orca/platform/companies/id-1']);
+	assert.deepEqual(byName.platformCompanyMembers, ['/orca/platform/companies/id-1/members']);
+	assert.deepEqual(byName.platformCompanyProfile, ['/orca/platform/companies/id-1/profile']);
+	assert.deepEqual(byName.savePlatformCompanyProfile, ['/orca/platform/companies/id-1/profile']);
+	assert.deepEqual(byName.suspendCompany, ['/orca/platform/companies/id-1/suspend']);
+	assert.deepEqual(byName.restoreCompany, ['/orca/platform/companies/id-1/restore']);
+	assert.deepEqual(byName.renameCompany, ['/orca/platform/companies/id-1/rename']);
 });
 
 // The library service: every call for "default" and for another company.

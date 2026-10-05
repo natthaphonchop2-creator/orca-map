@@ -1,0 +1,87 @@
+// The platform console's PC1 helpers (C6): the status the customer's pages
+// show, the operator's company page, and how a company's history names what
+// ORCA did in it.
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { importTypeScript } from './test-import.mjs';
+
+const console_ = await importTypeScript(new URL('./platform-console.ts', import.meta.url));
+const B = 'org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const th = (thai) => thai;
+const en = (_thai, english) => english;
+
+test('a status the page does not know is never treated as open', () => {
+	assert.equal(console_.companyStatus('active'), 'active');
+	assert.equal(console_.companyStatus(undefined), 'active', 'an older server sends none');
+	assert.equal(console_.companyStatus('suspended'), 'suspended');
+	assert.equal(console_.companyStatus('closed'), 'closed');
+	assert.equal(console_.companyStatus('paused'), 'closed');
+});
+
+test("a company's people see only the fixed message (P5)", () => {
+	assert.equal(console_.stoppedMessage('suspended', th), 'บริษัทนี้ถูกระงับการใช้งานชั่วคราว กรุณาติดต่อ ORCA');
+	assert.equal(console_.stoppedMessage('closed', th), 'บริษัทนี้ปิดการใช้งานแล้ว');
+	assert.equal(console_.stoppedFromRefusal(423, 'orca_company_suspended'), 'suspended');
+	assert.equal(console_.stoppedFromRefusal(423, 'orca_company_closed'), 'closed');
+	assert.equal(console_.stoppedFromRefusal(423, console_.SUSPENDED_MESSAGE_TH), 'suspended', 'the data plane sends the message itself');
+	assert.equal(console_.stoppedFromRefusal(423, console_.CLOSED_MESSAGE_TH), 'closed');
+	assert.equal(console_.stoppedFromRefusal(403, 'orca_company_suspended'), undefined);
+	assert.equal(console_.stoppedFromRefusal(undefined, ''), undefined);
+	assert.equal(console_.companyStatusNote('active', th), '');
+	assert.equal(console_.companyStatusNote('suspended', th), 'ระงับการใช้งานชั่วคราว');
+});
+
+test('the contract end is marked, and nothing else happens at it', () => {
+	assert.equal(console_.contractNote('', '', th), '');
+	assert.equal(console_.contractNote('', '2027-09-30', th), 'สัญญาถึง 2027-09-30');
+	assert.equal(console_.contractNote('ending', '2026-10-30', th), 'ใกล้หมดสัญญา (2026-10-30)');
+	assert.equal(console_.contractNote('ended', '2026-10-01', en), 'Contract ended (2026-10-01)');
+});
+
+test("a customer company's page lives in the platform area, in the default company", () => {
+	assert.equal(console_.platformCompanyHref(B), `/app?org=default&view=platform&section=companies&company=${B}`);
+	assert.equal(console_.platformCompanyHref(B, 'manage'), `/app?org=default&view=platform&section=companies&company=${B}&tab=manage`);
+	assert.equal(console_.platformCompanyHref('../evil'), '/app?org=default&view=platform&section=companies', 'only a company ID');
+	assert.equal(console_.detailTab('members'), 'members');
+	assert.equal(console_.detailTab('raw-audit'), 'overview', 'PC2 views are not here yet');
+	assert.equal(console_.detailTab(null), 'overview');
+});
+
+test("a company's history names ORCA's looks and changes, grouped when consecutive", () => {
+	const view = (resourceID, id) => ({ id, userID: 'platform', action: 'platform.view', resourceID });
+	assert.equal(console_.platformAuditLabel(view('members'), th), 'ORCA ดูข้อมูลรายชื่อสมาชิก');
+	assert.equal(console_.platformAuditLabel(view('overview'), en), 'ORCA viewed the company overview');
+	assert.equal(console_.platformAuditLabel({ userID: 'platform', action: 'platform.suspend' }, th), 'ORCA ระงับการใช้งานบริษัทชั่วคราว');
+	assert.equal(console_.platformAuditLabel({ userID: 'platform', action: 'platform.restore' }, th), 'ORCA เปิดให้ใช้งานบริษัทอีกครั้ง');
+	assert.equal(console_.platformAuditLabel({ userID: '7', action: 'platform.view' }, th), undefined, "only the platform's own rows");
+	const grouped = console_.groupPlatformViews([
+		view('members', 1),
+		view('members', 2),
+		view('members', 3),
+		view('overview', 4),
+		{ id: 5, userID: '7', action: 'hub.update' },
+		view('overview', 6),
+	]);
+	assert.deepEqual(
+		grouped.map((event) => [event.id, event.repeated ?? 1]),
+		[
+			[1, 3],
+			[4, 1],
+			[5, 1],
+			[6, 1],
+		],
+		'only consecutive looks at the same area, and nothing is dropped',
+	);
+});
+
+test('the profile form checks what the server checks', () => {
+	assert.deepEqual(console_.profileProblems({}), []);
+	assert.deepEqual(console_.profileProblems({ taxID: '0105555012345', contactEmail: 'billing@b.example', contractStart: '2026-10-01', contractEnd: '2027-09-30', monthlyPrice: '4900' }), []);
+	assert.deepEqual(console_.profileProblems({ taxID: '010555501234' }), ['taxID']);
+	assert.deepEqual(console_.profileProblems({ contactEmail: 'not an email' }), ['email']);
+	assert.deepEqual(console_.profileProblems({ contractStart: '2027-01-02', contractEnd: '2027-01-01' }), ['dates']);
+	assert.deepEqual(console_.profileProblems({ monthlyPrice: '4,900' }), ['price']);
+	assert.deepEqual(console_.profileProblems({ notes: 'ก'.repeat(4001) }), ['notes']);
+	assert.equal(console_.priceValue(' 4900 '), 4900);
+	assert.equal(console_.priceValue(''), null);
+});

@@ -1,6 +1,7 @@
 import { parseErrorContent } from "$lib/errors";
 import { orcaPath, type OrcaCompanyChoice } from "$lib/orca/company";
 import { orcaLocale, t } from "$lib/orca/locale.svelte";
+import { stoppedFromRefusal, stoppedMessage } from "$lib/orca/platform-console";
 import { ORCA_SUPPORT_LINE_ID } from "$lib/orca/support";
 import {
   organizationRole,
@@ -315,6 +316,8 @@ export interface OrcaInvitationPreview {
   status: OrcaInvitation["status"];
   /** Only for the signed-in person who accepted it. */
   target?: OrcaInvitationTarget;
+  /** The company's own status when it isn't active: accepting waits until it is restored. */
+  companyStatus?: "suspended" | "closed";
 }
 
 /** One company as the platform operator's list shows it: names and counts, never its members. */
@@ -330,6 +333,91 @@ export interface OrcaPlatformCompany {
   ownerInvitations: OrcaPlatformOwnerInvitation[];
   /** Knowledge library v2 (file uploads) is on for the company; only the operator sets it. An older server sends none. */
   libraryV2?: boolean;
+  /** "active", "suspended" or "closed" (platform console C6); an older server sends none. */
+  status?: string;
+  /** The row's version, which a suspension, a restore or a rename sends back. */
+  version?: number;
+  /** From the customer profile: the package, the contract's last day and "ending" or "ended". */
+  package?: string;
+  contractEnd?: string;
+  contractState?: "" | "ending" | "ended";
+}
+
+/** A customer company's row after the operator changed it (C6 §4.2, §4.5). */
+export interface OrcaPlatformCompanyState {
+  id: string;
+  displayName: string;
+  status: string;
+  statusChangedAt?: string;
+  version: number;
+  createdAt: string;
+}
+/** The profile's private fields, stored only encrypted on the server (C6 §3.3). */
+export interface OrcaPlatformProfileSensitive {
+  taxID: string;
+  address: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  notes: string;
+}
+/**
+ * The operator's record of a customer. `sensitiveState` says what `sensitive`
+ * holds: "set", "empty", "unreadable" (the key can't open it) or "off" (no
+ * encryption key is configured, so the private fields can't be kept).
+ */
+export interface OrcaPlatformProfile {
+  companyID: string;
+  legalName: string;
+  branch: string;
+  package: string;
+  monthlyPrice: number | null;
+  contractStart: string;
+  contractEnd: string;
+  sensitive: OrcaPlatformProfileSensitive | null;
+  sensitiveState: "set" | "empty" | "unreadable" | "off";
+  version: number;
+  updatedAt?: string;
+}
+export interface OrcaPlatformProfileInput {
+  version: number;
+  legalName: string;
+  branch: string;
+  package: string;
+  monthlyPrice: number | null;
+  contractStart: string;
+  contractEnd: string;
+  /** Leave out to keep the stored private fields as they are. */
+  sensitive?: OrcaPlatformProfileSensitive;
+}
+/** A company's overview for the operator: counts and usage, never its data. */
+export interface OrcaPlatformCompanyOverview {
+  company: OrcaPlatformCompanyState;
+  profile: OrcaPlatformProfile;
+  counts: {
+    membersByRole: Record<string, number>;
+    membersByStatus: Record<string, number>;
+    workspaces: number;
+    connections: number;
+    companyAccounts: Record<string, number>;
+    invitationsWaiting: number;
+    approvalsWaiting: number;
+  };
+  usage: { toolCalls7: number; toolCalls30: number; people7: number; people30: number; lastCallDay: string | null };
+  owners: { id: string; displayName: string; email: string }[];
+}
+/** One member as the operator sees them: never a key, token or session. */
+export interface OrcaPlatformMember {
+  id: string;
+  displayName: string;
+  email: string;
+  role: string;
+  status: string;
+  joinedAt?: string;
+  lastActiveAt?: string;
+  departments: string[];
+  aiSignIns: number;
+  keys: number;
 }
 export interface OrcaPlatformOwnerInvitation {
   id: string;
@@ -670,6 +758,24 @@ export const OrcaService = {
     doPost(`/orca/platform/companies/${part(companyID)}/owner-invitations`, { email }, options) as Promise<OrcaOwnerInvitationLink>,
   revokeCompanyOwnerInvitation: (companyID: string, id: string) =>
     doPost(`/orca/platform/companies/${part(companyID)}/owner-invitations/${part(id)}/revoke`, {}, options) as Promise<OrcaInvitation>,
+  /**
+   * The platform console (C6 PC1). Every look is recorded in the platform's
+   * log and in the company's own; the operator only, never per company.
+   */
+  platformCompany: (companyID: string) =>
+    doGet(`/orca/platform/companies/${part(companyID)}`, options) as Promise<OrcaPlatformCompanyOverview>,
+  platformCompanyMembers: (companyID: string) =>
+    list<OrcaPlatformMember>(`/orca/platform/companies/${part(companyID)}/members`),
+  platformCompanyProfile: (companyID: string) =>
+    doGet(`/orca/platform/companies/${part(companyID)}/profile`, options) as Promise<OrcaPlatformProfile>,
+  savePlatformCompanyProfile: (companyID: string, input: OrcaPlatformProfileInput) =>
+    doPut(`/orca/platform/companies/${part(companyID)}/profile`, input, options) as Promise<OrcaPlatformProfile>,
+  suspendCompany: (companyID: string, version: number) =>
+    doPost(`/orca/platform/companies/${part(companyID)}/suspend`, { version }, options) as Promise<OrcaPlatformCompanyState>,
+  restoreCompany: (companyID: string, version: number) =>
+    doPost(`/orca/platform/companies/${part(companyID)}/restore`, { version }, options) as Promise<OrcaPlatformCompanyState>,
+  renameCompany: (companyID: string, version: number, displayName: string) =>
+    doPost(`/orca/platform/companies/${part(companyID)}/rename`, { version, displayName }, options) as Promise<OrcaPlatformCompanyState>,
   /** Turns knowledge library v2 on or off for a company (the operator only; audited in both logs). */
   setCompanyLibraryV2: (companyID: string, enabled: boolean) =>
     doPut(`/orca/platform/companies/${part(companyID)}/library-v2`, { enabled }, options) as Promise<{ companyID: string; libraryV2: boolean }>,
@@ -848,6 +954,9 @@ export function orcaError(error: unknown): string {
       "คุณเข้าสู่ระบบด้วยบัญชีอื่นในอีกแท็บ โหลดหน้านี้ใหม่",
       "You signed in as someone else in another tab. Reload this page.",
     );
+  // A company that is not active (platform console C6 §4.2): the fixed message only.
+  const stopped = stoppedFromRefusal(parsed.status, parsed.message);
+  if (stopped) return stoppedMessage(stopped, t);
   if (parsed.status === 409) {
     // A refusal that names its reason: say it plainly, with what to do next.
     const known = conflictReasons.find(([message]) => parsed.message.includes(message));

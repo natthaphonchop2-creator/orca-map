@@ -50,6 +50,12 @@ export function loginHref(location: { pathname: string; search: string }) {
 // item 9), and activeNavigationView() names the sidebar item that stays lit.
 // ---------------------------------------------------------------------------
 
+/** A customer company's page in the platform area: its tabs (platform console C6 PC1). */
+export const PLATFORM_COMPANY_TABS = ['overview', 'profile', 'members', 'manage'] as const;
+const DEFAULT_COMPANY_ID = 'default';
+// The same pattern as company.ts's, kept here so this module imports nothing.
+const customerCompanyPattern = /^org-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 /** The company's own sections of the platform area (the ORCA team only). */
 export const PLATFORM_SECTIONS = ['overview', 'companies', 'pilots', 'signin', 'oauth-apps', 'catalog', 'breakglass'] as const;
 export type PlatformSection = (typeof PLATFORM_SECTIONS)[number];
@@ -316,7 +322,17 @@ export function appNavigation(
 			const section = p.get('section');
 			if (!section || !(PLATFORM_SECTIONS as readonly string[]).includes(section)) p.set('section', 'overview');
 			if (p.get('section') === 'pilots' && role && role.canReviewPilotRequests !== true) p.set('section', 'overview');
-			only('section');
+			// A company's page (platform console C6), the default company's included:
+			// its ID and tab.
+			const company = p.get('company');
+			if (p.get('section') === 'companies' && company !== null && (customerCompanyPattern.test(company) || company === DEFAULT_COMPANY_ID)) {
+				const tab = p.get('tab');
+				if (tab !== null && !(PLATFORM_COMPANY_TABS as readonly string[]).includes(tab)) p.delete('tab');
+				if (p.get('tab') === 'overview') p.delete('tab');
+				only('section', 'company', 'tab');
+			} else {
+				only('section');
+			}
 		}
 	}
 
