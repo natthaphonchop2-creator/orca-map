@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { groupPlatformViews, platformAuditLabel } from "$lib/orca/platform-console";
   import { onDestroy, tick } from "svelte";
   import {
     ArrowDown,
@@ -171,6 +172,11 @@
     "platform.company.create": t("เปิดบริษัทลูกค้า", "Customer company opened"),
     "platform.company.owner_invite": t("เชิญเจ้าของบริษัทลูกค้า", "Customer company's owner invited"),
     "platform.company.owner_revoke": t("ยกเลิกคำเชิญเจ้าของบริษัทลูกค้า", "Customer company's owner invitation revoked"),
+    // What ORCA did in this company (platform console C6, owner decision P6).
+    "platform.view": t("ORCA ดูข้อมูลบริษัท", "ORCA viewed company data"),
+    "platform.suspend": t("ORCA ระงับการใช้งานบริษัทชั่วคราว", "ORCA suspended the company"),
+    "platform.restore": t("ORCA เปิดให้ใช้งานบริษัทอีกครั้ง", "ORCA restored the company"),
+    "platform.rename": t("ORCA เปลี่ยนชื่อบริษัท", "ORCA renamed the company"),
   });
   const names = $derived({
     // A customer company's log names the platform, never the operator's account.
@@ -206,7 +212,9 @@
       (event) => [eventLabel(event)],
     ),
   );
-  const pagination = $derived(auditPage(visibleEvents, pageNumber, pageSize));
+  // Consecutive looks by ORCA at the same area show as one row (C6 §4.1);
+  // every look is still recorded.
+  const pagination = $derived(auditPage(groupPlatformViews(visibleEvents), pageNumber, pageSize));
   const activeFilters = $derived(
     Boolean(
       query ||
@@ -266,9 +274,11 @@
       return event.version === 1 ? t("เปิดคลังความรู้แบบไฟล์ให้บริษัทลูกค้า", "File Knowledge turned on for a customer company") : t("ปิดคลังความรู้แบบไฟล์ของบริษัทลูกค้า", "File Knowledge turned off for a customer company");
     return "";
   }
-  function eventLabel(event: OrcaAuditEvent) {
+  function eventLabel(event: OrcaAuditEvent & { repeated?: number }) {
     const flag = switchLabel(event);
     if (flag) return flag;
+    const platform = platformAuditLabel(event, t);
+    if (platform) return event.repeated && event.repeated > 1 ? t(`${platform} (${event.repeated} ครั้ง)`, `${platform} (${event.repeated} times)`) : platform;
     return mode === "executions"
       ? (event.toolName ? toolLabel(event.toolName, event.connectionID) : "") ||
           actionLabels[event.action ?? event.method ?? ""] ||

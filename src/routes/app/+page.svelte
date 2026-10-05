@@ -3,6 +3,8 @@
   import { page } from "$app/state";
   import CompanyGate from "$lib/components/orca/CompanyGate.svelte";
   import { companyDenied, currentCompany, DEFAULT_COMPANY, reloadForAddress } from "$lib/orca/company";
+  import { companyStatus, stoppedFromRefusal } from "$lib/orca/platform-console";
+  import { parseErrorContent } from "$lib/errors";
   import { guardPage, reloadForAccount } from "$lib/services/writes";
   import notoLicenseURL from "$lib/components/orca/assets/noto-sans-thai-OFL.txt?url";
   import "$lib/components/orca/workspace-base.css";
@@ -38,11 +40,19 @@
 
   // The company this page opens was picked before it rendered (+page.ts).
   let { data: route }: PageProps = $props();
+  // A company that is not active (platform console C6 §4.2): its people see
+  // only the fixed message, from the chooser's status or from a 423.
+  let refusedStatus = $state<"suspended" | "closed">();
+  const listedStatus = $derived(
+    route.place.kind === "company" ? companyStatus(route.place.companies?.find((choice) => choice.id === (route.place as { id: string }).id)?.status) : "active",
+  );
+  const stopped = $derived(refusedStatus ?? (listedStatus === "active" ? undefined : listedStatus));
   const gate = $derived(
     route.place.kind === "choose" ? "choose"
       : route.place.kind === "none" ? "none"
       : route.place.kind === "error" ? "error"
       : companyDenied(route.place) ? "denied"
+      : stopped ? "stopped"
       : undefined,
   );
   const companies = $derived(route.place.kind === "company" || route.place.kind === "choose" ? (route.place.companies ?? []) : []);
@@ -99,7 +109,12 @@
         void checkAIConnectionOnce();
       }
     } catch (cause) {
-      if (request === refreshGeneration) error = orcaError(cause);
+      if (request === refreshGeneration) {
+        const parsed = parseErrorContent(cause);
+        const refused = stoppedFromRefusal(parsed.status, parsed.message);
+        if (refused) refusedStatus = refused;
+        else error = orcaError(cause);
+      }
     } finally {
       if (request === refreshGeneration) refreshing = false;
     }
@@ -190,7 +205,7 @@
   /></svelte:head
 >
 
-{#if gate}<CompanyGate mode={gate} {companies} account={route.account} />
+{#if gate}<CompanyGate mode={gate} {companies} account={route.account} {stopped} current={route.place.kind === "company" ? route.place.id : ""} />
 {:else}
 <AppShell {data} {view} {section} {refreshing} {pendingApprovals} {companies} account={route.account} onrefresh={refreshFromTopBar}>
   {#if error}<div class="k-banner error" role="alert">
@@ -288,6 +303,8 @@
       {data}
       activeData={currentData!}
       section={(section ?? "overview") as PlatformSection}
+      companyID={navigation.params.get("company") ?? ""}
+      companyTab={navigation.params.get("tab") ?? ""}
       onchanged={refresh}
     />{/key}
   {:else if view === "workspaces"}<AppOverview data={managementData!} onchanged={refresh} />

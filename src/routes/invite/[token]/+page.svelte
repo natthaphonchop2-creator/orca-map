@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { stoppedMessage } from "$lib/orca/platform-console";
   import Brand from "$lib/components/orca/Brand.svelte";
   import InAppBrowserNotice from "$lib/components/orca/InAppBrowserNotice.svelte";
   import PublicFooter from "$lib/components/orca/PublicFooter.svelte";
@@ -144,7 +145,10 @@
           <div><dt>{t("อีเมลที่ได้รับเชิญ", "Invited email")}</dt><dd>{preview.email}</dd></div>
           <div><dt>{t("ใช้ได้ถึง", "Valid until")}</dt><dd>{displayDate(preview.expiresAt)}</dd></div>
         </dl>
-        {#if data.signedIn}
+        {#if preview.companyStatus}
+          <!-- The company is suspended or closed by ORCA (platform console C6 §4.2): the invitation waits. -->
+          <div class="o-alert" role="status">{stoppedMessage(preview.companyStatus, t)} {t("รับคำเชิญได้เมื่อบริษัทเปิดให้ใช้งานอีกครั้ง", "You can accept once the company is open again.")}</div>
+        {:else if data.signedIn}
           <p>{t(`คุณเข้าสู่ระบบด้วย ${data.email}`, `You are signed in as ${data.email}.`)}</p>
           {#if error && !needsGoogle}<div class="o-alert" role="alert">{error}{#if wrongAccount}{" "}<a href={signOutHref}>{t("ออกจากระบบ", "Sign out")}</a>{/if}</div>{/if}
           {#if needsGoogle && !data.google}
