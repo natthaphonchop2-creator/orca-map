@@ -313,13 +313,13 @@
 .orca-workspace.orca-app .compact .workspace-mode-label {
   display: none;
 }
-/* "เชื่อม AI ของฉัน" reads as the AI button (owner, 2026-10-01): a citron light running round the
-   edge, the sparkle on an ink tile with a citron glyph (like the ORCA app icon) that twinkles, a
+/* "เชื่อม AI ของฉัน" reads as the AI button (owner, 2026-10-01): a soft citron light running slowly round
+   the edge (toned down 2026-10-05), the sparkle on an ink tile with a citron glyph (like the ORCA app icon) that twinkles, a
    soft citron glow, and one light sweep on hover. No motion under prefers-reduced-motion. */
 .orca-workspace.orca-app .workspace-pin {
   --pin-mid: rgba(21, 24, 35, 0.16);
   --pin-light: #b8dc32; /* a deeper citron, so the running light shows on white */
-  --pin-glow: rgba(150, 180, 30, 0.42);
+  --pin-glow: rgba(150, 180, 30, 0.28);
   position: relative;
   isolation: isolate;
   overflow: hidden;
@@ -331,12 +331,12 @@
   border-radius: var(--orca-radius-lg);
   background:
     linear-gradient(var(--orca-surface), var(--orca-surface)) padding-box,
-    conic-gradient(from var(--pin-angle), var(--pin-light) 0deg, var(--pin-mid) 95deg, var(--pin-mid) 265deg, var(--pin-light) 360deg) border-box;
+    conic-gradient(from var(--pin-angle), var(--pin-light) 0deg, var(--pin-mid) 60deg, var(--pin-mid) 300deg, var(--pin-light) 360deg) border-box;
   box-shadow: 0 8px 20px -14px var(--pin-glow);
   color: var(--orca-ink);
   text-decoration: none;
   transition: box-shadow 0.2s var(--orca-ease);
-  animation: orca-pin-orbit 4.5s linear infinite;
+  animation: orca-pin-orbit 9s linear infinite;
 }
 /* The citron light runs round the edge (an animatable angle; browsers without @property keep
    a still edge). */
@@ -353,7 +353,7 @@
   position: absolute;
   z-index: -1;
   inset: 0;
-  background: linear-gradient(105deg, transparent 30%, rgba(215, 244, 113, 0.32) 50%, transparent 70%);
+  background: linear-gradient(105deg, transparent 30%, rgba(215, 244, 113, 0.18) 50%, transparent 70%);
   transform: translateX(-120%);
   pointer-events: none;
 }
@@ -386,18 +386,17 @@
 }
 /* The sparkle twinkles now and then. */
 .orca-workspace.orca-app .workspace-pin-icon svg {
-  animation: orca-pin-twinkle 3.2s var(--orca-ease) infinite;
+  animation: orca-pin-twinkle 7s var(--orca-ease) infinite;
 }
 @keyframes orca-pin-twinkle {
-  0%, 70%, 100% { transform: scale(1) rotate(0deg); opacity: 1; filter: none; }
-  80% { transform: scale(1.18) rotate(12deg); opacity: 1; filter: drop-shadow(0 0 4px rgba(215, 244, 113, 0.9)); }
-  90% { transform: scale(0.92) rotate(-4deg); opacity: 0.85; filter: none; }
+  0%, 76%, 100% { transform: scale(1) rotate(0deg); filter: none; }
+  86% { transform: scale(1.08) rotate(6deg); filter: drop-shadow(0 0 3px rgba(215, 244, 113, 0.55)); }
 }
 @media screen {
   :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-pin {
     --pin-mid: rgba(255, 255, 255, 0.12);
     --pin-light: var(--orca-citron);
-    --pin-glow: rgba(215, 244, 113, 0.3);
+    --pin-glow: rgba(215, 244, 113, 0.18);
   }
   :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-pin-icon {
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 0 0 3px rgba(215, 244, 113, 0.14);
@@ -417,14 +416,14 @@
   border: 1px solid transparent;
   background:
     linear-gradient(var(--orca-sidebar), var(--orca-sidebar)) padding-box,
-    conic-gradient(from var(--pin-angle), var(--pin-light) 0deg, var(--pin-mid) 95deg, var(--pin-mid) 265deg, var(--pin-light) 360deg) border-box;
-  animation: orca-pin-orbit 5.5s linear infinite;
+    conic-gradient(from var(--pin-angle), var(--pin-light) 0deg, var(--pin-mid) 60deg, var(--pin-mid) 300deg, var(--pin-light) 360deg) border-box;
+  animation: orca-pin-orbit 11s linear infinite;
 }
 .orca-workspace.orca-app .workspace-nav a.workspace-nav-ai:hover {
   background:
     linear-gradient(var(--orca-hover), var(--orca-hover)) padding-box,
     linear-gradient(var(--orca-sidebar), var(--orca-sidebar)) padding-box,
-    conic-gradient(from var(--pin-angle), var(--pin-light) 0deg, var(--pin-mid) 95deg, var(--pin-mid) 265deg, var(--pin-light) 360deg) border-box;
+    conic-gradient(from var(--pin-angle), var(--pin-light) 0deg, var(--pin-mid) 60deg, var(--pin-mid) 300deg, var(--pin-light) 360deg) border-box;
 }
 .orca-workspace.orca-app .workspace-nav a.workspace-nav-ai.active {
   border-color: var(--orca-citron);
@@ -445,11 +444,11 @@
   width: 15px;
   height: 15px;
   color: var(--orca-citron);
-  animation: orca-ai-glow 3.6s var(--orca-ease) infinite;
+  animation: orca-ai-glow 8s var(--orca-ease) infinite;
 }
 @keyframes orca-ai-glow {
   0%, 65%, 100% { filter: none; }
-  80% { filter: drop-shadow(0 0 4px rgba(215, 244, 113, 0.95)); }
+  85% { filter: drop-shadow(0 0 3px rgba(215, 244, 113, 0.55)); }
 }
 @media screen {
   :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-nav a.workspace-nav-ai {
