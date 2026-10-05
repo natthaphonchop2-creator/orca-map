@@ -715,7 +715,8 @@
 	.ap-mode-option input {
 		margin-top: 3px;
 	}
-	.ap-mode-option span {
+	/* The text beside the radio; never the kept phrases inside it. */
+	.ap-mode-option > span {
 		display: grid;
 		gap: 4px;
 		min-width: 0;
