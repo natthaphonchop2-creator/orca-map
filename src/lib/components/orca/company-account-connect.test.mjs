@@ -60,3 +60,13 @@ test('while the flow reads what AI can do, the step says so and offers nothing t
 	assert.match(html, /กำลังดูว่า AI ทำอะไรได้บ้างใน FlowAccount…/);
 	assert.doesNotMatch(html, /<button/);
 });
+
+test('Back or a reload brings back the account the flow already uses, not the first ready one', async () => {
+	const show = await connect();
+	const accounts = [account(), account({ id: 'pac-2', label: 'บัญชีกลางสำรอง', status: 'needs_reconnect' })];
+	const html = show({ current: 'pac-2', initial: { accounts, policy: { mode: 'allowed', revision: 1 } } });
+	assert.match(html, /<input type="radio" name="cc-choice" value="pac-2" checked/);
+	assert.match(html, />ต่อไป</, 'it connects again before use');
+	const other = show({ current: 'pac-9', initial: { accounts, policy: { mode: 'allowed', revision: 1 } } });
+	assert.match(other, /<input type="radio" name="cc-choice" value="pac-1" checked/, 'another program\'s account is never chosen');
+});

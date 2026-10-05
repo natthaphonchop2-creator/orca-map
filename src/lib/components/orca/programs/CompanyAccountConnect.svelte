@@ -25,12 +25,15 @@
 	let {
 		sourceID,
 		programName,
+		current = '',
 		pending = '',
 		initial,
 		onready
 	}: {
 		sourceID: string;
 		programName: string;
+		/** The account the flow already uses (Back, a reload): chosen first when it is this program's. */
+		current?: string;
 		/** Shown while the flow looks at what AI can do on the account. */
 		pending?: string;
 		/** The first read, for a page that already has it (and for tests). */
@@ -45,7 +48,7 @@
 	let loadError = $state('');
 	let error = $state('');
 	let busy = $state('');
-	let choice = $state(untrack(() => programAccountsFor(sourceID, first?.accounts ?? []).find((item) => item.status === 'ready')?.id ?? 'new'));
+	let choice = $state(untrack(() => firstChoice(first?.accounts ?? [])));
 	let label = $state(untrack(() => defaultAccountLabel(programName, t)));
 	// The policy revision the manager ticked "accept" for (Codex CA1 review 2, finding 7).
 	let acceptedRevision = $state(0);
@@ -78,6 +81,12 @@
 		clearTimeout(pollTimer);
 	});
 
+	/** The account the flow uses already when it is this program's, else its first ready one, else a new one. */
+	function firstChoice(list: readonly OrcaProgramAccount[]) {
+		const mine = programAccountsFor(sourceID, list);
+		return (mine.find((item) => item.id === current) ?? mine.find((item) => item.status === 'ready'))?.id ?? 'new';
+	}
+
 	async function load() {
 		loadError = '';
 		try {
@@ -85,8 +94,7 @@
 			if (!alive) return;
 			accounts = list;
 			policy = found;
-			const ready = programAccountsFor(sourceID, list).find((item) => item.status === 'ready');
-			if (choice === 'new' && ready) choice = ready.id;
+			if (choice === 'new') choice = firstChoice(list);
 			loaded = true;
 		} catch (cause) {
 			if (alive) loadError = orcaError(cause);
