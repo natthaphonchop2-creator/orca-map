@@ -118,7 +118,12 @@
 .orca-workspace.orca-app .workspace-brand {
   --orca-brand-size: 24px;
   min-height: 34px;
+  border-radius: var(--orca-radius);
+  color: inherit;
+  text-decoration: none;
 }
+.orca-workspace.orca-app .workspace-brand:hover { text-decoration: none; opacity: 0.85; }
+.orca-workspace.orca-app .workspace-brand:focus-visible { outline: 2px solid var(--orca-ink); outline-offset: 3px; }
 .orca-workspace.orca-app .workspace-collapse.workspace-icon-button {
   width: 28px;
   height: 28px;
@@ -512,6 +517,16 @@
   font-size: 14px;
   color: var(--orca-muted);
 }
+/* The top bar's company name and page title go to หน้าหลัก (owner, 2026-10-05). */
+.orca-workspace.orca-app .workspace-home-link {
+  display: inline-flex;
+  min-width: 0;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+.orca-workspace.orca-app .workspace-home-link:hover { color: var(--orca-ink); text-decoration: underline; text-underline-offset: 3px; }
+.orca-workspace.orca-app .workspace-home-link:focus-visible { outline: 2px solid var(--orca-ink); outline-offset: 2px; }
 .orca-workspace.orca-app .workspace-current-page {
   font-size: 14px;
   font-weight: 600;
