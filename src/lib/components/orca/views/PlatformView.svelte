@@ -7,6 +7,8 @@
 	import PlatformCompanies from '../PlatformCompanies.svelte';
 	import BreakGlassAccounts from '../platform/BreakGlassAccounts.svelte';
 	import PlatformCatalog from '../platform/PlatformCatalog.svelte';
+	import PlatformCompanyDetail from '../platform/PlatformCompanyDetail.svelte';
+	import { detailTab } from '$lib/orca/platform-console';
 	import PlatformOverview from './PlatformOverview.svelte';
 
 	// view=platform&section=…: the ORCA team's area, always in the default
@@ -18,18 +20,26 @@
 		data,
 		activeData,
 		section,
+		companyID = '',
+		companyTab = '',
 		onchanged
 	}: {
 		data: OrcaBootstrap;
 		activeData: OrcaBootstrap;
 		section: PlatformSection;
+		/** A company's own page in บริษัทลูกค้า (platform console C6), with its tab. */
+		companyID?: string;
+		companyTab?: string;
 		onchanged: () => Promise<void>;
 	} = $props();
 </script>
 
 {#if data.platformOperator === true}
 	<div class="platform-page">
-		{#if section === 'companies'}<PlatformCompanies />
+		{#if section === 'companies' && companyID}
+			<!-- Each tab is one look the server records: a new tab mounts afresh. -->
+			{#key `${companyID}:${companyTab}`}<PlatformCompanyDetail {companyID} tab={detailTab(companyTab)} />{/key}
+		{:else if section === 'companies'}<PlatformCompanies />
 		{:else if section === 'pilots' && data.canReviewPilotRequests}<PilotInbox />
 		{:else if section === 'signin'}<GoogleSignInSettings data={activeData} />
 		{:else if section === 'oauth-apps'}<OAuthApps data={activeData} />

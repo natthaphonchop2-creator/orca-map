@@ -6,6 +6,7 @@
   import { localeHref, t } from "$lib/orca/locale.svelte";
   import { platformHref } from "$lib/orca/navigation";
   import { canInviteOwner, canRevokeOwnerInvitation, emailDomain, ownerStatus, platformRefusal, resendEmail, signInWarnings, type OwnerStatus } from "$lib/orca/platform-companies";
+  import { companyStatus, companyStatusNote, contractNote, platformCompanyHref } from "$lib/orca/platform-console";
   import { OrcaService, displayDate, orcaError, type OrcaOwnerInvitationLink, type OrcaPlatformCompany } from "$lib/services/orca";
   import { externalBrowserLink } from "$lib/services/orca-platform";
   import PlatformBadge from "./platform/PlatformBadge.svelte";
@@ -267,8 +268,11 @@
               <div class="company-name">
                 <span class="company-mark" aria-hidden="true"><Building2 size={17} /></span>
                 <span>
-                  <strong>{company.displayName}</strong>
+                  <!-- The company's own page: overview, profile, members, and suspend or restore (platform console C6). -->
+                  <a class="company-open" href={localeHref(platformCompanyHref(company.id))}><strong>{company.displayName}</strong></a>
                   <small>{company.id === "default" ? t("บริษัทของทีม ORCA", "The ORCA team's company") : t(`เปิดเมื่อ ${displayDate(company.createdAt)}`, `Opened ${displayDate(company.createdAt)}`)}</small>
+                  {#if companyStatus(company.status) !== "active"}<small class="company-stopped">{companyStatusNote(companyStatus(company.status), t)}</small>{/if}
+                  {#if company.package || company.contractEnd}<small>{[company.package, contractNote(company.contractState, company.contractEnd, t)].filter(Boolean).join(" · ")}</small>{/if}
                 </span>
               </div>
             </td>
@@ -465,6 +469,9 @@
   .company-name { display: flex; align-items: flex-start; gap: 12px; min-width: 220px; }
   .company-mark { display: grid; flex: none; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--orca-secondary); color: var(--orca-text-2); }
   .company-name strong { display: block; font-weight: 600; overflow-wrap: anywhere; }
+  .company-open { color: inherit; text-decoration: underline; text-decoration-color: var(--orca-line-strong); text-underline-offset: 3px; }
+  .company-open:hover { text-decoration-color: currentColor; }
+  .companies-table small.company-stopped { color: var(--orca-deny); font-weight: 600; }
   .company-seats { white-space: nowrap; }
   .company-seats strong { font-weight: 600; }
   .companies-table td.company-seats small { display: inline; margin-left: 4px; }
