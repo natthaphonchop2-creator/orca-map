@@ -180,7 +180,8 @@
 							<strong>{source.connection?.name ?? t('โปรแกรมที่ถูกลบ', 'Removed program')}</strong>
 							<span>{programSummaryLabel(programSummary(source.connection, source.toolNames), t)}</span>
 						</div>
-						{#if source.ready && signInNeeded(source.connection?.mcpID)}
+						<!-- A program on the company account (บัญชีกลาง) needs no sign-in from anyone (Codex CA1 review 2, finding 10). -->
+						{#if source.ready && !source.connection?.programAccountID && signInNeeded(source.connection?.mcpID)}
 							<a class="ov-signin" href={localeHref('/app?view=connect-ai#accounts')}>{t('ลงชื่อเข้าใช้ก่อน', 'Sign in first')}</a>
 						{:else}
 							<StatusPill label={source.ready ? t('พร้อมใช้', 'Ready') : t('ต้องตรวจสอบ', 'Needs a look')} tone={source.ready ? 'ok' : 'warn'} />

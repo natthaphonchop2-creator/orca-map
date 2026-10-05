@@ -75,3 +75,27 @@ export function acknowledgedRevision(policy: OrcaCompanyAccountPolicy | undefine
 export function defaultAccountLabel(programName: string, t: (th: string, en: string) => string): string {
 	return t(`บัญชีกลาง ${programName}`.trim(), `${programName} company account`.trim()).slice(0, 80);
 }
+
+/** A tick of "accept" holds only for the policy revision it was made on (Codex CA1 review 2, finding 7). */
+export function acceptanceHolds(policy: OrcaCompanyAccountPolicy | undefined, acceptedRevision: number): boolean {
+	return policy?.mode === 'warn' && acceptedRevision > 0 && acceptedRevision === policy.revision;
+}
+
+/** A dialog opened for one account still applies only while the connection names that account (finding 6). */
+export function stillBoundTo(connection: Pick<OrcaConnection, 'programAccountID'> | undefined, accountID: string): boolean {
+	return Boolean(accountID) && connection?.programAccountID === accountID;
+}
+
+/** Connect flows on a page: each start or cancel ends the one before, and only the live one acts (finding 5). */
+export class ConnectFlows {
+	#live = 0;
+	start(): number {
+		return ++this.#live;
+	}
+	end(): void {
+		this.#live++;
+	}
+	live(flow: number): boolean {
+		return flow > 0 && flow === this.#live;
+	}
+}

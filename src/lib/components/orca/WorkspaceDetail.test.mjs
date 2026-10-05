@@ -709,3 +709,11 @@ test('the create form offers a chosen program that was archived or deleted since
 	const source = await readFile(file('./workspace/WorkspaceCreateForm.svelte'), 'utf8');
 	assert.match(source, /for \(const id of gonePrograms\) delete next\[id\];/, 'the button takes off only the vanished ones');
 });
+
+// Company accounts (Codex CA1 review 2, finding 10): a program on the company
+// account (บัญชีกลาง) never asks for a sign-in, even beside a personal
+// connection to the same program, whose sign-in state is keyed by program.
+test('ภาพรวม never asks to sign in to a program on the company account', async () => {
+	const source = await readFile(file('./workspace/WorkspaceOverviewTab.svelte'), 'utf8');
+	assert.match(source, /\{#if source\.ready && !source\.connection\?\.programAccountID && signInNeeded\(source\.connection\?\.mcpID\)\}/);
+});

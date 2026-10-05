@@ -57,3 +57,33 @@ test('a program on a company account asks nothing of its members and is listed a
 	const company = companyAccountSources(data);
 	assert.deepEqual(company.map((source) => [source.sourceID, source.hubs.map((item) => item.id)]), [['src-books', ['sales']]]);
 });
+
+test('a tick of "accept" holds only for the revision it was made on (Codex CA1 review 2, finding 7)', () => {
+	const warn = (revision) => ({ mode: 'warn', revision });
+	assert.equal(helpers.acceptanceHolds(warn(2), 2), true);
+	assert.equal(helpers.acceptanceHolds(warn(3), 2), false, 'a policy that moved on is not accepted by an older tick');
+	assert.equal(helpers.acceptanceHolds(warn(2), 0), false);
+	assert.equal(helpers.acceptanceHolds({ mode: 'allowed', revision: 2 }, 2), false, 'nothing to accept');
+	assert.equal(helpers.acceptanceHolds(undefined, 1), false);
+	assert.equal(helpers.acknowledgedRevision(warn(3), helpers.acceptanceHolds(warn(3), 2)), 0, 'so no acknowledgement is sent');
+});
+
+test('a dialog applies only to the account it was opened for (finding 6)', () => {
+	assert.equal(helpers.stillBoundTo({ programAccountID: 'pac-a' }, 'pac-a'), true);
+	assert.equal(helpers.stillBoundTo({ programAccountID: 'pac-b' }, 'pac-a'), false, 'a refresh moved the connection to another account');
+	assert.equal(helpers.stillBoundTo({}, 'pac-a'), false);
+	assert.equal(helpers.stillBoundTo({ programAccountID: '' }, ''), false);
+});
+
+test('only the live connect flow acts: a start or a cancel ends the one before (finding 5)', () => {
+	const flows = new helpers.ConnectFlows();
+	assert.equal(flows.live(0), false);
+	const first = flows.start();
+	assert.equal(flows.live(first), true);
+	flows.end();
+	assert.equal(flows.live(first), false, 'cancelled: its poll binds nothing');
+	const second = flows.start();
+	const third = flows.start();
+	assert.equal(flows.live(second), false, 'another start ends it');
+	assert.equal(flows.live(third), true);
+});
