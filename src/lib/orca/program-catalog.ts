@@ -137,7 +137,7 @@ export function availableChips(sources: readonly CatalogSource[]): ProgramChip[]
 }
 
 // ---------------------------------------------------------------------------
-// The stepper, held in the address (&source=&step=)
+// The stepper, held in the address (&source=&step=, and &account= for a company account)
 // ---------------------------------------------------------------------------
 
 export const PROGRAM_STEPS = ['choose', 'connect', 'tools', 'done'] as const;
@@ -152,20 +152,25 @@ export function programStep(params: URLSearchParams): ProgramStep {
 	return 'connect';
 }
 
-/** The same address at another step; `source` and `connection` change only when given (null removes). */
+/** The same address at another step; `source`, `connection` and `account` change only when given (null removes). */
 export function programStepHref(
 	address: string,
 	step: ProgramStep,
-	changes: { source?: string | null; connection?: string | null } = {}
+	changes: { source?: string | null; connection?: string | null; account?: string | null } = {}
 ): string {
 	const url = new URL(address, 'https://orca.invalid');
 	url.searchParams.set('view', 'add-program');
-	for (const key of ['source', 'connection'] as const) {
+	// A company account belongs to its program: another program starts without one.
+	if (changes.source !== undefined && changes.account === undefined) url.searchParams.delete('account');
+	for (const key of ['source', 'connection', 'account'] as const) {
 		const value = changes[key];
 		if (value === null) url.searchParams.delete(key);
 		else if (value !== undefined) url.searchParams.set(key, value);
 	}
-	if (step === 'choose') url.searchParams.delete('source');
+	if (step === 'choose') {
+		url.searchParams.delete('source');
+		url.searchParams.delete('account');
+	}
 	if (step !== 'done') url.searchParams.delete('connection');
 	url.searchParams.set('step', step);
 	return url.pathname + url.search;

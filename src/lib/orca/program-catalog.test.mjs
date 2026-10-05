@@ -86,6 +86,12 @@ test('the step and the program live in the address; step 4 needs the saved progr
 	assert.equal(programStepHref(`${base}&source=a&step=connect`, 'choose', { source: null }), '/app?view=add-program&lang=th&org=org-1&return=new&step=choose');
 	assert.equal(programStepHref(`${base}&source=a&step=tools`, 'done', { connection: 'c1' }), '/app?view=add-program&lang=th&org=org-1&return=new&source=a&step=done&connection=c1');
 	assert.equal(programStepHref(`${base}&source=a&step=done&connection=c1`, 'tools'), '/app?view=add-program&lang=th&org=org-1&return=new&source=a&step=tools');
+	// A company account rides with its program: kept from step to step, gone with another program or step 1.
+	assert.equal(programStepHref(`${base}&source=a&step=connect`, 'tools', { account: 'pac-1' }), '/app?view=add-program&lang=th&org=org-1&return=new&source=a&step=tools&account=pac-1');
+	assert.equal(programStepHref(`${base}&source=a&step=tools&account=pac-1`, 'done', { connection: 'c1' }), '/app?view=add-program&lang=th&org=org-1&return=new&source=a&step=done&account=pac-1&connection=c1');
+	assert.equal(programStepHref(`${base}&source=a&step=tools&account=pac-1`, 'tools', { account: null }), '/app?view=add-program&lang=th&org=org-1&return=new&source=a&step=tools');
+	assert.equal(programStepHref(`${base}&source=a&step=connect&account=pac-1`, 'connect', { source: 'b' }), '/app?view=add-program&lang=th&org=org-1&return=new&source=b&step=connect');
+	assert.equal(programStepHref(`${base}&source=a&step=connect&account=pac-1`, 'choose'), '/app?view=add-program&lang=th&org=org-1&return=new&step=choose');
 	assert.equal(programCancelHref('new'), '/app?view=new');
 	assert.equal(programCancelHref(null), '/app?view=servers');
 	// Every address a step builds is already canonical for the page's router.

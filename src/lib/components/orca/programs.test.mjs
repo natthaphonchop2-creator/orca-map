@@ -197,6 +197,11 @@ test('step 4 names the per-person account and gives one next action', async () =
 	assert.match(everyone, /แต่ละคนต้องมีบัญชี FlowAccount ของตัวเอง/);
 	assert.match(everyone, /href="\/app\?view=new&amp;everyone=1&amp;connection=c1"[^>]*>.*ให้ทุกคนในบริษัทใช้/);
 	assert.match(everyone, /ทุกคน 7 คน · อ่านอย่างเดียว/);
+	// A program saved on a company account: no one signs in themselves.
+	const company = text(render(Component, { props: { ...props, connection: { ...connection('c1', 's'), programAccountID: 'pac-1' }, hubs: [] } }).body);
+	assert.match(company, /ใช้บัญชีกลาง FlowAccount ผ่าน AI ได้เลย ไม่ต้องลงชื่อเข้าใช้เอง/);
+	assert.doesNotMatch(company, /แต่ละคนต้องมีบัญชี/);
+	assert.doesNotMatch(company, /pac-1/);
 	const workspace = text(render(Component, { props: { ...props, hubs: [{ id: 'h', name: 'Sales', status: 'active' }] } }).body);
 	assert.match(workspace, /เพิ่มลงพื้นที่ทำงาน…/);
 	assert.doesNotMatch(workspace, /everyone=1/);
