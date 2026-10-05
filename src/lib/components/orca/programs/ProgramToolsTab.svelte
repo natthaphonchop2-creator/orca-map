@@ -72,7 +72,7 @@
 		loading = true;
 		failed = '';
 		try {
-			const found = await ProgramService.discover(connection.mcpID);
+			const found = await ProgramService.discover(connection.mcpID, connection.programAccountID);
 			if (!alive || current !== request) return;
 			if (!found.length) throw new Error(t(`${programName} ไม่ได้ส่งรายการกลับมา`, `${programName} returned nothing.`));
 			tools = found;

@@ -41,9 +41,9 @@ export const ProgramService = {
 		});
 		return request;
 	},
-	/** The tools a program offers to the signed-in account, with their definitions. */
-	async discover(mcpID: string): Promise<ProgramTool[]> {
-		const response = (await doPost(orcaPath('/discover'), { mcpID }, options)) as { tools: ProgramTool[] | null };
+	/** The tools a program offers to the signed-in account, or to the company account given, with their definitions. */
+	async discover(mcpID: string, programAccountID?: string): Promise<ProgramTool[]> {
+		const response = (await doPost(orcaPath('/discover'), { mcpID, ...(programAccountID ? { programAccountID } : {}) }, options)) as { tools: ProgramTool[] | null };
 		return response.tools ?? [];
 	},
 	/** Creates a connection, or saves one when `id` is given (with its `version`). */

@@ -27,6 +27,7 @@
 	import ConfirmDialog from '../ui/ConfirmDialog.svelte';
 	import StatusPill from '../ui/StatusPill.svelte';
 	import { showToast } from '../ui/toast-store.svelte';
+	import CompanyAccountCard from './CompanyAccountCard.svelte';
 	import ProgramAccount from './ProgramAccount.svelte';
 	import ProgramLogo from './ProgramLogo.svelte';
 	import ProgramToolsTab from './ProgramToolsTab.svelte';
@@ -92,7 +93,8 @@
 		{ id: 'overview', label: t('ภาพรวม', 'Overview') },
 		// Archived elsewhere while it has unsaved changes: the tab stays with them until saved or undone.
 		...(!archived || dirty ? [{ id: 'tools', label: term('whatAICanDo', t) }] : []),
-		...(!archived && data.canManage ? [{ id: 'members', label: t('คนที่เชื่อมบัญชีแล้ว', 'People signed in') }] : []),
+		// A company account (บัญชีกลาง) is everyone's: nobody signs in themselves (company accounts §7).
+		...(!archived && data.canManage && !connection?.programAccountID ? [{ id: 'members', label: t('คนที่เชื่อมบัญชีแล้ว', 'People signed in') }] : []),
 		{ id: 'workspaces', label: t('พื้นที่ทำงาน', 'Workspaces'), count: liveWorkspaces.length },
 		{ id: 'activity', label: t('ประวัติ', 'History') }
 	]);
@@ -290,13 +292,16 @@
 			</section>
 
 			{#if data.canManage && !archived}
-				<section class="pd-card">
-					<header class="pd-card-head"><div><h2>{t('บัญชีของคุณ', 'Your account')}</h2></div></header>
-					<div class="pd-account">
-						{#key connection.mcpID}<ProgramAccount sourceID={connection.mcpID} {programName} endpointHost={source?.endpointHost} variant="manage" operator={data.platformOperator === true} />{/key}
-					</div>
-					<p class="pd-note">{t(`แต่ละคนต้องมีบัญชี ${programName} ของตัวเอง แล้วลงชื่อเข้าใช้เมื่อเริ่มใช้กับ AI`, `Each person needs their own ${programName} account and signs in when they start using it with AI.`)}</p>
-				</section>
+				{#key connection.id}<CompanyAccountCard {connection} {programName} members={data.members} {onchanged} />{/key}
+				{#if !connection.programAccountID}
+					<section class="pd-card">
+						<header class="pd-card-head"><div><h2>{t('บัญชีของคุณ', 'Your account')}</h2></div></header>
+						<div class="pd-account">
+							{#key connection.mcpID}<ProgramAccount sourceID={connection.mcpID} {programName} endpointHost={source?.endpointHost} variant="manage" operator={data.platformOperator === true} />{/key}
+						</div>
+						<p class="pd-note">{t(`แต่ละคนต้องมีบัญชี ${programName} ของตัวเอง แล้วลงชื่อเข้าใช้เมื่อเริ่มใช้กับ AI`, `Each person needs their own ${programName} account and signs in when they start using it with AI.`)}</p>
+					</section>
+				{/if}
 			{/if}
 
 			<section class="pd-card">

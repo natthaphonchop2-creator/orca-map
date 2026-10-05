@@ -87,6 +87,43 @@ export interface OrcaConnection {
   version: number;
   createdAt: string;
   updatedAt: string;
+  /** The company account (บัญชีกลาง) every member's calls use; absent when each person uses their own account. */
+  programAccountID?: string;
+}
+
+/** A company account (บัญชีกลาง): one program account a manager connects once, used by every member's calls. */
+export type OrcaProgramAccountStatus = "connecting" | "ready" | "needs_reconnect" | "disconnected";
+export interface OrcaProgramAccount {
+  id: string;
+  sourceID: string;
+  label: string;
+  status: OrcaProgramAccountStatus;
+  /** Why it isn't ready: connector_lost_manager, disconnected, app_changed, record_lost or policy_changed. */
+  pausedReason?: string;
+  generation: number;
+  /** The policy revision a manager last acknowledged for it (0 when none was needed). */
+  acknowledgedRevision: number;
+  /** A connection or reconnect is being prepared. */
+  staged: boolean;
+  connectedBy?: string;
+  connectedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+/** Whether a program may have company accounts, and the revision a manager acknowledges first ("warn"). */
+export interface OrcaCompanyAccountPolicy {
+  mode: "allowed" | "warn" | "personal_only";
+  revision: number;
+}
+/** What a manager needs to connect a company account's next generation; never its record or credential. */
+export interface OrcaProgramAccountStage {
+  accountID: string;
+  label: string;
+  generation: number;
+  protocol?: string;
+  fields: { key: string; name: string; description: string; required: boolean; sensitive: boolean }[];
+  requiresURL: boolean;
+  oauthSupported: boolean;
 }
 
 export type HubStatus = "draft" | "active" | "paused" | "archived" | "deleted";
@@ -428,7 +465,11 @@ export type ConnectionInput = Pick<
   | "reviewedReadOnly"
   | "reviewedTools"
   | "enabled"
-> & { version?: number };
+> & {
+  version?: number;
+  /** A company account to use, or "" for each person's own; left out, a save keeps the current choice. */
+  programAccountID?: string;
+};
 export type HubInput = Pick<
   OrcaHub,
   | "name"
@@ -629,6 +670,28 @@ export const OrcaService = {
     doPost(orcaPath(`/sources/${part(id)}/oauth`), {}, options) as Promise<{
       oauthURL: string;
     }>,
+  /** The company's accounts (บัญชีกลาง); managers only. */
+  programAccounts: () => list<OrcaProgramAccount>(orcaPath("/program-accounts")),
+  programAccountPolicy: (sourceID: string) =>
+    doGet(orcaPath(`/sources/${part(sourceID)}/program-account-policy`), options) as Promise<OrcaCompanyAccountPolicy>,
+  createProgramAccount: (sourceID: string, label: string, acknowledgedRevision: number) =>
+    doPost(orcaPath("/program-accounts"), { sourceID, label, acknowledgedRevision }, options) as Promise<OrcaProgramAccount>,
+  renameProgramAccount: (id: string, label: string) =>
+    doPut(orcaPath(`/program-accounts/${part(id)}`), { label }, options) as Promise<OrcaProgramAccount>,
+  deleteProgramAccount: (id: string) =>
+    doWithBody("DELETE", orcaPath(`/program-accounts/${part(id)}`), {}, options) as Promise<{ deleted: boolean }>,
+  /** Prepares the account's next generation; `acknowledgedRevision` acknowledges a changed policy first. */
+  stageProgramAccount: (id: string, acknowledgedRevision?: number) =>
+    doPost(orcaPath(`/program-accounts/${part(id)}/stage`), acknowledgedRevision ? { acknowledgedRevision } : {}, options) as Promise<OrcaProgramAccountStage>,
+  /** Saves a key or token on the stage, checks it with the program, and on success makes it the one in use. */
+  configureProgramAccount: (id: string, generation: number, values: Record<string, string>, url?: string) =>
+    doPost(orcaPath(`/program-accounts/${part(id)}/configure`), { generation, values, ...(url ? { url } : {}) }, options) as Promise<OrcaProgramAccount>,
+  startProgramAccountOAuth: (id: string, generation: number) =>
+    doPost(orcaPath(`/program-accounts/${part(id)}/oauth`), { generation }, options) as Promise<{ oauthURL: string }>,
+  checkProgramAccount: (id: string) =>
+    doPost(orcaPath(`/program-accounts/${part(id)}/check`), {}, options) as Promise<{ checked: boolean; generation: number }>,
+  disconnectProgramAccount: (id: string) =>
+    doPost(orcaPath(`/program-accounts/${part(id)}/disconnect`), {}, options) as Promise<OrcaProgramAccount>,
   disconnectSourceOAuth: (id: string) =>
     doPost(
       orcaPath(`/sources/${part(id)}/oauth/disconnect`),

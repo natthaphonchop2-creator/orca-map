@@ -8,7 +8,7 @@
 	import { namesText } from '$lib/orca/connect-ai';
 	import { gatewayHasMember } from '$lib/orca/gateway-sources';
 	import { t } from '$lib/orca/locale.svelte';
-	import { personalAccountReader, personalSetup, personalSources, type PersonalSetup, type PersonalSource } from '$lib/orca/personal-connections';
+	import { companyAccountSources, personalAccountReader, personalSetup, personalSources, type PersonalSetup, type PersonalSource } from '$lib/orca/personal-connections';
 	import { OrcaService, type OrcaBootstrap } from '$lib/services/orca';
 	import Sheet from '../ui/Sheet.svelte';
 	import SourceSetup from '../SourceSetup.svelte';
@@ -16,8 +16,8 @@
 	// "อีก 1 ขั้น: ลงชื่อเข้าใช้ {โปรแกรม} ของคุณ" for every program in this
 	// person's workspaces that still needs their own account, then the ones
 	// already signed in (to sign in again). Signing in opens the program's
-	// setup in a side panel. Customer companies can only use personal
-	// accounts, so this is a core step, not an edge case.
+	// setup in a side panel. A program on a company account (บัญชีกลาง) needs
+	// nothing from members: it is listed as such, with no button.
 	let { data, onshown }: { data: OrcaBootstrap; /** The section is on the page (an "#accounts" link scrolls to it then). */ onshown?: () => void } = $props();
 	type AccountRecord = { status: 'loading' | 'ready' | 'error'; setup?: PersonalSetup };
 	let accounts = $state<Record<string, AccountRecord>>({});
@@ -26,6 +26,7 @@
 	let sheetOpen = $state(false);
 	const own: Record<string, AccountRecord> = $derived(accountUserID === data.currentUserID ? accounts : {});
 	const sources = $derived(personalSources(data));
+	const companySources = $derived(companyAccountSources(data));
 	const scope = $derived(
 		JSON.stringify({
 			user: data.currentUserID,
@@ -91,7 +92,7 @@
 	const pending = $derived(rows.filter((row) => row.state === 'account-needed' || row.state === 'not-configured'));
 	const blocked = $derived(rows.filter((row) => row.state === 'client-needed' || row.state === 'unknown'));
 	const signedIn = $derived(rows.filter((row) => row.state === 'account-connected' || row.state === 'configured'));
-	const shown = $derived(pending.length + blocked.length + signedIn.length > 0);
+	const shown = $derived(pending.length + blocked.length + signedIn.length + companySources.length > 0);
 	$effect(() => {
 		if (shown) untrack(() => onshown?.());
 	});
@@ -101,7 +102,7 @@
 	}
 </script>
 
-{#if pending.length || blocked.length || signedIn.length}
+{#if shown}
 	<section class="ca-programs" id="accounts" aria-label={t('บัญชีโปรแกรมของคุณ', 'Your program accounts')}>
 		{#each pending as row (row.source.sourceID)}
 			<article class="ca-next">
@@ -131,6 +132,20 @@
 				{#if row.state === 'unknown'}<button type="button" class="k-button small" onclick={() => reader.retry(row.source.sourceID)}><RefreshCw size={14} aria-hidden="true" />{t('ลองอีกครั้ง', 'Try again')}</button>{/if}
 			</article>
 		{/each}
+		{#if companySources.length}
+			<div class="ca-signed">
+				<h2>{t('โปรแกรมที่ใช้บัญชีกลาง', 'Programs on a company account')}</h2>
+				<p>{t('ผู้ดูแลเชื่อมบัญชีเดียวไว้ให้ทุกคน คุณไม่ต้องลงชื่อเข้าใช้เอง ถ้า AI ใช้ไม่ได้ ให้แจ้งผู้ดูแล', 'A manager connected one account for everyone, so you never sign in yourself. If AI can’t use it, tell a manager.')}</p>
+				<ul>
+					{#each companySources as source (source.sourceID)}
+						<li>
+							<span class="ca-logo small"><CatalogIcon name={source.name} size={22} /></span>
+							<span class="ca-signed-copy"><b>{source.name}</b><span class="ca-done">{t('ใช้บัญชีกลาง', 'Uses the company account')}</span></span>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
 		{#if signedIn.length}
 			<div class="ca-signed">
 				<h2>{t('โปรแกรมที่คุณลงชื่อเข้าใช้แล้ว', 'Programs you signed in to')}</h2>
