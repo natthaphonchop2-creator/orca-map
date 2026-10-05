@@ -52,10 +52,10 @@
     ),
     // LINE's fixed errors read as on the approval (design §14l).
     ...Object.fromEntries(
-      (["audit_unconfirmed", "provider_token", "provider_access", "provider_not_found", "provider_rejected", "provider_quota", "provider_rate_limited", "recipient_mismatch", "unknown_outcome", "approval_required", "account_changed"] as const).map(
+      (["audit_unconfirmed", "provider_token", "provider_access", "provider_not_found", "provider_rejected", "provider_quota", "provider_rate_limited", "recipient_mismatch", "unknown_outcome", "approval_required", "account_changed", "account_needs_reconnect", "program_account_changed"] as const).map(
         (category) => [category, failureText(category, orcaLocale.value === "en" ? "en" : "th")],
       ),
-    ) as Record<"audit_unconfirmed" | "provider_token" | "provider_access" | "provider_not_found" | "provider_rejected" | "provider_quota" | "provider_rate_limited" | "recipient_mismatch" | "unknown_outcome" | "approval_required" | "account_changed", string>,
+    ) as Record<"audit_unconfirmed" | "provider_token" | "provider_access" | "provider_not_found" | "provider_rejected" | "provider_quota" | "provider_rate_limited" | "recipient_mismatch" | "unknown_outcome" | "approval_required" | "account_changed" | "account_needs_reconnect" | "program_account_changed", string>,
     unknown: t(
       "ประวัตินี้ไม่ได้บอกสาเหตุ",
       "The cause is not available in this record",

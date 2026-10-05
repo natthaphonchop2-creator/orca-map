@@ -21,6 +21,9 @@ const categories = [
   "unknown_outcome",
   "approval_required",
   "account_changed",
+  // A company account (บัญชีกลาง): paused, or changed since a request read or held it.
+  "account_needs_reconnect",
+  "program_account_changed",
 ] as const;
 export type AuditErrorCategory = (typeof categories)[number] | "unknown";
 

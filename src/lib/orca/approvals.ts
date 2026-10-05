@@ -131,7 +131,10 @@ const failures: Record<string, readonly [string, string]> = {
 	// LINE didn't answer, or a later try failed after one that may have gone through (design §14l).
 	unknown_outcome: ['ORCA ยังไม่รู้ว่า LINE ส่งข้อความนี้ไปแล้วหรือยัง (LINE ไม่ตอบ หรือการลองครั้งหลังไม่สำเร็จ หลังครั้งที่อาจส่งไปแล้ว) อย่าขอส่งใหม่ กด “ลองอีกครั้ง (ไม่ส่งซ้ำ)” ได้ภายใน 23 ชั่วโมง ORCA ใช้รหัสกันส่งซ้ำเดิม LINE จึงไม่ส่งซ้ำ', "ORCA doesn't know whether LINE sent this message: LINE didn't answer, or a later try failed after one that may have gone through. Don't ask to send it again: choose “Retry (no double send)” within 23 hours. ORCA reuses the same retry key, so LINE never sends it twice."],
 	approval_required: ['การส่งหรือการเปลี่ยนใน LINE ต้องให้ผู้ดูแลอนุมัติใน ORCA ก่อน ยังไม่มีอะไรถูกส่ง', "Sending or changing anything in LINE needs a manager's approval in ORCA first. Nothing was sent."],
-	account_changed: ['คีย์ LINE ที่บันทึกใน ORCA ตอนนี้เป็นของ LINE OA อื่น ไม่ใช่บัญชีที่ส่งครั้งแรก ORCA จึงไม่ส่งครั้งนี้ ตรวจแชตของบัญชีเดิมใน LINE OA Manager', "The LINE token saved in ORCA now belongs to another LINE OA than the one this first ran on, so ORCA didn't send it this time. Check the original account's chats in LINE OA Manager."]
+	account_changed: ['คีย์ LINE ที่บันทึกใน ORCA ตอนนี้เป็นของ LINE OA อื่น ไม่ใช่บัญชีที่ส่งครั้งแรก ORCA จึงไม่ส่งครั้งนี้ ตรวจแชตของบัญชีเดิมใน LINE OA Manager', "The LINE token saved in ORCA now belongs to another LINE OA than the one this first ran on, so ORCA didn't send it this time. Check the original account's chats in LINE OA Manager."],
+	// A company account (บัญชีกลาง), company accounts design §7.
+	account_needs_reconnect: ['บัญชีกลางของโปรแกรมนี้ต้องให้ผู้ดูแลเชื่อมใหม่ ORCA จึงไม่ได้ทำรายการนี้', "This program's company account needs a manager to connect it again, so ORCA didn't run this."],
+	program_account_changed: ['บัญชีกลางของโปรแกรมนี้เปลี่ยนหลังจากที่ขอไว้ ORCA จึงไม่ได้ทำรายการนี้ ให้ AI ขอใหม่อีกครั้ง', "This program's company account changed after the request was made, so ORCA didn't run it. Have the AI ask again."]
 };
 
 export function failureText(category?: string, locale: 'th' | 'en' = 'th'): string {

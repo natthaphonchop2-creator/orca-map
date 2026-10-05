@@ -85,6 +85,10 @@ test("LINE's answers read in plain words; an unknown category keeps the general 
   assert.match(failureText("provider_rate_limited"), /ยังไม่มีอะไรถูกส่ง/);
   assert.equal(failureText(undefined), "โปรแกรมแจ้งข้อผิดพลาด");
   assert.equal(failureText("constructor"), "โปรแกรมแจ้งข้อผิดพลาด", "only the table's own keys");
+  // A company account (บัญชีกลาง) never reads as a LINE token.
+  assert.match(failureText("account_needs_reconnect"), /บัญชีกลาง.*ผู้ดูแลเชื่อมใหม่/);
+  assert.match(failureText("program_account_changed"), /บัญชีกลาง.*ขอใหม่/);
+  assert.doesNotMatch(failureText("program_account_changed"), /LINE/);
 });
 
 test("retry (no double send) is offered only when the server says so, for a LINE write, within 23 hours and 4 runs", () => {
