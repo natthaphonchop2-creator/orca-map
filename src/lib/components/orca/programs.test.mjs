@@ -19,7 +19,8 @@ const activation = await importTypeScript(new URL('../../orca/activation.ts', im
 const contract = await importTypeScript(new URL('./ui/page-contract.ts', import.meta.url));
 
 const th = (thai) => thai;
-const base = { t: th, localeHref: (href) => href, orcaLocale: { value: 'th' }, ...glossary, ...navigation, ...tools, ...catalogHelpers, ...catalog, ...gatewaySources, ...presentation, ...health, ...activation };
+const keep = await importTypeScript(new URL('../../orca/keep-together.ts', import.meta.url));
+const base = { ...keep, t: th, localeHref: (href) => href, orcaLocale: { value: 'th' }, ...glossary, ...navigation, ...tools, ...catalogHelpers, ...catalog, ...gatewaySources, ...presentation, ...health, ...activation };
 const text = (html) => html.replace(/<!--[^>]*-->/g, '').replace(/\s+/g, ' ');
 // A child component that records its props (and renders its children, if any).
 const spy = (calls, name) => (renderer, props) => {
@@ -194,12 +195,12 @@ test('step 4 names the per-person account and gives one next action', async () =
 	const everyone = text(render(Component, { props: { ...props, hubs: [] } }).body);
 	assert.match(everyone, /เชื่อม FlowAccount แล้ว/);
 	assert.match(everyone, /AI ทำได้ 1 อย่าง · อ่านอย่างเดียว/);
-	assert.match(everyone, /แต่ละคนต้องมีบัญชี FlowAccount ของตัวเอง/);
+	assert.match(everyone, /แต่ละคนต้องมีบัญชี FlowAccount ของ<span class="done-keep[^"]*">ตัวเอง<\/span>/);
 	assert.match(everyone, /href="\/app\?view=new&amp;everyone=1&amp;connection=c1"[^>]*>.*ให้ทุกคนในบริษัทใช้/);
 	assert.match(everyone, /ทุกคน 7 คน · อ่านอย่างเดียว/);
 	// A program saved on a company account: no one signs in themselves.
 	const company = text(render(Component, { props: { ...props, connection: { ...connection('c1', 's'), programAccountID: 'pac-1' }, hubs: [] } }).body);
-	assert.match(company, /ใช้บัญชีกลาง FlowAccount ผ่าน AI ได้เลย ไม่ต้องลงชื่อเข้าใช้เอง/);
+	assert.match(company, /ใช้บัญชีกลาง FlowAccount ผ่าน AI ได้เลย ไม่ต้องลงชื่อ<span class="done-keep[^"]*">เข้าใช้เอง<\/span>/, 'the phrase stays on one line');
 	assert.doesNotMatch(company, /แต่ละคนต้องมีบัญชี/);
 	assert.doesNotMatch(company, /pac-1/);
 	const workspace = text(render(Component, { props: { ...props, hubs: [{ id: 'h', name: 'Sales', status: 'active' }] } }).body);

@@ -2,6 +2,7 @@
 	import { Check, CircleAlert, LoaderCircle, X } from '@lucide/svelte';
 	import { catalogSource, type CatalogTool } from '$lib/orca/catalog';
 	import { policyStep } from '$lib/orca/company-account';
+	import { keepTogether } from '$lib/orca/keep-together';
 	import { currentCompany } from '$lib/orca/company';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import {
@@ -412,6 +413,8 @@
 	{/if}
 {/snippet}
 
+{#snippet kept(text: string)}{#each keepTogether(text, ['ตัวเอง', 'ครั้งเดียว', 'เข้าใช้เอง', 'รหัสหรือคีย์']) as part, index (index)}{#if part.keep}<span class="ap-keep">{part.text}</span>{:else}{part.text}{/if}{/each}{/snippet}
+
 <div class="ap" class:sheet={mode === 'sheet'}>
 	<div class="ap-top">
 		<!-- Once saved (step 4) the steps are a record, not links. (Going back with the browser still updates the same program: savedProgramFor.) -->
@@ -480,11 +483,11 @@
 				<legend>{t('AI ใช้บัญชีของใคร', 'Whose account AI uses')}</legend>
 				<label class="ap-mode-option" class:on={accountMode === 'personal'}>
 					<input type="radio" name="ap-mode" value="personal" bind:group={accountMode} />
-					<span><strong>{t('บัญชีของแต่ละคน', "Each person's own")}</strong><small>{t(`แต่ละคนลงชื่อเข้าใช้ ${programName} ด้วยบัญชีของตัวเอง ตอนนี้เชื่อมบัญชีของคุณก่อน`, `Each person signs in to ${programName} with their own account. Connect yours now.`)}</small></span>
+					<span><strong>{t('บัญชีของแต่ละคน', "Each person's own")}</strong><small>{@render kept(t(`แต่ละคนลงชื่อเข้าใช้ ${programName} ด้วยบัญชีของตัวเอง ตอนนี้เชื่อมบัญชีของคุณก่อน`, `Each person signs in to ${programName} with their own account. Connect yours now.`))}</small></span>
 				</label>
 				<label class="ap-mode-option" class:on={accountMode === 'company'}>
 					<input type="radio" name="ap-mode" value="company" bind:group={accountMode} />
-					<span><strong>{t('บัญชีกลาง', 'Company account')}</strong><small>{t(`ทุกคนใช้ ${programName} บัญชีเดียว ผู้ดูแลเชื่อมครั้งเดียว สมาชิกไม่ต้องลงชื่อเข้าใช้และไม่เห็นรหัสหรือคีย์`, `Everyone uses one ${programName} account: a manager connects it once, and members never sign in or see the key.`)}</small></span>
+					<span><strong>{t('บัญชีกลาง', 'Company account')}</strong><small>{@render kept(t(`ทุกคนใช้ ${programName} บัญชีเดียว ผู้ดูแลเชื่อมครั้งเดียว สมาชิกไม่ต้องลงชื่อเข้าใช้และไม่เห็นรหัสหรือคีย์`, `Everyone uses one ${programName} account: a manager connects it once, and members never sign in or see the key.`))}</small></span>
 				</label>
 			</fieldset>
 		{/if}
@@ -712,7 +715,8 @@
 	.ap-mode-option input {
 		margin-top: 3px;
 	}
-	.ap-mode-option span {
+	/* The text beside the radio; never the kept phrases inside it. */
+	.ap-mode-option > span {
 		display: grid;
 		gap: 4px;
 		min-width: 0;
@@ -724,6 +728,10 @@
 		color: var(--orca-muted);
 		font-size: 13.5px;
 		line-height: 1.45;
+	}
+	/* A short Thai phrase stays on one line (keepTogether). */
+	.ap-keep {
+		white-space: nowrap;
 	}
 	@media (max-width: 720px) {
 		.ap-top {

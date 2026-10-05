@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { ArrowRight, ChevronDown, CircleCheck, Info, Plus, UsersRound } from '@lucide/svelte';
+	import { keepTogether } from '$lib/orca/keep-together';
 	import { finishAction } from '$lib/orca/program-catalog';
 	import { accessSummary } from '$lib/orca/program-tools';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
@@ -50,9 +51,9 @@
 		</div>
 	</div>
 
-	<p class="done-note"><Info size={16} aria-hidden="true" /><span>{connection.programAccountID
+	<p class="done-note"><Info size={16} aria-hidden="true" /><span>{#each keepTogether(connection.programAccountID
 		? t(`ทุกคนที่ได้รับอนุญาตใช้บัญชีกลาง ${programName} ผ่าน AI ได้เลย ไม่ต้องลงชื่อเข้าใช้เอง เปลี่ยนบัญชีได้ที่หน้าโปรแกรม`, `Everyone allowed uses the ${programName} company account through AI without signing in. Change it on the program's page.`)
-		: t(`แต่ละคนต้องมีบัญชี ${programName} ของตัวเอง แล้วลงชื่อเข้าใช้เมื่อเริ่มใช้กับ AI`, `Each person needs their own ${programName} account and signs in when they start using it with AI.`)}</span></p>
+		: t(`แต่ละคนต้องมีบัญชี ${programName} ของตัวเอง แล้วลงชื่อเข้าใช้เมื่อเริ่มใช้กับ AI`, `Each person needs their own ${programName} account and signs in when they start using it with AI.`), ['เข้าใช้เอง', 'ตัวเอง']) as part, index (index)}{#if part.keep}<span class="done-keep">{part.text}</span>{:else}{part.text}{/if}{/each}</span></p>
 
 	<div class="done-next">
 		{#if next.kind === 'return'}
@@ -133,6 +134,10 @@
 		color: var(--orca-ink);
 		font-size: 14px;
 		line-height: 1.55;
+	}
+	/* A short Thai phrase stays on one line (keepTogether). */
+	.done-keep {
+		white-space: nowrap;
 	}
 	.done-note :global(svg) {
 		flex: none;
