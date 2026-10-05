@@ -522,7 +522,8 @@ test('back to each person\'s own account after saving with a company account say
 	assert.deepEqual(completed, ['saved-1', 'saved-1']);
 });
 
-test('a refused save whose newest program uses another account reads the tools on that account first, and never saves the old one over it (Codex release review deploy44 round 1)', async (context) => {
+test('a refused save whose newest program uses another account reads the tools on that account first, and never saves the old one over it (Codex release review deploy44 rounds 1 and 2)', async (context) => {
+	const settle = async () => { for (let i = 0; i < 6; i++) { await Promise.resolve(); flush(); } };
 	const asked = [];
 	let refuse = false;
 	const writes = [];
@@ -536,24 +537,28 @@ test('a refused save whose newest program uses another account reads the tools o
 	const sheet = await setup(context, { props: { mode: 'sheet', step: undefined, sourceID: undefined, initialSourceID: 'flow', oncompleted: async () => {} }, service: { discover, save } });
 	await sheet.view.companyAccountReady('flow', 'pac-A');
 	flush();
+	sheet.view.set({ selected: ['list', 'get'], name: 'ของแท็บนี้' });
 	await sheet.view.save();
 	assert.equal(writes[0].input.programAccountID, 'pac-A');
-	// Another manager moves the program to company account B; this tab saves again.
+	// This tab ticks more (its draft keeps them) while another manager moves the program to company account B; this tab saves again.
+	sheet.view.set({ selected: ['list', 'get'], name: 'ของแท็บนี้อีก' });
+	flush();
 	sheet.view.setConnections([{ id: 'saved-1', name: 'FlowAccount', mcpID: 'flow', programAccountID: 'pac-B', toolNames: ['list'], scopeNote: '', version: 2, enabled: true, description: '' }]);
 	refuse = true;
 	await sheet.view.save();
-	flush();
+	await settle();
+	assert.equal(sheet.view.state.companyAccount, 'pac-B', 'the flow moves to B first');
 	assert.equal(asked.at(-1), 'pac-B', 'the tools are read again on B');
-	assert.equal(sheet.view.state.companyAccount, 'pac-B');
 	assert.equal(sheet.view.state.toolsAccount, 'pac-B');
-	assert.deepEqual(sheet.view.state.selected, ['list'], 'the newest program as it is');
+	assert.deepEqual(sheet.view.state.selected, ['list'], 'the newest program as it is, not this tab\'s ticks');
+	assert.equal(sheet.view.state.name, 'FlowAccount');
 	assert.match(sheet.view.state.saveError, /บัญชีกลางอีกบัญชี/);
 	await sheet.view.save();
 	assert.equal(writes.length, 2);
 	assert.equal(writes[1].input.programAccountID, 'pac-B', 'never A over B');
 	assert.equal(writes[1].input.version, 2);
 
-	// On the page the address still names A until the page moves: nothing saves meanwhile.
+	// On the page the address moves to the newest program's account; nothing saves before it does.
 	writes.length = 0;
 	const page = await setup(context, {
 		props: { step: 'tools', programAccountID: 'pac-A', address: '/app?view=add-program&source=flow&step=tools&account=pac-A' },
@@ -565,11 +570,51 @@ test('a refused save whose newest program uses another account reads the tools o
 	page.view.setConnections([{ id: 'saved-1', name: 'FlowAccount', mcpID: 'flow', programAccountID: '', toolNames: ['list'], scopeNote: '', version: 2, enabled: true, description: '' }]);
 	refuse = true;
 	await page.view.save();
-	assert.equal(asked.at(-1), '', 'each person\'s own account now');
-	assert.equal(page.navigations.at(-1), '/app?view=add-program&source=flow&step=tools');
+	await settle();
+	assert.equal(page.navigations.at(-1), '/app?view=add-program&source=flow&step=tools', 'each person\'s own account now');
 	assert.match(page.view.state.saveError, /แต่ละคนใช้บัญชีของตัวเอง/);
 	await page.view.save();
 	assert.equal(writes.length, 1, 'only the first save: the address still names A');
+});
+
+test('when the newest program\'s account cannot be read, Try again reads that account too, and nothing saves until it is read (Codex release review deploy44 round 2)', async (context) => {
+	const settle = async () => { for (let i = 0; i < 6; i++) { await Promise.resolve(); flush(); } };
+	let refuse = false;
+	let failOn = '';
+	const asked = [];
+	const writes = [];
+	const discover = async (id, account) => { asked.push(account ?? ''); if (account === failOn) throw new Error('ยังอ่านบัญชีนี้ไม่ได้'); return offered; };
+	const save = async (input, id) => {
+		if (refuse) { refuse = false; throw Object.assign(new Error('conflict'), { status: 409 }); }
+		writes.push({ input, id });
+		return { ...input, id: id ?? `saved-${writes.length}`, version: (input.version ?? 0) + 1 };
+	};
+	const { view } = await setup(context, { props: { mode: 'sheet', step: undefined, sourceID: undefined, initialSourceID: 'flow', oncompleted: async () => {} }, service: { discover, save } });
+	await view.companyAccountReady('flow', 'pac-A');
+	flush();
+	await view.save();
+	view.setConnections([{ id: 'saved-1', name: 'FlowAccount', mcpID: 'flow', programAccountID: 'pac-B', toolNames: ['list'], scopeNote: '', version: 2, enabled: true, description: '' }]);
+	refuse = true;
+	failOn = 'pac-B';
+	await view.save();
+	await settle();
+	assert.equal(asked.at(-1), 'pac-B');
+	assert.equal(view.state.discoverError, 'ยังอ่านบัญชีนี้ไม่ได้');
+	await view.save();
+	assert.equal(writes.length, 1, 'the tools read on A are never saved on B\'s program');
+	// ลองอีกครั้ง reads B again, never A.
+	await view.discover('flow');
+	assert.equal(asked.at(-1), 'pac-B');
+	await view.save();
+	assert.equal(writes.length, 1);
+	// B can be read now: the newest program's ticks, saved on B.
+	failOn = '';
+	await view.discover('flow');
+	flush();
+	await view.save();
+	assert.equal(writes.length, 2);
+	assert.equal(writes[1].input.programAccountID, 'pac-B');
+	assert.deepEqual(writes[1].input.toolNames, ['list']);
 });
 
 test('a discovery that ends after the program changed never opens step 3 for the other program', async (context) => {
@@ -596,27 +641,4 @@ test('a discovery that ends after the program changed never opens step 3 for the
 	flush();
 	assert.equal(view.state.sourceID, 'flow');
 	assert.equal(view.state.step, 'connect');
-});
-
-test('when the newest program\'s account cannot be read, nothing saves until it is', async (context) => {
-	let refuse = false;
-	let failOn = '';
-	const writes = [];
-	const discover = async (id, account) => { if (account === failOn) throw new Error('ยังอ่านบัญชีนี้ไม่ได้'); return offered; };
-	const save = async (input, id) => {
-		if (refuse) { refuse = false; throw Object.assign(new Error('conflict'), { status: 409 }); }
-		writes.push({ input, id });
-		return { ...input, id: id ?? `saved-${writes.length}`, version: (input.version ?? 0) + 1 };
-	};
-	const { view } = await setup(context, { props: { mode: 'sheet', step: undefined, sourceID: undefined, initialSourceID: 'flow', oncompleted: async () => {} }, service: { discover, save } });
-	await view.companyAccountReady('flow', 'pac-A');
-	flush();
-	await view.save();
-	view.setConnections([{ id: 'saved-1', name: 'FlowAccount', mcpID: 'flow', programAccountID: 'pac-B', toolNames: ['list'], scopeNote: '', version: 2, enabled: true, description: '' }]);
-	refuse = true;
-	failOn = 'pac-B';
-	await view.save();
-	flush();
-	await view.save();
-	assert.equal(writes.length, 1, 'the tools read on A are never saved on B\'s program');
 });
