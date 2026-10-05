@@ -255,12 +255,12 @@
 	// Step 2 succeeded: see what AI can do, then move on.
 	async function accountReady(id: string) {
 		if (id !== sourceID) return;
-		if (await discover(id, '')) await go('tools', { account: null });
+		if ((await discover(id, '')) && id === sourceID) await go('tools', { account: null });
 	}
 	// Step 2 with บัญชีกลาง: the company account is connected; see what AI can do on it.
 	async function companyAccountReady(id: string, accountID: string) {
 		if (id !== sourceID || !accountID) return;
-		if (await discover(id, accountID)) await go('tools', { account: accountID });
+		if ((await discover(id, accountID)) && id === sourceID) await go('tools', { account: accountID });
 	}
 
 	// The program's company account policy, for step 2's choice.
@@ -366,6 +366,35 @@
 		}
 		rememberSavedProgram(storage(), savedKey, sourceID, latest.id, Date.now(), latest.version);
 		saved = latest;
+		// Someone also changed whose account AI uses: the tools on screen were
+		// read on the other one, so nothing saves until they are read again on
+		// the newest program's account, which the page then shows (Codex
+		// release review deploy44 round 1, MAJOR).
+		const latestAccount = latest.programAccountID ?? '';
+		if (latestAccount !== toolsAccount) {
+			const id = sourceID;
+			toolsFor = '';
+			accountMode = latestAccount ? 'company' : 'personal';
+			const read = await discover(id, latestAccount);
+			if (!alive || id !== sourceID) return;
+			if (read) {
+				await go('tools', { account: latestAccount || null });
+				selected = savedSelection(tools, latest.toolNames);
+				preset = presetFor(selected, tools);
+				name = latest.name;
+				note = latest.scopeNote ?? '';
+			}
+			saveError = latestAccount
+				? t(
+						'มีคนเปลี่ยนโปรแกรมนี้ให้ใช้บัญชีกลางอีกบัญชีหลังจากคุณบันทึก หน้านี้แสดงฉบับล่าสุดแล้ว ตรวจแล้วบันทึกอีกครั้ง หรือกลับไปเลือกบัญชีใหม่',
+						'Someone set this program to another company account after you saved it. This shows the newest version now: check it and save again, or go back and choose the account.'
+					)
+				: t(
+						'มีคนเปลี่ยนโปรแกรมนี้ให้แต่ละคนใช้บัญชีของตัวเองหลังจากคุณบันทึก หน้านี้แสดงฉบับล่าสุดแล้ว ตรวจแล้วบันทึกอีกครั้ง หรือกลับไปเลือกบัญชีใหม่',
+						"Someone set this program to each person's own account after you saved it. This shows the newest version now: check it and save again, or go back and choose the account."
+					);
+			return;
+		}
 		selected = savedSelection(tools, latest.toolNames);
 		preset = presetFor(selected, tools);
 		// Its name and note too: saving again never puts back ones this page
@@ -497,6 +526,7 @@
 				<CompanyAccountConnect
 					{sourceID}
 					{programName}
+					current={companyAccount}
 					pending={discovering ? t(`กำลังดูว่า AI ทำอะไรได้บ้างใน ${programName}…`, `Seeing what AI can do in ${programName}…`) : ''}
 					onready={(accountID) => companyAccountReady(sourceID, accountID)}
 				/>

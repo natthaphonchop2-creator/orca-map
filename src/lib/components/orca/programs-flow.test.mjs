@@ -521,3 +521,102 @@ test('back to each person\'s own account after saving with a company account say
 	assert.equal(writes[1].input.programAccountID, '', 'each person\'s own account, explicitly');
 	assert.deepEqual(completed, ['saved-1', 'saved-1']);
 });
+
+test('a refused save whose newest program uses another account reads the tools on that account first, and never saves the old one over it (Codex release review deploy44 round 1)', async (context) => {
+	const asked = [];
+	let refuse = false;
+	const writes = [];
+	const discover = async (id, account) => { asked.push(account ?? ''); return offered; };
+	const save = async (input, id) => {
+		if (refuse) { refuse = false; throw Object.assign(new Error('conflict'), { status: 409 }); }
+		writes.push({ input, id });
+		return { ...input, id: id ?? `saved-${writes.length}`, version: (input.version ?? 0) + 1 };
+	};
+	// In the sheet the account lives in the flow, so a change is seen at once.
+	const sheet = await setup(context, { props: { mode: 'sheet', step: undefined, sourceID: undefined, initialSourceID: 'flow', oncompleted: async () => {} }, service: { discover, save } });
+	await sheet.view.companyAccountReady('flow', 'pac-A');
+	flush();
+	await sheet.view.save();
+	assert.equal(writes[0].input.programAccountID, 'pac-A');
+	// Another manager moves the program to company account B; this tab saves again.
+	sheet.view.setConnections([{ id: 'saved-1', name: 'FlowAccount', mcpID: 'flow', programAccountID: 'pac-B', toolNames: ['list'], scopeNote: '', version: 2, enabled: true, description: '' }]);
+	refuse = true;
+	await sheet.view.save();
+	flush();
+	assert.equal(asked.at(-1), 'pac-B', 'the tools are read again on B');
+	assert.equal(sheet.view.state.companyAccount, 'pac-B');
+	assert.equal(sheet.view.state.toolsAccount, 'pac-B');
+	assert.deepEqual(sheet.view.state.selected, ['list'], 'the newest program as it is');
+	assert.match(sheet.view.state.saveError, /บัญชีกลางอีกบัญชี/);
+	await sheet.view.save();
+	assert.equal(writes.length, 2);
+	assert.equal(writes[1].input.programAccountID, 'pac-B', 'never A over B');
+	assert.equal(writes[1].input.version, 2);
+
+	// On the page the address still names A until the page moves: nothing saves meanwhile.
+	writes.length = 0;
+	const page = await setup(context, {
+		props: { step: 'tools', programAccountID: 'pac-A', address: '/app?view=add-program&source=flow&step=tools&account=pac-A' },
+		service: { discover, save }
+	});
+	await page.view.discover('flow');
+	flush();
+	await page.view.save();
+	page.view.setConnections([{ id: 'saved-1', name: 'FlowAccount', mcpID: 'flow', programAccountID: '', toolNames: ['list'], scopeNote: '', version: 2, enabled: true, description: '' }]);
+	refuse = true;
+	await page.view.save();
+	assert.equal(asked.at(-1), '', 'each person\'s own account now');
+	assert.equal(page.navigations.at(-1), '/app?view=add-program&source=flow&step=tools');
+	assert.match(page.view.state.saveError, /แต่ละคนใช้บัญชีของตัวเอง/);
+	await page.view.save();
+	assert.equal(writes.length, 1, 'only the first save: the address still names A');
+});
+
+test('a discovery that ends after the program changed never opens step 3 for the other program', async (context) => {
+	let release;
+	const { view } = await setup(context, {
+		props: { mode: 'sheet', step: undefined, sourceID: undefined, initialSourceID: 'flow', oncompleted: async () => {} },
+		service: { discover: () => new Promise((done) => { release = done; }) }
+	});
+	const pending = view.companyAccountReady('flow', 'pac-A');
+	view.pick('peak');
+	flush();
+	release(offered);
+	await pending;
+	flush();
+	assert.equal(view.state.sourceID, 'peak');
+	assert.equal(view.state.step, 'connect', 'still choosing the account for the other program');
+	assert.equal(view.state.companyAccount, '', 'and with no account from the first one');
+	// The same for each person's own account.
+	const own = view.accountReady('peak');
+	view.pick('flow');
+	flush();
+	release(offered);
+	await own;
+	flush();
+	assert.equal(view.state.sourceID, 'flow');
+	assert.equal(view.state.step, 'connect');
+});
+
+test('when the newest program\'s account cannot be read, nothing saves until it is', async (context) => {
+	let refuse = false;
+	let failOn = '';
+	const writes = [];
+	const discover = async (id, account) => { if (account === failOn) throw new Error('ยังอ่านบัญชีนี้ไม่ได้'); return offered; };
+	const save = async (input, id) => {
+		if (refuse) { refuse = false; throw Object.assign(new Error('conflict'), { status: 409 }); }
+		writes.push({ input, id });
+		return { ...input, id: id ?? `saved-${writes.length}`, version: (input.version ?? 0) + 1 };
+	};
+	const { view } = await setup(context, { props: { mode: 'sheet', step: undefined, sourceID: undefined, initialSourceID: 'flow', oncompleted: async () => {} }, service: { discover, save } });
+	await view.companyAccountReady('flow', 'pac-A');
+	flush();
+	await view.save();
+	view.setConnections([{ id: 'saved-1', name: 'FlowAccount', mcpID: 'flow', programAccountID: 'pac-B', toolNames: ['list'], scopeNote: '', version: 2, enabled: true, description: '' }]);
+	refuse = true;
+	failOn = 'pac-B';
+	await view.save();
+	flush();
+	await view.save();
+	assert.equal(writes.length, 1, 'the tools read on A are never saved on B\'s program');
+});
