@@ -413,7 +413,7 @@
 	{/if}
 {/snippet}
 
-{#snippet kept(text: string)}{#each keepTogether(text, ['ตัวเอง', 'ครั้งเดียว', 'เข้าใช้เอง']) as part, index (index)}{#if part.keep}<span class="ap-keep">{part.text}</span>{:else}{part.text}{/if}{/each}{/snippet}
+{#snippet kept(text: string)}{#each keepTogether(text, ['ตัวเอง', 'ครั้งเดียว', 'เข้าใช้เอง', 'รหัสหรือคีย์']) as part, index (index)}{#if part.keep}<span class="ap-keep">{part.text}</span>{:else}{part.text}{/if}{/each}{/snippet}
 
 <div class="ap" class:sheet={mode === 'sheet'}>
 	<div class="ap-top">
