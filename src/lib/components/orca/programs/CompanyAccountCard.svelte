@@ -296,7 +296,7 @@
 			<div><dt>{t('บัญชีกลาง', 'Company account')}</dt><dd>{account?.label ?? t('ไม่พบบัญชีนี้', 'Not found')}</dd></div>
 			{#if account?.connectedAt}<div><dt>{t('เชื่อมโดย', 'Connected by')}</dt><dd>{[connectedBy, displayDate(account.connectedAt)].filter(Boolean).join(' · ')}</dd></div>{/if}
 		</dl>
-		{#if reason}<p class="ca-note warn">{t(reason.th, reason.en)}</p>{/if}
+		{#if reason && !(accountNeedsAck && account?.pausedReason === 'policy_changed')}<p class="ca-note warn">{t(reason.th, reason.en)}</p>{/if}
 		{#if accountNeedsAck && !stage}
 			<p class="ca-note warn">{t(
 				`เงื่อนไขการใช้บัญชีกลางของ ${programName} เปลี่ยน ทุกคนที่ได้รับอนุญาตจะใช้บัญชีนี้ผ่าน AI และเห็นข้อมูลชุดเดียวกัน เงื่อนไขของ ${programName} อาจไม่อนุญาตให้หลายคนใช้บัญชีเดียว บริษัทของคุณรับผิดชอบการใช้ตามเงื่อนไขนั้นเอง`,

@@ -66,7 +66,7 @@ test('a policy that changed asks the manager to accept it before connecting agai
 		connection: connection({ programAccountID: 'pac-1' }),
 		initial: { accounts: [account({ status: 'needs_reconnect', pausedReason: 'policy_changed' })], policy: { mode: 'warn', revision: 2 } }
 	});
-	assert.match(html, /ต้องยอมรับเงื่อนไขใหม่แล้วเชื่อมใหม่/);
+	assert.match(html, /เงื่อนไขการใช้บัญชีกลางของ FlowAccount เปลี่ยน/);
 	assert.match(html, /type="checkbox"/);
 	assert.match(html, /<button[^>]*disabled[^>]*>เชื่อมใหม่</, 'not before the manager accepts');
 	assert.doesNotMatch(html, />ตรวจการเชื่อมต่อ</, 'nothing to check while paused');
