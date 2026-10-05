@@ -13,12 +13,13 @@ import { importTypeScript } from '../../orca/test-import.mjs';
 const catalogHelpers = await importTypeScript(new URL('../../orca/program-catalog.ts', import.meta.url));
 const tools = await importTypeScript(new URL('../../orca/program-tools.ts', import.meta.url));
 const { catalogSource } = await importTypeScript(new URL('../../orca/catalog.ts', import.meta.url));
+const { policyStep } = await importTypeScript(new URL('../../orca/company-account.ts', import.meta.url));
 const component = await readFile(new URL('./programs/AddProgramFlow.svelte', import.meta.url), 'utf8');
 const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
 	.replace(/^\s*import[\s\S]*?from\s+'[^']+';/gm, '')
 	.replace('$props()', '$state(testProps)');
 const names = [
-	'catalogSource', 'currentCompany', 'localeHref', 't', 'orcaError', 'programSaveError', 'programSaveConflict', 'ProgramService', 'onDestroy', 'onMount', 'untrack',
+	'catalogSource', 'currentCompany', 'localeHref', 't', 'orcaError', 'programSaveError', 'programSaveConflict', 'ProgramService', 'OrcaService', 'policyStep', 'onDestroy', 'onMount', 'untrack',
 	...Object.keys(catalogHelpers), ...Object.keys(tools)
 ];
 const require = createRequire(import.meta.url);
@@ -27,7 +28,7 @@ const compiled = compileModule(
 		const { ${[...new Set(names)].join(', ')} } = deps;
 		${script}
 		return {
-			discover, accountReady, save, pick, change, loadCatalog,
+			discover, accountReady, companyAccountReady, save, pick, change, loadCatalog,
 			setConnections(list) { data.connections = list; },
 			set(input) {
 				if (input.selected !== undefined) selected = input.selected;
@@ -35,7 +36,8 @@ const compiled = compileModule(
 				if (input.note !== undefined) note = input.note;
 				if (input.preset !== undefined) preset = input.preset;
 			},
-			get state() { return { step, sourceID, tools, toolsFor, discovering, discoverError, selected, preset, name, note, saving, saveError, saved, sources }; }
+			setMode(value) { accountMode = value; },
+			get state() { return { step, sourceID, tools, toolsFor, toolsAccount, companyAccount, accountMode, companyAllowed, discovering, discoverError, selected, preset, name, note, saving, saveError, saved, sources }; }
 		};
 	}`,
 	{ filename: 'add-program-flow-test.svelte.js', generate: 'client' }
@@ -69,7 +71,8 @@ async function setup(context, { props = {}, service = {}, storage = memoryStorag
 				...props
 			},
 			{
-				...catalogHelpers, ...tools, catalogSource, untrack,
+				...catalogHelpers, ...tools, catalogSource, policyStep, untrack,
+				OrcaService: { programAccountPolicy: service.policy ?? (async () => undefined) },
 				currentCompany: () => 'default', localeHref: (href) => href, t: (th) => th, orcaError: (cause) => cause.message,
 				programSaveError: (cause) => tools.programSaveMessage(cause.message, (th) => th) ?? cause.message,
 				programSaveConflict: (cause) => cause?.status === 409,
@@ -445,4 +448,76 @@ test('in the workspace form\'s sheet the steps stay in place and finish by handi
 	await view.save();
 	assert.deepEqual(completed, ['conn-flow', 'saved-1']);
 	assert.deepEqual(navigations, [], 'the sheet never navigates the page');
+});
+
+test('บัญชีกลาง at step 2: offered unless the program allows personal accounts only, or its policy could not be read', async (context) => {
+	const settle = async () => { for (let i = 0; i < 4; i++) { await Promise.resolve(); flush(); } };
+	const warn = await setup(context, { service: { policy: async () => ({ mode: 'warn', revision: 2 }) } });
+	await settle();
+	assert.equal(warn.view.state.companyAllowed, true);
+	assert.equal(warn.view.state.accountMode, 'personal', 'each person\'s own stays the start');
+	const only = await setup(context, { service: { policy: async () => ({ mode: 'personal_only', revision: 1 }) } });
+	await settle();
+	assert.equal(only.view.state.companyAllowed, false);
+	const failed = await setup(context, { service: { policy: async () => { throw new Error('down'); } } });
+	await settle();
+	assert.equal(failed.view.state.companyAllowed, false, 'unknown is never offered');
+	const reload = await setup(context, { props: { programAccountID: 'pac-1' }, service: { policy: async () => ({ mode: 'allowed', revision: 1 }) } });
+	assert.equal(reload.view.state.accountMode, 'company', 'a reload with the account in the address keeps the choice');
+});
+
+test('a company account connected at step 2: step 3 reads what AI can do on it, and the save names it', async (context) => {
+	const asked = [];
+	const { view, writes, navigations } = await setup(context, { service: { discover: async (id, account) => { asked.push([id, account]); return offered; } } });
+	await view.companyAccountReady('flow', 'pac-1');
+	assert.deepEqual(asked, [['flow', 'pac-1']]);
+	assert.deepEqual(navigations, ['/app?view=add-program&source=flow&step=tools&account=pac-1']);
+	assert.equal(view.state.toolsAccount, 'pac-1');
+	// A late answer for another program never moves the page.
+	await view.companyAccountReady('peak', 'pac-2');
+	assert.equal(navigations.length, 1);
+
+	// Step 3 as the address opens it: the account from the address.
+	const page = await setup(context, { props: { step: 'tools', programAccountID: 'pac-1', address: '/app?view=add-program&source=flow&step=tools&account=pac-1' }, service: { discover: async (id, account) => { asked.push([id, account]); return offered; } } });
+	await page.view.discover('flow');
+	flush();
+	await page.view.save();
+	assert.equal(asked.at(-1)[1], 'pac-1');
+	assert.equal(page.writes.length, 1);
+	assert.equal(page.writes[0].input.programAccountID, 'pac-1');
+	assert.equal(page.navigations.at(-1), '/app?view=add-program&source=flow&step=done&account=pac-1&connection=saved-1');
+	assert.deepEqual(writes, []);
+});
+
+test('tools read on another account than the address names are never saved on it', async (context) => {
+	const { view, writes } = await setup(context, { props: { step: 'tools', programAccountID: 'pac-1' } });
+	await view.discover('flow', '');
+	flush();
+	await view.save();
+	assert.deepEqual(writes, [], 'the tools were read on the manager\'s own account');
+});
+
+test('back to each person\'s own account after saving with a company account says so on the same program', async (context) => {
+	const completed = [];
+	const { view, writes } = await setup(context, {
+		props: {
+			mode: 'sheet', step: undefined, sourceID: undefined, initialSourceID: 'flow',
+			oncompleted: async (connection) => { completed.push(connection.id); }
+		}
+	});
+	await view.companyAccountReady('flow', 'pac-1');
+	flush();
+	assert.equal(view.state.step, 'tools');
+	assert.equal(view.state.companyAccount, 'pac-1');
+	await view.save();
+	assert.equal(writes[0].input.programAccountID, 'pac-1');
+	// The manager goes back to step 2 and connects their own account instead.
+	await view.accountReady('flow');
+	flush();
+	assert.equal(view.state.companyAccount, '');
+	await view.save();
+	assert.equal(writes.length, 2);
+	assert.equal(writes[1].id, 'saved-1', 'the same program');
+	assert.equal(writes[1].input.programAccountID, '', 'each person\'s own account, explicitly');
+	assert.deepEqual(completed, ['saved-1', 'saved-1']);
 });

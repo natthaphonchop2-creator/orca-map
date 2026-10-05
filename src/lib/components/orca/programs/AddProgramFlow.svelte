@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Check, CircleAlert, LoaderCircle, X } from '@lucide/svelte';
 	import { catalogSource, type CatalogTool } from '$lib/orca/catalog';
+	import { policyStep } from '$lib/orca/company-account';
 	import { currentCompany } from '$lib/orca/company';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import {
@@ -30,11 +31,12 @@
 		selectableUnder,
 		type AccessPreset
 	} from '$lib/orca/program-tools';
-	import { orcaError, type OrcaBootstrap, type OrcaCandidate, type OrcaConnection } from '$lib/services/orca';
+	import { OrcaService, orcaError, type OrcaBootstrap, type OrcaCandidate, type OrcaCompanyAccountPolicy, type OrcaConnection } from '$lib/services/orca';
 	import { ProgramService, programSaveConflict, programSaveError, type ProgramTool } from '$lib/services/orca-programs';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import PageHeader from '../ui/PageHeader.svelte';
 	import Stepper from '../ui/Stepper.svelte';
+	import CompanyAccountConnect from './CompanyAccountConnect.svelte';
 	import ProgramAccount from './ProgramAccount.svelte';
 	import ProgramDone from './ProgramDone.svelte';
 	import ProgramLogo from './ProgramLogo.svelte';
@@ -47,11 +49,16 @@
 	// address, so a reload or an OAuth popup never loses the place; ticked tools
 	// live in sessionStorage. Inside a sheet (`sheet`, the workspace form) the
 	// same steps run in place and finish by handing back the saved program.
+	// Step 2 chooses whose account AI uses: each person's own (the manager
+	// connects theirs now), or บัญชีกลาง, one company account connected once
+	// (company accounts design §7). A company account is in the address
+	// (`account`), and steps 3 and 4 run on it.
 	let {
 		data,
 		mode = 'page',
 		step: pageStep = 'choose',
 		sourceID: pageSource = '',
+		programAccountID: pageAccount = '',
 		connectionID = '',
 		returnTo = '',
 		address = '/app?view=add-program',
@@ -66,6 +73,8 @@
 		mode?: 'page' | 'sheet';
 		step?: ProgramStep;
 		sourceID?: string;
+		/** The company account steps 3 and 4 use, or "" for each person's own. */
+		programAccountID?: string;
 		connectionID?: string;
 		returnTo?: string | null;
 		/** The page's address (path and search), for the step links. */
@@ -79,14 +88,23 @@
 
 	let sheetStep = $state<ProgramStep>(untrack(() => (initialSourceID ? 'connect' : 'choose')));
 	let sheetSource = $state(untrack(() => initialSourceID));
+	let sheetAccount = $state('');
 	const step = $derived(mode === 'page' ? pageStep : sheetStep);
 	const sourceID = $derived(mode === 'page' ? pageSource : sheetSource);
+	const companyAccount = $derived(mode === 'page' ? pageAccount : sheetAccount);
+	// Step 2's choice: each person's own account, or บัญชีกลาง.
+	let accountMode = $state<'personal' | 'company'>(untrack(() => (pageAccount ? 'company' : 'personal')));
+	let policy = $state.raw<OrcaCompanyAccountPolicy>();
+	let policyFor = $state('');
+	const companyAllowed = $derived(policyFor === sourceID && policyStep(policy) !== 'personal-only' && policyStep(policy) !== 'unknown');
 
 	let sources = $state.raw<OrcaCandidate[]>([]);
 	let catalogLoading = $state(true);
 	let catalogError = $state('');
 	let tools = $state.raw<ProgramTool[]>([]);
 	let toolsFor = $state('');
+	// The company account the tools were read on, or "" for the manager's own.
+	let toolsAccount = $state('');
 	let discovering = $state(false);
 	let discoverError = $state('');
 	let selected = $state<string[]>([]);
@@ -150,13 +168,21 @@
 		discovery++;
 	});
 
-	function href(next: ProgramStep, changes: { source?: string | null; connection?: string | null } = {}) {
+	type StepChanges = { source?: string | null; connection?: string | null; account?: string | null };
+	function href(next: ProgramStep, changes: StepChanges = {}) {
 		return localeHref(programStepHref(address, next, changes));
 	}
-	async function go(next: ProgramStep, changes: { source?: string | null; connection?: string | null } = {}) {
+	async function go(next: ProgramStep, changes: StepChanges = {}) {
 		if (mode === 'sheet') {
-			if (changes.source !== undefined) sheetSource = changes.source ?? '';
-			if (next === 'choose') sheetSource = '';
+			if (changes.source !== undefined) {
+				sheetSource = changes.source ?? '';
+				if (changes.account === undefined) sheetAccount = '';
+			}
+			if (changes.account !== undefined) sheetAccount = changes.account ?? '';
+			if (next === 'choose') {
+				sheetSource = '';
+				sheetAccount = '';
+			}
 			sheetStep = next;
 			return;
 		}
@@ -198,12 +224,12 @@
 		}
 	}
 
-	async function discover(id: string): Promise<boolean> {
+	async function discover(id: string, account = companyAccount): Promise<boolean> {
 		const request = ++discovery;
 		discovering = true;
 		discoverError = '';
 		try {
-			const found = await ProgramService.discover(id);
+			const found = account ? await ProgramService.discover(id, account) : await ProgramService.discover(id);
 			if (!alive || request !== discovery) return false;
 			if (!found.length) {
 				discoverError = t(
@@ -214,6 +240,7 @@
 			}
 			tools = found;
 			toolsFor = id;
+			toolsAccount = account;
 			applySelection(id, found);
 			return true;
 		} catch (cause) {
@@ -227,16 +254,39 @@
 	// Step 2 succeeded: see what AI can do, then move on.
 	async function accountReady(id: string) {
 		if (id !== sourceID) return;
-		if (await discover(id)) await go('tools');
+		if (await discover(id, '')) await go('tools', { account: null });
 	}
+	// Step 2 with บัญชีกลาง: the company account is connected; see what AI can do on it.
+	async function companyAccountReady(id: string, accountID: string) {
+		if (id !== sourceID || !accountID) return;
+		if (await discover(id, accountID)) await go('tools', { account: accountID });
+	}
+
+	// The program's company account policy, for step 2's choice.
+	$effect(() => {
+		if (step !== 'connect' || !sourceID || operator) return;
+		const id = sourceID;
+		untrack(() => {
+			if (policyFor === id) return;
+			policy = undefined;
+			OrcaService.programAccountPolicy(id)
+				.catch(() => undefined)
+				.then((found) => {
+					if (!alive || sourceID !== id) return;
+					policy = found;
+					policyFor = id;
+				});
+		});
+	});
 
 	// Step 3 opened by address (a reload): load the tools again.
 	$effect(() => {
 		// After the catalog, so the name the team sees starts from the program's name.
 		if (step !== 'tools' || !sourceID || !source) return;
 		const id = sourceID;
+		const account = companyAccount;
 		untrack(() => {
-			if (toolsFor !== id && !discovering && !discoverError) void discover(id);
+			if ((toolsFor !== id || toolsAccount !== account) && !discovering && !discoverError) void discover(id, account);
 		});
 	});
 
@@ -252,13 +302,13 @@
 
 	// Ticked tools, the preset, name and note survive a reload or the OAuth popup.
 	$effect(() => {
-		if (step !== 'tools' || toolsFor !== sourceID || !sourceID) return;
+		if (step !== 'tools' || toolsFor !== sourceID || toolsAccount !== companyAccount || !sourceID) return;
 		const draft = { sourceID, toolNames: [...selected], preset, name, note };
 		untrack(() => writeDraft(storage(), key, draft));
 	});
 
 	async function save() {
-		if (saving || toolsFor !== sourceID) return;
+		if (saving || toolsFor !== sourceID || toolsAccount !== companyAccount) return;
 		const problem = saveProblem({ name, selected });
 		if (problem) {
 			saveError =
@@ -278,8 +328,12 @@
 		// stored one (a storage write can fail, Codex release review 66).
 		const remembered = savedProgramFor(storage(), savedKey, sourceID, data.connections);
 		const again = saved && saved.mcpID === sourceID && (!remembered || remembered.id === saved.id) ? saved : remembered;
+		const input = programSaveInput({ name, note, mcpID: sourceID, selected, tools, existing: again });
+		// The company account the tools were read on; going back to each
+		// person's own account after saving with one says so too.
+		if (toolsAccount || again?.programAccountID) input.programAccountID = toolsAccount;
 		try {
-			const result = await ProgramService.save(programSaveInput({ name, note, mcpID: sourceID, selected, tools, existing: again }), again?.id);
+			const result = await ProgramService.save(input, again?.id);
 			if (!alive) return;
 			clearDraft(storage(), key);
 			rememberSavedProgram(storage(), savedKey, sourceID, result.id, Date.now(), result.version);
@@ -349,7 +403,7 @@
 			<div class="ap-strip-copy">
 				<div class="ap-strip-name">{programName}</div>
 				<div class="ap-strip-meta">
-					{#if connected}<span class="ap-pill ok"><Check size={12} strokeWidth={3} aria-hidden="true" />{t('เชื่อมด้วยบัญชีของคุณแล้ว', 'Connected with your account')}</span>
+					{#if connected}<span class="ap-pill ok"><Check size={12} strokeWidth={3} aria-hidden="true" />{toolsAccount ? t('เชื่อมด้วยบัญชีกลางแล้ว', 'Connected with the company account') : t('เชื่อมด้วยบัญชีของคุณแล้ว', 'Connected with your account')}</span>
 					{:else if category.th}<span>{t(category.th, category.en)}</span>{/if}
 				</div>
 			</div>
@@ -415,21 +469,45 @@
 		{#if mode === 'page'}
 			<PageHeader
 				title={t('เชื่อมบัญชี', 'Connect your account')}
-				subtitle={t(`เชื่อมบัญชี ${programName} ของคุณครั้งเดียว แล้ว ORCA จะพาไปเลือกสิ่งที่ AI ทำได้`, `Connect your ${programName} account once; then choose what AI can do.`)}
+				subtitle={accountMode === 'company' && companyAllowed
+					? t(`เชื่อมบัญชีกลาง ${programName} ครั้งเดียว ทุกคนใช้ได้โดยไม่ต้องลงชื่อเข้าใช้เอง แล้ว ORCA จะพาไปเลือกสิ่งที่ AI ทำได้`, `Connect one ${programName} company account once; everyone uses it without signing in. Then choose what AI can do.`)
+					: t(`เชื่อมบัญชี ${programName} ของคุณครั้งเดียว แล้ว ORCA จะพาไปเลือกสิ่งที่ AI ทำได้`, `Connect your ${programName} account once; then choose what AI can do.`)}
 			/>
 		{/if}
 		{@render strip(false)}
+		{#if companyAllowed}
+			<fieldset class="ap-mode" disabled={discovering}>
+				<legend>{t('AI ใช้บัญชีของใคร', 'Whose account AI uses')}</legend>
+				<label class="ap-mode-option" class:on={accountMode === 'personal'}>
+					<input type="radio" name="ap-mode" value="personal" bind:group={accountMode} />
+					<span><strong>{t('บัญชีของแต่ละคน', "Each person's own")}</strong><small>{t(`แต่ละคนลงชื่อเข้าใช้ ${programName} ด้วยบัญชีของตัวเอง ตอนนี้เชื่อมบัญชีของคุณก่อน`, `Each person signs in to ${programName} with their own account. Connect yours now.`)}</small></span>
+				</label>
+				<label class="ap-mode-option" class:on={accountMode === 'company'}>
+					<input type="radio" name="ap-mode" value="company" bind:group={accountMode} />
+					<span><strong>{t('บัญชีกลาง', 'Company account')}</strong><small>{t(`ทุกคนใช้ ${programName} บัญชีเดียว ผู้ดูแลเชื่อมครั้งเดียว สมาชิกไม่ต้องลงชื่อเข้าใช้และไม่เห็นรหัสหรือคีย์`, `Everyone uses one ${programName} account: a manager connects it once, and members never sign in or see the key.`)}</small></span>
+				</label>
+			</fieldset>
+		{/if}
 		{#if discoverError}<p class="ap-error" role="alert"><CircleAlert size={16} aria-hidden="true" />{discoverError}</p>{/if}
 		{#key sourceID}
-			<ProgramAccount
-				{sourceID}
-				{programName}
-				endpointHost={source.endpointHost}
-				{operator}
-				pending={discovering ? t(`กำลังดูว่า AI ทำอะไรได้บ้างใน ${programName}…`, `Seeing what AI can do in ${programName}…`) : ''}
-				onready={accountReady}
-				onrequest={() => (requestOpen = true)}
-			/>
+			{#if accountMode === 'company' && companyAllowed}
+				<CompanyAccountConnect
+					{sourceID}
+					{programName}
+					pending={discovering ? t(`กำลังดูว่า AI ทำอะไรได้บ้างใน ${programName}…`, `Seeing what AI can do in ${programName}…`) : ''}
+					onready={(accountID) => companyAccountReady(sourceID, accountID)}
+				/>
+			{:else}
+				<ProgramAccount
+					{sourceID}
+					{programName}
+					endpointHost={source.endpointHost}
+					{operator}
+					pending={discovering ? t(`กำลังดูว่า AI ทำอะไรได้บ้างใน ${programName}…`, `Seeing what AI can do in ${programName}…`) : ''}
+					onready={accountReady}
+					onrequest={() => (requestOpen = true)}
+				/>
+			{/if}
 		{/key}
 		{#if mode === 'page'}<div class="ap-back"><a class="k-button quiet" href={href('choose', { source: null })}>{t('ย้อนกลับ', 'Back')}</a></div>{/if}
 	{:else}
@@ -604,6 +682,49 @@
 	.ap-back {
 		margin-top: 20px;
 	}
+	/* Step 2's choice of whose account AI uses: two options side by side, stacked on a phone. */
+	.ap-mode {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 12px;
+		margin: 0 0 20px;
+		padding: 0;
+		border: 0;
+	}
+	.ap-mode legend {
+		margin-bottom: 10px;
+		font-size: 14px;
+		font-weight: 600;
+	}
+	.ap-mode-option {
+		display: flex;
+		align-items: flex-start;
+		gap: 10px;
+		padding: 14px 16px;
+		border: 1px solid var(--orca-line);
+		border-radius: var(--orca-radius-lg);
+		background: var(--orca-surface);
+		cursor: pointer;
+	}
+	.ap-mode-option.on {
+		border-color: var(--orca-ink);
+	}
+	.ap-mode-option input {
+		margin-top: 3px;
+	}
+	.ap-mode-option span {
+		display: grid;
+		gap: 4px;
+		min-width: 0;
+	}
+	.ap-mode-option strong {
+		font-size: 15px;
+	}
+	.ap-mode-option small {
+		color: var(--orca-muted);
+		font-size: 13.5px;
+		line-height: 1.45;
+	}
 	@media (max-width: 720px) {
 		.ap-top {
 			margin-bottom: 24px;
@@ -616,6 +737,9 @@
 		.ap-strip-name {
 			white-space: normal;
 			overflow-wrap: anywhere;
+		}
+		.ap-mode {
+			grid-template-columns: minmax(0, 1fr);
 		}
 	}
 </style>

@@ -50,7 +50,9 @@
 		</div>
 	</div>
 
-	<p class="done-note"><Info size={16} aria-hidden="true" /><span>{t(`แต่ละคนต้องมีบัญชี ${programName} ของตัวเอง แล้วลงชื่อเข้าใช้เมื่อเริ่มใช้กับ AI`, `Each person needs their own ${programName} account and signs in when they start using it with AI.`)}</span></p>
+	<p class="done-note"><Info size={16} aria-hidden="true" /><span>{connection.programAccountID
+		? t(`ทุกคนที่ได้รับอนุญาตใช้บัญชีกลาง ${programName} ผ่าน AI ได้เลย ไม่ต้องลงชื่อเข้าใช้เอง เปลี่ยนบัญชีได้ที่หน้าโปรแกรม`, `Everyone allowed uses the ${programName} company account through AI without signing in. Change it on the program's page.`)
+		: t(`แต่ละคนต้องมีบัญชี ${programName} ของตัวเอง แล้วลงชื่อเข้าใช้เมื่อเริ่มใช้กับ AI`, `Each person needs their own ${programName} account and signs in when they start using it with AI.`)}</span></p>
 
 	<div class="done-next">
 		{#if next.kind === 'return'}
