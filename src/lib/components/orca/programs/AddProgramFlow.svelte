@@ -367,23 +367,16 @@
 		rememberSavedProgram(storage(), savedKey, sourceID, latest.id, Date.now(), latest.version);
 		saved = latest;
 		// Someone also changed whose account AI uses: the tools on screen were
-		// read on the other one, so nothing saves until they are read again on
-		// the newest program's account, which the page then shows (Codex
-		// release review deploy44 round 1, MAJOR).
+		// read on the other one. Nothing saves until they are read again, and
+		// the flow moves to the newest program's account first, whatever the
+		// reading does, so Try again and a reload read that account too; the
+		// step-3 reading then starts from the newest program, not this tab's
+		// draft (Codex release review deploy44 rounds 1 and 2, MAJOR).
 		const latestAccount = latest.programAccountID ?? '';
 		if (latestAccount !== toolsAccount) {
-			const id = sourceID;
 			toolsFor = '';
+			clearDraft(storage(), key);
 			accountMode = latestAccount ? 'company' : 'personal';
-			const read = await discover(id, latestAccount);
-			if (!alive || id !== sourceID) return;
-			if (read) {
-				await go('tools', { account: latestAccount || null });
-				selected = savedSelection(tools, latest.toolNames);
-				preset = presetFor(selected, tools);
-				name = latest.name;
-				note = latest.scopeNote ?? '';
-			}
 			saveError = latestAccount
 				? t(
 						'มีคนเปลี่ยนโปรแกรมนี้ให้ใช้บัญชีกลางอีกบัญชีหลังจากคุณบันทึก หน้านี้แสดงฉบับล่าสุดแล้ว ตรวจแล้วบันทึกอีกครั้ง หรือกลับไปเลือกบัญชีใหม่',
@@ -393,6 +386,7 @@
 						'มีคนเปลี่ยนโปรแกรมนี้ให้แต่ละคนใช้บัญชีของตัวเองหลังจากคุณบันทึก หน้านี้แสดงฉบับล่าสุดแล้ว ตรวจแล้วบันทึกอีกครั้ง หรือกลับไปเลือกบัญชีใหม่',
 						"Someone set this program to each person's own account after you saved it. This shows the newest version now: check it and save again, or go back and choose the account."
 					);
+			await go('tools', { account: latestAccount || null });
 			return;
 		}
 		selected = savedSelection(tools, latest.toolNames);
