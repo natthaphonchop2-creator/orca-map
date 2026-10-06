@@ -132,3 +132,9 @@ test("a company's history names ORCA's looks, grouped in the display only (P6)",
 	assert.match(source.audit, /const platform = platformAuditLabel\(event, t\);/);
 	assert.match(source.audit, /"platform\.view": t\("ORCA ดูข้อมูลบริษัท"/);
 });
+
+test('"เปลี่ยนชื่อ" is disabled until the trimmed name differs, and sends nothing otherwise', () => {
+	assert.match(source.detail, /const canRename = \$derived\(renameReady\(newName, company\?\.displayName\)\);/);
+	assert.match(source.detail, /<button type="submit" class="k-button" disabled=\{changing \|\| !canRename\}>\{t\("เปลี่ยนชื่อ", "Rename"\)\}<\/button>/);
+	assert.match(source.detail, /if \(!renameReady\(name, company\.displayName\)\) return;\s*changing = true;/);
+});

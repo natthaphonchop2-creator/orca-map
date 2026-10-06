@@ -51,6 +51,12 @@ export function contractNote(state: string | undefined, end: string | undefined,
 	return t(`สัญญาถึง ${end}`, `Contract until ${end}`);
 }
 
+/** "เปลี่ยนชื่อ" waits until the trimmed name is there and differs from the current one. */
+export function renameReady(next: string, current: string | undefined): boolean {
+	const name = next.trim();
+	return name !== '' && name !== (current ?? '').trim();
+}
+
 /** The company page's tabs in PC1; the other views come with PC2. */
 export const DETAIL_TABS = PLATFORM_COMPANY_TABS;
 export type DetailTab = (typeof DETAIL_TABS)[number];

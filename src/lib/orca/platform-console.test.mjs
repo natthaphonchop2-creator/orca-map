@@ -98,3 +98,12 @@ test('the private fields: writing needs a key, reading the key that sealed them 
 	assert.equal(console_.encryptionOffRefusal(409, 'this item changed; reload before saving again'), false);
 	assert.equal(console_.encryptionOffRefusal(400, 'profile_encryption_off'), false);
 });
+
+test('"เปลี่ยนชื่อ" waits for a trimmed name that differs', () => {
+	assert.equal(console_.renameReady('', 'Hotel A'), false);
+	assert.equal(console_.renameReady('   ', 'Hotel A'), false);
+	assert.equal(console_.renameReady('Hotel A', 'Hotel A'), false);
+	assert.equal(console_.renameReady('  Hotel A ', 'Hotel A'), false, 'spaces alone are no change');
+	assert.equal(console_.renameReady('Hotel A2', 'Hotel A'), true);
+	assert.equal(console_.renameReady('Hotel A', undefined), true);
+});

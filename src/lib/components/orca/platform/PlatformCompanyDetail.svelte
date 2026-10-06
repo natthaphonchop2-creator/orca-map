@@ -11,6 +11,7 @@
     priceValue,
     privateFieldsState,
     profileProblems,
+    renameReady,
     type DetailTab,
   } from "$lib/orca/platform-console";
   import {
@@ -146,6 +147,7 @@
   let changing = $state(false);
   let changeError = $state("");
   let newName = $state("");
+  const canRename = $derived(renameReady(newName, company?.displayName));
 
   async function changeStatus() {
     if (!company || !confirming || changing) return;
@@ -178,6 +180,7 @@
       changeError = t("กรอกชื่อใหม่", "Enter the new name.");
       return;
     }
+    if (!renameReady(name, company.displayName)) return;
     changing = true;
     changeError = "";
     try {
@@ -331,7 +334,7 @@
       <form class="detail-manage" onsubmit={(event) => { event.preventDefault(); void rename(); }}>
         <h2 class="detail-heading">{t("เปลี่ยนชื่อบริษัท", "Rename")}</h2>
         <label>{t("ชื่อใหม่", "New name")}<input bind:value={newName} maxlength="120" placeholder={company.displayName} autocomplete="off" disabled={changing} /></label>
-        <div class="detail-actions"><button type="submit" class="k-button" disabled={changing}>{t("เปลี่ยนชื่อ", "Rename")}</button></div>
+        <div class="detail-actions"><button type="submit" class="k-button" disabled={changing || !canRename}>{t("เปลี่ยนชื่อ", "Rename")}</button></div>
       </form>
     {/if}
     {#if changeError && !confirming}<p class="detail-error" role="alert">{changeError}</p>{/if}
