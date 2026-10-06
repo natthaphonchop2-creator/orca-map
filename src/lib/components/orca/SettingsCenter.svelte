@@ -99,6 +99,7 @@
 >
 
 <style>
+	/* orca-type-remap v1 */
   .settings-tabs {
     display: flex;
     gap: 24px;
@@ -114,7 +115,7 @@
     padding: 0 2px;
     border-bottom: 2px solid transparent;
     color: var(--orca-muted);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 500;
     text-decoration: none;
     white-space: nowrap;
@@ -159,7 +160,7 @@
   .settings-panel-head p {
     margin: 2px 0 0;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: 1.6;
   }
   .settings-help-link {
@@ -168,7 +169,7 @@
     gap: 6px;
     margin-top: 4px;
     color: var(--orca-ink);
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 500;
     text-decoration: none;
   }

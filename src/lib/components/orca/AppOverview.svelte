@@ -283,6 +283,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.spaces {
 		min-width: 0;
 		color: var(--orca-ink);
@@ -332,7 +333,7 @@
 		background: transparent;
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.spaces-search input::placeholder {
 		color: var(--orca-subtle);
@@ -357,7 +358,7 @@
 		background: transparent;
 		color: var(--orca-muted);
 		font: inherit;
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 500;
 		white-space: nowrap;
 		cursor: pointer;
@@ -418,7 +419,7 @@
 		border-radius: var(--orca-radius-sm);
 		background: var(--orca-secondary);
 		color: var(--orca-nav);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 500;
 	}
 	.spaces-table-wrap {
@@ -434,7 +435,7 @@
 		border-bottom: 1px solid var(--orca-line);
 		background: var(--orca-surface-2);
 		color: var(--orca-nav);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 500;
 		text-align: start;
 		white-space: nowrap;
@@ -442,7 +443,7 @@
 	.spaces-table td {
 		padding: 12px 14px;
 		border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
-		font-size: 14px;
+		font-size: 13.5px;
 		vertical-align: middle;
 	}
 	.spaces-table tbody tr:last-child td {
@@ -477,7 +478,7 @@
 		overflow: hidden;
 		margin-top: 2px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.spaces-name small.spaces-mobile-meta {
 		display: none;
@@ -488,7 +489,7 @@
 	.spaces-systems,
 	.spaces-none {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.spaces-systems-inner {
 		display: flex;
@@ -530,7 +531,7 @@
 		gap: 6px;
 		min-width: 96px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-variant-numeric: tabular-nums;
 	}
 	.spaces-bar {
@@ -553,7 +554,7 @@
 		border-radius: var(--orca-radius-sm);
 		background: var(--orca-secondary);
 		color: var(--orca-nav);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 500;
 		white-space: nowrap;
 	}
@@ -602,14 +603,14 @@
 	.spaces-empty h3 {
 		margin: 4px 0 0;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 	}
 	.spaces-empty p {
 		max-width: 460px;
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.spaces-empty > :global(.k-button),
 	.spaces-empty-actions {
@@ -626,7 +627,7 @@
 		padding: 10px 18px;
 		border-top: 1px solid var(--orca-line);
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.spaces-note {
 		margin-top: 16px;

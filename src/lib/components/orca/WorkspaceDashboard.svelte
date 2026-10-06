@@ -327,6 +327,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.home-anchor {
 		scroll-margin-top: 80px;
 	}
@@ -337,7 +338,7 @@
 		gap: 8px;
 		margin: 18px 4px 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.home-helpline a {
 		color: var(--orca-ink);
@@ -353,7 +354,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.home-done {
 		display: flex;
@@ -378,13 +379,13 @@
 	.home-done .home-done-copy h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 	}
 	.home-done .home-done-copy p {
 		margin: 2px 0 0;
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.home-done a {
 		color: var(--orca-ink);

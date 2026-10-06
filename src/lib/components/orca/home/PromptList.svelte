@@ -50,6 +50,7 @@
 <span class="home-prompt-announce" role="status" aria-live="polite">{copiedID ? t('คัดลอกแล้ว', 'Copied') : ''}</span>
 
 <style>
+	/* orca-type-remap v1 */
 	.home-prompts {
 		display: grid;
 		gap: 8px;
@@ -76,7 +77,7 @@
 		flex: 1 1 180px;
 		min-width: 0;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 500;
 		quotes: '“' '”';
 		user-select: all;
@@ -88,7 +89,7 @@
 		flex-basis: 100%;
 		margin: 0;
 		color: var(--orca-deny);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.home-prompt-announce {
 		position: absolute;

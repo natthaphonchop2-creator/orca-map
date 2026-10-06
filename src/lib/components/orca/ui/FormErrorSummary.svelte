@@ -43,6 +43,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.orca-form-errors {
 		margin: 0 0 20px;
 		padding: 14px 16px;
@@ -61,13 +62,13 @@
 		gap: 8px;
 		margin: 0;
 		color: var(--orca-deny);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 700;
 	}
 	.orca-form-errors ul {
 		margin: 8px 0 0;
 		padding-left: 26px;
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.orca-form-errors a {

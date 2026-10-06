@@ -1,3 +1,4 @@
+/* orca-type-remap v1 */
 /*
  * ORCA workspace design system: a calm, formal console.
  * Modeled on the owner's Arcade reference (shadcn-style neutrals, 8px radii, compact
@@ -49,7 +50,7 @@
   --k-header: 56px;
   background: var(--orca-bg);
   color: var(--orca-ink);
-  font-size: 14.5px;
+  font-size: 13.5px;
   line-height: 1.6;
 }
 .orca-workspace.orca-app.sidebar-collapsed {
@@ -58,7 +59,7 @@
 
 /* ---------- Type ---------- */
 .orca-workspace.orca-app h1 {
-  font-size: 24px;
+  font-size: 20px;
   line-height: 1.35;
   font-weight: 600;
   letter-spacing: 0;
@@ -68,18 +69,18 @@
   letter-spacing: -0.02em;
 }
 .orca-workspace.orca-app h2 {
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.45;
   font-weight: 600;
 }
 .orca-workspace.orca-app h3 {
-  font-size: 14.5px;
+  font-size: 13.5px;
   line-height: 1.45;
   font-weight: 600;
 }
 .orca-workspace.orca-app .k-subtitle {
   margin-top: 4px;
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.65;
   max-width: 72ch;
   color: var(--orca-muted);
@@ -101,7 +102,7 @@
   color: var(--orca-muted);
 }
 .orca-workspace.orca-app .k-small {
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 /* ---------- Sidebar ---------- */
@@ -147,7 +148,7 @@
   padding: 6px 10px;
   border-radius: var(--orca-radius);
   color: var(--orca-nav);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
   line-height: 1.45;
   text-decoration: none;
@@ -193,17 +194,17 @@
   height: 30px;
   background: var(--orca-ink);
   color: var(--orca-on-ink, #fff);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 .orca-workspace.orca-app .workspace-account-copy strong {
   color: var(--orca-ink);
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
 }
 .orca-workspace.orca-app .workspace-account-copy small {
   color: var(--orca-muted);
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .orca-workspace.orca-app .workspace-account-chevron {
   color: var(--orca-subtle);
@@ -218,15 +219,15 @@
   box-shadow: var(--orca-popover-shadow);
 }
 .orca-workspace.orca-app .workspace-account-menu > strong {
-  font-size: 14px;
+  font-size: 13.5px;
 }
 .orca-workspace.orca-app .workspace-account-menu > span,
 .orca-workspace.orca-app .workspace-account-menu > small {
-  font-size: 12.5px;
+  font-size: 12px;
 }
 .orca-workspace.orca-app .workspace-account-menu > a {
   min-height: 34px;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
   transition: background-color 0.15s var(--orca-ease), color 0.15s var(--orca-ease);
 }
@@ -237,7 +238,7 @@
 .orca-workspace.orca-app .workspace-nav a {
   min-height: 40px;
   padding: 9px 10px;
-  font-size: 15px;
+  font-size: 14px;
 }
 .orca-workspace.orca-app .workspace-nav a svg {
   width: 18px;
@@ -255,7 +256,7 @@
 .orca-workspace.orca-app .workspace-utility a {
   min-height: 36px;
   padding: 8px 10px;
-  font-size: 14px;
+  font-size: 13.5px;
 }
 .orca-workspace.orca-app .workspace-utility a svg {
   width: 17px;
@@ -283,7 +284,7 @@
   padding: 4px 8px;
   border-radius: 999px;
   color: var(--orca-muted);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
@@ -378,7 +379,7 @@
 }
 .orca-workspace.orca-app .workspace-pin-copy strong {
   overflow: hidden;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -388,7 +389,7 @@
   align-items: center;
   gap: 5px;
   color: var(--orca-muted);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
 }
 .orca-workspace.orca-app .workspace-pin-state::before {
@@ -420,7 +421,7 @@
 }
 .orca-workspace.orca-app .workspace-location {
   gap: 10px;
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--orca-muted);
 }
 /* The top bar's company name and page title go to หน้าหลัก (owner, 2026-10-05). */
@@ -434,7 +435,7 @@
 .orca-workspace.orca-app .workspace-home-link:hover { color: var(--orca-ink); text-decoration: underline; text-underline-offset: 3px; }
 .orca-workspace.orca-app .workspace-home-link:focus-visible { outline: 2px solid var(--orca-ink); outline-offset: 2px; }
 .orca-workspace.orca-app .workspace-current-page {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--orca-ink);
 }
@@ -472,7 +473,7 @@
   background: transparent;
   color: var(--orca-muted);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.15s var(--orca-ease), color 0.15s var(--orca-ease);
@@ -505,7 +506,7 @@
   border-radius: var(--orca-radius);
   background: var(--orca-surface);
   color: var(--orca-ink) !important;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
   line-height: 1.2;
   box-shadow: none;
@@ -565,7 +566,7 @@
 .orca-workspace.orca-app .k-button.small {
   min-height: 32px;
   padding: 0 10px;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .orca-workspace.orca-app .k-button:disabled,
 .orca-workspace.orca-app .k-button[aria-disabled='true'] {
@@ -584,7 +585,7 @@
 /* ---------- Forms ---------- */
 .orca-workspace.orca-app .k-field > label,
 .orca-workspace.orca-app .k-field label {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
 }
 .orca-workspace.orca-app .k-field input:not([type='checkbox']):not([type='radio']),
@@ -597,7 +598,7 @@
   border-radius: var(--orca-radius);
   background: var(--orca-field, var(--orca-surface));
   color: var(--orca-ink);
-  font-size: 14px;
+  font-size: 13.5px;
   transition: border-color 0.15s var(--orca-ease), box-shadow 0.15s var(--orca-ease);
 }
 .orca-workspace.orca-app .k-field :is(input, select, textarea):focus-visible {
@@ -639,7 +640,7 @@
   border-radius: var(--orca-radius);
   background: var(--orca-surface-2);
   color: var(--orca-ink);
-  font-size: 13.5px;
+  font-size: 13px;
 }
 .orca-workspace.orca-app .k-banner > svg {
   flex: none;
@@ -670,7 +671,7 @@
   border-radius: var(--orca-radius-sm);
   background: var(--orca-secondary);
   color: var(--orca-nav);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -696,7 +697,7 @@
   position: relative;
   min-height: 24px;
   padding-left: 36px;
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.65;
   counter-increment: k-numbered;
 }
@@ -713,7 +714,7 @@
   border-radius: 50%;
   background: var(--orca-surface);
   color: var(--orca-ink);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   line-height: 1;
 }
@@ -746,21 +747,21 @@
   border-bottom: 1px solid var(--orca-line);
   background: var(--orca-surface-2);
   color: var(--orca-nav);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   text-align: start;
 }
 .orca-workspace.orca-app .k-table td {
   padding: 10px 12px;
   border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
-  font-size: 14px;
+  font-size: 13.5px;
 }
 
 /* ---------- Footer ---------- */
 .orca-workspace.orca-app .k-footer {
   margin-top: 36px;
   padding-top: 16px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--orca-muted);
 }
 
@@ -796,7 +797,7 @@ html:has(.orca-workspace.orca-app .workspace-drawer[open]) {
   border-radius: var(--orca-radius);
   background: var(--orca-surface);
   color: var(--orca-ink);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
 }
 .orca-workspace.orca-app .workspace-drawer-company > svg {

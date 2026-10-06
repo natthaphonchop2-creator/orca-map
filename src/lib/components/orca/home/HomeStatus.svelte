@@ -265,6 +265,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.home-stats {
 		display: grid;
 		grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -296,18 +297,18 @@
 		justify-content: space-between;
 		gap: 8px;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 500;
 	}
 	.home-stat strong {
-		font-size: 28px;
+		font-size: 24px;
 		font-weight: 700;
 		line-height: 1.2;
 		font-variant-numeric: tabular-nums;
 	}
 	.home-stat small {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.home-grid {
 		display: grid;
@@ -336,14 +337,14 @@
 	.home-card .home-card-head h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 		line-height: 1.4;
 	}
 	.home-card-head p {
 		margin: 2px 0 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.home-card-head :global(.k-button) {
 		flex: none;
@@ -356,7 +357,7 @@
 		margin: 0;
 		padding: 18px 20px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.home-clear {
 		display: flex;
@@ -397,7 +398,7 @@
 	.home-space-main strong,
 	.home-program-copy strong {
 		overflow: hidden;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -408,7 +409,7 @@
 		align-items: center;
 		gap: 8px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.home-logos {
 		display: inline-flex;
@@ -423,7 +424,7 @@
 	}
 	.home-usage small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-variant-numeric: tabular-nums;
 	}
 	.home-bar {
@@ -451,7 +452,7 @@
 	.home-program-copy small,
 	.home-alert small {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.home-alert {
 		align-items: flex-start;
@@ -465,7 +466,7 @@
 	}
 	.home-alert strong {
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.home-alert.quiet {
@@ -478,7 +479,7 @@
 	.home-activity {
 		width: 100%;
 		border-collapse: collapse;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.home-activity th {
 		padding: 10px 20px;
@@ -486,7 +487,7 @@
 		border-bottom: 1px solid var(--orca-line-soft);
 		background: var(--orca-surface-2);
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		text-align: left;
 	}
@@ -508,11 +509,11 @@
 	}
 	.home-activity td small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.home-activity time {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		white-space: nowrap;
 	}
 	.home-knowledge {
@@ -534,12 +535,12 @@
 		min-width: 0;
 	}
 	.home-knowledge strong {
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 	}
 	.home-knowledge small {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.home-knowledge-icon {
 		display: grid;
@@ -570,7 +571,7 @@
 			padding: 14px 16px;
 		}
 		.home-stat strong {
-			font-size: 24px;
+			font-size: 20px;
 		}
 		.home-card-head,
 		.home-space,
@@ -617,7 +618,7 @@
 		.home-activity td[data-label]::before {
 			content: attr(data-label) ' · ';
 			color: var(--orca-muted);
-			font-size: 12.5px;
+			font-size: 12px;
 		}
 		.home-activity .home-activity-who {
 			grid-column: 1 / -1;

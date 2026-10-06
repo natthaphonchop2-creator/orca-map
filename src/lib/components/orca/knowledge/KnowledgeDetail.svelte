@@ -281,6 +281,7 @@
 </ConfirmDialog>
 
 <style>
+	/* orca-type-remap v1 */
 	.kn-back {
 		display: inline-flex;
 		align-items: center;
@@ -290,7 +291,7 @@
 		border: 0;
 		background: transparent;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		cursor: pointer;
 	}
 	.kn-back:hover {
@@ -310,7 +311,7 @@
 	}
 	.kd-title h1 {
 		margin: 0;
-		font-size: 26px;
+		font-size: 22px;
 		font-weight: 700;
 		line-height: 1.35;
 		overflow-wrap: anywhere;
@@ -322,7 +323,7 @@
 		gap: 6px 14px;
 		margin: 8px 0 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.kd-status.draft :global(.orca-pill-dot) {
 		width: 8px;
@@ -356,7 +357,7 @@
 	.kd-summary {
 		margin: 0;
 		color: var(--orca-text-2);
-		font-size: 15px;
+		font-size: 14px;
 		line-height: 1.6;
 	}
 	.kd-card {
@@ -367,12 +368,12 @@
 	}
 	.kd-card h2 {
 		margin: 0 0 10px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 	}
 	.prose {
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		line-height: 1.8;
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
@@ -397,7 +398,7 @@
 		align-items: center;
 		gap: 8px;
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.kd-refs :global(svg) {
 		flex: none;
@@ -412,13 +413,13 @@
 		border-radius: 999px;
 		background: var(--orca-warn-bg);
 		color: var(--orca-warn);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 	}
 	.kd-hint {
 		margin: -4px 0 12px;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.kd-preview {
@@ -434,7 +435,7 @@
 	.kd-field label {
 		display: flex;
 		gap: 8px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.kd-field small {
@@ -448,12 +449,12 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-field);
 		color: var(--orca-ink);
-		font-size: 14.5px;
+		font-size: 13.5px;
 	}
 	.kd-error {
 		margin: 12px 0 0;
 		color: var(--orca-deny);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.kd-field input[aria-invalid='true'] {
 		border-color: var(--orca-deny);
@@ -468,7 +469,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-warn-bg);
 		color: var(--orca-ink);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.kd-warn :global(svg) {

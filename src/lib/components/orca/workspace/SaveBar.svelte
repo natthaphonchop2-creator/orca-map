@@ -39,6 +39,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.save-bar {
 		position: sticky;
 		bottom: 16px;
@@ -64,7 +65,7 @@
 		gap: 8px;
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.45;
 	}
@@ -90,7 +91,7 @@
 		border: 1px solid transparent;
 		border-radius: var(--orca-radius);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		white-space: nowrap;
 		cursor: pointer;

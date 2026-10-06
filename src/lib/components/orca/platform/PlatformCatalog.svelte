@@ -272,6 +272,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.catalog-add {
 		min-height: 42px;
 		padding: 0 18px;
@@ -288,7 +289,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-deny-bg);
 		color: var(--orca-deny);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.catalog-callout > span {
 		flex: 1 1 240px;
@@ -308,7 +309,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.catalog-counts {
 		display: grid;
@@ -327,14 +328,14 @@
 		background: var(--orca-surface);
 	}
 	.catalog-counts strong {
-		font-size: 24px;
+		font-size: 20px;
 		font-weight: 700;
 		line-height: 1.3;
 		font-variant-numeric: tabular-nums;
 	}
 	.catalog-counts span {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.catalog-counts li.ok strong {
 		color: var(--orca-ok);
@@ -347,7 +348,7 @@
 	}
 	.catalog-section h2 {
 		margin: 0 0 12px;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 650;
 	}
 	.catalog-section-head {
@@ -386,7 +387,7 @@
 		background: transparent;
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.catalog-search input:focus-visible {
 		outline: none;
@@ -424,14 +425,14 @@
 	}
 	.catalog-name strong {
 		display: block;
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.catalog-name small {
 		display: block;
 		overflow: hidden;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
@@ -450,7 +451,7 @@
 	}
 	.catalog-form label {
 		margin-top: 10px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.catalog-form label:first-child {
@@ -465,7 +466,7 @@
 		background: var(--orca-field);
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.catalog-form input[aria-invalid='true'] {
 		border-color: var(--orca-deny);
@@ -473,12 +474,12 @@
 	.catalog-hint {
 		margin: 2px 0 0;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.6;
 	}
 	.catalog-legend {
 		margin: 14px 0 4px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.catalog-choices {

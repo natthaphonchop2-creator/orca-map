@@ -176,6 +176,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.ca-programs {
 		display: grid;
 		gap: 14px;
@@ -227,7 +228,7 @@
 		gap: 6px;
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 650;
 		line-height: 1.45;
 	}
@@ -238,13 +239,13 @@
 	.ca-copy p {
 		margin: 2px 0 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.ca-copy p.ca-own {
 		margin-top: 6px;
 		color: var(--orca-text-2);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.ca-go {
 		flex: none;
@@ -258,13 +259,13 @@
 	.ca-signed h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 650;
 	}
 	.ca-signed > p {
 		margin: 2px 0 10px;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.ca-signed ul {
 		margin: 0;
@@ -292,13 +293,13 @@
 	}
 	.ca-signed b {
 		color: var(--orca-ink);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.4;
 	}
 	.ca-done {
 		color: var(--orca-ok);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 	}
 	@container ca (max-width: 560px) {

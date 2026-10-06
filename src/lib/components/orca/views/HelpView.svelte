@@ -136,6 +136,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.help-setup {
 		display: flex;
 		align-items: center;
@@ -164,14 +165,14 @@
 	section.help-faq h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 17px;
+		font-size: 16px;
 		font-weight: 700;
 		line-height: 1.4;
 	}
 	.help-setup .help-setup-copy p {
 		margin: 2px 0 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.help-setup :global(.k-button) {
 		flex: none;
@@ -198,7 +199,7 @@
 		gap: 12px;
 		padding: 16px 20px;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 		list-style: none;
 		cursor: pointer;
@@ -224,7 +225,7 @@
 		max-width: 72ch;
 		margin: 0;
 		color: var(--orca-text-2);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		line-height: 1.65;
 	}
 	.help-links {

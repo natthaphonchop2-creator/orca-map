@@ -1,3 +1,4 @@
+/* orca-type-remap v1 */
 /* ORCA workspace: compact navigation and shared connected-workspace views. */
 .orca-workspace.orca-app {
   color-scheme: light;
@@ -11,7 +12,7 @@
   --o-citron: #d6fa68;
   background: #fff;
   color: var(--k-ink);
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.6;
 }
 .orca-workspace.orca-app.sidebar-collapsed {
@@ -44,7 +45,7 @@
   width: fit-content;
 }
 .orca-workspace .workspace-brand .orca-wordmark {
-  font-size: 29px;
+  font-size: 24px;
 }
 .orca-workspace .workspace-brand .orca-symbol {
   width: 28px;
@@ -105,7 +106,7 @@
   padding: 6px 10px;
   border-radius: 6px;
   color: var(--k-ink);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 450;
   line-height: 1.55;
   transition: background 0.15s;
@@ -195,7 +196,7 @@
   text-overflow: ellipsis;
 }
 .orca-workspace .workspace-account-copy strong {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
 }
 .orca-workspace .workspace-account-copy small {
@@ -224,7 +225,7 @@
   display: block;
 }
 .orca-workspace .workspace-account-menu > strong {
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .orca-workspace .workspace-account-menu > span,
 .orca-workspace .workspace-account-menu > small {
@@ -239,7 +240,7 @@
   margin-top: 11px;
   padding-top: 11px;
   color: var(--k-ink);
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .orca-workspace .compact .workspace-sidebar-header {
   flex-direction: column;
@@ -302,7 +303,7 @@
   align-items: center;
   gap: 14px;
   min-width: 0;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--k-muted);
 }
 .orca-workspace .workspace-organization {
@@ -324,7 +325,7 @@
   color: #c1c7ba;
 }
 .orca-workspace .workspace-current-page {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 550;
   color: var(--k-ink);
   min-width: 0;
@@ -363,30 +364,30 @@
   min-width: 0;
 }
 .orca-workspace h1 {
-  font-size: 28px;
+  font-size: 24px;
   line-height: 1.32;
   font-weight: 650;
   letter-spacing: -0.025em;
 }
 .orca-workspace h2 {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 650;
 }
 .orca-workspace h3 {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
 }
 .orca-workspace .k-intro {
   margin-bottom: 24px;
 }
 .orca-workspace .k-subtitle {
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.75;
   max-width: 760px;
   color: var(--k-muted);
 }
 .orca-workspace .k-breadcrumb {
-  font-size: 12px;
+  font-size: 11.5px;
   margin-bottom: 15px;
 }
 .orca-workspace .k-panel,
@@ -403,7 +404,7 @@
 }
 .orca-workspace .k-button {
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12.5px;
   min-height: 36px;
   padding: 7px 13px;
   border-color: #dce1d5;
@@ -413,7 +414,7 @@
 .orca-workspace .k-button.small {
   min-height: 35px;
   padding: 7px 11px;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .orca-workspace .k-button.primary {
   background: var(--o-citron);
@@ -426,17 +427,17 @@
 .orca-workspace .k-field input:not([type="checkbox"]):not([type="radio"]),
 .orca-workspace .k-field select,
 .orca-workspace .k-field textarea {
-  font-size: 14px;
+  font-size: 13.5px;
   border-radius: 6px;
   min-height: 43px;
 }
 .orca-workspace .k-field label {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
 }
 .orca-workspace .k-banner,
 .orca-workspace .k-check-row {
-  font-size: 13px;
+  font-size: 12.5px;
   border-radius: 6px;
 }
 .orca-workspace .k-footer {
@@ -496,13 +497,13 @@
 }
 .orca-workspace .connection-heading p {
   color: var(--k-muted);
-  font-size: 13px;
+  font-size: 12.5px;
   margin-top: 2px;
   line-height: 1.7;
 }
 .orca-workspace .connections-section-heading h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.35;
 }
 .orca-workspace .connection-heading > .k-button {
@@ -531,7 +532,7 @@
   gap: 8px;
   min-width: 94px;
   padding: 6px 14px;
-  font-size: 12px;
+  font-size: 11.5px;
   color: #18243b;
   border-radius: 5px;
 }
@@ -553,7 +554,7 @@
   outline: none;
   max-width: 180px;
   font: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .orca-workspace .connection-map {
   display: grid;
@@ -575,11 +576,11 @@
   margin-bottom: 11px;
 }
 .orca-workspace .map-column-heading h2 {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.45;
 }
 .orca-workspace .map-column-heading p {
-  font-size: 12px;
+  font-size: 11.5px;
   line-height: 1.5;
   color: var(--k-muted);
   margin: 3px 0 0;
@@ -612,7 +613,7 @@
 .orca-workspace .map-source strong,
 .orca-workspace .map-client strong {
   display: block;
-  font-size: 12px;
+  font-size: 11.5px;
   line-height: 1.5;
   font-weight: 650;
 }
@@ -649,7 +650,7 @@
   gap: 8px;
 }
 .orca-workspace .map-governance .orca-wordmark {
-  font-size: 35px;
+  font-size: 30px;
 }
 .orca-workspace .map-governance p {
   display: flex;
@@ -694,7 +695,7 @@
 }
 .orca-workspace .map-empty strong {
   color: #3a4961;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .orca-workspace .map-empty p {
   font-size: 11px;
@@ -704,7 +705,7 @@
   gap: 8px;
   grid-column: 1/-1;
   color: var(--k-muted);
-  font-size: 12px;
+  font-size: 11.5px;
   line-height: 1.7;
   border-top: 1px solid var(--k-line);
   padding-top: 18px;
@@ -729,7 +730,7 @@
   border-collapse: collapse;
   width: 100%;
   min-width: 770px;
-  font-size: 12px;
+  font-size: 11.5px;
   text-align: left;
 }
 .orca-workspace .connection-table th {
@@ -776,7 +777,7 @@
   min-width: 0;
 }
 .orca-workspace .connection-name strong {
-  font-size: 12px;
+  font-size: 11.5px;
   display: block;
   line-height: 1.5;
 }
@@ -802,7 +803,7 @@
 .orca-workspace .connection-account-cell strong {
   display: block;
   font-weight: 500;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .orca-workspace .connection-account-cell small {
   display: block;
@@ -834,7 +835,7 @@
   align-items: center;
   gap: 13px;
   color: #0968eb;
-  font-size: 12px;
+  font-size: 11.5px;
   white-space: nowrap;
 }
 .orca-workspace .connection-table-empty {
@@ -862,12 +863,12 @@
   color: #172033;
 }
 .orca-workspace .connection-trust strong {
-  font-size: 13px;
+  font-size: 12.5px;
   color: #19253a;
 }
 .orca-workspace .connection-trust p {
   color: #79869c;
-  font-size: 12px;
+  font-size: 11.5px;
   margin-top: 2px;
 }
 .orca-workspace .connection-back,
@@ -876,7 +877,7 @@
   align-items: center;
   gap: 8px;
   color: #3c6ead;
-  font-size: 12px;
+  font-size: 11.5px;
   margin-bottom: 18px;
 }
 .orca-workspace .connection-help-link {
@@ -893,11 +894,11 @@
   min-width: 0;
 }
 .orca-workspace .connection-detail-name h1 {
-  font-size: 29px;
+  font-size: 24px;
   overflow-wrap: anywhere;
 }
 .orca-workspace .connection-detail-name p {
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .orca-workspace .connection-detail-tabs {
   display: flex;
@@ -914,7 +915,7 @@
   padding: 12px 2px 13px;
   border-bottom: 2px solid transparent;
   color: #778298;
-  font-size: 13px;
+  font-size: 12.5px;
   white-space: nowrap;
 }
 .orca-workspace .connection-detail-tabs a.chosen {
@@ -948,7 +949,7 @@
   margin-bottom: 18px;
 }
 .orca-workspace .connection-section-heading p {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--k-muted);
   margin-top: 4px;
 }
@@ -971,17 +972,17 @@
   height: 30px;
   border: 1px solid #d9e0ea;
   border-radius: 50%;
-  font-size: 12px;
+  font-size: 11.5px;
   flex: 0 0 auto;
 }
 .orca-workspace .connection-setup-checklist li > div {
   flex: 1;
 }
 .orca-workspace .connection-setup-checklist strong {
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .orca-workspace .connection-setup-checklist p {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--k-muted);
   margin-top: 3px;
 }
@@ -990,7 +991,7 @@
   align-items: center;
   gap: 9px;
   color: #216bd0;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .orca-workspace .connection-details {
   display: flex;
@@ -1002,7 +1003,7 @@
   display: grid;
   grid-template-columns: 160px 1fr;
   gap: 15px;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .orca-workspace .connection-details dt {
   color: var(--k-muted);
@@ -1020,13 +1021,13 @@
   margin-top: 3px;
 }
 .orca-workspace .connection-tool-row strong {
-  font-size: 13px;
+  font-size: 12.5px;
   overflow-wrap: anywhere;
 }
 .orca-workspace .connection-tool-row p,
 .orca-workspace .connection-scope p {
   color: var(--k-muted);
-  font-size: 12px;
+  font-size: 11.5px;
   margin-top: 3px;
 }
 .orca-workspace .connection-scope {
@@ -1047,7 +1048,7 @@
 }
 .orca-workspace .connection-workspace-row strong {
   display: block;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .orca-workspace .connection-workspace-row small {
   display: block;
@@ -1061,7 +1062,7 @@
   gap: 20px;
   border-top: 1px solid var(--k-line);
   padding: 16px 0;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .orca-workspace .connection-event-row small {
   display: block;
@@ -1071,7 +1072,7 @@
 .orca-workspace .connection-empty-copy {
   color: var(--k-muted);
   padding: 20px 0;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .orca-workspace .connection-editor > .k-breadcrumb,
 .orca-workspace .connection-editor > .k-intro,
@@ -1297,7 +1298,7 @@
     margin-bottom: 20px;
   }
   .orca-workspace .connection-heading p {
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .orca-workspace .connection-heading > .k-button {
     margin-top: 0;
@@ -1325,7 +1326,7 @@
   }
   .orca-workspace .map-source strong,
   .orca-workspace .map-client strong {
-    font-size: 12px;
+    font-size: 11.5px;
   }
   .orca-workspace .map-connector {
     width: 2px;
@@ -1392,7 +1393,7 @@
     width: 21px;
   }
   .orca-workspace .connection-trust strong {
-    font-size: 12px;
+    font-size: 11.5px;
   }
   .orca-workspace .connection-trust p {
     font-size: 11px;
@@ -1404,7 +1405,7 @@
     margin-bottom: 20px;
   }
   .orca-workspace .connection-detail-tabs a {
-    font-size: 12px;
+    font-size: 11.5px;
   }
   .orca-workspace .connection-detail-panel {
     padding: 20px 18px;
@@ -1459,7 +1460,7 @@
   }
   .orca-workspace h1,
   .orca-workspace .connection-heading h1 {
-    font-size: 26px;
+    font-size: 22px;
   }
   .orca-workspace .connection-map {
     padding: 17px;
@@ -1475,7 +1476,7 @@
     margin-bottom: 18px;
   }
   .orca-workspace .connection-detail-name h1 {
-    font-size: 25px;
+    font-size: 22px;
   }
   .orca-workspace .connection-detail-heading {
     gap: 12px;
@@ -1545,7 +1546,7 @@
   padding: 6px 8px;
   border-radius: 6px;
   color: var(--k-ink);
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .orca-workspace .workspace-company-menu > a span {
   max-width: none;
@@ -1569,12 +1570,12 @@
 .orca-workspace .workspace-company-wait {
   margin: 4px 8px 0;
   color: var(--k-muted);
-  font-size: 12px;
+  font-size: 11.5px;
 }
 /* A company ORCA suspended or closed (platform console C6): said in words, never a pill. */
 .orca-workspace .workspace-company-stopped {
   display: block;
   color: var(--orca-deny);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
 }

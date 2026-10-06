@@ -219,6 +219,7 @@
 />
 
 <style>
+	/* orca-type-remap v1 */
 	.hub-alert,
 	.hub-archived,
 	.hub-note {
@@ -249,7 +250,7 @@
 	.hub-note p {
 		flex: 1 1 280px;
 		margin: 0;
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.55;
 	}
 	.hub-tabs {
@@ -275,7 +276,7 @@
 		padding: 10px 0;
 		border-bottom: 2px solid transparent;
 		color: var(--orca-muted);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 500;
 		text-decoration: none;
 		white-space: nowrap;
@@ -293,7 +294,7 @@
 		border-radius: 999px;
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 		line-height: 1.6;
 	}
@@ -305,7 +306,7 @@
 		margin-left: auto;
 		padding: 10px 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		text-decoration: none;
 		white-space: nowrap;

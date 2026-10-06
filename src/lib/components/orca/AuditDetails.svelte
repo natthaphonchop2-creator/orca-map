@@ -166,9 +166,10 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
   .audit-details {
     min-width: 0;
-    font-size: 13px;
+    font-size: 12.5px;
   }
   dl {
     display: grid;
@@ -184,13 +185,13 @@
   }
   dt {
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
   }
   dd {
     min-width: 0;
     margin: 0;
     color: var(--orca-ink);
-    font-size: 14px;
+    font-size: 13.5px;
     overflow-wrap: anywhere;
   }
   .audit-refs {
@@ -203,7 +204,7 @@
   .audit-refs h3 {
     margin: 0 0 8px;
     color: var(--orca-ink);
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 700;
   }
   .audit-refs ul {
@@ -220,13 +221,13 @@
   }
   .audit-ref-title {
     color: var(--orca-ink);
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 600;
     overflow-wrap: anywhere;
   }
   .audit-refs small {
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .audit-details .audit-refs p {
     margin: 10px 0 0;
@@ -241,7 +242,7 @@
   .audit-dev > summary {
     padding: 10px 14px;
     color: var(--orca-text-2);
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
   }
@@ -262,7 +263,7 @@
   }
   .audit-details code {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12.5px;
+    font-size: 12px;
     white-space: normal;
     overflow-wrap: anywhere;
   }
@@ -296,7 +297,7 @@
     margin: 0;
     padding: 0 14px 10px;
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
   }
   @media (max-width: 480px) {
     dl > div {

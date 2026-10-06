@@ -225,6 +225,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.overview-tiles {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
@@ -252,25 +253,25 @@
 	}
 	.overview-tile-label {
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 500;
 	}
 	.overview-tile-value {
-		font-size: 28px;
+		font-size: 24px;
 		font-weight: 700;
 		line-height: 1.3;
 		font-variant-numeric: tabular-nums;
 	}
 	.overview-tile-detail {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.overview-block {
 		margin-bottom: 28px;
 	}
 	.overview-block h2 {
 		margin: 0 0 12px;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 650;
 	}
 	.overview-todos {
@@ -314,12 +315,12 @@
 		min-width: 0;
 	}
 	.overview-todo-copy strong {
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.overview-todo-copy small {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.overview-todos .k-button {
 		flex: none;
@@ -338,7 +339,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.overview-clear {
 		border-color: var(--orca-ok-line);
@@ -348,7 +349,7 @@
 	.overview-error {
 		margin: 10px 0 0;
 		color: var(--orca-deny);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.platform-sections {
 		display: grid;
@@ -391,12 +392,12 @@
 		min-width: 0;
 	}
 	.platform-section-copy strong {
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 	}
 	.platform-section-copy small {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	@media (max-width: 720px) {
@@ -408,7 +409,7 @@
 			padding: 14px;
 		}
 		.overview-tile-value {
-			font-size: 24px;
+			font-size: 20px;
 		}
 		.overview-todos li {
 			flex-wrap: wrap;

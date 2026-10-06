@@ -45,6 +45,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.site-settings {
 		position: relative;
 	}
@@ -58,7 +59,7 @@
 		border-radius: 10px;
 		background: transparent;
 		color: #545e72;
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 600;
 		white-space: nowrap;
 		cursor: pointer;
@@ -89,7 +90,7 @@
 	}
 	.settings-label {
 		color: #545e72;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.inline {

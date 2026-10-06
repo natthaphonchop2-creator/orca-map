@@ -181,6 +181,7 @@
 </SetupCard>
 
 <style>
+	/* orca-type-remap v1 */
 	.home-acts {
 		display: flex;
 		flex-wrap: wrap;
@@ -191,18 +192,18 @@
 	.home-acts :global(.k-button.lg) {
 		min-height: 50px;
 		padding: 0 22px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 	}
 	.home-acts-note {
 		margin-left: 8px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.home-aside {
 		margin: 14px 0 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.home-aside.warn {
 		color: var(--orca-warn);
@@ -232,7 +233,7 @@
 		flex: 1 1 auto;
 		min-width: 0;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 	}
 	.home-request {
@@ -262,14 +263,14 @@
 	.home-request .home-request-main h3 {
 		margin: 2px 0 0;
 		color: var(--orca-ink);
-		font-size: 20px;
+		font-size: 18px;
 		font-weight: 700;
 		line-height: 1.4;
 	}
 	.home-request .home-request-main p {
 		margin: 4px 0 0;
 		color: var(--orca-muted);
-		font-size: 15px;
+		font-size: 14px;
 	}
 	.home-request-text {
 		margin: 16px 0 0;
@@ -279,7 +280,7 @@
 		border-radius: 0 var(--orca-radius) var(--orca-radius) 0;
 		background: var(--orca-surface-2);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 		overflow-wrap: anywhere;
 		user-select: all;
@@ -298,7 +299,7 @@
 	}
 	.home-request-acts span {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.home-request-announce {
 		position: absolute;
@@ -310,7 +311,7 @@
 	}
 	.home-request .home-request-failed {
 		color: var(--orca-deny);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	@media (max-width: 720px) {
 		.home-acts :global(.k-button.lg) {

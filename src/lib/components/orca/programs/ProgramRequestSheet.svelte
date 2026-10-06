@@ -139,6 +139,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.request-inline {
 		padding: 20px;
 		border: 1px solid var(--orca-line);
@@ -150,13 +151,13 @@
 	}
 	.request-inline h2 {
 		margin: 0;
-		font-size: 17px;
+		font-size: 16px;
 		font-weight: 700;
 	}
 	.request-inline header p {
 		margin: 4px 0 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.request-back {
 		margin-top: 12px;
@@ -170,7 +171,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 6px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.request-field em {
@@ -194,7 +195,7 @@
 		align-items: flex-start;
 		gap: 10px;
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.5;
 	}
 	.request-consent input {
@@ -214,7 +215,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-deny-bg);
 		color: var(--orca-deny);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.request-done {
 		display: flex;
@@ -230,11 +231,11 @@
 	.request-done strong {
 		display: block;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 	}
 	.request-done p {
 		margin: 2px 0 0;
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 </style>

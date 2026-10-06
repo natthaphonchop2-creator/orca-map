@@ -144,6 +144,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
   .client-setup {
     --setup-mono: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
     min-width: 0;
@@ -158,7 +159,7 @@
     margin: 0;
   }
   .link-field label {
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 600;
     line-height: 1.45;
   }
@@ -179,7 +180,7 @@
     background: var(--orca-surface-2);
     color: var(--orca-ink);
     font-family: var(--setup-mono);
-    font-size: 13px;
+    font-size: 12.5px;
     text-overflow: ellipsis;
   }
   .endpoint input:focus-visible {
@@ -204,7 +205,7 @@
   }
   .auth-mode {
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 500;
   }
   .client-setup .setup-note {
@@ -228,7 +229,7 @@
     padding: 8px 12px 8px 14px;
     border-radius: var(--orca-radius);
     color: var(--orca-ink);
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 500;
     list-style: none;
     cursor: pointer;
@@ -262,7 +263,7 @@
     grid-template-columns: 120px minmax(0, 1fr);
     gap: 6px 12px;
     margin: 0 0 12px;
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .app-panel dt {
     color: var(--orca-muted);
@@ -282,7 +283,7 @@
     background: var(--orca-surface-2);
     color: var(--orca-ink);
     font-family: var(--setup-mono);
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: 1.6;
   }
   .config-header {
@@ -296,13 +297,13 @@
     min-width: 0;
     color: var(--orca-nav);
     font-family: var(--setup-mono);
-    font-size: 13px;
+    font-size: 12.5px;
     overflow-wrap: anywhere;
   }
   .client-setup p {
     margin: 12px 0 0;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: 1.65;
   }
   .advanced-body .docs {
@@ -311,7 +312,7 @@
     gap: 6px;
     margin-top: 12px;
     color: var(--orca-ink);
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 500;
     text-decoration: underline;
     text-decoration-thickness: 1px;
@@ -333,7 +334,7 @@
     margin-top: 16px;
   }
   .app-field label {
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 600;
   }
   .app-field select {
@@ -345,7 +346,7 @@
     background: var(--orca-surface);
     color: var(--orca-ink);
     font: inherit;
-    font-size: 14px;
+    font-size: 13.5px;
   }
   .app-panel {
     container-type: inline-size;
@@ -382,7 +383,7 @@
     display: grid;
     gap: 8px;
     padding-left: 22px;
-    font-size: 13.5px;
+    font-size: 13px;
     line-height: 1.6;
     list-style: decimal;
   }
@@ -422,7 +423,7 @@
     background: var(--orca-surface-2);
     color: var(--orca-ink);
     font-family: var(--setup-mono);
-    font-size: 12.5px;
+    font-size: 12px;
     line-height: 1.6;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
@@ -437,7 +438,7 @@
     border-radius: var(--orca-radius-sm);
     background: var(--orca-surface-2);
     font-family: var(--setup-mono);
-    font-size: 12.5px;
+    font-size: 12px;
     overflow-wrap: anywhere;
   }
   .client-setup p.after {

@@ -217,16 +217,17 @@
 <ToolNarrowSheet bind:open={narrowOpen} connection={narrowConnection} selected={toolsFor(narrowID) ?? []} approval={changesWait} onapply={(tools) => setProgram(narrowID, tools)} />
 
 <style>
+	/* orca-type-remap v1 */
 	.pg-head h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 17px;
+		font-size: 16px;
 		font-weight: 700;
 	}
 	.pg-head p {
 		margin: 4px 0 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.55;
 	}
 	.pg-grid {
@@ -263,11 +264,11 @@
 		background: var(--orca-surface);
 	}
 	.pg-add b {
-		font-size: 14.5px;
+		font-size: 13.5px;
 	}
 	.pg-add span:last-child {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.pg-notice {
 		display: flex;
@@ -279,7 +280,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-warn-bg);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.55;
 	}
 	.pg-notice.ok {
@@ -314,12 +315,12 @@
 	.pg-missing {
 		margin: 14px 0 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.pg-list-title {
 		margin: 32px 0 10px;
 		color: var(--orca-ink);
-		font-size: 15.5px;
+		font-size: 14px;
 		font-weight: 700;
 	}
 	.pg-lists {
@@ -339,7 +340,7 @@
 		gap: 12px;
 		padding: 13px 16px;
 		color: var(--orca-ink);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 		list-style: none;
 		cursor: pointer;
@@ -375,12 +376,12 @@
 	}
 	.pg-tool strong {
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.pg-tool small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 		overflow-wrap: anywhere;
 	}
@@ -391,7 +392,7 @@
 		border-radius: 999px;
 		background: var(--orca-ok-bg);
 		color: var(--orca-ok);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 		white-space: nowrap;
 	}

@@ -40,6 +40,7 @@
 </header>
 
 <style>
+	/* orca-type-remap v1 */
 	.orca-page-header {
 		margin: 0 0 24px;
 	}
@@ -51,7 +52,7 @@
 		min-height: 28px;
 		margin: -3px 0 7px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		text-decoration: none;
 	}
@@ -65,7 +66,7 @@
 		gap: 8px;
 		margin-bottom: 10px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.orca-page-row {
 		display: flex;
@@ -87,7 +88,7 @@
 	/* Under .orca-page-header so it outranks the shell's `.orca-workspace.orca-app h1` (24px). */
 	.orca-page-header .orca-page-title h1 {
 		margin: 0;
-		font-size: 28px;
+		font-size: 24px;
 		line-height: 1.3;
 		font-weight: 700;
 	}
@@ -95,7 +96,7 @@
 		max-width: 680px;
 		margin: 6px 0 0;
 		color: var(--orca-muted);
-		font-size: 15px;
+		font-size: 14px;
 		line-height: 1.6;
 	}
 	.orca-page-action {
@@ -106,7 +107,7 @@
 	}
 	@media (max-width: 720px) {
 		.orca-page-header .orca-page-title h1 {
-			font-size: 24px;
+			font-size: 20px;
 		}
 		.orca-page-action {
 			width: 100%;

@@ -22,6 +22,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.orca-toasts {
 		position: fixed;
 		right: 24px;
@@ -63,7 +64,7 @@
 	.orca-toast p {
 		flex: 1;
 		margin: 0;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		line-height: 1.55;
 	}

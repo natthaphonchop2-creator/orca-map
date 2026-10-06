@@ -80,6 +80,7 @@
 </ConfirmDialog>
 
 <style>
+	/* orca-type-remap v1 */
 	.tk {
 		padding: 18px 20px;
 		border: 1px solid var(--orca-line-strong);
@@ -88,13 +89,13 @@
 	}
 	.tk h2 {
 		margin: 0 0 6px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 	}
 	.tk p {
 		margin: 0 0 12px;
 		color: var(--orca-text-2);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.tk :global(.k-button) {
@@ -105,6 +106,6 @@
 	.tk-error {
 		margin: 12px 0 0;
 		color: var(--orca-deny);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 </style>

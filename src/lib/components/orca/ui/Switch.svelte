@@ -36,6 +36,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.orca-switch-row {
 		display: flex;
 		align-items: flex-start;
@@ -50,13 +51,13 @@
 	}
 	.orca-switch-label {
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.45;
 	}
 	.orca-switch-text small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.orca-switch {

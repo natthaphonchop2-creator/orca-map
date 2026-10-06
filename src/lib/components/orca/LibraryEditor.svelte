@@ -527,6 +527,7 @@
 </ConfirmDialog>
 
 <style>
+	/* orca-type-remap v1 */
 	.kn-back {
 		display: inline-flex;
 		align-items: center;
@@ -536,7 +537,7 @@
 		border: 0;
 		background: transparent;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		cursor: pointer;
 	}
 	.kn-back:hover:not(:disabled) {
@@ -551,13 +552,13 @@
 	}
 	.ed-h h1 {
 		margin: 0;
-		font-size: 24px;
+		font-size: 20px;
 		font-weight: 700;
 		line-height: 1.35;
 	}
 	.ed-h span {
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.ed-grid {
 		display: grid;
@@ -589,7 +590,7 @@
 	.field-label {
 		display: block;
 		margin-bottom: 6px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.ed-file {
@@ -612,13 +613,13 @@
 		min-width: 0;
 	}
 	.ed-file b {
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 		overflow-wrap: anywhere;
 	}
 	.ed-file small {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.field.kn-grow {
@@ -640,11 +641,11 @@
 	.kn-input {
 		min-height: 46px;
 		padding: 11px 12px;
-		font-size: 15px;
+		font-size: 14px;
 	}
 	.kn-input.short {
 		min-height: 0;
-		font-size: 14.5px;
+		font-size: 13.5px;
 		line-height: 1.6;
 		resize: vertical;
 	}
@@ -654,7 +655,7 @@
 		max-height: 70vh;
 		field-sizing: content;
 		padding: 12px 14px;
-		font-size: 14.5px;
+		font-size: 13.5px;
 		line-height: 1.8;
 		resize: vertical;
 	}
@@ -675,7 +676,7 @@
 		gap: 4px 16px;
 		margin-top: 6px;
 		color: var(--orca-subtle);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.disc-wrap {
 		display: grid;
@@ -690,7 +691,7 @@
 		border: 0;
 		background: transparent;
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -702,7 +703,7 @@
 	}
 	.disc .muted {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 400;
 	}
 	.ed-alert,
@@ -715,7 +716,7 @@
 		margin: 0 0 16px;
 		padding: 10px 14px;
 		border-radius: var(--orca-radius-lg);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.5;
 	}
 	.ed-alert {
@@ -777,7 +778,7 @@
 		overflow: auto;
 		color: var(--orca-text-2);
 		font-family: inherit;
-		font-size: 13.5px;
+		font-size: 13px;
 		white-space: pre-wrap;
 	}
 	.kn-sr {

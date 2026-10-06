@@ -47,6 +47,7 @@
 </nav>
 
 <style>
+	/* orca-type-remap v1 */
 	/* The stepper's own width decides (see stepper.ts), wherever it is placed. */
 	.orca-stepper {
 		container: orca-stepper / inline-size;
@@ -70,7 +71,7 @@
 		margin: 0;
 		padding: 0;
 		list-style: none;
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.5;
 	}
 	.orca-step {
@@ -114,7 +115,7 @@
 		height: 26px;
 		border: 1.5px solid var(--orca-line-strong);
 		border-radius: 50%;
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 700;
 		line-height: 1;
 	}

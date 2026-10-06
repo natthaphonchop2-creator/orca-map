@@ -175,6 +175,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.wc {
 		border: 1px solid var(--orca-line);
 		border-radius: var(--orca-radius-lg);
@@ -186,13 +187,13 @@
 	}
 	.wc-h h2 {
 		margin: 0 0 3px;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 	}
 	.wc-h p {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.opts {
 		display: grid;
@@ -250,14 +251,14 @@
 	}
 	.opt-b b {
 		display: block;
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.45;
 	}
 	.opt-b small {
 		display: block;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.nested {
@@ -282,13 +283,13 @@
 	}
 	.al-r b {
 		display: block;
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.4;
 	}
 	.al-r small {
 		display: block;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.45;
 	}
 	.al-ic {
@@ -317,7 +318,7 @@
 	.hint {
 		margin: 8px 0 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.picker .hint {
@@ -370,7 +371,7 @@
 	}
 	.s {
 		color: var(--orca-ink);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		line-height: 1.4;
 	}
 	.s b {
@@ -381,7 +382,7 @@
 		border: 0;
 		background: transparent;
 		color: var(--orca-ok);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -395,7 +396,7 @@
 		border-radius: 10px;
 		background: var(--orca-surface-2);
 		color: var(--orca-text-2);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.7;
 	}
 	.acts {

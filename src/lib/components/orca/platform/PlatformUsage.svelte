@@ -120,6 +120,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.usage {
 		margin-bottom: 28px;
 	}
@@ -128,13 +129,13 @@
 	}
 	.usage-head h2 {
 		margin: 0;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 650;
 	}
 	.usage-head p {
 		margin: 2px 0 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.usage-tiles {
 		display: grid;
@@ -157,25 +158,25 @@
 	}
 	.usage-tile-label {
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 500;
 	}
 	/* A headline number keeps proportional figures; only the table's columns are tabular. */
 	.usage-tile-value {
-		font-size: 28px;
+		font-size: 24px;
 		font-weight: 700;
 		line-height: 1.3;
 	}
 	.usage-tile-extra {
 		margin-left: 6px;
 		color: var(--orca-muted);
-		font-size: 20px;
+		font-size: 18px;
 		font-weight: 600;
 	}
 	.usage-tile-detail {
 		min-height: 1.5em;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.usage-tile-detail.failed {
 		color: var(--orca-deny);
@@ -191,7 +192,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-deny-bg);
 		color: var(--orca-deny);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.usage-error :global(svg) {
 		flex: none;
@@ -203,7 +204,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.usage-subtitle {
 		display: flex;
@@ -211,12 +212,12 @@
 		align-items: baseline;
 		gap: 4px 10px;
 		margin: 0 0 10px;
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.usage-subtitle small {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 400;
 	}
 	.usage-list {
@@ -230,14 +231,14 @@
 	.usage-table {
 		width: 100%;
 		border-collapse: collapse;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.usage-table thead th {
 		padding: 11px 16px;
 		border-bottom: 1px solid var(--orca-line);
 		background: var(--orca-surface-2);
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		text-align: left;
 		white-space: nowrap;
@@ -277,7 +278,7 @@
 	.usage-company small {
 		display: block;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.usage-mark {
 		display: grid;
@@ -308,10 +309,10 @@
 			padding: 14px;
 		}
 		.usage-tile-value {
-			font-size: 24px;
+			font-size: 20px;
 		}
 		.usage-tile-extra {
-			font-size: 17px;
+			font-size: 16px;
 		}
 	}
 	/* Each company is a card when the list is narrower than the table needs
@@ -360,7 +361,7 @@
 		.usage-cell-label {
 			display: block;
 			color: var(--orca-muted);
-			font-size: 12.5px;
+			font-size: 12px;
 			font-weight: 400;
 			font-variant-numeric: normal;
 			white-space: normal;

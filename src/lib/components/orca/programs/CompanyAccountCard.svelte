@@ -495,6 +495,7 @@
 />
 
 <style>
+	/* orca-type-remap v1 */
 	.ca-card {
 		min-width: 0;
 		padding: 18px 20px;
@@ -511,13 +512,13 @@
 	}
 	.ca-head h2 {
 		margin: 0;
-		font-size: 17px;
+		font-size: 16px;
 		font-weight: 650;
 	}
 	.ca-head p {
 		margin: 4px 0 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ca-list {
 		display: grid;
@@ -532,17 +533,17 @@
 	.ca-list dt {
 		min-width: 96px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ca-list dd {
 		margin: 0;
-		font-size: 14px;
+		font-size: 13.5px;
 		overflow-wrap: anywhere;
 	}
 	.ca-note {
 		margin: 12px 0 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ca-note.warn {
 		padding: 10px 12px;
@@ -574,14 +575,14 @@
 	}
 	.ca-form legend {
 		margin-bottom: 6px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.ca-field {
 		display: grid;
 		gap: 6px;
 		margin-top: 10px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 	}
 	.ca-field small {
@@ -602,7 +603,7 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ca-choice small {
 		color: var(--orca-muted);

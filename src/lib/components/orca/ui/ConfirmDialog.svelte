@@ -103,6 +103,7 @@
 </dialog>
 
 <style>
+	/* orca-type-remap v1 */
 	.orca-confirm {
 		width: min(520px, calc(100vw - 32px));
 		max-height: calc(100dvh - 32px);
@@ -137,14 +138,14 @@
 	}
 	.orca-confirm h2 {
 		margin: 0;
-		font-size: 19px;
+		font-size: 18px;
 		line-height: 1.4;
 		font-weight: 700;
 	}
 	.orca-confirm p {
 		margin: 8px 0 0;
 		color: var(--orca-muted);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.orca-confirm-actions {

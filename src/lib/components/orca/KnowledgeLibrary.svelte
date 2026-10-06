@@ -915,6 +915,7 @@
 />
 
 <style>
+	/* orca-type-remap v1 */
 	.editor-note {
 		display: flex;
 		align-items: flex-start;
@@ -925,7 +926,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface-2);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.55;
 	}
 	.editor-note :global(svg) {
@@ -960,7 +961,7 @@
 	.gate-line {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 15.5px;
+		font-size: 14px;
 		font-weight: 600;
 		line-height: 1.55;
 	}
@@ -990,7 +991,7 @@
 		padding-top: 12px;
 		border-top: 1px solid var(--orca-line-soft);
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.gate-switch a {
@@ -1012,7 +1013,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-deny-bg);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.gate-error :global(svg) {
 		flex: none;

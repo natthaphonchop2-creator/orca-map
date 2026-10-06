@@ -141,6 +141,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
   .role-editor {
     margin: 0 0 20px;
   }
@@ -156,7 +157,7 @@
   .role-editor-head p {
     margin: 2px 0 0;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
     overflow-wrap: anywhere;
   }
   .role-editor .k-field {
@@ -165,7 +166,7 @@
   .role-help {
     margin: 8px 0 0;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: 1.6;
   }
   .role-actions {

@@ -82,6 +82,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.oversight-tabs {
 		display: flex;
 		gap: 28px;
@@ -97,7 +98,7 @@
 		min-height: 46px;
 		border-bottom: 2px solid transparent;
 		color: var(--orca-muted);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 500;
 		text-decoration: none;
 		white-space: nowrap;

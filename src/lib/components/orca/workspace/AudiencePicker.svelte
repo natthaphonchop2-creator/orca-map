@@ -104,6 +104,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.audience {
 		min-width: 0;
 		border-radius: var(--orca-radius);
@@ -125,7 +126,7 @@
 		gap: 8px;
 		margin: 8px 0 0;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.audience-me :global(svg) {
@@ -139,7 +140,7 @@
 		color: var(--orca-warn);
 	}
 	.audience-me .k-link-button {
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.audience-departments {
 		margin-top: 22px;
@@ -147,7 +148,7 @@
 	.audience-label {
 		margin: 0 0 8px;
 		color: var(--orca-text-2);
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 600;
 	}
 	.audience-label span {
@@ -169,7 +170,7 @@
 		background: var(--orca-surface);
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.4;
 		cursor: pointer;

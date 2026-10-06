@@ -160,6 +160,7 @@
 </ConfirmDialog>
 
 <style>
+	/* orca-type-remap v1 */
 	.tb {
 		display: flex;
 		flex: 1;
@@ -174,7 +175,7 @@
 		margin-bottom: 8px;
 	}
 	.tb-label label {
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.tb-stack {
@@ -200,7 +201,7 @@
 		padding: 12px 14px;
 		border: 0;
 		font-family: inherit;
-		font-size: 14.5px;
+		font-size: 13.5px;
 		line-height: 1.8;
 		letter-spacing: 0;
 		white-space: pre-wrap;
@@ -239,7 +240,7 @@
 		gap: 4px 16px;
 		margin-top: 6px;
 		color: var(--orca-subtle);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.tb-fields {
 		display: flex;
@@ -250,7 +251,7 @@
 	}
 	.tb-fields-l {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 600;
 	}
 	.tb-fields ul {
@@ -281,13 +282,13 @@
 		border: 0;
 		background: transparent;
 		color: var(--orca-ink);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 600;
 		cursor: pointer;
 	}
 	.tb-edit small {
 		color: var(--orca-text-2);
-		font-size: 11.5px;
+		font-size: 11px;
 		font-weight: 500;
 	}
 	.tb-remove {
@@ -312,7 +313,7 @@
 		margin-top: 18px;
 	}
 	.tb-dialog label {
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.tb-dialog input:not([type]) {
@@ -322,7 +323,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-field);
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 	}
 	.tb-dialog input:not([type]):focus-visible {
 		border-color: var(--orca-focus);
@@ -332,7 +333,7 @@
 	.tb-error {
 		margin: 0 !important;
 		color: var(--orca-deny) !important;
-		font-size: 13px !important;
+		font-size: 12.5px !important;
 	}
 	.tb-check {
 		display: inline-flex;

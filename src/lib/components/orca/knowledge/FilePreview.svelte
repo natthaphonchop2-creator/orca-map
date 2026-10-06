@@ -132,6 +132,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.fp {
 		border: 1px solid var(--orca-line);
 		border-radius: var(--orca-radius-lg);
@@ -142,13 +143,13 @@
 	}
 	.fp-head h2 {
 		margin: 0 0 4px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 	}
 	.fp-head p {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.fp-scroll {
@@ -173,13 +174,13 @@
 	.fp-loc {
 		margin: 0 0 6px;
 		color: var(--orca-subtle);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		overflow-wrap: anywhere;
 	}
 	.fp-text {
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.75;
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
@@ -192,13 +193,13 @@
 		gap: 8px 12px;
 		padding: 10px 22px 14px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.fp-empty {
 		margin: 0;
 		padding: 16px 22px 20px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.fp-error {
 		display: flex;
@@ -211,7 +212,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-deny-bg);
 		color: var(--orca-ink);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.fp-error span {
 		flex: 1 1 220px;

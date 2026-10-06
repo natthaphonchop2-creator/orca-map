@@ -11,6 +11,7 @@
 <span class="orca-pill {tone}" {title}>{#if dot}<span class="orca-pill-dot" class:tone-ok={dotTone === 'ok'} class:tone-warn={dotTone === 'warn'} class:tone-deny={dotTone === 'deny'} aria-hidden="true"></span>{/if}{label}</span>
 
 <style>
+	/* orca-type-remap v1 */
 	.orca-pill {
 		display: inline-flex;
 		align-items: center;
@@ -21,7 +22,7 @@
 		border-radius: 999px;
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 		line-height: 1.5;
 		white-space: nowrap;

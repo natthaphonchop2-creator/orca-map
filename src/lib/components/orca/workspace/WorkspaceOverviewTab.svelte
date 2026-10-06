@@ -291,6 +291,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.ov-created {
 		display: flex;
 		align-items: flex-start;
@@ -321,14 +322,14 @@
 	.ov-created h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 		line-height: 1.4;
 	}
 	.ov-created p {
 		margin: 4px 0 0;
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.55;
 	}
 	.ov-message {
@@ -338,7 +339,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface);
 		color: var(--orca-ink);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.6;
 		white-space: pre-line;
 		overflow-wrap: anywhere;
@@ -361,7 +362,7 @@
 		background: var(--orca-citron);
 		color: var(--orca-on-citron);
 		font: inherit;
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -374,7 +375,7 @@
 	.ov-copy-failed {
 		margin: 8px 0 0;
 		color: var(--orca-deny);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.ov-banner {
 		display: flex;
@@ -397,13 +398,13 @@
 	}
 	.ov-banner strong {
 		display: block;
-		font-size: 14.5px;
+		font-size: 13.5px;
 		line-height: 1.45;
 	}
 	.ov-banner p {
 		margin: 2px 0 0;
 		color: var(--orca-text-2);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.5;
 	}
 	.ov-grid {
@@ -431,7 +432,7 @@
 		gap: 8px;
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 15.5px;
+		font-size: 14px;
 		font-weight: 700;
 		line-height: 1.4;
 	}
@@ -440,7 +441,7 @@
 		border-radius: 999px;
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 		line-height: 1.6;
 	}
@@ -450,7 +451,7 @@
 		align-items: center;
 		gap: 4px;
 		color: var(--orca-text-2);
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 600;
 		text-decoration: none;
 	}
@@ -488,7 +489,7 @@
 		border-radius: 999px;
 		background: var(--orca-warn-bg);
 		color: var(--orca-warn);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		text-decoration: none;
 		white-space: nowrap;
@@ -505,12 +506,12 @@
 	}
 	.ov-row-copy strong {
 		color: var(--orca-ink);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.ov-row-copy span {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.ov-card-foot {
 		display: flex;
@@ -520,7 +521,7 @@
 		padding: 12px 18px;
 		border-top: 1px solid var(--orca-line-soft);
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.ov-card-foot :global(svg) {
@@ -531,7 +532,7 @@
 		margin: 0;
 		padding: 4px 18px 18px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ov-usage {
 		padding: 0 18px 18px;
@@ -539,15 +540,15 @@
 	.ov-usage-value {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 15px;
+		font-size: 14px;
 	}
 	.ov-usage-value b {
 		color: var(--orca-ink);
-		font-size: 26px;
+		font-size: 22px;
 		font-weight: 700;
 	}
 	.ov-usage-value span {
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.ov-meter {
 		height: 6px;
@@ -568,7 +569,7 @@
 	.ov-usage-note {
 		margin: 10px 0 0;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.ov-next {
@@ -608,12 +609,12 @@
 	}
 	.ov-step-copy strong {
 		color: var(--orca-ink);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.ov-step-copy span {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.ov-steps .k-button {
@@ -636,15 +637,15 @@
 	.ov-sso-body > p {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.ov-sso-steps .k-link-button {
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.ov-dev summary {
 		color: var(--orca-text-2);
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 600;
 		cursor: pointer;
 	}

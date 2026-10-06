@@ -580,6 +580,7 @@
 {#if mode === 'page'}<ProgramRequestSheet bind:open={requestOpen} {data} program={programName} />{/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.ap {
 		max-width: 1080px;
 		min-width: 0;
@@ -627,7 +628,7 @@
 	}
 	.ap-strip-name {
 		overflow: hidden;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 		line-height: 1.3;
 		text-overflow: ellipsis;
@@ -639,7 +640,7 @@
 		gap: 10px;
 		margin-top: 3px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.ap-pill {
 		display: inline-flex;
@@ -648,7 +649,7 @@
 		padding: 2px 9px;
 		border: 1px solid var(--orca-line);
 		border-radius: 999px;
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 	}
 	.ap-pill.ok {
@@ -669,7 +670,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
 		color: var(--orca-muted);
-		font-size: 15px;
+		font-size: 14px;
 	}
 	.ap-problem {
 		display: flex;
@@ -684,7 +685,7 @@
 	.ap-problem p {
 		margin: 0 0 12px;
 		color: var(--orca-ink);
-		font-size: 14.5px;
+		font-size: 13.5px;
 	}
 	.ap-problem :global(svg) {
 		flex: none;
@@ -704,7 +705,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-deny-bg);
 		color: var(--orca-deny);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ap-back {
 		margin-top: 20px;
@@ -720,7 +721,7 @@
 	}
 	.ap-mode legend {
 		margin-bottom: 10px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.ap-mode-option {
@@ -746,11 +747,11 @@
 		min-width: 0;
 	}
 	.ap-mode-option strong {
-		font-size: 15px;
+		font-size: 14px;
 	}
 	.ap-mode-option small {
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.45;
 	}
 	/* A short Thai phrase stays on one line (keepTogether). */
