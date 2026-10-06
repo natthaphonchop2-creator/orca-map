@@ -370,6 +370,8 @@ export function expiryText(expiresAt: string, now: number, t: Translate): string
 
 /** Rows a report's tables could not take: given minus written, per the wire shape. */
 export function overflowRows(report: GeneratedReport | undefined): number {
+	// The server's total, counted before any table entry was cut (Codex code review 2).
+	if (typeof report?.totals?.overflowRows === 'number') return report.totals.overflowRows;
 	return (report?.overflow ?? []).reduce((sum, o) => sum + Math.max(0, (o.given ?? 0) - (o.written ?? 0)), 0);
 }
 
@@ -382,7 +384,7 @@ export function reportLine(report: GeneratedReport | undefined, truncated: boole
 	const parts = [t(`กรอก ${filled} ช่อง`, `${filled} cells filled`)];
 	if (cleared) parts.push(t(`ล้าง ${cleared} ช่อง`, `${cleared} cleared`));
 	if (over) parts.push(t(`${over} แถวไม่พอที่`, `${over} rows did not fit`));
-	if (truncated || report.truncated) parts.push(t('รายงานแสดงไม่ครบ', 'report shortened'));
+	if (truncated || report.truncated || report.keptTruncated) parts.push(t('รายงานแสดงไม่ครบ', 'report shortened'));
 	return parts.join(' · ');
 }
 

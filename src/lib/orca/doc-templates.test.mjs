@@ -217,3 +217,9 @@ test('an edit made while confirming stays unconfirmed (Codex code review 1, find
 	assert.notEqual(d.reviewSnapshot(proposal(), edited, uncovered()), sent, 'the later edit is still an edit');
 	assert.equal(d.publishGate(version({ state: 'confirmed', specSha256: 'c'.repeat(64) }), edited, d.reviewSnapshot(proposal(), edited, uncovered()) !== sent).block, 'edited');
 });
+
+test('a cut report counts rows from the server\'s totals (Codex code review 2)', () => {
+	const cut = { filled: [], cleared: [], overflow: [{ table: 'vip', given: 9, written: 6 }], totals: { filled: 0, cleared: 0, overflow: 4, kept: 250, overflowRows: 41 }, truncated: true };
+	assert.equal(d.overflowRows(cut), 41, 'not just the 3 rows of the entry left');
+	assert.match(d.reportLine({ filled: [], cleared: [], keptTruncated: true }, false, th), /รายงานแสดงไม่ครบ/);
+});

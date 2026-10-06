@@ -163,9 +163,10 @@ export interface GeneratedReport {
 	/** Per table: rows given, rows written, the keys of those not written. */
 	overflow?: { table: string; given: number; written: number; notWritten?: string[] }[];
 	kept?: string[];
+	keptTruncated?: boolean;
 	truncated?: boolean;
-	/** The full counts, kept however the lists were cut. */
-	totals?: { filled: number; cleared: number; overflow: number; kept: number };
+	/** The full counts, taken before any list was cut. */
+	totals?: { filled: number; cleared: number; overflow: number; kept: number; overflowRows?: number };
 }
 /** Where a file lives: the company the file page pins before it downloads. */
 export interface DocumentLocation {
