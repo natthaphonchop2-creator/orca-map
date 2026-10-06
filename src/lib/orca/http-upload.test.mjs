@@ -166,7 +166,11 @@ test('an upload\'s 423 for the page\'s company stops the page, and no later uplo
 	await assert.rejects(upload, (error) => error.statusCode === 423);
 	assert.deepEqual(heard, ['closed']);
 	const later = fakeRequest();
-	await assert.rejects(api.doUpload(company.orcaPath('/hubs/h/library/files'), new FormData(), { request: () => later, dontLogErrors: true }), (error) => error.statusCode === 423 && /orca_company_closed/.test(error.message));
-	assert.deepEqual(later.seen.opened, [], 'never sent');
+	const again = api.doUpload(company.orcaPath('/hubs/h/library/files'), new FormData(), { request: () => later, dontLogErrors: true });
+	const opened = [...later.seen.opened];
+	// Sent anyway (a regression): answer it, so the test fails rather than waits.
+	if (opened.length) later.answer(201, '{}');
+	assert.deepEqual(opened, [], 'never sent');
+	await assert.rejects(again, (error) => error.statusCode === 423 && /orca_company_closed/.test(error.message));
 	assert.equal(api.writesInFlight(), 0);
 });
