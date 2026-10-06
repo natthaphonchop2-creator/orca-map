@@ -154,11 +154,21 @@ test('the operator pages show counts and the price with thousands separators', (
 	assert.match(source.detail, /import \{ displayDay, usageNumber as n \} from "\$lib\/orca\/platform-usage";/);
 	assert.match(source.detail, /t\(`\$\{n\(overview\.usage\.toolCalls7\)\} · \$\{n\(overview\.usage\.toolCalls30\)\} ครั้ง`/);
 	assert.doesNotMatch(source.detail, /<dd>\{overview\.counts\.[a-zA-Z]+\}<\/dd>/);
-	assert.match(source.detail, /<td>\{n\(member\.aiSignIns\)\} · \{n\(member\.keys\)\}<\/td>/);
+	assert.match(source.detail, /\{n\(member\.aiSignIns\)\} · \{n\(member\.keys\)\}<\/td>/);
 	// The price field shows 12,900 and still saves a number.
 	assert.match(source.detail, /monthlyPrice: priceText\(next\.monthlyPrice\),/);
 	assert.match(source.detail, /<input bind:value=\{form\.monthlyPrice\} onblur=\{\(\) => \(form\.monthlyPrice = priceText\(form\.monthlyPrice\)\)\} inputmode="numeric"/);
 	assert.match(source.detail, /monthlyPrice: priceValue\(form\.monthlyPrice\),/);
 	// The company list's seats.
 	assert.match(source.companies, /<strong>\{usageNumber\(company\.seats\)\}<\/strong>/);
+});
+
+test('สมาชิก is a card per member when the list is narrower than the table needs', () => {
+	// The same pattern as the company list and the break-glass accounts.
+	assert.match(source.detail, /\.detail-table-wrap \{ container: detail-members \/ inline-size;/);
+	assert.match(source.detail, /@container detail-members \(max-width: 760px\) \{[\s\S]*?\.detail-table thead \{ display: none; \}[\s\S]*?\.detail-cell-label \{ display: inline;/);
+	// Each cell but the name says what it is in a card.
+	const row = source.detail.slice(source.detail.indexOf('{#each members as member'), source.detail.indexOf('{/each}', source.detail.indexOf('{#each members as member')));
+	assert.equal(row.match(/<td/g).length, 7);
+	assert.equal(row.match(/<span class="detail-cell-label">/g).length, 6);
 });

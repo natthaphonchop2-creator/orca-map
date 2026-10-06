@@ -266,13 +266,13 @@
           <tbody>
             {#each members as member (member.id)}
               <tr>
-                <td><strong>{member.displayName || member.email}</strong><small>{member.email}</small></td>
-                <td>{roleName(member.role)}</td>
-                <td>{memberStatus(member.status)}</td>
-                <td>{displayDate(member.joinedAt)}</td>
-                <td>{displayDate(member.lastActiveAt)}</td>
-                <td>{member.departments.length ? member.departments.join(", ") : "—"}</td>
-                <td>{n(member.aiSignIns)} · {n(member.keys)}</td>
+                <td class="detail-member"><strong>{member.displayName || member.email}</strong><small>{member.email}</small></td>
+                <td><span class="detail-cell-label">{t("บทบาท", "Role")}</span>{roleName(member.role)}</td>
+                <td><span class="detail-cell-label">{t("สถานะ", "Status")}</span>{memberStatus(member.status)}</td>
+                <td><span class="detail-cell-label">{t("เข้าร่วม", "Joined")}</span>{displayDate(member.joinedAt)}</td>
+                <td><span class="detail-cell-label">{t("ใช้ล่าสุด", "Last active")}</span>{displayDate(member.lastActiveAt)}</td>
+                <td><span class="detail-cell-label">{t("แผนก", "Departments")}</span>{member.departments.length ? member.departments.join(", ") : "—"}</td>
+                <td><span class="detail-cell-label">{t("แอป AI · คีย์", "AI apps · keys")}</span>{n(member.aiSignIns)} · {n(member.keys)}</td>
               </tr>
             {/each}
           </tbody>
@@ -385,12 +385,14 @@
   .detail-people { display: grid; gap: 8px; margin: 0 0 16px; padding: 0; list-style: none; }
   .detail-people li { display: grid; gap: 2px; }
   .detail-people span { color: var(--orca-muted); font-size: 13.5px; overflow-wrap: anywhere; }
-  .detail-table-wrap { overflow-x: auto; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
+  .detail-table-wrap { container: detail-members / inline-size; overflow-x: auto; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
   .detail-table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .detail-table th { padding: 10px 14px; border-bottom: 1px solid var(--orca-line); background: var(--orca-surface-2); color: var(--orca-muted); font-size: 12.5px; font-weight: 600; text-align: left; white-space: nowrap; }
   .detail-table td { padding: 12px 14px; border-top: 1px solid var(--orca-line-soft); vertical-align: top; }
   .detail-table tbody tr:first-child td { border-top: 0; }
   .detail-table small { display: block; color: var(--orca-muted); font-size: 13px; overflow-wrap: anywhere; }
+  .detail-table td.detail-member { min-width: 180px; }
+  .detail-cell-label { display: none; }
   .detail-form { display: grid; gap: 20px; max-width: 640px; }
   .detail-form fieldset { display: grid; gap: 12px; min-width: 0; margin: 0; padding: 0; border: 0; }
   .detail-form legend { margin-bottom: 4px; font-size: 16px; font-weight: 700; }
@@ -405,5 +407,17 @@
   @media (max-width: 720px) {
     .detail-tabs { gap: 18px; }
     .detail-facts { grid-template-columns: 1fr 1fr; }
+  }
+  /* Each member is a card when the list is narrower than the table needs (a
+     phone, or a laptop with the sidebar open), so names and emails never
+     break letter by letter. */
+  @container detail-members (max-width: 760px) {
+    .detail-table thead { display: none; }
+    .detail-table, .detail-table tbody, .detail-table tr, .detail-table td { display: block; width: auto; }
+    .detail-table tr { padding: 14px 16px; border-top: 1px solid var(--orca-line-soft); }
+    .detail-table tbody tr:first-child { border-top: 0; }
+    .detail-table td, .detail-table tbody tr:first-child td { padding: 3px 0; border: 0; }
+    .detail-table td.detail-member { min-width: 0; padding-bottom: 6px; }
+    .detail-cell-label { display: inline; margin-right: 6px; color: var(--orca-muted); }
   }
 </style>
