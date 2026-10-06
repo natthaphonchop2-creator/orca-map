@@ -92,6 +92,10 @@ test('platform counts come from the company and pilot lists, never counting the 
 	);
 	assert.deepEqual(counts.pilots, { received: 2, contacted: 1, qualified: 0, closed: 1, total: 4, open: 3 });
 	assert.equal(u2.platformCounts([]).pilots.total, 0);
+	// A suspended or closed company without an owner is not a to-do: it gets no owner link.
+	const stopped = u2.platformCounts([company('e', { status: 'suspended' }), company('f', { status: 'closed' }), company('g')]);
+	assert.equal(stopped.noOwner, 3);
+	assert.equal(stopped.needOwner, 1);
 });
 
 test('the catalog groups programs by what the ORCA team has to do', () => {

@@ -1,7 +1,7 @@
 import type { MCPCatalogEntryServerManifest } from './admin/types';
 import type { OrcaBreakGlassLogin, OrcaCandidate, OrcaGoogleSignIn, OrcaMember, OrcaPlatformCompany, PilotRequest, PilotStatus } from './orca';
 import { googleRedirectURI } from '../orca/google-signin';
-import { ownerStatus } from '../orca/platform-companies';
+import { canInviteOwner, ownerStatus } from '../orca/platform-companies';
 
 // The ORCA team's platform area (workspace UX W1, U2): what its pages work out
 // from the lists the API already returns. Nothing here calls the API; every
@@ -92,7 +92,8 @@ export function platformCounts(companies: readonly OrcaPlatformCompany[], pilots
 		expired: count('expired'),
 		noOwner: count('none'),
 		customerSeats: customers.reduce((sum, company) => sum + (Number.isFinite(company.seats) ? company.seats : 0), 0),
-		needOwner: count('expired') + count('none'),
+		// Only companies that may get an owner link: a suspended or closed one has no invite button.
+		needOwner: customers.filter((company, index) => (status[index] === 'expired' || status[index] === 'none') && canInviteOwner(company)).length,
 		pilots: { ...byStatus, total: pilots.length, open: pilots.length - byStatus.closed }
 	};
 }
