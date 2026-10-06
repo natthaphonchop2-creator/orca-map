@@ -73,8 +73,23 @@ export type PlatformCounts = {
 	noOwner: number;
 	/** People who can use a customer company now. */
 	customerSeats: number;
-	/** Customer companies that need the ORCA team: a link expired or none sent. */
+	/**
+	 * The owner to-do, all from one set: active customer companies with no
+	 * owner, the ones that get the invite button (canInviteOwner). A suspended
+	 * or closed company is in none of these: it gets no owner link.
+	 */
+	ownerTodo: {
+		/** Their owner link expired. */
+		expired: number;
+		/** Nobody was ever invited. */
+		notInvited: number;
+		/** A link is out and the owner hasn't accepted yet. */
+		waiting: number;
+	};
+	/** ownerTodo.expired + ownerTodo.notInvited: the companies that need a link now. */
 	needOwner: number;
+	/** Suspended or closed customer companies with no owner: not a to-do, but not "every company has an owner" either. */
+	stoppedWithoutOwner: number;
 	pilots: Record<PilotStatus, number> & { total: number; open: number };
 };
 
@@ -84,6 +99,9 @@ export function platformCounts(companies: readonly OrcaPlatformCompany[], pilots
 	const customers = companies.filter((company) => company.id !== 'default');
 	const status = customers.map((company) => ownerStatus(company));
 	const count = (value: string) => status.filter((item) => item === value).length;
+	const invitable = customers.map((company) => canInviteOwner(company));
+	const todo = (value: string) => status.filter((item, index) => item === value && invitable[index]).length;
+	const ownerTodo = { expired: todo('expired'), notInvited: todo('none'), waiting: todo('waiting') };
 	const byStatus = Object.fromEntries(PILOT_STATUSES.map((value) => [value, pilots.filter((item) => item.status === value).length])) as Record<PilotStatus, number>;
 	return {
 		customers: customers.length,
@@ -92,8 +110,9 @@ export function platformCounts(companies: readonly OrcaPlatformCompany[], pilots
 		expired: count('expired'),
 		noOwner: count('none'),
 		customerSeats: customers.reduce((sum, company) => sum + (Number.isFinite(company.seats) ? company.seats : 0), 0),
-		// Only companies that may get an owner link: a suspended or closed one has no invite button.
-		needOwner: customers.filter((company, index) => (status[index] === 'expired' || status[index] === 'none') && canInviteOwner(company)).length,
+		ownerTodo,
+		needOwner: ownerTodo.expired + ownerTodo.notInvited,
+		stoppedWithoutOwner: status.filter((item, index) => item !== 'owned' && !invitable[index]).length,
 		pilots: { ...byStatus, total: pilots.length, open: pilots.length - byStatus.closed }
 	};
 }

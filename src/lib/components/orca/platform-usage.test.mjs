@@ -185,7 +185,7 @@ async function overviewHarness() {
 	const { harness } = await import(
 		'data:text/javascript;base64,' +
 			Buffer.from(
-				compileModule(`export function harness(testProps, deps) { const { ${names.join(', ')} } = deps; ${script}; return { load, loadUsage, get state() { return { tiles, usage, usageError, companiesError, googleError, catalogFailed, loading }; } }; }`, {
+				compileModule(`export function harness(testProps, deps) { const { ${names.join(', ')} } = deps; ${script}; return { load, loadUsage, get state() { return { tiles, todos, clearText, usage, usageError, companiesError, googleError, catalogFailed, loading }; } }; }`, {
 					filename: 'overview.harness.svelte.js',
 					generate: 'client'
 				}).js.code.replaceAll('svelte/internal/client', internal)
@@ -249,6 +249,40 @@ test('a usage failure leaves the overview\'s other numbers alone, a retry reload
 	assert.match(source, /\{:else if !\(companiesError \|\| pilotsError \|\| googleError \|\| catalogFailed\)\}\s*<!--[^>]*-->\s*<p class="overview-clear">/);
 	assert.match(source, /\{#if companiesError \|\| pilotsError \|\| googleError \|\| catalogFailed\}\s*<p class="overview-error"/, 'and says what failed');
 	assert.match(source, /\(\) => \{\s*\/\/[^\n]*\n\s*catalogFailed = true;/);
+});
+
+test('the owner to-do counts one set: the companies that get the invite button (Codex PC1 polish review 1)', async () => {
+	// Fake companies: one active and never invited, one suspended whose owner
+	// link expired, one suspended with a link still out, one active with an owner.
+	const company = (id, displayName, extra = {}) => ({ id, displayName, createdAt: '', seats: 0, owners: 0, ownerInvitations: [], ...extra });
+	const invitation = (status) => [{ id: `inv-${status}`, email: 'owner@example.invalid', expiresAt: '2026-10-01T00:00:00Z', status }];
+	const neverInvited = company('org-11111111-1111-4111-8111-111111111111', 'บริษัท ทดลองสยาม จำกัด');
+	const suspendedExpired = company('org-22222222-2222-4222-8222-222222222222', 'บริษัท ตัวอย่างพัฒนา จำกัด', { status: 'suspended', ownerInvitations: invitation('expired') });
+	const suspendedWaiting = company('org-33333333-3333-4333-8333-333333333333', 'บริษัท สมมุติการค้า จำกัด', { status: 'suspended', ownerInvitations: invitation('pending') });
+	const owned = company(B, 'บริษัท เดโมโลจิสติกส์ จำกัด', { owners: 1, seats: 4 });
+	const open = (companies) => (async () => (await overviewHarness())({ platformCompanies: async () => companies }, { usage: async () => usageModule.platformUsage(answer) }))();
+
+	const view = await open([overviewCompanies[0], neverInvited, suspendedExpired, suspendedWaiting, owned]);
+	await view.load();
+	// The heading and its breakdown agree, and no suspended company is offered a new link.
+	assert.deepEqual(
+		view.state.todos.map((todo) => [todo.title, todo.detail, todo.action]),
+		[['1 บริษัทยังไม่มีเจ้าของ', 'ยังไม่ได้เชิญ 1', 'ส่งลิงก์เชิญ']]
+	);
+
+	// Nothing to do, but two suspended companies still have no owner: "every company has an owner" would be false.
+	const clear = await open([overviewCompanies[0], suspendedExpired, suspendedWaiting, owned]);
+	await clear.load();
+	assert.deepEqual(clear.state.todos, []);
+	assert.equal(clear.state.clearText, 'ไม่มีงานค้าง บริษัทที่ใช้งานอยู่มีเจ้าของครบและปุ่ม Google เปิดอยู่ ส่วนบริษัทที่ระงับหรือปิดไว้ 2 บริษัทยังไม่มีเจ้าของ');
+	assert.doesNotMatch(clear.state.clearText, /ทุกบริษัทมีเจ้าของ/);
+
+	// Every company with an owner: the plain all-clear.
+	const all = await open([overviewCompanies[0], owned]);
+	await all.load();
+	assert.equal(all.state.clearText, 'ไม่มีงานค้าง ทุกบริษัทมีเจ้าของและปุ่ม Google เปิดอยู่');
+	const source = await readFile(files.overview, 'utf8');
+	assert.match(source, /<p class="overview-clear"><Check size=\{17\} aria-hidden="true" \/>\{clearText\}<\/p>/);
 });
 
 test('only the newest usage load counts: an older answer that lands later changes nothing', async () => {
