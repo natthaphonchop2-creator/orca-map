@@ -52,7 +52,7 @@ async function fixture(t, handler = (_req, res) => res.end('upstream'), options 
 test('serves app and auth routes, assets and HEAD without marketing fallback', async (t) => {
   let upstreamRequests = 0;
   const { appURL } = await fixture(t, (_req, res) => { upstreamRequests++; res.end('marketing'); });
-  for (const route of ['/', '/app?view=connections', '/login/local', '/auth/oauth/consent/test-id', '/auth/oauth/complete', '/auth/mcp/composite/test-id', '/invite/Syn7hetic_Token-0123456789abcdefghijklmnopq']) {
+  for (const route of ['/', '/app?view=connections', '/login/local', '/auth/oauth/consent/test-id', '/auth/oauth/complete', '/auth/mcp/composite/test-id', '/invite/Syn7hetic_Token-0123456789abcdefghijklmnopq', '/app/files/0123456789abcdef0123456789abcdef']) {
     const result = await request(appURL, route);
     assert.equal(result.status, 200, route);
     assert.match(result.body, /ORCA app/);
@@ -63,7 +63,8 @@ test('serves app and auth routes, assets and HEAD without marketing fallback', a
   assert.equal(head.status, 200);
   assert.equal(head.body, '');
   assert.ok(Number(head.headers['content-length']) > 0);
-  for (const route of ['/pricing', '/pricing.html', '/services/enterprise', '/start', '/missing', '/assets/missing.js', '/api-lookalike', '/invite', '/invite/', '/invite/a/b', '/invite/a.b', '/invite/' + 'x'.repeat(129)]) assert.equal((await request(appURL, route)).status, 404, route);
+  for (const route of ['/pricing', '/pricing.html', '/services/enterprise', '/start', '/missing', '/assets/missing.js', '/api-lookalike', '/invite', '/invite/', '/invite/a/b', '/invite/a.b', '/invite/' + 'x'.repeat(129),
+    '/app/files', '/app/files/', '/app/files/0123456789ABCDEF0123456789abcdef', '/app/files/0123456789abcdef0123456789abcde', '/app/files/0123456789abcdef0123456789abcdef0', '/app/files/0123456789abcdef0123456789abcdef/x']) assert.equal((await request(appURL, route)).status, 404, route);
   assert.equal(upstreamRequests, 0);
 });
 
@@ -797,8 +798,9 @@ test('the server logs no request, so no code, request or state reaches a log', a
 
 // Knowledge library v2 (C4 §14m S7): the two upload routes take up to 15
 // minutes to arrive and to be answered; every other request keeps 120 s.
-test('only the two library upload routes are upload routes', () => {
-  for (const path of ['/api/orca/hubs/hub-sales/library/files', '/api/orca/orgs/org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/hubs/hub-sales/library/files', '/api/orca/hubs/hub-sales/library/files/orl-1/versions'])
+test('only the library\'s and the document templates\' upload routes are upload routes', () => {
+  for (const path of ['/api/orca/hubs/hub-sales/library/files', '/api/orca/orgs/org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/hubs/hub-sales/library/files', '/api/orca/hubs/hub-sales/library/files/orl-1/versions',
+    '/api/orca/hubs/hub-sales/doc-templates', '/api/orca/hubs/hub-sales/doc-templates/orl-1/versions'])
     assert.equal(libraryUploadRoute('POST', path), true, path);
   for (const [method, path] of [
     ['GET', '/api/orca/hubs/hub-sales/library/files'],
@@ -811,6 +813,10 @@ test('only the two library upload routes are upload routes', () => {
     ['POST', '/api/khum/hubs/hub-sales/library/files'],
     ['POST', '/api/orca/hubs/a/b/library/files'],
     ['POST', '/api/orca/hubs/hub-sales/library/files/'],
+    ['POST', '/api/orca/hubs/hub-sales/doc-templates/orl-1/test-fill'],
+    ['POST', '/api/orca/hubs/hub-sales/doc-templates/orl-1/publish'],
+    ['PUT', '/api/orca/hubs/hub-sales/doc-templates/orl-1/spec'],
+    ['POST', '/api/khum/hubs/hub-sales/doc-templates'],
   ]) assert.equal(libraryUploadRoute(method, path), false, `${method} ${path}`);
 });
 

@@ -68,7 +68,7 @@ export const HUB_TABS = ['overview', 'programs', 'people', 'settings'] as const;
 
 /** The views a page can show today. */
 export const APP_VIEWS = [
-	'dashboard', 'servers', 'add-program', 'workspaces', 'new', 'hub', 'knowledge', 'members',
+	'dashboard', 'servers', 'add-program', 'workspaces', 'new', 'hub', 'knowledge', 'documents', 'members',
 	...OVERSIGHT_VIEWS, 'connect-ai', 'settings', 'help', 'platform'
 ] as const;
 
@@ -339,6 +339,8 @@ export function activeNavigationView(view: string, section?: string | null): str
 	if (['overview', 'new', 'hub', 'workspaces'].includes(view)) return 'workspaces';
 	if ((OVERSIGHT_VIEWS as readonly string[]).includes(view)) return 'oversight';
 	if (view === 'members') return 'members';
+	// เอกสาร (document templates) lives under คลังความรู้.
+	if (view === 'documents') return 'knowledge';
 	if (view === 'connect-ai' || view === 'api-keys' || view === 'accounts') return 'connect-ai';
 	if (view === 'organization' || view === 'user-sources') return 'settings';
 	if (view === 'pilots') return 'platform:pilots';

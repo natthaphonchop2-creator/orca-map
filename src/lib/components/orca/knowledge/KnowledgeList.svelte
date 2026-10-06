@@ -66,6 +66,7 @@
 		features = { files: false, audienceModes: false },
 		fileZone,
 		usage,
+		documentsHref = '',
 		onchoose,
 		oncreate,
 		onopen,
@@ -92,6 +93,8 @@
 		fileZone?: Snippet;
 		/** The company's file quota, beside the file list. */
 		usage?: LibraryUsage;
+		/** เอกสาร (document templates), while the company has them. */
+		documentsHref?: string;
 		onchoose: (hubID: string) => void;
 		oncreate: (kind: LibraryKind, title?: string) => void;
 		onopen: (item: LibraryItem) => void;
@@ -177,6 +180,7 @@
 		</PageHeader>
 		<div class="kn-ctx">
 			{#if choices.length > 1}<ScopeChip {hub} {choices} onchoose={onchoose} />{/if}
+			{#if documentsHref}<a class="kn-docs" href={documentsHref}>{t('เทมเพลตเอกสาร', 'Document templates')}</a>{/if}
 			{#if counted}
 				<p class="kn-strip">
 					<span><i class="dt" class:ok={!paused} class:plain={paused} aria-hidden="true"></i>{paused ? t('เผยแพร่แล้ว', 'Published') : t('AI ใช้ได้', 'AI can use')} <b>{counts.published}</b></span>
@@ -345,6 +349,13 @@
 		align-items: center;
 		gap: 12px 16px;
 		margin-top: 16px;
+	}
+	.kn-docs {
+		color: var(--orca-ink);
+		font-size: 14px;
+		font-weight: 600;
+		text-decoration: underline;
+		text-underline-offset: 3px;
 	}
 	.kn-strip {
 		display: flex;

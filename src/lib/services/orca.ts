@@ -193,6 +193,8 @@ export interface OrcaBootstrap {
 }
 export interface OrcaFeatures {
   libraryV2?: boolean;
+  /** Document templates (kv2 phase 2a): on only with libraryV2, by the platform operator. */
+  docTemplates?: boolean;
 }
 
 /**

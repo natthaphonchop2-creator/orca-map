@@ -28,9 +28,11 @@ const REQUEST_TIMEOUT_MS = 120_000;
 // ...except the knowledge library's two upload routes: up to 100 MB on a slow
 // line, answered once every file is stored. The backend allows them 15 minutes.
 const UPLOAD_TIMEOUT_MS = 15 * 60_000;
-const UPLOAD_ROUTE = /^\/api\/orca(?:\/orgs\/[^/]+)?\/hubs\/[^/]+\/library\/files(?:\/[^/]+\/versions)?$/;
+const UPLOAD_ROUTE = /^\/api\/orca(?:\/orgs\/[^/]+)?\/hubs\/[^/]+\/(?:library\/files|doc-templates)(?:\/[^/]+\/versions)?$/;
+// A generated document's page (kv2 phase 2a): exactly 32 lowercase hex.
+const FILE_PAGE = /^\/app\/files\/[0-9a-f]{32}$/;
 
-/** POST of new files, or of a file's new version, to the knowledge library. */
+/** POST of new files, or of a file's new version, to the knowledge library or its document templates. */
 export function libraryUploadRoute(method, pathname) {
   return method === 'POST' && UPLOAD_ROUTE.test(pathname);
 }
@@ -282,7 +284,7 @@ async function serveStatic(req, res, pathname, config) {
   if (MARKETING.test(pathname) || pathname.split('/').some((part) => part.startsWith('.'))) return json(res, 404, { error: 'not_found' });
   // An invitation link carries one URL-safe token; anything else stays not-found.
   const uiRoute = UI_PATHS.has(pathname) || /^\/auth\/(?:oauth\/(?:consent|complete)|mcp\/composite)\/[^/]+$/.test(pathname) ||
-    /^\/invite\/[A-Za-z0-9_-]{1,128}$/.test(pathname);
+    /^\/invite\/[A-Za-z0-9_-]{1,128}$/.test(pathname) || FILE_PAGE.test(pathname);
   const relative = pathname.replace(/^\//, '');
   let file = relative ? await buildFile(config.buildDir, relative) : null;
   if (!file && uiRoute) file = await buildFile(config.buildDir, relative ? `${relative}.html` : 'index.html');

@@ -80,6 +80,12 @@ test("Knowledge stays", () => {
   stays("view=knowledge&hub=hub-one", "knowledge");
 });
 
+test("เอกสาร (document templates) stays and lights คลังความรู้", () => {
+  stays("view=documents&hub=hub-one", "documents");
+  stays("view=documents&hub=hub-one&template=orl-1", "documents");
+  assert.equal(activeNavigationView("documents"), "knowledge");
+});
+
 test("the catalog is step 1 of adding a program", () => {
   redirects("view=catalog", "/app?view=add-program");
   redirects("view=catalog&lang=en", "/app?view=add-program&lang=en");

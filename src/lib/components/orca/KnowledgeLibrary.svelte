@@ -29,6 +29,7 @@
 		type UploadRow
 	} from '$lib/orca/knowledge';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
+	import { docTemplatesOn } from '$lib/orca/doc-templates';
 	import { memberName, orcaError, statusLabels, type OrcaBootstrap, type OrcaMember } from '$lib/services/orca';
 	import {
 		OrcaLibraryService,
@@ -860,6 +861,7 @@
 			{features}
 			{usage}
 			fileZone={features.files ? fileZone : undefined}
+			documentsHref={docTemplatesOn(data) ? localeHref(`/app?view=documents&hub=${encodeURIComponent(hub!.id)}`) : ''}
 			onchoose={chooseWorkspace}
 			oncreate={(next, title) => openEditor(next, title)}
 			onopen={(item) => show({ name: 'detail', id: item.id })}

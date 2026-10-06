@@ -13,6 +13,7 @@
   import ConnectionSettings from "$lib/components/orca/ConnectionSettings.svelte";
   import SettingsCenter from "$lib/components/orca/SettingsCenter.svelte";
   import KnowledgeLibrary from "$lib/components/orca/KnowledgeLibrary.svelte";
+  import DocumentsView from "$lib/components/orca/documents/DocumentsView.svelte";
   import AddProgramView from "$lib/components/orca/views/AddProgramView.svelte";
   import HelpView from "$lib/components/orca/views/HelpView.svelte";
   import ConnectAIView from "$lib/components/orca/views/ConnectAIView.svelte";
@@ -259,6 +260,7 @@
       initialCreate={createLibraryItem}
       onchanged={refresh}
     />
+  {:else if view === "documents"}<DocumentsView data={currentData!} {hubID} templateID={page.url.searchParams.get("template") ?? ""} />
   {:else if view === "add-program" && data.canManage}<AddProgramView
       data={managementData!}
       activeData={currentData!}
