@@ -1,5 +1,5 @@
 import { orcaPath } from '$lib/orca/company';
-import { baseURL, doDelete, doGet, doPost, doPut, doUpload } from './http';
+import { doDelete, doGet, doGetForResponse, doPost, doPut, doUpload } from './http';
 import type { OrcaMember } from './orca';
 
 /** An article, a ready-made prompt, or (knowledge library v2) an uploaded file. */
@@ -292,10 +292,29 @@ export const OrcaLibraryService = {
 	},
 	usage: (hubID: string) => doGet(`${base(hubID)}/usage`, options) as Promise<LibraryUsage>,
 	/**
-	 * The original's address, for a plain same-origin link: the browser saves
-	 * the attachment itself, and nothing downloads without a click. The server
-	 * checks who may download it, and records every download.
+	 * Downloads an original, after a click, through the request layer like
+	 * every other request: its refusals reach the page, and a suspended or
+	 * closed company's 423 stops it (company-stop; Codex PC1 review 2 MAJOR 2).
+	 * The server checks who may download it, and records every download. The
+	 * name is the attachment's own (RFC 5987, else its ASCII form).
 	 */
-	downloadHref: (hubID: string, itemID: string, which: 'published' | 'pending' = 'published') =>
-		`${baseURL}${fileBase(hubID, itemID)}/download?version=${which}`
+	async download(hubID: string, itemID: string, which: 'published' | 'pending' = 'published'): Promise<{ blob: Blob; fileName: string }> {
+		const response = await doGetForResponse(`${fileBase(hubID, itemID)}/download?version=${which}`, options);
+		return { blob: await response.blob(), fileName: attachmentName(response.headers.get('Content-Disposition')) };
+	}
 };
+
+/** The file name a Content-Disposition names: filename*, then filename, else "download". */
+export function attachmentName(disposition: string | null): string {
+	const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition ?? '')?.[1];
+	if (encoded) {
+		try {
+			const name = decodeURIComponent(encoded.trim());
+			if (name && !/[\\/\u0000-\u001f]/.test(name)) return name;
+		} catch {
+			// Not percent-encoded as it should be: the ASCII form below.
+		}
+	}
+	const plain = /filename="([^"]*)"/i.exec(disposition ?? '')?.[1];
+	return plain && !/[\\/]/.test(plain) ? plain : 'download';
+}

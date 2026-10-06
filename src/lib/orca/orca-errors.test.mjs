@@ -11,8 +11,10 @@ const code = stripTypeScriptTypes(await readFile(new URL('../services/orca.ts', 
 	.replace(/^export /gm, '');
 const companyURL = await typescriptModuleURL(new URL('./company.ts', import.meta.url));
 const supportURL = await typescriptModuleURL(new URL('./support.ts', import.meta.url));
+const consoleURL = await typescriptModuleURL(new URL('./platform-console.ts', import.meta.url));
 const { errors } = await import('data:text/javascript;base64,' + Buffer.from(`import { orcaPath } from ${JSON.stringify(companyURL)};
 import { ORCA_SUPPORT_LINE_ID } from ${JSON.stringify(supportURL)};
+import { stoppedFromRefusal, stoppedMessage } from ${JSON.stringify(consoleURL)};
 export function errors(stubs) {
 	const { doDelete, doGet, doPatch, doPost, doPut, doWithBody, parseErrorContent, t, orcaLocale } = stubs;
 	${code};
@@ -73,4 +75,12 @@ test('a program that cannot be set up says the step that failed, with its code',
 	assert.equal(orcaError(refusal(424, 'the API token was not accepted')), 'the API token was not accepted');
 	const elsewhere = 'the source is not ready (SRC-13); check your account configuration or ask the organization manager';
 	assert.equal(orcaError(refusal(502, elsewhere)), elsewhere);
+});
+
+// A company that is not active answers 423 (platform console C6 §4.2): its
+// people see only the fixed message, whichever page asked.
+test('a suspended or closed company says only its fixed message', () => {
+	assert.equal(orcaError(refusal(423, 'orca_company_suspended')), 'บริษัทนี้ถูกระงับการใช้งานชั่วคราว กรุณาติดต่อ ORCA');
+	assert.equal(orcaError(refusal(423, 'orca_company_closed')), 'บริษัทนี้ปิดการใช้งานแล้ว');
+	assert.equal(orcaError(refusal(423, 'บริษัทนี้ถูกระงับการใช้งานชั่วคราว กรุณาติดต่อ ORCA')), 'บริษัทนี้ถูกระงับการใช้งานชั่วคราว กรุณาติดต่อ ORCA');
 });

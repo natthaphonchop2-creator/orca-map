@@ -7,7 +7,7 @@
 	import { OrcaService, orcaError, type OrcaCandidate, type OrcaGoogleSignIn, type OrcaPlatformCompany, type PilotRequest } from '$lib/services/orca';
 	import { catalogSummary, googleClientSaved, platformCounts } from '$lib/services/orca-platform';
 	import { PlatformUsageService } from '$lib/services/orca-platform-usage';
-	import type { OrcaPlatformUsage } from '$lib/orca/platform-usage';
+	import { usageNumber, type OrcaPlatformUsage } from '$lib/orca/platform-usage';
 	import PlatformBadge from '../platform/PlatformBadge.svelte';
 	import PlatformUsage from '../platform/PlatformUsage.svelte';
 	import PageHeader from '../ui/PageHeader.svelte';
@@ -79,13 +79,13 @@
 	const tiles = $derived<Tile[]>([
 		{
 			label: term('customerCompanies', t),
-			value: companies ? String(counts.customers) : '—',
+			value: companies ? usageNumber(counts.customers) : '—',
 			detail: companiesError ? t('โหลดไม่สำเร็จ', "Couldn't load") : t(`มีเจ้าของแล้ว ${counts.owned}`, `${counts.owned} with an owner`),
 			href: 'companies'
 		},
 		{
 			label: t('คนที่ใช้งานได้', 'People who can use ORCA'),
-			value: companies ? String(counts.customerSeats) : '—',
+			value: companies ? usageNumber(counts.customerSeats) : '—',
 			detail: companiesError ? t('โหลดไม่สำเร็จ', "Couldn't load") : t('รวมทุกบริษัทลูกค้า', 'Across customer companies'),
 			href: 'companies'
 		},
@@ -93,7 +93,7 @@
 			? [
 					{
 						label: t('คำขอทดลองใช้ใหม่', 'New pilot requests'),
-						value: pilots ? String(counts.pilots.received) : '—',
+						value: pilots ? usageNumber(counts.pilots.received) : '—',
 						detail: pilotsError ? t('โหลดไม่สำเร็จ', "Couldn't load") : t(`ยังไม่ปิด ${counts.pilots.open} จาก ${counts.pilots.total}`, `${counts.pilots.open} of ${counts.pilots.total} still open`),
 						href: 'pilots' as PlatformSection
 					}
@@ -113,16 +113,38 @@
 		}
 	]);
 
+	// Only the parts there are: "ลิงก์หมดอายุ 1", "ยังไม่ได้เชิญ 2", or both.
+	const ownerTodoDetail = $derived(
+		[
+			counts.ownerTodo.expired ? t(`ลิงก์หมดอายุ ${counts.ownerTodo.expired}`, `${counts.ownerTodo.expired} link expired`) : '',
+			counts.ownerTodo.notInvited ? t(`ยังไม่ได้เชิญ ${counts.ownerTodo.notInvited}`, `${counts.ownerTodo.notInvited} not invited`) : ''
+		]
+			.filter(Boolean)
+			.join(' · ')
+	);
+	// "Nothing waiting" says only what is true: a suspended or closed company may still have no owner.
+	const clearText = $derived(
+		counts.stoppedWithoutOwner
+			? t(
+					`ไม่มีงานค้าง บริษัทที่ใช้งานอยู่มีเจ้าของครบและปุ่ม Google เปิดอยู่ ส่วนบริษัทที่ระงับหรือปิดไว้ ${counts.stoppedWithoutOwner} บริษัทยังไม่มีเจ้าของ`,
+					`Nothing waiting. Every active company has an owner and Google sign-in is on. (${counts.stoppedWithoutOwner} suspended or closed ${counts.stoppedWithoutOwner === 1 ? 'company has' : 'companies have'} no owner.)`
+				)
+			: t('ไม่มีงานค้าง ทุกบริษัทมีเจ้าของและปุ่ม Google เปิดอยู่', 'Nothing waiting. Every company has an owner and Google sign-in is on.')
+	);
+
 	type Todo = { tone: 'warn' | 'deny'; icon: typeof Building2; title: string; detail: string; action: string; href: PlatformSection };
 	const todos = $derived<Todo[]>([
 		...(google && !google.enabled
 			? [{ tone: 'deny' as const, icon: TriangleAlert, title: t('การเข้าสู่ระบบด้วย Google ปิดอยู่', 'Sign in with Google is off'), detail: t('ลูกค้าจะเข้าสู่ระบบและรับคำเชิญไม่ได้', "Customers can't sign in or accept invitations"), action: t('เปิดการเข้าสู่ระบบ', 'Turn it on'), href: 'signin' as PlatformSection }]
 			: []),
+		// The heading, its breakdown and the waiting item all count one set: the
+		// companies that get the invite button (counts.ownerTodo). A suspended
+		// one is never offered a link (Codex PC1 polish review 1).
 		...(counts.needOwner
-			? [{ tone: 'warn' as const, icon: Building2, title: t(`${counts.needOwner} บริษัทยังไม่มีเจ้าของ`, `${counts.needOwner} ${counts.needOwner === 1 ? 'company has' : 'companies have'} no owner`), detail: t(`ลิงก์หมดอายุ ${counts.expired} · ยังไม่ได้เชิญ ${counts.noOwner}`, `${counts.expired} link expired · ${counts.noOwner} not invited`), action: t('ส่งลิงก์เชิญ', 'Send a link'), href: 'companies' as PlatformSection }]
+			? [{ tone: 'warn' as const, icon: Building2, title: t(`${counts.needOwner} บริษัทยังไม่มีเจ้าของ`, `${counts.needOwner} ${counts.needOwner === 1 ? 'company has' : 'companies have'} no owner`), detail: ownerTodoDetail, action: t('ส่งลิงก์เชิญ', 'Send a link'), href: 'companies' as PlatformSection }]
 			: []),
-		...(counts.waiting
-			? [{ tone: 'warn' as const, icon: Building2, title: t(`${counts.waiting} บริษัทรอเจ้าของตอบรับ`, `${counts.waiting} waiting for the owner`), detail: t('ส่งลิงก์ใหม่ได้ถ้าเจ้าของหาลิงก์ไม่เจอ', "Send a new link if the owner can't find theirs"), action: t('ดูบริษัท', 'View companies'), href: 'companies' as PlatformSection }]
+		...(counts.ownerTodo.waiting
+			? [{ tone: 'warn' as const, icon: Building2, title: t(`${counts.ownerTodo.waiting} บริษัทรอเจ้าของตอบรับ`, `${counts.ownerTodo.waiting} waiting for the owner`), detail: t('ส่งลิงก์ใหม่ได้ถ้าเจ้าของหาลิงก์ไม่เจอ', "Send a new link if the owner can't find theirs"), action: t('ดูบริษัท', 'View companies'), href: 'companies' as PlatformSection }]
 			: []),
 		...(catalogWaiting
 			? [{ tone: 'warn' as const, icon: Grid2x2Plus, title: t(`${catalogWaiting} โปรแกรมในคลังรอทีม ORCA`, `${catalogWaiting} catalog ${catalogWaiting === 1 ? 'program waits' : 'programs wait'} for the ORCA team`), detail: t('ตั้งค่าแอปหรือยืนยันกับผู้ให้บริการ ลูกค้าจึงเชื่อมได้', 'Set up an app or confirm with the provider so customers can connect'), action: t('ดูคลังโปรแกรม', 'View the catalog'), href: 'catalog' as PlatformSection }]
@@ -176,7 +198,7 @@
 		</ul>
 	{:else if !(companiesError || pilotsError || googleError || catalogFailed)}
 		<!-- Only when every read answered: a failed one proves nothing (Codex release review 64). -->
-		<p class="overview-clear"><Check size={17} aria-hidden="true" />{t('ไม่มีงานค้าง ทุกบริษัทมีเจ้าของและปุ่ม Google เปิดอยู่', 'Nothing waiting. Every company has an owner and Google sign-in is on.')}</p>
+		<p class="overview-clear"><Check size={17} aria-hidden="true" />{clearText}</p>
 	{/if}
 	{#if companiesError || pilotsError || googleError || catalogFailed}
 		<p class="overview-error" role="alert">{t('โหลดข้อมูลบางส่วนไม่สำเร็จ', "Some of this couldn't load.")} <button type="button" class="k-link-button" onclick={load}>{t('ลองอีกครั้ง', 'Try again')}</button></p>

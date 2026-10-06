@@ -92,6 +92,25 @@ test('platform counts come from the company and pilot lists, never counting the 
 	);
 	assert.deepEqual(counts.pilots, { received: 2, contacted: 1, qualified: 0, closed: 1, total: 4, open: 3 });
 	assert.equal(u2.platformCounts([]).pilots.total, 0);
+	// A suspended or closed company without an owner is not a to-do: it gets no owner link.
+	const stopped = u2.platformCounts([company('e', { status: 'suspended' }), company('f', { status: 'closed' }), company('g')]);
+	assert.equal(stopped.noOwner, 3);
+	assert.equal(stopped.needOwner, 1);
+	// The breakdown and the waiting count come from that same set (Codex PC1 polish review 1):
+	// บริษัท ทดลองสยาม (active, never invited), บริษัท ตัวอย่างพัฒนา (suspended, link expired),
+	// บริษัท สมมุติการค้า (suspended, link still out).
+	const expired = [{ id: '3', email: 'x@y', expiresAt: '', status: 'expired' }];
+	const pending = [{ id: '4', email: 'x@y', expiresAt: '', status: 'pending' }];
+	const mixed = u2.platformCounts([
+		company('org-siam', { displayName: 'บริษัท ทดลองสยาม จำกัด' }),
+		company('org-pattana', { displayName: 'บริษัท ตัวอย่างพัฒนา จำกัด', status: 'suspended', ownerInvitations: expired }),
+		company('org-kankha', { displayName: 'บริษัท สมมุติการค้า จำกัด', status: 'suspended', ownerInvitations: pending })
+	]);
+	assert.deepEqual(
+		{ needOwner: mixed.needOwner, ownerTodo: mixed.ownerTodo, stoppedWithoutOwner: mixed.stoppedWithoutOwner },
+		{ needOwner: 1, ownerTodo: { expired: 0, notInvited: 1, waiting: 0 }, stoppedWithoutOwner: 2 }
+	);
+	assert.equal(mixed.ownerTodo.expired + mixed.ownerTodo.notInvited, mixed.needOwner);
 });
 
 test('the catalog groups programs by what the ORCA team has to do', () => {

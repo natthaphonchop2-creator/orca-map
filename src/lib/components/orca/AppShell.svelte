@@ -1,5 +1,6 @@
 <script lang="ts">
   import { companyHref, companySwitch, currentCompany, DEFAULT_COMPANY, rememberCompany, type OrcaCompanyChoice } from "$lib/orca/company";
+  import { companyStatus, companyStatusNote } from "$lib/orca/platform-console";
   import { localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
   import { writesInFlight } from "$lib/services/writes";
   import { activeNavigationView, platformHref, showsPlatformSwitch, type PlatformSection } from "$lib/orca/navigation";
@@ -267,7 +268,11 @@
       aria-current={choice.id === company && !platformMode ? "true" : undefined}
       onclick={(event) => switchCompany(event, choice.id)}
     >
-      <Building2 size={16} strokeWidth={1.7} aria-hidden="true" /><span>{choice.displayName}</span>
+      <Building2 size={16} strokeWidth={1.7} aria-hidden="true" /><span
+        >{choice.displayName}{#if companyStatus(choice.status) !== "active"}<small class="workspace-company-stopped"
+            >{companyStatusNote(companyStatus(choice.status), t)}</small
+          >{/if}</span
+      >
       {#if choice.id === company && !platformMode}<Check size={15} aria-hidden="true" />{/if}
     </a>
   {/each}

@@ -12,6 +12,7 @@
 // in the backend's own format. Nothing the server answers is ever followed as
 // a URL.
 import { accountHeaders } from '../services/writes';
+import { stoppedFromRefusal } from './platform-console';
 
 /** The hand-off page. */
 export const AI_HANDOFF_PAGE = '/login/ai';
@@ -91,6 +92,11 @@ export type HandoffOutcome =
 	| { kind: 'account-changed' }
 	/** 401: signed out since the page opened. */
 	| { kind: 'signed-out' }
+	/**
+	 * 423: the company is suspended or closed (platform console C6 §4.2). Only
+	 * its own member, signed in, is told; no code was made.
+	 */
+	| { kind: 'stopped'; status: 'suspended' | 'closed' }
 	/** Anything else: try again. */
 	| { kind: 'retry' };
 
@@ -105,6 +111,8 @@ export function handoffOutcome(status: number, body: string, json?: unknown): Ha
 	if (status === 404) return { kind: 'expired' };
 	if (status === 412 && body.includes('orca_account_changed')) return { kind: 'account-changed' };
 	if (status === 401) return { kind: 'signed-out' };
+	const stopped = stoppedFromRefusal(status, body);
+	if (stopped) return { kind: 'stopped', status: stopped };
 	return { kind: 'retry' };
 }
 

@@ -1571,3 +1571,10 @@
   color: var(--k-muted);
   font-size: 12px;
 }
+/* A company ORCA suspended or closed (platform console C6): said in words, never a pill. */
+.orca-workspace .workspace-company-stopped {
+  display: block;
+  color: var(--orca-deny);
+  font-size: 12px;
+  font-weight: 600;
+}

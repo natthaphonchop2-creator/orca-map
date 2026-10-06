@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { groupPlatformViews, platformAuditLabel, platformAuditRelated } from "$lib/orca/platform-console";
   import { onDestroy, tick } from "svelte";
   import {
     ArrowDown,
@@ -22,6 +23,7 @@
     auditFilterOptions,
     auditPage,
     filterAuditEvents,
+    sortAuditEvents,
     type AuditMode,
     type AuditSort,
     type AuditTimeRange,
@@ -171,6 +173,11 @@
     "platform.company.create": t("เปิดบริษัทลูกค้า", "Customer company opened"),
     "platform.company.owner_invite": t("เชิญเจ้าของบริษัทลูกค้า", "Customer company's owner invited"),
     "platform.company.owner_revoke": t("ยกเลิกคำเชิญเจ้าของบริษัทลูกค้า", "Customer company's owner invitation revoked"),
+    // What ORCA did in this company (platform console C6, owner decision P6).
+    "platform.view": t("ORCA ดูข้อมูลบริษัท", "ORCA viewed company data"),
+    "platform.suspend": t("ORCA ระงับการใช้งานบริษัทชั่วคราว", "ORCA suspended the company"),
+    "platform.restore": t("ORCA เปิดให้ใช้งานบริษัทอีกครั้ง", "ORCA restored the company"),
+    "platform.rename": t("ORCA เปลี่ยนชื่อบริษัท", "ORCA renamed the company"),
   });
   const names = $derived({
     // A customer company's log names the platform, never the operator's account.
@@ -183,8 +190,10 @@
       data.connections.map((connection) => [connection.id, connection.name]),
     ),
   });
+  // In the table's order, like visibleEvents: grouped in another order, the
+  // filtered rows could outnumber the whole history (Codex PC1 polish review 1).
   const modeEvents = $derived(
-    events.filter((event) => auditEventMode(event) === mode),
+    sortAuditEvents(events.filter((event) => auditEventMode(event) === mode), sort),
   );
   const visibleEvents = $derived(
     filterAuditEvents(
@@ -206,7 +215,12 @@
       (event) => [eventLabel(event)],
     ),
   );
-  const pagination = $derived(auditPage(visibleEvents, pageNumber, pageSize));
+  // Consecutive looks by ORCA at the same area show as one row (C6 §4.1);
+  // every look is still recorded. The counts above the table and under it
+  // both count these rows.
+  const rows = $derived(groupPlatformViews(visibleEvents));
+  const modeRows = $derived(groupPlatformViews(modeEvents));
+  const pagination = $derived(auditPage(rows, pageNumber, pageSize));
   const activeFilters = $derived(
     Boolean(
       query ||
@@ -266,9 +280,11 @@
       return event.version === 1 ? t("เปิดคลังความรู้แบบไฟล์ให้บริษัทลูกค้า", "File Knowledge turned on for a customer company") : t("ปิดคลังความรู้แบบไฟล์ของบริษัทลูกค้า", "File Knowledge turned off for a customer company");
     return "";
   }
-  function eventLabel(event: OrcaAuditEvent) {
+  function eventLabel(event: OrcaAuditEvent & { repeated?: number }) {
     const flag = switchLabel(event);
     if (flag) return flag;
+    const platform = platformAuditLabel(event, t);
+    if (platform) return event.repeated && event.repeated > 1 ? t(`${platform} (${event.repeated} ครั้ง)`, `${platform} (${event.repeated} times)`) : platform;
     return mode === "executions"
       ? (event.toolName ? toolLabel(event.toolName, event.connectionID) : "") ||
           actionLabels[event.action ?? event.method ?? ""] ||
@@ -310,6 +326,9 @@
       : { id };
   }
   function resourceDisplay(event: OrcaAuditEvent): EntityDisplay {
+    // What ORCA did: the area it looked at, or the company (P6).
+    const platform = platformAuditRelated(event, t, data.organization?.displayName);
+    if (platform) return { label: platform };
     // The company's own details: name the company, never a code or "—".
     if ((event.action ?? "").startsWith("organization.") || event.action === "library.v2")
       return { label: data.organization?.displayName || t("ข้อมูลบริษัท", "Company details") };
@@ -529,8 +548,8 @@
   <div class="audit-meta">
     <p class="loaded-summary" role="status">
       {#if loading}{t("กำลังโหลด…", "Loading…")}{:else}{t(
-          `${visibleEvents.length} จาก ${modeEvents.length} รายการ`,
-          `${visibleEvents.length} of ${modeEvents.length} records`,
+          `${rows.length} จาก ${modeRows.length} รายการ`,
+          `${rows.length} of ${modeRows.length} records`,
         )}{#if loadedAt}<span>· {t("โหลดเมื่อ", "Loaded")} {displayDate(new Date(loadedAt).toISOString())}</span>{/if}{/if}
     </p>
     {#if activeFilters}<button type="button" class="k-button quiet small" onclick={clearFilters}

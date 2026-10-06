@@ -113,6 +113,10 @@ test('the mint\'s answers map to what the page says; only the code is ever read 
 	assert.deepEqual(out(412, 'something else'), { kind: 'retry' });
 	assert.deepEqual(out(401, 'unauthorized'), { kind: 'signed-out' });
 	for (const status of [400, 413, 415, 428, 500, 502, 503]) assert.deepEqual(out(status, 'x'), { kind: 'retry' }, String(status));
+	// The company is suspended or closed: only its signed-in member gets 423,
+	// and the page says so with the fixed message (platform console C6 §4.2).
+	assert.deepEqual(out(423, 'orca_company_suspended\n'), { kind: 'stopped', status: 'suspended' });
+	assert.deepEqual(out(423, 'orca_company_closed\n'), { kind: 'stopped', status: 'closed' });
 });
 
 test('the mint names the page\'s account, posts one decision as JSON, and asks nothing without an account', async () => {

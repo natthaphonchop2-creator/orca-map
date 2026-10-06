@@ -228,6 +228,9 @@
 			schedulePoll();
 		} catch (cause) {
 			if (request !== requestNumber || disposed) return;
+			// The company is suspended or closed: the page goes (company-stop
+			// opens the suspended page); nothing here asks again.
+			if (companyRefused(cause)) return;
 			// Older than the list now: its refusal may be too; ask again (Codex S7 eighth confirmation #1).
 			if (seen !== freshness) {
 				void load(id, quiet);
@@ -411,6 +414,7 @@
 		} catch (cause) {
 			// Another workspace's, or an older, answer: nothing of this page's asking changes (Codex S7 second confirmation #3).
 			if (disposed || request !== readingRequest || hub?.id !== id) return;
+			if (companyRefused(cause)) return;
 			if (seen !== freshness) {
 				schedulePoll();
 				return;
@@ -464,6 +468,17 @@
 		clearTimeout(pollTimer);
 		pollTimer = undefined;
 		pollRound = 0;
+	}
+	/**
+	 * A 423: the company is suspended or closed (platform console C6 §4.2).
+	 * The request layer has stopped the page already (company-stop), which
+	 * opens the suspended page in place of this one; until it goes, the page
+	 * asks nothing more (Codex PC1 review 1 MAJOR 4).
+	 */
+	function companyRefused(cause: unknown): boolean {
+		if (getHttpStatusCode(cause) !== 423) return false;
+		stopPolling();
+		return true;
 	}
 	function cancelUpload() {
 		uploadAbort?.abort();

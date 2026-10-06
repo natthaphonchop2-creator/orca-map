@@ -28,6 +28,9 @@ const accountLevel = new Set([
 	'requestPilot', 'listPilotRequests', 'updatePilotRequest', 'localUsers', 'authProviders', 'createLocalUser',
 	'resetLocalPassword', 'createRemoteEntry', 'configureSourceOAuthClient', 'removeSourceOAuthClient',
 	'platformCompanies', 'openCompany', 'inviteCompanyOwner', 'revokeCompanyOwnerInvitation', 'setCompanyLibraryV2',
+	// The platform console (C6 PC1): the operator's calls about a company, never under its path.
+	'platformCompany', 'platformCompanyMembers', 'platformCompanyProfile', 'savePlatformCompanyProfile',
+	'suspendCompany', 'restoreCompany', 'renameCompany',
 ]);
 
 async function paths(company) {
@@ -82,6 +85,14 @@ test('"default" keeps every legacy path', async () => {
 	assert.deepEqual(byName.revokeCompanyOwnerInvitation, ['/orca/platform/companies/id-1/owner-invitations/name/revoke']);
 	// The operator's knowledge library v2 switch is the platform's call for that company (C4 §14m S5).
 	assert.deepEqual(byName.setCompanyLibraryV2, ['/orca/platform/companies/id-1/library-v2']);
+	// The platform console's looks and changes (C6 PC1).
+	assert.deepEqual(byName.platformCompany, ['/orca/platform/companies/id-1']);
+	assert.deepEqual(byName.platformCompanyMembers, ['/orca/platform/companies/id-1/members']);
+	assert.deepEqual(byName.platformCompanyProfile, ['/orca/platform/companies/id-1/profile']);
+	assert.deepEqual(byName.savePlatformCompanyProfile, ['/orca/platform/companies/id-1/profile']);
+	assert.deepEqual(byName.suspendCompany, ['/orca/platform/companies/id-1/suspend']);
+	assert.deepEqual(byName.restoreCompany, ['/orca/platform/companies/id-1/restore']);
+	assert.deepEqual(byName.renameCompany, ['/orca/platform/companies/id-1/rename']);
 });
 
 // The library service: every call for "default" and for another company.
@@ -89,12 +100,11 @@ const libraryCode = stripTypeScriptTypes(await readFile(new URL('../services/orc
 	.replace(/^import[^;]+;/gm, '')
 	.replace(/^export /gm, '');
 const { library } = await import('data:text/javascript;base64,' + Buffer.from(`import { orcaPath } from ${JSON.stringify(companyURL)};
-export function library(doGet, doPost, doPut, doDelete, doUpload, baseURL) {
+export function library(doGet, doPost, doPut, doDelete, doUpload, doGetForResponse) {
 	${libraryCode};
-	return OrcaLibraryService;
+	return Object.assign(OrcaLibraryService, { attachmentName });
 }`).toString('base64'));
 
-const BASE = 'https://orca.example.invalid/api';
 // Calls whose arguments are not (workspace, input, item): the file routes (knowledge library v2).
 const fileArgs = {
 	upload: ['id-1', [new File(['x'], 'ราคา.xlsx')]],
@@ -106,25 +116,24 @@ const fileArgs = {
 	remove: ['id-1', 'item-1'],
 	takeover: ['id-1', 'item-1'],
 	usage: ['id-1'],
-	downloadHref: ['id-1', 'item-1', 'published']
+	download: ['id-1', 'item-1', 'published']
 };
 
 async function libraryPaths(company) {
 	const calls = [];
 	const record = async (path) => { calls.push(path); return { items: [], departments: [], knowledge: [], files: [], item: {}, preview: [] }; };
-	const service = library(record, record, record, record, record, BASE);
+	// The download reads its answer as a file.
+	const response = async (path) => { calls.push(path); return { blob: async () => new Blob(['x']), headers: { get: () => null } }; };
+	const service = library(record, record, record, record, record, response);
 	setPageCompany(company, company === 'default' ? [] : [{ id: company }]);
 	const result = {};
 	try {
 		for (const [name, call] of Object.entries(service)) {
-			if (typeof call !== 'function') continue;
+			if (typeof call !== 'function' || name === 'attachmentName') continue;
 			calls.length = 0;
 			const value = await call.call(service, ...(fileArgs[name] ?? ['id-1', { title: 'x', memberIDs: [], unitIDs: [], parameters: [], knowledgeIDs: [] }, 'x']));
-			// A download is a plain link, never a request the page makes.
-			if (name === 'downloadHref') {
-				assert.ok(value.startsWith(BASE), value);
-				calls.push(value.slice(BASE.length));
-			}
+			// A download goes through the request layer (Codex PC1 review 2 MAJOR 2).
+			if (name === 'download') assert.equal(value.fileName, 'download');
 			result[name] = [...calls];
 		}
 	} finally {
@@ -156,15 +165,15 @@ test('the library, departments included, uses the page\'s company', async () => 
 	assert.deepEqual(inDefault.remove, ['/orca/hubs/id-1/library/items/item-1']);
 	assert.deepEqual(inDefault.takeover, ['/orca/hubs/id-1/library/items/item-1/takeover']);
 	assert.deepEqual(inDefault.usage, ['/orca/hubs/id-1/library/usage']);
-	assert.deepEqual(inDefault.downloadHref, ['/orca/hubs/id-1/library/files/item-1/download?version=published']);
+	assert.deepEqual(inDefault.download, ['/orca/hubs/id-1/library/files/item-1/download?version=published']);
 	assert.deepEqual(inB.upload, [`/orca/orgs/${B}/hubs/id-1/library/files`]);
-	assert.deepEqual(inB.downloadHref, [`/orca/orgs/${B}/hubs/id-1/library/files/item-1/download?version=published`]);
+	assert.deepEqual(inB.download, [`/orca/orgs/${B}/hubs/id-1/library/files/item-1/download?version=published`]);
 });
 
 test('an upload sends each file as a named multipart part, one form a batch', async () => {
 	const forms = [];
 	const upload = async (path, form) => { forms.push([path, form]); return { files: [] }; };
-	const service = library(async () => ({}), async () => ({}), async () => ({}), async () => ({}), upload, BASE);
+	const service = library(async () => ({}), async () => ({}), async () => ({}), async () => ({}), upload, async () => ({}));
 	await service.upload('id-1', [new File(['a'], 'ราคา.xlsx'), new File(['b'], 'ลูกค้า.csv')]);
 	await service.replace('id-1', 'item-1', new File(['c'], 'ราคา ฉบับใหม่.xlsx'));
 	assert.deepEqual(forms.map(([path]) => path), ['/orca/hubs/id-1/library/files', '/orca/hubs/id-1/library/files/item-1/versions']);
@@ -176,11 +185,20 @@ test('an upload sends each file as a named multipart part, one form a batch', as
 test('"ใช้ฉบับใหม่" names the reviewed version; a switch sends only itself (G3, Codex #1, #2)', async () => {
 	const bodies = [];
 	const send = (method) => async (path, body) => { bodies.push([method, path, body]); return { item: {} }; };
-	const service = library(async () => ({}), send('POST'), send('PUT'), async () => ({}), async () => ({}), BASE);
+	const service = library(async () => ({}), send('POST'), send('PUT'), async () => ({}), async () => ({}), async () => ({}));
 	await service.publishPending('id-1', 'item-1', 3);
 	await service.setOptions('id-1', 'item-1', { allowDownload: false });
 	assert.deepEqual(bodies, [
 		['POST', '/orca/hubs/id-1/library/files/item-1/publish-pending', { version: 3 }],
 		['PUT', '/orca/hubs/id-1/library/files/item-1/options', { allowDownload: false }]
 	]);
+});
+
+test('a download names its file as the server sends it, Thai included, and nothing unsafe', () => {
+	const { attachmentName } = library();
+	assert.equal(attachmentName(`attachment; filename="_______.xlsx"; filename*=UTF-8''%E0%B8%A3%E0%B8%B2%E0%B8%84%E0%B8%B2.xlsx`), 'ราคา.xlsx');
+	assert.equal(attachmentName('attachment; filename="price.csv"'), 'price.csv');
+	assert.equal(attachmentName(`attachment; filename="a.txt"; filename*=UTF-8''%E0%B8`), 'a.txt', 'a broken encoding falls back');
+	assert.equal(attachmentName(`attachment; filename*=UTF-8''..%2F..%2Fetc`), 'download', 'never a path');
+	assert.equal(attachmentName(null), 'download');
 });

@@ -8,12 +8,14 @@ import { typescriptModuleURL } from './test-import.mjs';
 // services/http.ts, its store imports stubbed: a multipart POST with
 // progress that names the page's account and counts as a write, like doPost.
 const writesURL = await typescriptModuleURL(new URL('../services/writes.ts', import.meta.url));
+const stopURL = await typescriptModuleURL(new URL('./company-stop.ts', import.meta.url));
 const code = stripTypeScriptTypes(await readFile(new URL('../services/http.ts', import.meta.url), 'utf8'))
 	.replace(/^import[^;]+;/gm, '')
 	.replace(/^export \{[^}]*\};?$/gm, '')
 	.replace(/^export /gm, '')
 	.replaceAll('import.meta.env.VITE_API_TARGET', 'undefined');
-const { http } = await import('data:text/javascript;base64,' + Buffer.from(`import { accountHeaders, counted, orcaAccountChanged, pageAccountOr, reloadForAccount, writesInFlight } from ${JSON.stringify(writesURL)};
+const { http } = await import('data:text/javascript;base64,' + Buffer.from(`import { companyStop, stoppedCode } from ${JSON.stringify(stopURL)};
+import { accountHeaders, counted, orcaAccountChanged, pageAccountOr, reloadForAccount, writesInFlight } from ${JSON.stringify(writesURL)};
 export function http(deps) {
 	const { UNAUTHORIZED_PATHS, UNAUTHORIZED_PATH_PREFIXES, createHttpError, loginHref, errors, profile } = deps;
 	${code};
@@ -141,4 +143,34 @@ test('an upload says when its whole body is sent: after that, a lost answer leav
 	assert.equal(sent, 1);
 	request.onerror();
 	await assert.rejects(pending, TypeError);
+});
+
+// Last in this file: the stop lasts for the page's life.
+test('an upload\'s 423 for the page\'s company stops the page, and no later upload goes out (platform console C6 §4.2)', async () => {
+	const company = await import(await typescriptModuleURL(new URL('./company.ts', import.meta.url)));
+	const stops = await import(stopURL);
+	const B = 'org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+	company.setPageCompany(B, []);
+	const heard = [];
+	stops.onCompanyStop((status) => heard.push(status));
+	const api = client();
+	// Another company's 423, or the platform's, stops nothing.
+	const other = fakeRequest();
+	const elsewhere = api.doUpload('/orca/orgs/org-cccccccc-cccc-4ccc-8ccc-cccccccccccc/hubs/h/library/files', new FormData(), { request: () => other, dontLogErrors: true });
+	other.answer(423, 'orca_company_suspended');
+	await assert.rejects(elsewhere);
+	assert.deepEqual(heard, []);
+	const refused = fakeRequest();
+	const upload = api.doUpload(company.orcaPath('/hubs/h/library/files'), new FormData(), { request: () => refused, dontLogErrors: true });
+	refused.answer(423, 'orca_company_closed');
+	await assert.rejects(upload, (error) => error.statusCode === 423);
+	assert.deepEqual(heard, ['closed']);
+	const later = fakeRequest();
+	const again = api.doUpload(company.orcaPath('/hubs/h/library/files'), new FormData(), { request: () => later, dontLogErrors: true });
+	const opened = [...later.seen.opened];
+	// Sent anyway (a regression): answer it, so the test fails rather than waits.
+	if (opened.length) later.answer(201, '{}');
+	assert.deepEqual(opened, [], 'never sent');
+	await assert.rejects(again, (error) => error.statusCode === 423 && /orca_company_closed/.test(error.message));
+	assert.equal(api.writesInFlight(), 0);
 });

@@ -16,6 +16,7 @@
     type HandoffDecision,
     type HandoffOutcome,
   } from "$lib/orca/ai-handoff";
+  import { stoppedMessage } from "$lib/orca/platform-console";
   import { reloadForAccount } from "$lib/services/writes";
   import { ArrowLeft, ArrowRight, Bot, Clock, UserRound } from "@lucide/svelte";
   import { onMount, tick } from "svelte";
@@ -31,6 +32,8 @@
   type Problem = Exclude<HandoffOutcome["kind"], "redeem" | "signed-out"> | "";
   let busy = $state<HandoffDecision | "">("");
   let problem = $state<Problem>("");
+  // The company's status, when the mint answered 423 (its own member only).
+  let stoppedStatus = $state<"suspended" | "closed">("suspended");
   let tried = false;
   const expired = $derived(data.expired || problem === "expired");
   const notMember = $derived(problem === "not-member");
@@ -53,9 +56,10 @@
     busy = "";
     if (outcome.kind === "signed-out") return window.location.replace(AI_LOGIN);
     if (outcome.kind === "account-changed" && reloadForAccount(() => window.location.reload(), storage())) return;
+    if (outcome.kind === "stopped") stoppedStatus = outcome.status;
     problem = outcome.kind;
     // The card changed under the person's focus (the button they pressed is gone): start it at the new title.
-    if (problem === "not-member" || problem === "expired") {
+    if (problem === "not-member" || problem === "expired" || problem === "stopped") {
       await tick();
       document.getElementById("ai-handoff-title")?.focus();
     }
@@ -113,6 +117,12 @@
               "The AI app's connection timed out or started in another browser. Go back to your AI app and connect ORCA again.",
             )}
           </p>
+        </div>
+      {:else if problem === "stopped"}
+        <h1 id="ai-handoff-title" tabindex="-1">{t("เชื่อมแอป AI กับบริษัทนี้ไม่ได้ตอนนี้", "This AI app can't connect to this company now")}</h1>
+        <div class="o-alert" role="alert">{stoppedMessage(stoppedStatus, t)}</div>
+        <div class="o-handoff-actions">
+          <button type="button" class="o-handoff-cancel" disabled={busy !== ""} onclick={() => run("cancel")}>{t("ยกเลิก", "Cancel")}</button>
         </div>
       {:else if notMember}
         <h1 id="ai-handoff-title" tabindex="-1">{t("ลองใช้บัญชีอื่น", "Try another account")}</h1>

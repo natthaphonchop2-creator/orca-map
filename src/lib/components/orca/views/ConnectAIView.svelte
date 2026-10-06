@@ -5,6 +5,7 @@
 	import { aiConnection, setAIConnection } from '$lib/orca/ai-connection.svelte';
 	import type { AIApp } from '$lib/orca/client-config';
 	import { companyPinned, currentCompany } from '$lib/orca/company';
+	import { companyStop } from '$lib/orca/company-stop';
 	import {
 		AI_APP_KEY,
 		aiConnectionFrom,
@@ -171,7 +172,8 @@
 			requestAnimationFrame(revealAccounts);
 			for (const type of ['wheel', 'touchmove', 'keydown', 'pointerdown'] as const) window.addEventListener(type, stopRevealing, { once: true, passive: true });
 		}
-		poller = createPoller(load, { interval: 4000, visible: () => document.visibilityState !== 'hidden' });
+		// Never again once the company is suspended or closed (company-stop).
+		poller = createPoller(load, { interval: 4000, visible: () => document.visibilityState !== 'hidden', until: companyStop.pageSignal() });
 		void poller.poke();
 		// Hidden: no requests. Shown again (back from Claude's tab): check at once.
 		const onVisibility = () => {

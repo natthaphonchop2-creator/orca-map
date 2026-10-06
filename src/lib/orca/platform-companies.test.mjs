@@ -19,6 +19,13 @@ test('the platform invites an owner only into a customer company nobody owns', (
 	assert.equal(canInviteOwner({ id: B, owners: 0 }), true);
 	assert.equal(canInviteOwner({ id: B, owners: 1 }), false);
 	assert.equal(canInviteOwner({ id: 'default', owners: 0 }), false);
+	assert.equal(canInviteOwner({ id: B, owners: 0, status: 'active' }), true);
+});
+
+test('a suspended or closed company gets no owner link, a new one or a first one', () => {
+	assert.equal(canInviteOwner({ id: B, owners: 0, status: 'suspended' }), false);
+	assert.equal(canInviteOwner({ id: B, owners: 0, status: 'closed' }), false);
+	assert.equal(canInviteOwner({ id: B, owners: 0, status: 'purging' }), false, 'a status the page does not know is not open');
 });
 
 test('the operator is warned when the person can\'t make an account yet', () => {

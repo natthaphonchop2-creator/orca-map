@@ -8,7 +8,14 @@ export const DEFAULT_COMPANY = 'default';
 const companyIDPattern = /^org-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** One company the signed-in person may use now (GET /api/orca/companies). */
-export type OrcaCompanyChoice = { id: string; displayName: string; role: string; canManage: boolean };
+export type OrcaCompanyChoice = {
+	id: string;
+	displayName: string;
+	role: string;
+	canManage: boolean;
+	/** "active", "suspended" or "closed" (platform console C6); an older server sends none. */
+	status?: string;
+};
 
 /** Where a fresh page opens. `companies` is undefined when the server gave
  * no list (an older server). */
