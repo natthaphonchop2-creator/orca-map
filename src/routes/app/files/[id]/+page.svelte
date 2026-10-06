@@ -4,10 +4,10 @@
   import "$lib/components/orca/forms.css";
   import "$lib/components/orca/orca.css";
   import { parseErrorContent } from "$lib/errors";
-  import { filePage, FILE_ID, expiryText, type FilePage } from "$lib/orca/doc-templates";
+  import { filePage, FILE_ID, expiryText, reportLine, reportRows, type FilePage } from "$lib/orca/doc-templates";
   import { formatBytes } from "$lib/orca/knowledge";
   import { initializeLocale, localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
-  import { OrcaDocTemplateService } from "$lib/services/orca-doc-templates";
+  import { OrcaDocTemplateService, type GeneratedDocument } from "$lib/services/orca-doc-templates";
   import { Download, LoaderCircle } from "@lucide/svelte";
   import { onMount } from "svelte";
   import type { PageProps } from "./$types";
@@ -16,20 +16,31 @@
   // (only its maker gets an answer), then downloads it there. Everyone else,
   // and every expired or deleted file, gets the same "not found".
   let { data }: PageProps = $props();
-  let state = $state<FilePage | "loading">("loading");
+  let view = $state<FilePage | "loading">("loading");
+  // The stored fill report, the requester's own (Codex code review 1): every
+  // cell with its source, and the rows that did not fit.
+  let doc = $state<GeneratedDocument>();
   const now = Date.now();
 
   onMount(async () => {
     initializeLocale();
     if (!FILE_ID.test(data.id)) {
-      state = filePage(data.id, {}, OrcaDocTemplateService.downloadHref);
+      view = filePage(data.id, {}, OrcaDocTemplateService.downloadHref);
       return;
     }
     try {
       const location = await OrcaDocTemplateService.locate(data.id);
-      state = filePage(data.id, { location }, OrcaDocTemplateService.downloadHref);
+      view = filePage(data.id, { location }, OrcaDocTemplateService.downloadHref);
+      if (view.kind === "ready") {
+        try {
+          const mine = await OrcaDocTemplateService.documents(location.hubID, location.companyID);
+          doc = mine.find((item) => item.id === data.id);
+        } catch {
+          doc = undefined;
+        }
+      }
     } catch (cause) {
-      state = filePage(data.id, { status: parseErrorContent(cause).status }, OrcaDocTemplateService.downloadHref);
+      view = filePage(data.id, { status: parseErrorContent(cause).status }, OrcaDocTemplateService.downloadHref);
     }
   });
 </script>
@@ -41,14 +52,32 @@
   </header>
   <main class="o-auth o-wrap file-main">
     <section class="o-auth-form file-panel" aria-live="polite">
-      {#if state === "loading"}
+      {#if view === "loading"}
         <p class="file-loading"><LoaderCircle size={20} class="k-spin" aria-hidden="true" />{t("กำลังเปิดเอกสาร…", "Opening the document…")}</p>
-      {:else if state.kind === "ready"}
-        <h1 class="file-title">{state.location.name}</h1>
-        <p class="file-facts">{formatBytes(state.location.bytes)} · {expiryText(state.location.expiresAt, now, t)}</p>
-        <a class="o-button" href={state.href} download><Download size={16} aria-hidden="true" />{t("ดาวน์โหลด", "Download")}</a>
+      {:else if view.kind === "ready"}
+        <h1 class="file-title">{view.location.name}</h1>
+        <p class="file-facts">{formatBytes(view.location.bytes)} · {expiryText(view.location.expiresAt, now, t)}</p>
+        <a class="o-button" href={view.href} download><Download size={16} aria-hidden="true" />{t("ดาวน์โหลด", "Download")}</a>
         <p class="file-note">{t("ตรวจตัวเลขในไฟล์ก่อนส่งต่อ ไฟล์นี้เปิดได้เฉพาะคุณ", "Check the figures before you send it on. Only you can open this file.")}</p>
-      {:else if state.kind === "retry"}
+        {#if doc?.report}
+          <details class="file-report">
+            <summary>{reportLine(doc.report, !!doc.reportTruncated, t)}</summary>
+            <table>
+              <thead><tr><th>{t("ช่อง", "Cell")}</th><th>{t("ค่า", "Value")}</th><th>{t("มาจาก", "From")}</th></tr></thead>
+              <tbody>
+                {#each reportRows(doc.report, t) as row, i (i)}
+                  <tr><td><span class="file-what">{row.what}</span><span class="file-cell">{row.cell}</span></td><td>{row.shown}</td><td>{row.source}</td></tr>
+                {/each}
+              </tbody>
+            </table>
+            {#each doc.report.overflow ?? [] as over (over.table)}
+              {#if over.given > over.written}
+                <p class="file-over">{t(`ตาราง ${over.table}: ${over.given - over.written} แถวไม่พอที่ ไม่ได้อยู่ในไฟล์`, `Table ${over.table}: ${over.given - over.written} rows did not fit and are not in the file`)}</p>
+              {/if}
+            {/each}
+          </details>
+        {/if}
+      {:else if view.kind === "retry"}
         <h1 class="file-title">{t("เปิดเอกสารไม่สำเร็จ", "The document did not open")}</h1>
         <p>{t("ORCA ตอบไม่ได้ในตอนนี้ ลองอีกครั้ง", "ORCA can't answer right now. Try again.")}</p>
         <button class="o-button" onclick={() => location.reload()}>{t("ลองอีกครั้ง", "Try again")}</button>
@@ -70,4 +99,12 @@
   .file-facts { margin: 0 0 18px; color: var(--orca-muted); font-size: 14px; }
   .file-note { margin: 14px 0 0; color: var(--orca-muted); font-size: 13.5px; line-height: 1.6; }
   a.o-button { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+  .file-report { margin-top: 18px; font-size: 13.5px; }
+  .file-report summary { cursor: pointer; font-weight: 600; }
+  .file-report table { width: 100%; margin-top: 10px; border-collapse: collapse; }
+  .file-report th, .file-report td { padding: 6px 8px; border-top: 1px solid var(--orca-line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+  .file-report th { color: var(--orca-muted); font-weight: 500; }
+  .file-what { display: block; }
+  .file-cell { display: block; color: var(--orca-muted); font-size: 12px; }
+  .file-over { margin: 8px 0 0; color: var(--orca-muted); }
 </style>

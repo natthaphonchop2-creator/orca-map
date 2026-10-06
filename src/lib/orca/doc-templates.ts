@@ -87,6 +87,7 @@ export function refusalText(reason: string | undefined, t: Translate): string {
 		embedded_object: ['ไฟล์มีวัตถุฝังหรือไฟล์แนบอยู่ข้างใน ลบออกก่อน', 'The file has embedded objects. Remove them first.'],
 		hidden_text: ['ไฟล์มีข้อความที่ซ่อนอยู่ ลบออกก่อน', 'The file has hidden text. Remove it first.'],
 		excel_table: ['ช่องที่จะกรอกอยู่ในตาราง Excel (Format as Table) แปลงเป็นช่วงปกติก่อน', 'Cells to fill are in an Excel table. Convert it to a normal range first.'],
+		chart_on_formula: ['มีกราฟที่อ่านจากช่องสูตร ORCA อัปเดตกราฟให้ไม่ได้ ย้ายกราฟให้อ่านจากช่องค่าคงที่ หรือลบออกก่อน', 'A chart reads formula cells ORCA cannot refresh. Point it at plain cells or remove it first.'],
 		chart_on_fill_area: ['มีกราฟที่อ่านจากช่องที่จะกรอก ย้ายกราฟหรือลบออกก่อน', 'A chart reads from cells ORCA fills. Move or remove it first.'],
 		chart_unsupported: ['กราฟแบบนี้ ORCA ยังตรวจไม่ได้', 'ORCA can’t check this kind of chart yet.'],
 		formula_unsupported: ['มีสูตรแบบที่ ORCA ยังรองรับไม่ได้ (เช่นตารางข้อมูลหรือสูตรอาร์เรย์แบบเก่า)', 'A formula kind ORCA can’t keep yet (such as a data table).'],
@@ -334,6 +335,10 @@ export function problemText(problem: SpecProblem, t: Translate): string {
 			return t(`ช่องซ้อนกัน${where}`, `Cells overlap${where}`);
 		case 'merge_target':
 			return t(`ช่องที่รวมไว้ต้องกรอกที่ช่องซ้ายบนเท่านั้น${where}`, `A merged cell is filled at its top-left only${where}`);
+		case 'validation_bounds':
+			return t(`ช่องนี้มีกฎตรวจข้อมูลใน Excel ตั้งชนิดและค่าต่ำสุด–สูงสุดให้ไม่หลวมกว่ากฎ${where}`, `This cell has an Excel validation rule: set a type and limits no looser than the rule${where}`);
+		case 'chart_on_formula':
+			return t(`มีกราฟที่อ่านจากช่องสูตร${where}`, `A chart reads formula cells${where}`);
 		case 'formula_target':
 			return t(`ช่องนี้มีสูตร ORCA ไม่เขียนทับ${where}`, `This cell has a formula; ORCA never writes over it${where}`);
 		case 'key':
@@ -363,17 +368,59 @@ export function expiryText(expiresAt: string, now: number, t: Translate): string
 	return t(`เก็บไว้อีก ${days} วัน`, `Kept ${days} more days`);
 }
 
-/** The fill report in one line: filled, cleared, rows that did not fit. */
+/** Rows a report's tables could not take: given minus written, per the wire shape. */
+export function overflowRows(report: GeneratedReport | undefined): number {
+	return (report?.overflow ?? []).reduce((sum, o) => sum + Math.max(0, (o.given ?? 0) - (o.written ?? 0)), 0);
+}
+
+/** The fill report in one line: filled, cleared, rows that did not fit, from the full totals when cut. */
 export function reportLine(report: GeneratedReport | undefined, truncated: boolean, t: Translate): string {
 	if (!report) return '';
-	const filled = report.filled?.length ?? 0;
-	const cleared = report.cleared?.length ?? 0;
-	const over = (report.overflow ?? []).reduce((sum, o) => sum + (o.rows ?? 0), 0);
+	const filled = report.totals?.filled ?? report.filled?.length ?? 0;
+	const cleared = report.totals?.cleared ?? report.cleared?.length ?? 0;
+	const over = overflowRows(report);
 	const parts = [t(`กรอก ${filled} ช่อง`, `${filled} cells filled`)];
 	if (cleared) parts.push(t(`ล้าง ${cleared} ช่อง`, `${cleared} cleared`));
 	if (over) parts.push(t(`${over} แถวไม่พอที่`, `${over} rows did not fit`));
-	if (truncated) parts.push(t('รายงานแสดงไม่ครบ', 'report shortened'));
+	if (truncated || report.truncated) parts.push(t('รายงานแสดงไม่ครบ', 'report shortened'));
 	return parts.join(' · ');
+}
+
+/** One row of the stored report as the requester checks it: where, what, from which report. */
+export type ReportRow = { cell: string; what: string; shown: string; source: string };
+
+/** The report's filled cells, each with its source, for the file page. */
+export function reportRows(report: GeneratedReport | undefined, t: Translate): ReportRow[] {
+	return (report?.filled ?? []).map((cell) => ({
+		cell: cell.cell ?? '',
+		what: cell.label || cell.key,
+		shown: cell.shown ?? '',
+		source: cell.sourceLabel || cell.source || t('ไม่ระบุ', 'not named')
+	}));
+}
+
+// ── Confirming a review (Codex code review 1, finding 9) ────────────
+
+/** What a review would confirm, as one comparable string. */
+export function reviewSnapshot(proposal: DocSpec, review: Review, uncovered: readonly DocUncovered[]): string {
+	return JSON.stringify([buildSpec(proposal, review, uncovered), review.whenToUse.trim(), review.expectedSources.filter(Boolean)]);
+}
+
+/**
+ * Sends the review as it is now and returns, with the answer, the snapshot
+ * of what was sent: an edit made while the server answers stays an
+ * unconfirmed edit, never mistaken for the confirmed spec.
+ */
+export async function confirmReview<T>(
+	proposal: DocSpec,
+	review: Review,
+	uncovered: readonly DocUncovered[],
+	send: (payload: { spec: DocSpec; whenToUse: string; expectedSources: string[] }) => Promise<T>
+): Promise<{ result: T; sent: string }> {
+	const payload = JSON.parse(JSON.stringify({ spec: buildSpec(proposal, review, uncovered), whenToUse: review.whenToUse.trim(), expectedSources: review.expectedSources.filter(Boolean) }));
+	const sent = reviewSnapshot(proposal, review, uncovered);
+	const result = await send(payload);
+	return { result, sent };
 }
 
 // ── The file page (/app/files/<id>, plan §2.4) ──────────────────────

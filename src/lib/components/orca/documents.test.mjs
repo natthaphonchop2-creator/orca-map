@@ -74,3 +74,22 @@ test('the knowledge list links to เอกสาร only while the company has 
 	assert.match(render(Component, { props: { ...props, documentsHref: '/app?view=documents&hub=front' } }).body, /href="\/app\?view=documents&amp;hub=front"[^>]*>เทมเพลตเอกสาร</);
 	assert.doesNotMatch(render(Component, { props }).body, /เทมเพลตเอกสาร/);
 });
+
+// Codex code review 1, finding 9: the review confirms what it sent, and
+// locks its fields while the server answers.
+test('the review keeps what it sent as the confirmed spec', async () => {
+	const source = await readFile(new URL('./documents/DocTemplateReview.svelte', import.meta.url), 'utf8');
+	assert.match(source, /const \{ result, sent \} = await confirmReview\(/);
+	assert.match(source, /confirmedSnapshot = sent;/);
+	assert.doesNotMatch(source, /confirmedSnapshot = snapshot\(review\);/, 'never the review as it is after the answer');
+	assert.match(source, /<fieldset class="dt-lock" disabled=\{busy === 'confirm'\}>/);
+});
+
+// The file page shows its requester the stored report, read in the file's
+// own company and workspace (Codex code review 1).
+test('the file page reads the stored report where the file lives', async () => {
+	const source = await readFile(new URL('../../../routes/app/files/[id]/+page.svelte', import.meta.url), 'utf8');
+	assert.match(source, /OrcaDocTemplateService\.documents\(location\.hubID, location\.companyID\)/);
+	assert.match(source, /reportRows\(doc\.report, t\)/);
+	assert.match(source, /over\.given - over\.written/);
+});

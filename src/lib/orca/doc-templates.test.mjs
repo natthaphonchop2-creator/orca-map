@@ -162,8 +162,13 @@ test('เอกสารที่สร้าง: only unexpired files, newest f
 	assert.equal(d.expiryText('2026-10-07T00:00:00Z', now, th), 'หมดอายุพรุ่งนี้');
 	assert.equal(d.expiryText('2026-10-05T00:00:00Z', now, th), 'หมดอายุแล้ว');
 	assert.equal(d.expiryText('2026-11-05T00:00:00Z', now, th), 'เก็บไว้อีก 30 วัน');
-	assert.equal(d.reportLine({ filled: [{ key: 'a' }, { key: 'b' }], cleared: [{ key: 'c' }], overflow: [{ table: 'vip', rows: 2 }] }, true, th),
-		'กรอก 2 ช่อง · ล้าง 1 ช่อง · 2 แถวไม่พอที่ · รายงานแสดงไม่ครบ');
+	// The wire shape: given and written per table (Codex code review 1).
+	assert.equal(d.reportLine({ filled: [{ key: 'a' }, { key: 'b' }], cleared: [{ key: 'c' }], overflow: [{ table: 'vip', given: 9, written: 6, notWritten: ['vip.7'] }, { table: 'groups', given: 2, written: 2 }] }, true, th),
+		'กรอก 2 ช่อง · ล้าง 1 ช่อง · 3 แถวไม่พอที่ · รายงานแสดงไม่ครบ');
+	// A cut report counts from its totals.
+	assert.equal(d.reportLine({ filled: [{ key: 'a' }], cleared: [], overflow: [], totals: { filled: 42, cleared: 500, overflow: 0, kept: 6 }, truncated: true }, false, th),
+		'กรอก 42 ช่อง · ล้าง 500 ช่อง · รายงานแสดงไม่ครบ');
+	assert.equal(d.overflowRows({ overflow: [{ table: 'x', given: 2, written: 5 }] }), 0, 'never negative');
 	assert.equal(d.reportLine(undefined, false, th), '');
 });
 
@@ -180,4 +185,35 @@ test('the file page downloads in the company locate named, and says "not found" 
 	assert.deepEqual(d.filePage(id, { location: { ...location, companyID: '' } }, href), { kind: 'missing' });
 	for (const bad of ['0123', id.toUpperCase(), `${id}0`, '../x', ''])
 		assert.deepEqual(d.filePage(bad, { location: { ...location, id: bad } }, href), { kind: 'missing' }, bad);
+});
+
+test('each filled cell shows where it came from, for the requester', () => {
+	const rows = d.reportRows({ filled: [
+		{ key: 'check_in', label: 'Check in', cell: 'Daily sheet!G6', shown: 'Check in : 47', source: 's1', sourceLabel: 'Manager Flash 4-10' },
+		{ key: 'vip.name.1', cell: 'Daily sheet!C27', shown: 'คุณสมชาย', source: 's4' },
+		{ key: 'x', cell: 'A1', shown: '1' }
+	] }, th);
+	assert.deepEqual(rows, [
+		{ cell: 'Daily sheet!G6', what: 'Check in', shown: 'Check in : 47', source: 'Manager Flash 4-10' },
+		{ cell: 'Daily sheet!C27', what: 'vip.name.1', shown: 'คุณสมชาย', source: 's4' },
+		{ cell: 'A1', what: 'x', shown: '1', source: 'ไม่ระบุ' }
+	]);
+	assert.deepEqual(d.reportRows(undefined, th), []);
+});
+
+test('an edit made while confirming stays unconfirmed (Codex code review 1, finding 9)', async () => {
+	let review = d.startReview(version(), template);
+	for (const cell of [`${S}!D30`, `${S}!E30`, `${S}!G9`]) review = d.decide(review, cell, 'static');
+	let answer;
+	const shown = d.reviewSnapshot(proposal(), review, uncovered());
+	const sending = d.confirmReview(proposal(), review, uncovered(), (payload) => new Promise((resolve) => (answer = () => resolve(payload))));
+	// While the server answers, the owner switches a cell to ล้างทุกครั้ง.
+	const edited = d.decide(review, `${S}!D30`, 'clear');
+	review.decisions[`${S}!E30`] = 'clear';
+	answer();
+	const { result, sent } = await sending;
+	assert.deepEqual(result.spec.cells.static, [`${S}!B2`, `${S}!J5`, `${S}!D30`, `${S}!E30`, `${S}!G9`], 'the payload is what the screen showed when sent');
+	assert.equal(sent, shown, 'what is confirmed is what was shown when sent');
+	assert.notEqual(d.reviewSnapshot(proposal(), edited, uncovered()), sent, 'the later edit is still an edit');
+	assert.equal(d.publishGate(version({ state: 'confirmed', specSha256: 'c'.repeat(64) }), edited, d.reviewSnapshot(proposal(), edited, uncovered()) !== sent).block, 'edited');
 });

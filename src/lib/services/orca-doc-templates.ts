@@ -156,12 +156,16 @@ export interface GeneratedDocument {
 	report?: GeneratedReport;
 	reportTruncated?: boolean;
 }
+/** The fill report as the server stores it (OrcaGenerateReport). */
 export interface GeneratedReport {
-	filled?: { key: string; label?: string; cell?: string; source?: string }[];
+	filled?: { key: string; label?: string; cell?: string; shown?: string; source?: string; sourceLabel?: string }[];
 	cleared?: { key: string; cell?: string }[];
-	overflow?: { table: string; rows: number }[];
+	/** Per table: rows given, rows written, the keys of those not written. */
+	overflow?: { table: string; given: number; written: number; notWritten?: string[] }[];
 	kept?: string[];
-	[extra: string]: unknown;
+	truncated?: boolean;
+	/** The full counts, kept however the lists were cut. */
+	totals?: { filled: number; cleared: number; overflow: number; kept: number };
 }
 /** Where a file lives: the company the file page pins before it downloads. */
 export interface DocumentLocation {
@@ -220,8 +224,9 @@ export const OrcaDocTemplateService = {
 	remove: (hubID: string, id: string) => doDelete(item(hubID, id), options),
 
 	// ── Generated files ──
-	async documents(hubID: string): Promise<GeneratedDocument[]> {
-		const result = (await doGet(orcaPath(`/hubs/${part(hubID)}/documents`), options)) as { documents: GeneratedDocument[] | null };
+	/** The requester's files in a workspace; `company` pins another company (the file page). */
+	async documents(hubID: string, company?: string): Promise<GeneratedDocument[]> {
+		const result = (await doGet(orcaPath(`/hubs/${part(hubID)}/documents`, company), options)) as { documents: GeneratedDocument[] | null };
 		return result.documents ?? [];
 	},
 	async managed(hubID: string): Promise<GeneratedDocument[]> {

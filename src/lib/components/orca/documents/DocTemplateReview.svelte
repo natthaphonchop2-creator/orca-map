@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { parseErrorContent } from '$lib/errors';
 	import {
-		buildSpec,
 		cellRoles,
+		confirmReview,
 		classifyTemplate,
 		columnName,
 		decide,
@@ -13,6 +13,7 @@
 		problemText,
 		publishGate,
 		refusalText,
+		reviewSnapshot,
 		specProblems,
 		startReview,
 		templateFileText,
@@ -72,7 +73,7 @@
 	const report = $derived(version?.report);
 	const uncovered = $derived(report?.facts.uncovered ?? []);
 	const open = $derived(review ? undecided(review, uncovered) : []);
-	const snapshot = (value: Review | undefined) => (value && report ? JSON.stringify([buildSpec(report.proposal, value, uncovered), value.whenToUse.trim(), value.expectedSources]) : '');
+	const snapshot = (value: Review | undefined) => (value && report ? reviewSnapshot(report.proposal, value, uncovered) : '');
 	const edited = $derived(!!review && snapshot(review) !== confirmedSnapshot);
 	const gate = $derived(publishGate(version, review, edited));
 	const people = $derived(data.members.filter((member) => gatewayHasMember(hub, member.id)));
@@ -118,13 +119,14 @@
 		problems = [];
 		actionError = '';
 		try {
-			template = await OrcaDocTemplateService.confirm(hub.id, template.id, {
-				version: version.version,
-				spec: buildSpec(report.proposal, review, uncovered),
-				whenToUse: review.whenToUse.trim(),
-				expectedSources: review.expectedSources.filter(Boolean)
-			});
-			confirmedSnapshot = snapshot(review);
+			// What was sent is what is confirmed: an edit made meanwhile stays
+			// an edit (Codex code review 1, finding 9).
+			const id = template.id;
+			const { result, sent } = await confirmReview(report.proposal, review, uncovered, (payload) =>
+				OrcaDocTemplateService.confirm(hub.id, id, { version: version!.version, ...payload })
+			);
+			template = result;
+			confirmedSnapshot = sent;
 			showToast(t('ยืนยันการตั้งค่าแล้ว', 'Setup confirmed'));
 			onchanged();
 		} catch (cause) {
@@ -263,6 +265,8 @@
 			</label>
 		</div>
 	{:else if review && report}
+		<!-- Nothing changes while the server confirms what was sent. -->
+		<fieldset class="dt-lock" disabled={busy === 'confirm'}>
 		<section class="dt-section">
 			<h2>{t('ช่องที่ AI กรอก', 'Cells AI fills')}</h2>
 			<p class="dt-muted">{t('ตั้งชื่อที่ทีมเข้าใจ บอก AI ว่าค่ามาจากรายงานไหน ตัวอย่างมาจากค่าที่อยู่ในไฟล์ตอนนี้', 'Name each so your team understands it, and tell AI which report it comes from.')}</p>
@@ -392,6 +396,8 @@
 			</label>
 		</section>
 
+		</fieldset>
+
 		<section class="dt-section dt-actions">
 			{#if problems.length}
 				<ul class="dt-alert" role="alert">{#each problems as problem, i (i)}<li>{problemText(problem, t)}</li>{/each}</ul>
@@ -459,6 +465,14 @@
 		display: grid;
 		gap: 18px;
 		max-width: 980px;
+	}
+	.dt-lock {
+		display: grid;
+		gap: 18px;
+		min-width: 0;
+		margin: 0;
+		padding: 0;
+		border: 0;
 	}
 	.dt-section {
 		display: grid;
