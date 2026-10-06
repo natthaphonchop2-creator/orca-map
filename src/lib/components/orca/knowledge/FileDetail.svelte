@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import { Archive, ArrowLeft, Download, FileUp, Info, Pencil, RotateCw, Trash2, TriangleAlert } from '@lucide/svelte';
+	import { saveBlob } from '$lib/download';
 	import { getHttpStatusCode, isAbortError, parseErrorContent } from '$lib/errors';
 	import { term } from '$lib/orca/glossary';
 	import {
@@ -199,6 +200,27 @@
 	}
 	function problem(cause: unknown) {
 		return fileActionProblem(parseErrorContent(cause), t) ?? orcaError(cause);
+	}
+	/**
+	 * The original, after a click, through the request layer like every other
+	 * request (Codex PC1 review 2 MAJOR 2): a suspended or closed company's 423
+	 * stops the page there (company-stop), which opens the suspended page; a
+	 * plain link's answer never reached the page.
+	 */
+	let downloading = $state(false);
+	async function download() {
+		if (downloading) return;
+		downloading = true;
+		actionError = '';
+		try {
+			const original = await OrcaLibraryService.download(hub.id, item.id, downloadWhich);
+			if (!gone) saveBlob(original.blob, original.fileName);
+		} catch (cause) {
+			if (gone || getHttpStatusCode(cause) === 423) return;
+			if (!denied(cause)) actionError = problem(cause);
+		} finally {
+			downloading = false;
+		}
 	}
 	async function readAgain() {
 		if (busy) return;
@@ -483,7 +505,7 @@
 				{/if}
 				<div class="fd-buttons">
 					{#if downloadable}
-						<a class="k-button" href={OrcaLibraryService.downloadHref(hub.id, item.id, downloadWhich)} download><Download size={15} aria-hidden="true" />{t('ดาวน์โหลด', 'Download')}</a>
+						<button type="button" class="k-button" disabled={downloading} onclick={download}><Download size={15} aria-hidden="true" />{downloading ? t('กำลังดาวน์โหลด…', 'Downloading…') : t('ดาวน์โหลด', 'Download')}</button>
 					{:else if file && !owner}
 						<p class="fd-hint">{t('เจ้าของไฟล์ไม่เปิดให้ดาวน์โหลดต้นฉบับ', 'Its owner does not allow downloading the original')}</p>
 					{/if}
