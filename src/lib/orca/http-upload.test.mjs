@@ -144,3 +144,29 @@ test('an upload says when its whole body is sent: after that, a lost answer leav
 	request.onerror();
 	await assert.rejects(pending, TypeError);
 });
+
+// Last in this file: the stop lasts for the page's life.
+test('an upload\'s 423 for the page\'s company stops the page, and no later upload goes out (platform console C6 §4.2)', async () => {
+	const company = await import(await typescriptModuleURL(new URL('./company.ts', import.meta.url)));
+	const stops = await import(stopURL);
+	const B = 'org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+	company.setPageCompany(B, []);
+	const heard = [];
+	stops.onCompanyStop((status) => heard.push(status));
+	const api = client();
+	// Another company's 423, or the platform's, stops nothing.
+	const other = fakeRequest();
+	const elsewhere = api.doUpload('/orca/orgs/org-cccccccc-cccc-4ccc-8ccc-cccccccccccc/hubs/h/library/files', new FormData(), { request: () => other, dontLogErrors: true });
+	other.answer(423, 'orca_company_suspended');
+	await assert.rejects(elsewhere);
+	assert.deepEqual(heard, []);
+	const refused = fakeRequest();
+	const upload = api.doUpload(company.orcaPath('/hubs/h/library/files'), new FormData(), { request: () => refused, dontLogErrors: true });
+	refused.answer(423, 'orca_company_closed');
+	await assert.rejects(upload, (error) => error.statusCode === 423);
+	assert.deepEqual(heard, ['closed']);
+	const later = fakeRequest();
+	await assert.rejects(api.doUpload(company.orcaPath('/hubs/h/library/files'), new FormData(), { request: () => later, dontLogErrors: true }), (error) => error.statusCode === 423 && /orca_company_closed/.test(error.message));
+	assert.deepEqual(later.seen.opened, [], 'never sent');
+	assert.equal(api.writesInFlight(), 0);
+});

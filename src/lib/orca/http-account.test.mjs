@@ -90,3 +90,27 @@ test('the page\'s own account wins over the profile, which fills in later', asyn
 	await client.doGet('/orca/bootstrap', { fetch });
 	assert.deepEqual(seen, ['7', '7']);
 });
+
+// Last in this file: the stop lasts for the page's life.
+test('a save\'s 423 for the page\'s company stops the page, and its requests no longer go out (platform console C6 §4.2)', async () => {
+	const company = await import(await typescriptModuleURL(new URL('./company.ts', import.meta.url)));
+	const stops = await import(stopURL);
+	const B = 'org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+	company.setPageCompany(B, []);
+	const heard = [];
+	stops.onCompanyStop((status) => heard.push(status));
+	const seen = [];
+	const refuse = async (url) => { seen.push(url); return response(423, 'orca_company_suspended'); };
+	await assert.rejects(client.doPost('/orca/platform/companies/' + B + '/rename', { version: 1 }, { fetch: refuse, dontLogErrors: true }));
+	assert.deepEqual(heard, [], 'the platform\'s answers are nobody\'s company');
+	await assert.rejects(client.doPost(company.orcaPath('/keys'), { name: 'laptop' }, { fetch: refuse, dontLogErrors: true }), (error) => error.status === 423);
+	assert.deepEqual(heard, ['suspended']);
+	const sent = seen.length;
+	await assert.rejects(client.doGet(company.orcaPath('/bootstrap'), { fetch: refuse, dontLogErrors: true }), (error) => error.status === 423 && /orca_company_suspended/.test(error.message));
+	await assert.rejects(client.doDelete(company.orcaPath('/keys/1'), { fetch: refuse, dontLogErrors: true }), (error) => error.status === 423);
+	assert.equal(seen.length, sent, 'nothing went out');
+	assert.equal(client.writesInFlight(), 0);
+	const ok = async (url) => { seen.push(url); return response(200, '{"items":[]}'); };
+	await client.doGet('/orca/companies', { fetch: ok });
+	assert.equal(seen.length, sent + 1, 'the person\'s company list still loads');
+});

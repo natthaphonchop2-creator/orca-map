@@ -174,10 +174,16 @@ test('a poll of the knowledge library meets the suspension: the page stops, and 
 	const libraryPath = (id) => company.orcaPath(`/hubs/${id}/library`);
 	const aiApps = company.orcaPath('/me/ai-apps');
 	const aiTicks = [];
+	const aiAnswers = [];
 	let aiRuns = 0;
 	const poller = ai.createPoller(async () => {
 		aiRuns += 1;
-		await client.doGet(aiApps, { fetch, dontLogErrors: true });
+		try {
+			await client.doGet(aiApps, { fetch, dontLogErrors: true });
+			aiAnswers.push('read');
+		} catch (error) {
+			aiAnswers.push(error.status);
+		}
 		return 'continue';
 	}, { interval: 4000, schedule: (callback) => { aiTicks.push(callback); return aiTicks.length; }, cancel: () => {}, until: stops.companyStop.pageSignal() });
 	const aiRun = poller.poke();
@@ -219,13 +225,15 @@ test('a poll of the knowledge library meets the suspension: the page stops, and 
 	for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
 	assert.equal(view.pollTimer, undefined, 'the library asks nothing more');
 
-	// The AI apps' load on its way was aborted, as a 423, and its poller stopped.
+	// The AI apps' load on its way was aborted, as a 423, and its poller
+	// stopped. (Its server answering now changes nothing.)
+	aiLoad();
 	await aiRun;
 	assert.equal(aiRuns, 1);
+	assert.deepEqual(aiAnswers, [423], 'the load was aborted when the company stopped');
 	assert.equal(poller.waiting, false, 'no next round');
 	for (const tick of aiTicks) await tick();
 	assert.equal(aiRuns, 1, 'the AI apps page asks nothing more');
-	aiLoad();
 
 	// Every later request of B fails at once, without reaching the server.
 	const before = network.length;
