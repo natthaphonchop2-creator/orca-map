@@ -48,6 +48,89 @@ export function pausedReasonCopy(reason: string | undefined): { th: string; en: 
 			return { th: 'ข้อมูลการเชื่อมของบัญชีนี้หายไป ผู้ดูแลต้องเชื่อมใหม่', en: 'Its connection details are gone. A manager must connect it again.' };
 		case 'disconnected':
 			return { th: 'ผู้ดูแลตัดการเชื่อมต่อไว้ AI ใช้บัญชีนี้ไม่ได้จนกว่าจะเชื่อมใหม่', en: "A manager disconnected it. AI can't use it until it is connected again." };
+		case 'grant_revoked':
+			// CA1b design §3.2.5 item 2: the provider will no longer refresh the
+			// grant. Never a claim that someone revoked it.
+			return {
+				th: 'สิทธิ์ที่ Google หรือ Microsoft ให้บัญชีนี้หมดอายุหรือถูกเพิกถอน (เช่น เปลี่ยนรหัสผ่าน ยกเลิกการเข้าถึง หรือครบ 7 วันของแอปช่วงทดลอง) ผู้ดูแลต้องเชื่อมใหม่',
+				en: "This account's access at Google or Microsoft expired or was revoked (for example after a password change, removed access, or the 7-day limit of a pilot app). A manager must connect it again."
+			};
+		default:
+			return undefined;
+	}
+}
+
+/** The kinds of personal data a managed program's company account shows everyone allowed (CA1b design §3.1 item 1). */
+export type CompanyAccountNotice = 'mail' | 'calendar' | 'contacts' | 'files';
+
+/**
+ * The warning a manager accepts before a "warn" program's company account
+ * (CA1b design §3.3, O12): what everyone allowed will see, for a managed
+ * program's notice, or the generic text; then the program's terms.
+ */
+export function policyNotice(policy: Pick<OrcaCompanyAccountPolicy, 'notice'> | undefined, programName: string, t: (th: string, en: string) => string): string {
+	const terms = t(
+		`เงื่อนไขของ ${programName} อาจไม่อนุญาตให้หลายคนใช้บัญชีเดียว บริษัทของคุณรับผิดชอบการใช้ตามเงื่อนไขนั้นเอง`,
+		`${programName}'s terms may not allow sharing one login; your company is responsible for following them.`
+	);
+	switch (policy?.notice) {
+		case 'mail':
+			return `${t(
+				'ทุกคนที่ได้รับอนุญาตจะอ่านอีเมลทั้งกล่องจดหมายของบัญชีนี้ผ่าน AI ได้ รวมถึงอีเมลส่วนตัวที่อยู่ในกล่องนี้ ควรใช้กล่องจดหมายที่ตั้งไว้ใช้ร่วมกัน เช่น office@บริษัท ไม่ใช่ของคนใดคนหนึ่ง',
+				"Everyone allowed can read this account's whole mailbox through AI, including any private mail in it. Use a mailbox set up for sharing, such as office@yourcompany, not one person's."
+			)} ${terms}`;
+		case 'files':
+			return `${t('ทุกคนที่ได้รับอนุญาตจะเห็นไฟล์ทุกไฟล์ที่บัญชีนี้เปิดได้ รวมถึงไฟล์ที่คนอื่นแชร์ให้บัญชีนี้', 'Everyone allowed sees every file this account can open, including files others shared with it.')} ${terms}`;
+		case 'calendar':
+			return `${t('ทุกคนที่ได้รับอนุญาตจะเห็นนัดหมายในปฏิทินของบัญชีนี้', "Everyone allowed sees this account's calendar events.")} ${terms}`;
+		case 'contacts':
+			return `${t('ทุกคนที่ได้รับอนุญาตจะเห็นรายชื่อผู้ติดต่อของบัญชีนี้', "Everyone allowed sees this account's contacts.")} ${terms}`;
+		default:
+			return `${t(
+				`ทุกคนที่ได้รับอนุญาตจะใช้บัญชี ${programName} นี้ผ่าน AI และเห็นข้อมูลชุดเดียวกัน`,
+				`Everyone allowed uses this ${programName} account through AI and sees the same data.`
+			)} ${terms}`;
+	}
+}
+
+/** The managed provider of a program, by ORCA's reserved source IDs; undefined for any other program. */
+export function managedProviderOf(sourceID: string): 'google' | 'microsoft' | undefined {
+	if (sourceID.startsWith('default-orca-managed-microsoft-')) return 'microsoft';
+	if (sourceID.startsWith('default-orca-managed-')) return 'google';
+	return undefined;
+}
+
+/**
+ * The note while a company account is being connected again (CA1b design v3
+ * §3.3, round 2 NOTE): the current account keeps working only when it is
+ * ready, never after its grant was refused.
+ */
+export function stageNote(programName: string, account: Pick<OrcaProgramAccount, 'status'> | undefined, t: (th: string, en: string) => string): string {
+	const connect = t(`เชื่อม ${programName} ด้วยบัญชีที่จะให้ทุกคนใช้`, `Connect ${programName} with the account everyone will use.`);
+	if (account?.status !== 'ready') return connect;
+	return `${connect} ${t('บัญชีเดิมยังใช้งานได้จนกว่าบัญชีใหม่จะเชื่อมสำเร็จ', 'The current one keeps working until the new one connects.')}`;
+}
+
+/** The classes a managed company account's check answers with (CA1b design §3.2.4). */
+export type CompanyAccountCheckCode = 'account_auth' | 'account_permission' | 'provider_busy' | 'provider_unavailable';
+
+/** The class a check's error names first ("account_auth: …"), or undefined. */
+export function checkResultCode(message: string | undefined): CompanyAccountCheckCode | undefined {
+	const code = message?.trim().split(':', 1)[0];
+	return code === 'account_auth' || code === 'account_permission' || code === 'provider_busy' || code === 'provider_unavailable' ? code : undefined;
+}
+
+/** What a manager reads for a failed check: only account_auth says to connect again. */
+export function checkResultCopy(code: CompanyAccountCheckCode | undefined): { th: string; en: string } | undefined {
+	switch (code) {
+		case 'account_auth':
+			return { th: 'การลงชื่อเข้าใช้ของบัญชีนี้ใช้ไม่ได้แล้ว ผู้ดูแลต้องเชื่อมใหม่', en: "The account's sign-in no longer works; a manager connects it again." };
+		case 'account_permission':
+			return { th: 'บัญชีนี้ไม่มีสิทธิ์ทำสิ่งนี้ หรือบริการหรือการตั้งค่าของแอดมินปิดกั้นไว้ ตรวจบัญชีหรือสอบถามแอดมินของบัญชีนั้น', en: 'The account has no permission for this, or the service or an admin setting blocks it. Check the account or ask its admin.' };
+		case 'provider_busy':
+			return { th: 'Google หรือ Microsoft ไม่ว่างในตอนนี้ ลองใหม่ภายหลัง', en: 'Google or Microsoft is busy. Try again later.' };
+		case 'provider_unavailable':
+			return { th: 'ติดต่อ Google หรือ Microsoft ไม่ได้ ลองใหม่ภายหลัง', en: 'Could not reach Google or Microsoft. Try again later.' };
 		default:
 			return undefined;
 	}

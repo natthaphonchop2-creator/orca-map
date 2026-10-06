@@ -98,7 +98,7 @@ export interface OrcaProgramAccount {
   sourceID: string;
   label: string;
   status: OrcaProgramAccountStatus;
-  /** Why it isn't ready: connector_lost_manager, disconnected, app_changed, record_lost or policy_changed. */
+  /** Why it isn't ready: connector_lost_manager, disconnected, app_changed, record_lost, policy_changed or grant_revoked. */
   pausedReason?: string;
   generation: number;
   /** The policy revision a manager last acknowledged for it (0 when none was needed). */
@@ -107,6 +107,8 @@ export interface OrcaProgramAccount {
   staged: boolean;
   connectedBy?: string;
   connectedAt?: string;
+  /** The Google or Microsoft address it is signed in as: a display hint for managers, never compared with anything (CA1b). */
+  accountHint?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -114,6 +116,8 @@ export interface OrcaProgramAccount {
 export interface OrcaCompanyAccountPolicy {
   mode: "allowed" | "warn" | "personal_only";
   revision: number;
+  /** What everyone allowed sees through a managed Google or Microsoft program's company account (CA1b). */
+  notice?: "mail" | "calendar" | "contacts" | "files";
 }
 /** What a manager needs to connect a company account's next generation; never its record or credential. */
 export interface OrcaProgramAccountStage {

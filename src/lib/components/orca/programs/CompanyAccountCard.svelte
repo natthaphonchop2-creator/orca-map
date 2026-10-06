@@ -4,13 +4,18 @@
 		ConnectFlows,
 		acceptanceHolds,
 		acknowledgedRevision,
+		checkResultCode,
+		checkResultCopy,
 		companyAccountStatus,
 		connectionAccount,
 		defaultAccountLabel,
+		managedProviderOf,
 		needsAcknowledgement,
 		pausedReasonCopy,
+		policyNotice,
 		policyStep,
 		programAccountsFor,
+		stageNote,
 		stillBoundTo
 	} from '$lib/orca/company-account';
 	import { t } from '$lib/orca/locale.svelte';
@@ -99,6 +104,7 @@
 	const chosen = $derived(forProgram.find((item) => item.id === choice));
 	const setupNeedsAck = $derived(step === 'acknowledge' && (choice === 'new' || needsAcknowledgement(policy, chosen)));
 	const accountNeedsAck = $derived(Boolean(account) && needsAcknowledgement(policy, account));
+	const managed = $derived(managedProviderOf(connection.mcpID));
 	const connectedBy = $derived.by(() => {
 		const member = members.find((item) => item.id === account?.connectedBy);
 		return member ? member.displayName || member.email : '';
@@ -321,7 +327,15 @@
 		if (!account) return;
 		const id = account.id;
 		return run('check', async () => {
-			await OrcaService.checkProgramAccount(id);
+			try {
+				await OrcaService.checkProgramAccount(id);
+			} catch (cause) {
+				// A managed account's check names its class (CA1b design §3.2.4).
+				const copy = checkResultCopy(checkResultCode(parseErrorContent(cause).message));
+				if (!copy) throw cause;
+				if (alive) error = t(copy.th, copy.en);
+				return;
+			}
 			showToast(t(`ตรวจแล้ว บัญชีกลาง ${programName} ใช้งานได้`, `Checked: the ${programName} company account works`));
 		}).finally(load);
 	}
@@ -383,14 +397,12 @@
 	{:else if companyMode}
 		<dl class="ca-list">
 			<div><dt>{t('บัญชีกลาง', 'Company account')}</dt><dd>{account?.label ?? t('ไม่พบบัญชีนี้', 'Not found')}</dd></div>
+			{#if account?.accountHint}<div><dt>{t('บัญชีที่เชื่อม', 'Connected account')}</dt><dd>{account.accountHint}</dd></div>{/if}
 			{#if account?.connectedAt}<div><dt>{t('เชื่อมโดย', 'Connected by')}</dt><dd>{[connectedBy, displayDate(account.connectedAt)].filter(Boolean).join(' · ')}</dd></div>{/if}
 		</dl>
 		{#if reason && !(accountNeedsAck && account?.pausedReason === 'policy_changed')}<p class="ca-note warn">{t(reason.th, reason.en)}</p>{/if}
 		{#if accountNeedsAck && !stage}
-			<p class="ca-note warn">{t(
-				`เงื่อนไขการใช้บัญชีกลางของ ${programName} เปลี่ยน ทุกคนที่ได้รับอนุญาตจะใช้บัญชีนี้ผ่าน AI และเห็นข้อมูลชุดเดียวกัน เงื่อนไขของ ${programName} อาจไม่อนุญาตให้หลายคนใช้บัญชีเดียว บริษัทของคุณรับผิดชอบการใช้ตามเงื่อนไขนั้นเอง`,
-				`${programName}'s company account terms changed. Everyone allowed uses this account through AI and sees the same data. ${programName}'s terms may not allow sharing one login; your company is responsible for following them.`
-			)}</p>
+			<p class="ca-note warn">{t(`เงื่อนไขการใช้บัญชีกลางของ ${programName} เปลี่ยน`, `${programName}'s company account terms changed.`)} {policyNotice(policy, programName, t)}</p>
 			<label class="ca-check"><input type="checkbox" checked={accepted} onchange={(event) => (acceptedRevision = event.currentTarget.checked ? (policy?.revision ?? 0) : 0)} />{t('เข้าใจและยอมรับ', 'I understand and accept')}</label>
 		{/if}
 		<p class="ca-note">{t(`ทุกคนที่ได้รับอนุญาตจะเห็นข้อมูลชุดเดียวกันใน ${programName} ผ่าน AI ตามสิ่งที่ AI ทำได้ ทุกครั้งที่ใช้จะบันทึกว่าใครขอ`, `Everyone allowed sees the same ${programName} data through AI, within what AI can do. Each use records who asked.`)}</p>
@@ -420,7 +432,7 @@
 					<legend>{t('ใช้บัญชีกลางไหน', 'Which company account')}</legend>
 					{#each forProgram as item (item.id)}
 						{@const itemStatus = companyAccountStatus(item)}
-						<label class="ca-choice"><input type="radio" name="ca-choice" value={item.id} bind:group={choice} />{item.label} <small>{t(itemStatus.th, itemStatus.en)}</small></label>
+						<label class="ca-choice"><input type="radio" name="ca-choice" value={item.id} bind:group={choice} />{item.label} <small>{[t(itemStatus.th, itemStatus.en), item.accountHint].filter(Boolean).join(' · ')}</small></label>
 					{/each}
 					<label class="ca-choice"><input type="radio" name="ca-choice" value="new" bind:group={choice} />{t('สร้างบัญชีกลางใหม่', 'A new company account')}</label>
 				</fieldset>
@@ -429,10 +441,7 @@
 				<label class="ca-field">{t('ชื่อบัญชีกลาง', 'Name')}<input bind:value={label} maxlength="80" required /></label>
 			{/if}
 			{#if setupNeedsAck}
-				<p class="ca-note warn">{t(
-					`ทุกคนที่ได้รับอนุญาตจะใช้บัญชี ${programName} นี้ผ่าน AI และเห็นข้อมูลชุดเดียวกัน เงื่อนไขของ ${programName} อาจไม่อนุญาตให้หลายคนใช้บัญชีเดียว บริษัทของคุณรับผิดชอบการใช้ตามเงื่อนไขนั้นเอง`,
-					`Everyone allowed uses this ${programName} account through AI and sees the same data. ${programName}'s terms may not allow sharing one login; your company is responsible for following them.`
-				)}</p>
+				<p class="ca-note warn">{policyNotice(policy, programName, t)}</p>
 				<label class="ca-check"><input type="checkbox" checked={accepted} onchange={(event) => (acceptedRevision = event.currentTarget.checked ? (policy?.revision ?? 0) : 0)} />{t('เข้าใจและยอมรับ', 'I understand and accept')}</label>
 			{/if}
 			<div class="ca-actions">
@@ -444,7 +453,7 @@
 
 	{#if stage}
 		<div class="ca-form">
-			<p class="ca-note">{t(`เชื่อม ${programName} ด้วยบัญชีที่จะให้ทุกคนใช้ บัญชีเดิมยังใช้งานได้จนกว่าบัญชีใหม่จะเชื่อมสำเร็จ`, `Connect ${programName} with the account everyone will use. The current one keeps working until the new one connects.`)}</p>
+			<p class="ca-note">{stageNote(programName, accounts.find((item) => item.id === stageAccount), t)}</p>
 			{#if detailsSaved}
 				<p class="ca-note">{t(`บันทึกข้อมูลแล้ว ลงชื่อเข้าใช้ ${programName} ต่อเพื่อเชื่อมให้เสร็จ`, `Details saved. Sign in to ${programName} to finish connecting.`)}</p>
 			{:else if stage.fields.length || stage.requiresURL}
@@ -461,6 +470,7 @@
 					<button type="button" class="k-button small primary" disabled={Boolean(busy) || waiting} onclick={signIn}>{t(`ลงชื่อเข้าใช้ ${programName}`, `Sign in to ${programName}`)}</button>
 					{#if signInURL}<a class="k-button small" href={signInURL} target="_blank" rel="noopener noreferrer">{t('เปิดหน้าต่างอีกครั้ง', 'Open the window again')}</a>{/if}
 				</div>
+				{#if managed === 'microsoft'}<p class="ca-note">{t('ถ้าบริษัทใช้ Microsoft 365 และหน้า Microsoft ขอให้แอดมินอนุมัติ ให้แอดมิน Microsoft 365 ของบริษัทอนุมัติ ORCA ก่อน แล้วกดเชื่อมใหม่', "If Microsoft asks for an administrator's approval, your Microsoft 365 admin approves ORCA first; then connect again.")}</p>{/if}
 				{#if waiting}<p class="ca-note" role="status">{t(`รอให้ลงชื่อเข้าใช้ในหน้าต่าง ${programName}…`, `Waiting for the sign-in in the ${programName} window…`)}</p>{/if}
 			{/if}
 			<div class="ca-actions"><button type="button" class="k-button small" disabled={Boolean(busy)} onclick={cancelConnecting}>{t('ยกเลิก', 'Cancel')}</button></div>
@@ -478,7 +488,14 @@
 	message={t(
 		`AI ของทุกคนจะใช้ ${programName} ไม่ได้จนกว่าผู้ดูแลจะเชื่อมใหม่ ORCA ลบการลงชื่อเข้าใช้และคีย์ของบัญชีนี้ทันที`,
 		`No one's AI can use ${programName} until a manager connects it again. ORCA deletes this account's sign-in and key now.`
-	)}
+	) +
+		(managed
+			? ' ' +
+				t(
+					`ถ้าต้องการยกเลิกสิทธิ์ของ ORCA ที่ ${managed === 'microsoft' ? 'Microsoft' : 'Google'} ด้วย ให้เปิดหน้าความปลอดภัยของบัญชีนั้น`,
+					`To remove ORCA's access at ${managed === 'microsoft' ? 'Microsoft' : 'Google'} too, open the account's security page.`
+				)
+			: '')}
 	confirmLabel={t('ตัดการเชื่อมต่อ', 'Disconnect')}
 	onconfirm={disconnect}
 />

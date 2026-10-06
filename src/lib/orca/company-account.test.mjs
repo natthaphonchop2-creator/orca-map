@@ -87,3 +87,64 @@ test('only the live connect flow acts: a start or a cancel ends the one before (
 	assert.equal(flows.live(second), false, 'another start ends it');
 	assert.equal(flows.live(third), true);
 });
+
+// CA1b (managed Google and Microsoft company accounts), slice CA1b-5.
+const thai = (th) => th;
+const english = (_th, en) => en;
+
+test('a managed program\'s notice says what everyone will see, then its terms; any other program keeps the generic text', () => {
+	const mail = helpers.policyNotice({ notice: 'mail' }, 'Gmail', thai);
+	assert.match(mail, /อีเมลทั้งกล่องจดหมาย/);
+	assert.match(mail, /office@บริษัท/);
+	assert.match(mail, /บริษัทของคุณรับผิดชอบการใช้ตามเงื่อนไขนั้นเอง/, 'the terms sentence follows');
+	assert.match(helpers.policyNotice({ notice: 'mail' }, 'Gmail', english), /whole mailbox/);
+	assert.match(helpers.policyNotice({ notice: 'files' }, 'Drive', english), /every file this account can open, including files others shared with it/);
+	assert.match(helpers.policyNotice({ notice: 'calendar' }, 'Calendar', english), /calendar events/);
+	assert.match(helpers.policyNotice({ notice: 'contacts' }, 'Contacts', english), /contacts/);
+	for (const policy of [{}, undefined, { notice: 'weird' }]) {
+		const generic = helpers.policyNotice(policy, 'Books', english);
+		assert.match(generic, /uses this Books account through AI and sees the same data/);
+		assert.match(generic, /Books's terms may not allow sharing one login/);
+	}
+	assert.notEqual(helpers.policyNotice({ notice: 'files' }, 'Drive', english), helpers.policyNotice({ notice: 'mail' }, 'Drive', english));
+});
+
+test('a refused grant reads as expired or revoked, and a manager connects again', () => {
+	const copy = helpers.pausedReasonCopy('grant_revoked');
+	assert.match(copy.th, /หมดอายุหรือถูกเพิกถอน/);
+	assert.match(copy.th, /ผู้ดูแลต้องเชื่อมใหม่/);
+	assert.match(copy.en, /expired or was revoked/);
+	assert.match(copy.en, /A manager must connect it again/);
+});
+
+test('a check names its class, and only account_auth asks to connect again', () => {
+	assert.equal(helpers.checkResultCode('account_auth: the account\'s sign-in no longer works'), 'account_auth');
+	assert.equal(helpers.checkResultCode(' provider_busy: Google or Microsoft is busy'), 'provider_busy');
+	assert.equal(helpers.checkResultCode('the program did not accept these account details'), undefined);
+	assert.equal(helpers.checkResultCode(undefined), undefined);
+	for (const code of ['account_auth', 'account_permission', 'provider_busy', 'provider_unavailable']) {
+		const copy = helpers.checkResultCopy(code);
+		assert.ok(copy?.th && copy.en, code);
+		assert.equal(/connects? it again|เชื่อมใหม่/.test(copy.en + copy.th), code === 'account_auth', code);
+	}
+	assert.equal(helpers.checkResultCopy(undefined), undefined);
+});
+
+test('the reserved managed programs are told apart from every other program', () => {
+	assert.equal(helpers.managedProviderOf('default-orca-managed-gmail'), 'google');
+	assert.equal(helpers.managedProviderOf('default-orca-managed-google-drive'), 'google');
+	assert.equal(helpers.managedProviderOf('default-orca-managed-microsoft-outlook'), 'microsoft');
+	assert.equal(helpers.managedProviderOf('default-orca-flowaccount'), undefined);
+	assert.equal(helpers.managedProviderOf('orca-managed-gmail'), undefined);
+});
+
+test('while connecting again, the current account keeps working only when it is ready (CA1b round 2 NOTE)', () => {
+	const ready = helpers.stageNote('Gmail', { status: 'ready' }, english);
+	assert.match(ready, /Connect Gmail with the account everyone will use\./);
+	assert.match(ready, /keeps working/);
+	for (const status of ['needs_reconnect', 'connecting', 'disconnected']) {
+		assert.doesNotMatch(helpers.stageNote('Gmail', { status }, english), /keeps working/, status);
+		assert.doesNotMatch(helpers.stageNote('Gmail', { status }, thai), /ยังใช้งานได้/, status);
+	}
+	assert.doesNotMatch(helpers.stageNote('Gmail', undefined, english), /keeps working/);
+});
