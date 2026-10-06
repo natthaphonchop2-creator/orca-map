@@ -1,4 +1,5 @@
 import type { OrcaOwnerInvitationLink, OrcaPlatformCompany, OrcaPlatformOwnerInvitation } from '$lib/services/orca';
+import { companyStatus } from './platform-console';
 
 // The platform operator's customer companies (C4 §14e). The platform opens a
 // company and hands it to its first owner; from then on the company invites
@@ -13,9 +14,14 @@ export function ownerStatus(company: Pick<OrcaPlatformCompany, 'owners' | 'owner
 	return company.ownerInvitations.length ? 'expired' : 'none';
 }
 
-/** The platform hands over only a customer company with no owner who can act. */
-export function canInviteOwner(company: Pick<OrcaPlatformCompany, 'id' | 'owners'>): boolean {
-	return company.id !== 'default' && company.owners === 0;
+/**
+ * The platform hands over only an active customer company with no owner who
+ * can act. A suspended or closed one gets no new owner link: its people can't
+ * accept one while it is stopped (C6 §4.2), so "ส่งลิงก์ใหม่" would only make
+ * a link that can't be used.
+ */
+export function canInviteOwner(company: Pick<OrcaPlatformCompany, 'id' | 'owners' | 'status'>): boolean {
+	return company.id !== 'default' && company.owners === 0 && companyStatus(company.status) === 'active';
 }
 
 /** What could stop the invited person making an account; the invitation stands either way. */

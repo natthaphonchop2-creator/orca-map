@@ -287,3 +287,13 @@ test("the operator turns คลังความรู้ v2 on or off for one 
   assert.match(component, /ORCA บันทึกไว้ทั้งในประวัติของบริษัทนี้และของแพลตฟอร์ม/);
   assert.match(component, /cancelLabel=\{t\("ไม่เปลี่ยน", "Keep it"\)\}/);
 });
+
+test("a suspended or closed company's row offers no owner link", () => {
+  const suspended = company(B, { status: "suspended", ownerInvitations: [{ id: "oin-1", email: "owner@hotel-a.example", expiresAt: "2026-10-05T00:00:00Z", status: "expired" }] });
+  assert.equal(helpers.canInviteOwner(suspended), false, "no ส่งลิงก์ใหม่");
+  assert.equal(helpers.canInviteOwner({ ...suspended, status: "closed" }), false);
+  assert.equal(helpers.canInviteOwner({ ...suspended, status: "active" }), true);
+  // The row's only invite button stands behind that rule.
+  assert.equal(component.match(/show\("invite", company\)/g)?.length, 1);
+  assert.match(component, /\{#if canInviteOwner\(company\)\}<button type="button" class="k-button small" onclick=\{\(\) => show\("invite", company\)\}/);
+});
