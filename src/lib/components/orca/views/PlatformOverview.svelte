@@ -124,7 +124,9 @@
 	);
 	// "Nothing waiting" says only what is true: a suspended or closed company may still have no owner.
 	const clearText = $derived(
-		counts.stoppedWithoutOwner
+		!counts.customers
+			? t('ไม่มีงานค้าง ยังไม่มีบริษัทลูกค้า และปุ่ม Google เปิดอยู่', 'Nothing waiting. There are no customer companies yet, and Google sign-in is on.')
+			: counts.stoppedWithoutOwner
 			? t(
 					`ไม่มีงานค้าง บริษัทที่ใช้งานอยู่มีเจ้าของครบและปุ่ม Google เปิดอยู่ ส่วนบริษัทที่ระงับหรือปิดไว้ ${counts.stoppedWithoutOwner} บริษัทยังไม่มีเจ้าของ`,
 					`Nothing waiting. Every active company has an owner and Google sign-in is on. (${counts.stoppedWithoutOwner} suspended or closed ${counts.stoppedWithoutOwner === 1 ? 'company has' : 'companies have'} no owner.)`

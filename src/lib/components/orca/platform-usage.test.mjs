@@ -281,6 +281,12 @@ test('the owner to-do counts one set: the companies that get the invite button (
 	const all = await open([overviewCompanies[0], owned]);
 	await all.load();
 	assert.equal(all.state.clearText, 'ไม่มีงานค้าง ทุกบริษัทมีเจ้าของและปุ่ม Google เปิดอยู่');
+
+	// No customer companies yet: "every company has an owner" would say nothing true (Codex PC1 polish review 2 NOTE).
+	const none = await open([overviewCompanies[0]]);
+	await none.load();
+	assert.deepEqual(none.state.todos, []);
+	assert.equal(none.state.clearText, 'ไม่มีงานค้าง ยังไม่มีบริษัทลูกค้า และปุ่ม Google เปิดอยู่');
 	const source = await readFile(files.overview, 'utf8');
 	assert.match(source, /<p class="overview-clear"><Check size=\{17\} aria-hidden="true" \/>\{clearText\}<\/p>/);
 });
