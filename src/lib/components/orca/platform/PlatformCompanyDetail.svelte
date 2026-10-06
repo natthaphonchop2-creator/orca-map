@@ -34,7 +34,9 @@
   // only. Each tab is one look: the server records it in the platform's log
   // and in the company's own ("ORCA ดูข้อมูล …"), so a tab loads only when
   // it is opened, and only once.
-  let { companyID, tab }: { companyID: string; tab: DetailTab } = $props();
+  // onchanged: after ORCA changes this company (suspend, restore, rename),
+  // so the page around it reads the person's company list again.
+  let { companyID, tab, onchanged }: { companyID: string; tab: DetailTab; onchanged?: () => unknown } = $props();
 
   let company = $state<OrcaPlatformCompany>();
   let companyError = $state("");
@@ -160,6 +162,7 @@
           : t(`เปิดให้ ${next.displayName} ใช้งานอีกครั้งแล้ว`, `${next.displayName} is open again.`),
       );
       confirming = undefined;
+      void onchanged?.();
     } catch (cause) {
       changeError = orcaError(cause);
       void loadCompany();
@@ -182,6 +185,7 @@
       company = { ...company, displayName: next.displayName, version: next.version };
       newName = "";
       showToast(t(`เปลี่ยนชื่อเป็น ${next.displayName} แล้ว`, `Renamed to ${next.displayName}.`));
+      void onchanged?.();
     } catch (cause) {
       changeError = orcaError(cause);
       void loadCompany();

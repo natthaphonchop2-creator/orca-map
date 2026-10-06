@@ -2,7 +2,8 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import CompanyGate from "$lib/components/orca/CompanyGate.svelte";
-  import { companyDenied, currentCompany, DEFAULT_COMPANY, reloadForAddress } from "$lib/orca/company";
+  import { companyDenied, currentCompany, DEFAULT_COMPANY, reloadForAddress, type OrcaCompanyChoice } from "$lib/orca/company";
+  import { onCompanyStop } from "$lib/orca/company-stop";
   import { companyStatus, stoppedFromRefusal } from "$lib/orca/platform-console";
   import { parseErrorContent } from "$lib/errors";
   import { guardPage, reloadForAccount } from "$lib/services/writes";
@@ -41,10 +42,19 @@
   // The company this page opens was picked before it rendered (+page.ts).
   let { data: route }: PageProps = $props();
   // A company that is not active (platform console C6 §4.2): its people see
-  // only the fixed message, from the chooser's status or from a 423.
+  // only the fixed message, from the company list's status or from a 423 that
+  // any request of the page met (company-stop): the workspace and every page
+  // in it go, with their polls, timers and loads.
   let refusedStatus = $state<"suspended" | "closed">();
+  // The company list as it is now: read again with every refresh and after
+  // ORCA changes a company, so the switcher never shows an old status (Codex
+  // PC1 review 1, MINOR 7). Until then, the list the page opened with.
+  let liveCompanies = $state<OrcaCompanyChoice[]>();
+  const listedCompanies = $derived(
+    liveCompanies ?? (route.place.kind === "company" || route.place.kind === "choose" ? route.place.companies : undefined),
+  );
   const listedStatus = $derived(
-    route.place.kind === "company" ? companyStatus(route.place.companies?.find((choice) => choice.id === (route.place as { id: string }).id)?.status) : "active",
+    route.place.kind === "company" ? companyStatus(listedCompanies?.find((choice) => choice.id === (route.place as { id: string }).id)?.status) : "active",
   );
   const stopped = $derived(refusedStatus ?? (listedStatus === "active" ? undefined : listedStatus));
   const gate = $derived(
@@ -55,7 +65,7 @@
       : stopped ? "stopped"
       : undefined,
   );
-  const companies = $derived(route.place.kind === "company" || route.place.kind === "choose" ? (route.place.companies ?? []) : []);
+  const companies = $derived(route.place.kind === "company" || route.place.kind === "choose" ? (listedCompanies ?? []) : []);
   let data = $state<OrcaBootstrap>();
   let error = $state("");
   let refreshing = $state(false);
@@ -94,6 +104,7 @@
     const request = ++refreshGeneration;
     refreshing = true;
     error = "";
+    void refreshCompanies();
     try {
       const result = await OrcaService.bootstrap();
       if (request === refreshGeneration) {
@@ -117,6 +128,19 @@
       }
     } finally {
       if (request === refreshGeneration) refreshing = false;
+    }
+  }
+  // The person's companies, with their status. An older server has no list
+  // (the page opened without one), and a failed read keeps the last list.
+  let companiesGeneration = 0;
+  async function refreshCompanies() {
+    if (route.place.kind !== "company" || !route.place.companies) return;
+    const request = ++companiesGeneration;
+    try {
+      const items = await OrcaService.companies();
+      if (request === companiesGeneration) liveCompanies = items;
+    } catch {
+      // Keep the last list.
     }
   }
   // The top bar's "อัปเดตข้อมูล": on a platform page its lists (companies, Google, accounts,
@@ -152,8 +176,19 @@
     // A page restored from the back-forward cache opens afresh, and leaving
     // while a save is in flight asks first.
     const stopGuard = guardPage(window, () => window.location.reload());
+    // Any request of this company refused for its status opens the
+    // suspended page, and the list it shows is read again.
+    const stopListening = onCompanyStop((status) => {
+      refusedStatus = status;
+      refreshGeneration += 1;
+      refreshing = false;
+      void refreshCompanies();
+    });
     if (!gate) void refresh();
-    return stopGuard;
+    return () => {
+      stopListening();
+      stopGuard();
+    };
   });
   // An address naming another company than this page's (going back or
   // forward, or any navigation that skips a reload) opens it afresh.

@@ -50,7 +50,7 @@ test('each tab is one look, loaded only when it is opened', () => {
 	assert.match(source.detail, /const items = await OrcaService\.platformCompanies\(\);/);
 	assert.match(source.detail, /if \(tab === "overview"\) overview = await OrcaService\.platformCompany\(companyID\);\s*else if \(tab === "members"\) members = await OrcaService\.platformCompanyMembers\(companyID\);\s*else if \(tab === "profile"\) fillProfile\(await OrcaService\.platformCompanyProfile\(companyID\)\);/);
 	// A new tab mounts the page afresh.
-	assert.match(source.view, /\{#key `\$\{companyID\}:\$\{companyTab\}`\}<PlatformCompanyDetail \{companyID\} tab=\{detailTab\(companyTab\)\} \/>\{\/key\}/);
+	assert.match(source.view, /\{#key `\$\{companyID\}:\$\{companyTab\}`\}<PlatformCompanyDetail \{companyID\} tab=\{detailTab\(companyTab\)\} \{onchanged\} \/>\{\/key\}/);
 	assert.match(source.page, /companyID=\{navigation\.params\.get\("company"\) \?\? ""\}/);
 });
 
@@ -114,6 +114,15 @@ test('the page opens the stopped gate from the list or from a 423, and never ret
 	assert.match(source.page, /<CompanyGate mode=\{gate\} \{companies\} account=\{route\.account\} \{stopped\}/);
 	// The switcher says it too.
 	assert.match(source.shell, /\{#if companyStatus\(choice\.status\) !== "active"\}<small class="workspace-company-stopped"/);
+	// And it never shows an old status (Codex PC1 review 1, MINOR 7): every
+	// refresh reads the list again, ORCA's changes to a company refresh, and
+	// the list read last decides the gate and the switcher.
+	assert.match(source.page, /async function refresh\(\) \{\s*const request = \+\+refreshGeneration;\s*refreshing = true;\s*error = "";\s*void refreshCompanies\(\);/);
+	assert.match(source.page, /const items = await OrcaService\.companies\(\);\s*if \(request === companiesGeneration\) liveCompanies = items;/);
+	assert.match(source.page, /companyStatus\(listedCompanies\?\.find\(/);
+	assert.match(source.page, /const companies = \$derived\([^\n]*\(listedCompanies \?\? \[\]\)/);
+	assert.match(source.view, /<PlatformCompanyDetail \{companyID\} tab=\{detailTab\(companyTab\)\} \{onchanged\} \/>/);
+	assert.equal(source.detail.match(/void onchanged\?\.\(\);/g)?.length, 2, 'after a suspend or restore, and after a rename');
 	// An invitation into a suspended company waits, and says why.
 	assert.match(source.invite, /\{#if preview\.companyStatus\}[\s\S]*?stoppedMessage\(preview\.companyStatus, t\)[\s\S]*?\{:else if data\.signedIn\}/);
 });

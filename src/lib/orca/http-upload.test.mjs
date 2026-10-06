@@ -8,12 +8,14 @@ import { typescriptModuleURL } from './test-import.mjs';
 // services/http.ts, its store imports stubbed: a multipart POST with
 // progress that names the page's account and counts as a write, like doPost.
 const writesURL = await typescriptModuleURL(new URL('../services/writes.ts', import.meta.url));
+const stopURL = await typescriptModuleURL(new URL('./company-stop.ts', import.meta.url));
 const code = stripTypeScriptTypes(await readFile(new URL('../services/http.ts', import.meta.url), 'utf8'))
 	.replace(/^import[^;]+;/gm, '')
 	.replace(/^export \{[^}]*\};?$/gm, '')
 	.replace(/^export /gm, '')
 	.replaceAll('import.meta.env.VITE_API_TARGET', 'undefined');
-const { http } = await import('data:text/javascript;base64,' + Buffer.from(`import { accountHeaders, counted, orcaAccountChanged, pageAccountOr, reloadForAccount, writesInFlight } from ${JSON.stringify(writesURL)};
+const { http } = await import('data:text/javascript;base64,' + Buffer.from(`import { companyStop, stoppedCode } from ${JSON.stringify(stopURL)};
+import { accountHeaders, counted, orcaAccountChanged, pageAccountOr, reloadForAccount, writesInFlight } from ${JSON.stringify(writesURL)};
 export function http(deps) {
 	const { UNAUTHORIZED_PATHS, UNAUTHORIZED_PATH_PREFIXES, createHttpError, loginHref, errors, profile } = deps;
 	${code};

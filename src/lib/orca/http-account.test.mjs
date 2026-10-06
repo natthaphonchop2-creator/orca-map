@@ -7,12 +7,14 @@ import { typescriptModuleURL } from './test-import.mjs';
 // The real services/http.ts with its store imports stubbed: every request
 // the workspace makes goes through it.
 const writesURL = await typescriptModuleURL(new URL('../services/writes.ts', import.meta.url));
+const stopURL = await typescriptModuleURL(new URL('./company-stop.ts', import.meta.url));
 const code = stripTypeScriptTypes(await readFile(new URL('../services/http.ts', import.meta.url), 'utf8'))
 	.replace(/^import[^;]+;/gm, '')
 	.replace(/^export \{[^}]*\};?$/gm, '')
 	.replace(/^export /gm, '')
 	.replaceAll('import.meta.env.VITE_API_TARGET', 'undefined');
-const { http, setPageAccount } = await import('data:text/javascript;base64,' + Buffer.from(`import { accountHeaders, counted, orcaAccountChanged, pageAccountOr, reloadForAccount, writesInFlight, setPageAccount } from ${JSON.stringify(writesURL)};
+const { http, setPageAccount } = await import('data:text/javascript;base64,' + Buffer.from(`import { companyStop, stoppedCode } from ${JSON.stringify(stopURL)};
+import { accountHeaders, counted, orcaAccountChanged, pageAccountOr, reloadForAccount, writesInFlight, setPageAccount } from ${JSON.stringify(writesURL)};
 export { setPageAccount };
 export function http(deps) {
 	const { UNAUTHORIZED_PATHS, UNAUTHORIZED_PATH_PREFIXES, createHttpError, loginHref, errors, profile } = deps;

@@ -432,6 +432,8 @@ export type PollStep = 'continue' | 'stop';
 /**
  * Runs `run` now, then every `interval` while it answers "continue" and the
  * page is visible. A poke during a run runs once more right after it.
+ * `until` stops it for good once aborted: the page's company was suspended or
+ * closed (company-stop, platform console C6 §4.2).
  */
 export function createPoller(
 	run: () => Promise<PollStep>,
@@ -440,6 +442,7 @@ export function createPoller(
 		visible?: () => boolean;
 		schedule?: (callback: () => void, ms: number) => unknown;
 		cancel?: (handle: unknown) => void;
+		until?: AbortSignal;
 	}
 ) {
 	const schedule = opts.schedule ?? ((callback: () => void, ms: number) => setTimeout(callback, ms));
@@ -476,6 +479,11 @@ export function createPoller(
 		}
 		if (next === 'continue' && visible()) handle = schedule(() => void tick(), opts.interval);
 	}
+	if (opts.until?.aborted) stopped = true;
+	else opts.until?.addEventListener('abort', () => {
+		stopped = true;
+		clear();
+	}, { once: true });
 	return {
 		/** Check now (page shown again, app changed), then keep the rhythm. */
 		poke() {

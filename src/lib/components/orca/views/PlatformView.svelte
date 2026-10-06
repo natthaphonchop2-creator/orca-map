@@ -38,7 +38,7 @@
 	<div class="platform-page">
 		{#if section === 'companies' && companyID}
 			<!-- Each tab is one look the server records: a new tab mounts afresh. -->
-			{#key `${companyID}:${companyTab}`}<PlatformCompanyDetail {companyID} tab={detailTab(companyTab)} />{/key}
+			{#key `${companyID}:${companyTab}`}<PlatformCompanyDetail {companyID} tab={detailTab(companyTab)} {onchanged} />{/key}
 		{:else if section === 'companies'}<PlatformCompanies />
 		{:else if section === 'pilots' && data.canReviewPilotRequests}<PilotInbox />
 		{:else if section === 'signin'}<GoogleSignInSettings data={activeData} />
