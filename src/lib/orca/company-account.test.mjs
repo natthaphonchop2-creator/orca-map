@@ -101,6 +101,9 @@ test('a managed program\'s notice says what everyone will see, then its terms; a
 	assert.match(helpers.policyNotice({ notice: 'files' }, 'Drive', english), /every file this account can open, including files others shared with it/);
 	assert.match(helpers.policyNotice({ notice: 'calendar' }, 'Calendar', english), /calendar events/);
 	assert.match(helpers.policyNotice({ notice: 'contacts' }, 'Contacts', english), /contacts/);
+	for (const notice of ['mail', 'files', 'calendar', 'contacts']) {
+		assert.match(helpers.policyNotice({ notice }, 'Gmail', english), /Gmail's terms may not allow sharing one login; your company is responsible for following them\.$/, `${notice} ends with the terms`);
+	}
 	for (const policy of [{}, undefined, { notice: 'weird' }]) {
 		const generic = helpers.policyNotice(policy, 'Books', english);
 		assert.match(generic, /uses this Books account through AI and sees the same data/);
