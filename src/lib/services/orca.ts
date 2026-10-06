@@ -362,9 +362,11 @@ export interface OrcaPlatformProfileSensitive {
   notes: string;
 }
 /**
- * The operator's record of a customer. `sensitiveState` says what `sensitive`
- * holds: "set", "empty", "unreadable" (the key can't open it) or "off" (no
- * encryption key is configured, so the private fields can't be kept).
+ * The operator's record of a customer. `sensitiveState` says what reading
+ * `sensitive` found: "set", "empty", "unreadable" (stored, and no key here
+ * opens it) or "off" (nothing stored and no encryption key configured).
+ * `sensitiveWritable` alone says whether the private fields can be written:
+ * an encrypting key is configured (privateFieldsState).
  */
 export interface OrcaPlatformProfile {
   companyID: string;
@@ -376,6 +378,7 @@ export interface OrcaPlatformProfile {
   contractEnd: string;
   sensitive: OrcaPlatformProfileSensitive | null;
   sensitiveState: "set" | "empty" | "unreadable" | "off";
+  sensitiveWritable?: boolean;
   version: number;
   updatedAt?: string;
 }

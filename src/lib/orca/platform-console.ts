@@ -161,6 +161,31 @@ export function profileProblems(input: {
 	return problems;
 }
 
+/**
+ * What the profile's private fields allow (C6 §3.3, P10; Codex PC1 review 1
+ * MINOR 6). Writing needs an encrypting key on the server
+ * (`sensitiveWritable`); reading needs the key that sealed them
+ * (`sensitiveState`). The two are told apart:
+ * - "no-key": nothing can be written, whatever is stored (the
+ *   profile_encryption_off message), and `unreadable` says something stored
+ *   can't be read either;
+ * - "unreadable": stored, no key here reads it, and new ones replace it;
+ * - "kept": stored encrypted, or nothing yet.
+ * A profile without `sensitiveWritable` is treated as not writable (fail closed).
+ */
+export type PrivateFieldsState = { writable: boolean; cause: 'no-key' | 'unreadable' | 'kept'; unreadable: boolean };
+
+export function privateFieldsState(profile: { sensitiveState?: string; sensitiveWritable?: boolean } | undefined): PrivateFieldsState {
+	const unreadable = profile?.sensitiveState === 'unreadable';
+	if (profile?.sensitiveWritable !== true) return { writable: false, cause: 'no-key', unreadable };
+	return { writable: true, cause: unreadable ? 'unreadable' : 'kept', unreadable };
+}
+
+/** A save refused because the server has no encrypting key (409 profile_encryption_off). */
+export function encryptionOffRefusal(status: number | undefined, message: string): boolean {
+	return status === 409 && message.includes('profile_encryption_off');
+}
+
 /** The price field as whole baht, or none. */
 export function priceValue(value: string): number | null {
 	const price = value.trim();

@@ -6,8 +6,10 @@
     companyStatus,
     companyStatusNote,
     contractNote,
+    encryptionOffRefusal,
     platformCompanyHref,
     priceValue,
+    privateFieldsState,
     profileProblems,
     type DetailTab,
   } from "$lib/orca/platform-console";
@@ -21,6 +23,7 @@
     type OrcaPlatformProfile,
     type OrcaPlatformProfileSensitive,
   } from "$lib/services/orca";
+  import { parseErrorContent } from "$lib/errors";
   import PlatformBadge from "./PlatformBadge.svelte";
   import ConfirmDialog from "../ui/ConfirmDialog.svelte";
   import PageHeader from "../ui/PageHeader.svelte";
@@ -83,7 +86,10 @@
   let saving = $state(false);
   let saveError = $state("");
   const problems = $derived(profileProblems({ ...privateFields, ...form }));
-  const privateOff = $derived(profile?.sensitiveState === "off");
+  // Writing needs an encrypting key, reading the key that sealed them: the
+  // fields are off for the first cause, whatever reading found.
+  const privateState = $derived(privateFieldsState(profile));
+  const privateOff = $derived(!privateState.writable);
 
   function fillProfile(next: OrcaPlatformProfile) {
     profile = next;
@@ -120,7 +126,13 @@
       showToast(t("บันทึกข้อมูลลูกค้าแล้ว", "Customer profile saved."));
       void loadCompany();
     } catch (cause) {
-      saveError = orcaError(cause);
+      const refused = parseErrorContent(cause);
+      if (encryptionOffRefusal(refused.status, refused.message)) {
+        // The key went away since the page read the profile: say why, and
+        // read it again so the fields close.
+        saveError = t("ยังไม่ได้ตั้งค่ากุญแจเข้ารหัสบนเซิร์ฟเวอร์ จึงยังเก็บเลขผู้เสียภาษี ที่อยู่ ผู้ติดต่อ และบันทึกไม่ได้", "No encryption key is set up on the server yet, so the tax ID, address, contact and notes can't be kept.");
+        void loadTab();
+      } else saveError = orcaError(cause);
     } finally {
       saving = false;
     }
@@ -274,9 +286,9 @@
       </fieldset>
       <fieldset disabled={saving || privateOff}>
         <legend>{t("ข้อมูลส่วนตัวของลูกค้า", "Private details")}</legend>
-        {#if privateOff}
-          <p class="detail-note" role="status">{t("ยังไม่ได้ตั้งค่ากุญแจเข้ารหัสบนเซิร์ฟเวอร์ จึงยังเก็บเลขผู้เสียภาษี ที่อยู่ ผู้ติดต่อ และบันทึกไม่ได้", "No encryption key is set up on the server yet, so the tax ID, address, contact and notes can't be kept.")}</p>
-        {:else if profile.sensitiveState === "unreadable"}
+        {#if privateState.cause === "no-key"}
+          <p class="detail-note" role="status">{t("ยังไม่ได้ตั้งค่ากุญแจเข้ารหัสบนเซิร์ฟเวอร์ จึงยังเก็บเลขผู้เสียภาษี ที่อยู่ ผู้ติดต่อ และบันทึกไม่ได้", "No encryption key is set up on the server yet, so the tax ID, address, contact and notes can't be kept.")}{#if privateState.unreadable}{" "}{t("ข้อมูลที่เก็บไว้ก่อนหน้าก็อ่านไม่ได้จนกว่าจะตั้งค่ากุญแจ", "Details stored earlier can't be read until the key is set up.")}{/if}</p>
+        {:else if privateState.cause === "unreadable"}
           <p class="detail-note" role="status">{t("อ่านข้อมูลส่วนตัวที่เก็บไว้ไม่ได้ (อ่านไม่ได้) ถ้ากรอกใหม่แล้วบันทึก ข้อมูลเดิมจะถูกแทน", "The stored private details can't be read. Typing new ones and saving replaces them.")}</p>
         {:else}
           <p class="detail-muted">{t("เก็บแบบเข้ารหัส เห็นได้เฉพาะทีม ORCA", "Stored encrypted; only the ORCA team sees them.")}</p>

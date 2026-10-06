@@ -85,3 +85,16 @@ test('the profile form checks what the server checks', () => {
 	assert.equal(console_.priceValue(' 4900 '), 4900);
 	assert.equal(console_.priceValue(''), null);
 });
+
+test('the private fields: writing needs a key, reading the key that sealed them (Codex PC1 review 1 MINOR 6)', () => {
+	assert.deepEqual(console_.privateFieldsState({ sensitiveState: 'off', sensitiveWritable: false }), { writable: false, cause: 'no-key', unreadable: false });
+	assert.deepEqual(console_.privateFieldsState({ sensitiveState: 'unreadable', sensitiveWritable: false }), { writable: false, cause: 'no-key', unreadable: true }, 'stored, and no key here at all');
+	assert.deepEqual(console_.privateFieldsState({ sensitiveState: 'unreadable', sensitiveWritable: true }), { writable: true, cause: 'unreadable', unreadable: true }, 'another key replaces them');
+	assert.deepEqual(console_.privateFieldsState({ sensitiveState: 'set', sensitiveWritable: true }), { writable: true, cause: 'kept', unreadable: false });
+	assert.deepEqual(console_.privateFieldsState({ sensitiveState: 'empty', sensitiveWritable: true }), { writable: true, cause: 'kept', unreadable: false });
+	assert.equal(console_.privateFieldsState({ sensitiveState: 'set' }).writable, false, 'no word from the server: fail closed');
+	assert.equal(console_.privateFieldsState(undefined).writable, false);
+	assert.equal(console_.encryptionOffRefusal(409, 'profile_encryption_off'), true);
+	assert.equal(console_.encryptionOffRefusal(409, 'this item changed; reload before saving again'), false);
+	assert.equal(console_.encryptionOffRefusal(400, 'profile_encryption_off'), false);
+});

@@ -67,8 +67,15 @@ test('suspending and restoring are confirmed with the company named; ORCA\'s own
 test('the private fields are sent only when edited, never without a key (P10)', () => {
 	assert.match(source.detail, /\.\.\.\(privateEdited && !privateOff \? \{ sensitive: privateFields \} : \{\}\)/);
 	assert.match(source.detail, /<fieldset disabled=\{saving \|\| privateOff\}>/);
-	assert.match(source.detail, /ยังไม่ได้ตั้งค่ากุญแจเข้ารหัสบนเซิร์ฟเวอร์/);
-	assert.match(source.detail, /sensitiveState === "unreadable"/);
+	// Writing and reading are told apart (Codex PC1 review 1 MINOR 6): the
+	// fields close when the server can't write them, whatever reading found,
+	// and the message names that cause.
+	assert.match(source.detail, /const privateState = \$derived\(privateFieldsState\(profile\)\);\s*const privateOff = \$derived\(!privateState\.writable\);/);
+	assert.match(source.detail, /\{#if privateState\.cause === "no-key"\}\s*<p class="detail-note" role="status">\{t\("ยังไม่ได้ตั้งค่ากุญแจเข้ารหัสบนเซิร์ฟเวอร์/);
+	assert.match(source.detail, /\{:else if privateState\.cause === "unreadable"\}/);
+	assert.doesNotMatch(source.detail, /sensitiveState === "off"/);
+	// A save the server refuses for no key says so, and reads the profile again.
+	assert.match(source.detail, /if \(encryptionOffRefusal\(refused\.status, refused\.message\)\) \{[\s\S]*?ยังไม่ได้ตั้งค่ากุญแจเข้ารหัสบนเซิร์ฟเวอร์[\s\S]*?void loadTab\(\);/);
 });
 
 test('the list opens each company and says its status in words, never a pill', () => {
