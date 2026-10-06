@@ -124,3 +124,19 @@ test('"เปลี่ยนชื่อ" waits for a trimmed name that differs'
 	assert.equal(console_.renameReady('Hotel A2', 'Hotel A'), true);
 	assert.equal(console_.renameReady('Hotel A', undefined), true);
 });
+
+test("รายการที่เกี่ยวข้อง for ORCA's rows is the area or the company in words, never an ID", () => {
+	const view = (resourceID) => ({ userID: 'platform', action: 'platform.view', resourceID });
+	assert.equal(console_.platformAuditRelated(view('members'), th), 'รายชื่อสมาชิก');
+	assert.equal(console_.platformAuditRelated(view('overview'), th), 'ภาพรวมบริษัท');
+	assert.equal(console_.platformAuditRelated(view('overview'), en), 'the company overview');
+	assert.equal(console_.platformAuditRelated(view('something-new'), th), 'ข้อมูลบริษัท', 'an area this page does not know');
+	assert.equal(console_.platformAuditRelated(view(''), th), '—');
+	const change = (action) => ({ userID: 'platform', action, resourceID: B });
+	for (const action of ['platform.suspend', 'platform.restore', 'platform.rename']) {
+		assert.equal(console_.platformAuditRelated(change(action), th, 'Hotel A'), 'Hotel A');
+		assert.equal(console_.platformAuditRelated(change(action), th), 'ข้อมูลบริษัท');
+	}
+	assert.equal(console_.platformAuditRelated({ userID: '7', action: 'platform.view', resourceID: 'members' }, th), undefined, "only the platform's own rows");
+	assert.equal(console_.platformAuditRelated({ userID: 'platform', action: 'invitation.create', resourceID: 'oin-1' }, th), undefined);
+});

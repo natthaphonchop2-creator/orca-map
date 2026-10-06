@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { groupPlatformViews, platformAuditLabel } from "$lib/orca/platform-console";
+  import { groupPlatformViews, platformAuditLabel, platformAuditRelated } from "$lib/orca/platform-console";
   import { onDestroy, tick } from "svelte";
   import {
     ArrowDown,
@@ -213,8 +213,11 @@
     ),
   );
   // Consecutive looks by ORCA at the same area show as one row (C6 §4.1);
-  // every look is still recorded.
-  const pagination = $derived(auditPage(groupPlatformViews(visibleEvents), pageNumber, pageSize));
+  // every look is still recorded. The counts above the table and under it
+  // both count these rows.
+  const rows = $derived(groupPlatformViews(visibleEvents));
+  const modeRows = $derived(groupPlatformViews(modeEvents));
+  const pagination = $derived(auditPage(rows, pageNumber, pageSize));
   const activeFilters = $derived(
     Boolean(
       query ||
@@ -320,6 +323,9 @@
       : { id };
   }
   function resourceDisplay(event: OrcaAuditEvent): EntityDisplay {
+    // What ORCA did: the area it looked at, or the company (P6).
+    const platform = platformAuditRelated(event, t, data.organization?.displayName);
+    if (platform) return { label: platform };
     // The company's own details: name the company, never a code or "—".
     if ((event.action ?? "").startsWith("organization.") || event.action === "library.v2")
       return { label: data.organization?.displayName || t("ข้อมูลบริษัท", "Company details") };
@@ -539,8 +545,8 @@
   <div class="audit-meta">
     <p class="loaded-summary" role="status">
       {#if loading}{t("กำลังโหลด…", "Loading…")}{:else}{t(
-          `${visibleEvents.length} จาก ${modeEvents.length} รายการ`,
-          `${visibleEvents.length} of ${modeEvents.length} records`,
+          `${rows.length} จาก ${modeRows.length} รายการ`,
+          `${rows.length} of ${modeRows.length} records`,
         )}{#if loadedAt}<span>· {t("โหลดเมื่อ", "Loaded")} {displayDate(new Date(loadedAt).toISOString())}</span>{/if}{/if}
     </p>
     {#if activeFilters}<button type="button" class="k-button quiet small" onclick={clearFilters}

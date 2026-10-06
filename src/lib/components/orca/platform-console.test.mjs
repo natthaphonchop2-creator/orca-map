@@ -128,7 +128,12 @@ test('the page opens the stopped gate from the list or from a 423, and never ret
 });
 
 test("a company's history names ORCA's looks, grouped in the display only (P6)", () => {
-	assert.match(source.audit, /const pagination = \$derived\(auditPage\(groupPlatformViews\(visibleEvents\), pageNumber, pageSize\)\);/);
+	assert.match(source.audit, /const rows = \$derived\(groupPlatformViews\(visibleEvents\)\);\s*const modeRows = \$derived\(groupPlatformViews\(modeEvents\)\);\s*const pagination = \$derived\(auditPage\(rows, pageNumber, pageSize\)\);/);
+	// The count above the table and the one under it count the same rows.
+	assert.match(source.audit, /`\$\{rows\.length\} จาก \$\{modeRows\.length\} รายการ`/);
+	assert.doesNotMatch(source.audit, /visibleEvents\.length\} จาก/);
+	// รายการที่เกี่ยวข้อง names the area or the company, never its ID.
+	assert.match(source.audit, /function resourceDisplay\(event: OrcaAuditEvent\): EntityDisplay \{\s*\/\/[^\n]*\n\s*const platform = platformAuditRelated\(event, t, data\.organization\?\.displayName\);\s*if \(platform\) return \{ label: platform \};/);
 	assert.match(source.audit, /const platform = platformAuditLabel\(event, t\);/);
 	assert.match(source.audit, /"platform\.view": t\("ORCA ดูข้อมูลบริษัท"/);
 });

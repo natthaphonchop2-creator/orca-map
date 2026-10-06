@@ -122,6 +122,24 @@ export function platformAuditLabel(event: AuditRow, t: Translate): string | unde
 }
 
 /**
+ * The history's "รายการที่เกี่ยวข้อง" for what ORCA did (P6): the area a look
+ * was at, in words, and the company itself for a suspend, restore or rename
+ * (their row names the company's ID). Never a raw area or company ID.
+ */
+export function platformAuditRelated(event: AuditRow, t: Translate, companyName?: string): string | undefined {
+	if (event.userID !== 'platform') return undefined;
+	switch (event.action) {
+		case 'platform.view':
+			return event.resourceID ? platformAreaName(event.resourceID, t) : '—';
+		case 'platform.suspend':
+		case 'platform.restore':
+		case 'platform.rename':
+			return companyName || t('ข้อมูลบริษัท', 'Company details');
+	}
+	return undefined;
+}
+
+/**
  * Consecutive looks by ORCA at the same area are shown as one row with how
  * many times (C6 §4.1): every look is still recorded; only the display
  * groups them.
