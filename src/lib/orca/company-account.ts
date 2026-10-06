@@ -52,7 +52,7 @@ export function pausedReasonCopy(reason: string | undefined): { th: string; en: 
 			// CA1b design §3.2.5 item 2: the provider will no longer refresh the
 			// grant. Never a claim that someone revoked it.
 			return {
-				th: 'สิทธิ์ที่ Google หรือ Microsoft ให้บัญชีนี้หมดอายุหรือถูกเพิกถอน (เช่น เปลี่ยนรหัสผ่าน ยกเลิกการเข้าถึง หรือครบ 7 วันของแอปช่วงทดลอง) ผู้ดูแลต้องเชื่อมใหม่',
+				th: 'สิทธิ์ที่ Google หรือ Microsoft ให้บัญชีนี้หมดอายุหรือถูกยกเลิก (เช่น เปลี่ยนรหัสผ่าน ยกเลิกการเข้าถึง หรือครบ 7 วันของแอปช่วงทดลอง) ผู้ดูแลต้องเชื่อมใหม่',
 				en: "This account's access at Google or Microsoft expired or was revoked (for example after a password change, removed access, or the 7-day limit of a pilot app). A manager must connect it again."
 			};
 		default:

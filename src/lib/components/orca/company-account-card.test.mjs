@@ -111,7 +111,7 @@ test('a managed company account: its address for managers, its notice when the p
 	assert.match(dialog.props.message, /Google/);
 
 	const paused = show({ connection: connection({ mcpID: 'default-orca-managed-gmail', programAccountID: 'pac-1' }), initial: { accounts: [gmail({ status: 'needs_reconnect', pausedReason: 'grant_revoked', accountHint: undefined, acknowledgedRevision: 1 })], policy: { mode: 'warn', revision: 2, notice: 'mail' } } });
-	assert.match(paused, /หมดอายุหรือถูกเพิกถอน/);
+	assert.match(paused, /หมดอายุหรือถูกยกเลิก/);
 	assert.match(paused, /อีเมลทั้งกล่องจดหมาย/, 'the mail notice, not the generic one');
 	assert.doesNotMatch(paused, /บัญชีที่เชื่อม/, 'no address without a connected account');
 

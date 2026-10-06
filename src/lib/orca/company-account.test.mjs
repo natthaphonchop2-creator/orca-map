@@ -114,7 +114,8 @@ test('a managed program\'s notice says what everyone will see, then its terms; a
 
 test('a refused grant reads as expired or revoked, and a manager connects again', () => {
 	const copy = helpers.pausedReasonCopy('grant_revoked');
-	assert.match(copy.th, /หมดอายุหรือถูกเพิกถอน/);
+	assert.match(copy.th, /หมดอายุหรือถูกยกเลิก/);
+	assert.doesNotMatch(copy.th, /เพิกถอน/);
 	assert.match(copy.th, /ผู้ดูแลต้องเชื่อมใหม่/);
 	assert.match(copy.en, /expired or was revoked/);
 	assert.match(copy.en, /A manager must connect it again/);
