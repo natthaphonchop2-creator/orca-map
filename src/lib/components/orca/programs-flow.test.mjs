@@ -37,7 +37,7 @@ const compiled = compileModule(
 				if (input.preset !== undefined) preset = input.preset;
 			},
 			setMode(value) { accountMode = value; },
-			get state() { return { step, sourceID, tools, toolsFor, toolsAccount, companyAccount, accountMode, companyAllowed, discovering, discoverError, selected, preset, name, note, saving, saveError, saved, sources }; }
+			get state() { return { step, sourceID, tools, toolsFor, toolsAccount, toolsAccountHint, companyAccount, accountMode, companyAllowed, discovering, discoverError, selected, preset, name, note, saving, saveError, saved, sources }; }
 		};
 	}`,
 	{ filename: 'add-program-flow-test.svelte.js', generate: 'client' }
@@ -72,7 +72,7 @@ async function setup(context, { props = {}, service = {}, storage = memoryStorag
 			},
 			{
 				...catalogHelpers, ...tools, catalogSource, policyStep, untrack,
-				OrcaService: { programAccountPolicy: service.policy ?? (async () => undefined) },
+				OrcaService: { programAccountPolicy: service.policy ?? (async () => undefined), programAccounts: service.accounts ?? (async () => []) },
 				currentCompany: () => 'default', localeHref: (href) => href, t: (th) => th, orcaError: (cause) => cause.message,
 				programSaveError: (cause) => tools.programSaveMessage(cause.message, (th) => th) ?? cause.message,
 				programSaveConflict: (cause) => cause?.status === 409,
@@ -487,6 +487,40 @@ test('a company account connected at step 2: step 3 reads what AI can do on it, 
 	assert.equal(page.writes[0].input.programAccountID, 'pac-1');
 	assert.equal(page.navigations.at(-1), '/app?view=add-program&source=flow&step=done&account=pac-1&connection=saved-1');
 	assert.deepEqual(writes, []);
+});
+
+test('the address a company account signed in as reaches the summary before saving, from step 2 or the managers\' list after a reload (CA1b O15)', async (context) => {
+	const { view } = await setup(context);
+	await view.companyAccountReady('flow', 'pac-1', 'office@example.com');
+	flush();
+	assert.equal(view.state.toolsAccount, 'pac-1');
+	assert.equal(view.state.toolsAccountHint, 'office@example.com');
+	await view.accountReady('flow');
+	flush();
+	assert.equal(view.state.toolsAccountHint, '', 'each person\'s own account shows no company address');
+
+	const asked = [];
+	const page = await setup(context, {
+		props: { step: 'tools', programAccountID: 'pac-1', address: '/app?view=add-program&source=flow&step=tools&account=pac-1' },
+		service: { accounts: async () => { asked.push('accounts'); return [{ id: 'pac-2', accountHint: 'other@example.com' }, { id: 'pac-1', accountHint: 'office@example.com' }]; } }
+	});
+	await page.view.discover('flow');
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	flush();
+	assert.deepEqual(asked, ['accounts']);
+	assert.equal(page.view.state.toolsAccountHint, 'office@example.com', 'the account the address names, not another');
+
+	const failing = await setup(context, { props: { step: 'tools', programAccountID: 'pac-1' }, service: { accounts: async () => { throw new Error('offline'); } } });
+	assert.equal(await failing.view.discover('flow'), true, 'a hint that can\'t be read never stops step 3');
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	assert.equal(failing.view.state.toolsAccountHint, '');
+
+	// Shown as text next to "connected with the company account", never as a link; step 2 hands it on.
+	assert.match(component, /\{#if toolsAccountHint\}<span class="ap-strip-account">\{t\('บัญชีที่เชื่อม', 'Connected account'\)\}: \{toolsAccountHint\}<\/span>\{\/if\}/);
+	assert.match(component, /onready=\{\(accountID, accountHint\) => companyAccountReady\(sourceID, accountID, accountHint\)\}/);
+	const connect = await readFile(new URL('./programs/CompanyAccountConnect.svelte', import.meta.url), 'utf8');
+	assert.match(connect, /await onready\(use\.id, use\.accountHint\);/, 'a ready account used as it is');
+	assert.match(connect, /await onready\(connected\.id, connected\.accountHint\);/, 'an account just connected');
 });
 
 test('tools read on another account than the address names are never saved on it', async (context) => {

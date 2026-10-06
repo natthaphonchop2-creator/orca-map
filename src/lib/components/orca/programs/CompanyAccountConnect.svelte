@@ -40,7 +40,8 @@
 		pending?: string;
 		/** The first read, for a page that already has it (and for tests). */
 		initial?: { accounts: OrcaProgramAccount[]; policy?: OrcaCompanyAccountPolicy };
-		onready: (programAccountID: string) => Promise<void> | void;
+		/** The account is ready: its ID, and the provider address it signed in as (a display hint, managers only), for the summary before saving. */
+		onready: (programAccountID: string, accountHint?: string) => Promise<void> | void;
 	} = $props();
 
 	const first = untrack(() => initial);
@@ -136,7 +137,7 @@
 				accounts = [...accounts, use];
 				choice = use.id;
 			}
-			if (use.status === 'ready' && !needsAcknowledgement(policy, use)) await onready(use.id);
+			if (use.status === 'ready' && !needsAcknowledgement(policy, use)) await onready(use.id, use.accountHint);
 			else await startConnecting(use.id, needsAcknowledgement(policy, use) ? revision : 0);
 		});
 	}
@@ -247,7 +248,7 @@
 		signInURL = '';
 		detailsSaved = false;
 		acceptedRevision = 0;
-		await onready(connected.id);
+		await onready(connected.id, connected.accountHint);
 	}
 </script>
 

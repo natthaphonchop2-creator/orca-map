@@ -106,6 +106,10 @@
 	let toolsFor = $state('');
 	// The company account the tools were read on, or "" for the manager's own.
 	let toolsAccount = $state('');
+	// The provider address each company account signed in as (CA1b O15): a
+	// display hint for the manager's summary before saving, never compared.
+	let accountHints = $state.raw<Record<string, string>>({});
+	const toolsAccountHint = $derived(toolsAccount ? (accountHints[toolsAccount] ?? '') : '');
 	let discovering = $state(false);
 	let discoverError = $state('');
 	let selected = $state<string[]>([]);
@@ -225,8 +229,20 @@
 		}
 	}
 
+	// A company account opened by address (a reload): its address from the
+	// managers' list, when the flow has none yet.
+	async function readAccountHint(account: string) {
+		try {
+			const found = (await OrcaService.programAccounts()).find((item) => item.id === account);
+			if (alive && found?.accountHint && !(account in accountHints)) accountHints = { ...accountHints, [account]: found.accountHint };
+		} catch {
+			// Only a hint: the summary goes without it.
+		}
+	}
+
 	async function discover(id: string, account = companyAccount): Promise<boolean> {
 		const request = ++discovery;
+		if (account && !(account in accountHints)) void readAccountHint(account);
 		discovering = true;
 		discoverError = '';
 		try {
@@ -258,8 +274,9 @@
 		if ((await discover(id, '')) && id === sourceID) await go('tools', { account: null });
 	}
 	// Step 2 with บัญชีกลาง: the company account is connected; see what AI can do on it.
-	async function companyAccountReady(id: string, accountID: string) {
+	async function companyAccountReady(id: string, accountID: string, accountHint = '') {
 		if (id !== sourceID || !accountID) return;
+		if (accountHint) accountHints = { ...accountHints, [accountID]: accountHint };
 		if ((await discover(id, accountID)) && id === sourceID) await go('tools', { account: accountID });
 	}
 
@@ -428,6 +445,7 @@
 				<div class="ap-strip-name">{programName}</div>
 				<div class="ap-strip-meta">
 					{#if connected}<span class="ap-pill ok"><Check size={12} strokeWidth={3} aria-hidden="true" />{toolsAccount ? t('เชื่อมด้วยบัญชีกลางแล้ว', 'Connected with the company account') : t('เชื่อมด้วยบัญชีของคุณแล้ว', 'Connected with your account')}</span>
+						{#if toolsAccountHint}<span class="ap-strip-account">{t('บัญชีที่เชื่อม', 'Connected account')}: {toolsAccountHint}</span>{/if}
 					{:else if category.th}<span>{t(category.th, category.en)}</span>{/if}
 				</div>
 			</div>
@@ -522,7 +540,7 @@
 					{programName}
 					current={companyAccount}
 					pending={discovering ? t(`กำลังดูว่า AI ทำอะไรได้บ้างใน ${programName}…`, `Seeing what AI can do in ${programName}…`) : ''}
-					onready={(accountID) => companyAccountReady(sourceID, accountID)}
+					onready={(accountID, accountHint) => companyAccountReady(sourceID, accountID, accountHint)}
 				/>
 			{:else}
 				<ProgramAccount
@@ -635,11 +653,16 @@
 	}
 	.ap-strip-meta {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: 10px;
 		margin-top: 3px;
 		color: var(--orca-muted);
 		font-size: 13px;
+	}
+	.ap-strip-account {
+		min-width: 0;
+		overflow-wrap: anywhere;
 	}
 	.ap-pill {
 		display: inline-flex;
