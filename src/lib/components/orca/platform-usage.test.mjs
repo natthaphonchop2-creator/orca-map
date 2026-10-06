@@ -82,6 +82,10 @@ test('ใช้ล่าสุด reads today, yesterday, days ago within the we
 	assert.equal(last('2026-09-10', 'en', (_th, en) => en), '10 Sept 2026');
 	assert.equal(last(null), 'ยังไม่เคยใช้');
 	assert.equal(usageModule.usageNumber(1210), '1,210');
+	// The same day formatter the company pages use, with no time.
+	assert.equal(usageModule.displayDay('2026-10-05'), '5 ต.ค. 2569');
+	assert.equal(usageModule.displayDay('2026-10-05', 'en'), '5 Oct 2026');
+	assert.equal(usageModule.displayDay(null), '—');
 });
 
 test('the service makes one platform call, never under a company\'s path', async () => {

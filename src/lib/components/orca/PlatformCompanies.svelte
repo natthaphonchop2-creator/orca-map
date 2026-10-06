@@ -3,7 +3,7 @@
   import { Building2, Check, Copy, ExternalLink, Files, Link2, MailPlus, Plus, Send, TriangleAlert, X } from "@lucide/svelte";
   import { parseErrorContent } from "$lib/errors";
   import { invitationLink, lineShareURL } from "$lib/orca/invitations";
-  import { localeHref, t } from "$lib/orca/locale.svelte";
+  import { localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
   import { platformHref } from "$lib/orca/navigation";
   import { canInviteOwner, canRevokeOwnerInvitation, emailDomain, ownerStatus, platformRefusal, resendEmail, signInWarnings, type OwnerStatus } from "$lib/orca/platform-companies";
   import { companyStatus, companyStatusNote, contractNote, platformCompanyHref } from "$lib/orca/platform-console";
@@ -272,7 +272,7 @@
                   <a class="company-open" href={localeHref(platformCompanyHref(company.id))}><strong>{company.displayName}</strong></a>
                   <small>{company.id === "default" ? t("บริษัทของทีม ORCA", "The ORCA team's company") : t(`เปิดเมื่อ ${displayDate(company.createdAt)}`, `Opened ${displayDate(company.createdAt)}`)}</small>
                   {#if companyStatus(company.status) !== "active"}<small class="company-stopped">{companyStatusNote(companyStatus(company.status), t)}</small>{/if}
-                  {#if company.package || company.contractEnd}<small>{[company.package, contractNote(company.contractState, company.contractEnd, t)].filter(Boolean).join(" · ")}</small>{/if}
+                  {#if company.package || company.contractEnd}<small>{[company.package, contractNote(company.contractState, company.contractEnd, t, orcaLocale.value)].filter(Boolean).join(" · ")}</small>{/if}
                 </span>
               </div>
             </td>

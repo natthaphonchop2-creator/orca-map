@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { localeHref, t } from "$lib/orca/locale.svelte";
+  import { localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
   import { platformHref } from "$lib/orca/navigation";
   import {
     companyStatus,
@@ -24,6 +24,7 @@
     type OrcaPlatformProfile,
     type OrcaPlatformProfileSensitive,
   } from "$lib/services/orca";
+  import { displayDay } from "$lib/orca/platform-usage";
   import { parseErrorContent } from "$lib/errors";
   import PlatformBadge from "./PlatformBadge.svelte";
   import ConfirmDialog from "../ui/ConfirmDialog.svelte";
@@ -215,7 +216,7 @@
 </PageHeader>
 
 {#if companyError}<p class="detail-error" role="alert">{companyError}</p>{/if}
-{#if company && status !== "active"}<p class="detail-stopped" role="status">{companyStatusNote(status, t)}{company.contractEnd ? ` · ${contractNote(company.contractState, company.contractEnd, t)}` : ""}</p>{/if}
+{#if company && status !== "active"}<p class="detail-stopped" role="status">{companyStatusNote(status, t)}{company.contractEnd ? ` · ${contractNote(company.contractState, company.contractEnd, t, orcaLocale.value)}` : ""}</p>{/if}
 
 <nav class="detail-tabs" aria-label={t("ส่วนของบริษัท", "Company sections")}>
   {#each tabs as item (item.id)}
@@ -238,7 +239,7 @@
       <div><dt>{t("คำเชิญที่รออยู่", "Invitations waiting")}</dt><dd>{overview.counts.invitationsWaiting}</dd></div>
       <div><dt>{t("คำขออนุมัติที่รออยู่", "Approvals waiting")}</dt><dd>{overview.counts.approvalsWaiting}</dd></div>
       <div><dt>{t("ใช้ AI 7 วัน · 30 วัน", "AI use, 7 · 30 days")}</dt><dd>{t(`${overview.usage.toolCalls7} · ${overview.usage.toolCalls30} ครั้ง`, `${overview.usage.toolCalls7} · ${overview.usage.toolCalls30} calls`)}<small>{t(`${overview.usage.people7} · ${overview.usage.people30} คน`, `${overview.usage.people7} · ${overview.usage.people30} people`)}</small></dd></div>
-      <div><dt>{t("ใช้ล่าสุด", "Last used")}</dt><dd>{overview.usage.lastCallDay ?? t("ยังไม่เคยใช้", "Never")}</dd></div>
+      <div><dt>{t("ใช้ล่าสุด", "Last used")}</dt><dd>{overview.usage.lastCallDay ? displayDay(overview.usage.lastCallDay, orcaLocale.value) : t("ยังไม่เคยใช้", "Never")}</dd></div>
     </dl>
     <h2 class="detail-heading">{t("เจ้าของบริษัท", "Owners")}</h2>
     {#if overview.owners.length === 0}<p class="detail-muted">{t("ยังไม่มีเจ้าของที่ใช้งานได้", "No owner who can act yet.")}</p>
@@ -246,7 +247,7 @@
         {#each overview.owners as owner (owner.id)}<li><strong>{owner.displayName || owner.email}</strong><span>{owner.email}</span></li>{/each}
       </ul>{/if}
     {#if overview.profile.package || overview.profile.contractEnd}
-      <p class="detail-muted">{overview.profile.package}{overview.profile.package && overview.profile.contractEnd ? " · " : ""}{overview.profile.contractEnd ? contractNote(company?.contractState, overview.profile.contractEnd, t) : ""}</p>
+      <p class="detail-muted">{overview.profile.package}{overview.profile.package && overview.profile.contractEnd ? " · " : ""}{overview.profile.contractEnd ? contractNote(company?.contractState, overview.profile.contractEnd, t, orcaLocale.value) : ""}</p>
     {/if}
   {/if}
 {:else if tab === "members"}

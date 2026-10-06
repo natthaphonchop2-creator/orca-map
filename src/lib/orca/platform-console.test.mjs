@@ -33,9 +33,11 @@ test("a company's people see only the fixed message (P5)", () => {
 
 test('the contract end is marked, and nothing else happens at it', () => {
 	assert.equal(console_.contractNote('', '', th), '');
-	assert.equal(console_.contractNote('', '2027-09-30', th), 'สัญญาถึง 2027-09-30');
-	assert.equal(console_.contractNote('ending', '2026-10-30', th), 'ใกล้หมดสัญญา (2026-10-30)');
-	assert.equal(console_.contractNote('ended', '2026-10-01', en), 'Contract ended (2026-10-01)');
+	assert.equal(console_.contractNote('', '2026-12-31', th), 'สัญญาถึง 31 ธ.ค. 2569');
+	assert.equal(console_.contractNote('ending', '2026-10-20', th), 'ใกล้หมดสัญญา (20 ต.ค. 2569)');
+	assert.equal(console_.contractNote('ended', '2026-10-01', en, 'en'), 'Contract ended (1 Oct 2026)');
+	// Never the ISO day, in either language.
+	for (const state of ['', 'ending', 'ended']) assert.doesNotMatch(console_.contractNote(state, '2026-12-31', th), /\d{4}-\d{2}-\d{2}/);
 });
 
 test("a customer company's page lives in the platform area, in the default company", () => {

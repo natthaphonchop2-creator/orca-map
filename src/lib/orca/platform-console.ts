@@ -4,6 +4,7 @@
 
 import { validCompanyID } from './company';
 import { PLATFORM_COMPANY_TABS } from './navigation';
+import { displayDay } from './platform-usage';
 
 type Translate = (th: string, en: string) => string;
 
@@ -43,12 +44,16 @@ export function companyStatusNote(status: CompanyStatus, t: Translate): string {
 	return '';
 }
 
-/** "ใกล้หมดสัญญา" within 30 days, "หมดสัญญาแล้ว" once past (C6 §3.3); the operator decides. */
-export function contractNote(state: string | undefined, end: string | undefined, t: Translate): string {
+/**
+ * "ใกล้หมดสัญญา" within 30 days, "หมดสัญญาแล้ว" once past (C6 §3.3); the
+ * operator decides. The day is written as people read it, never YYYY-MM-DD.
+ */
+export function contractNote(state: string | undefined, end: string | undefined, t: Translate, locale: 'th' | 'en' = 'th'): string {
 	if (!end) return '';
-	if (state === 'ended') return t(`หมดสัญญาแล้ว (${end})`, `Contract ended (${end})`);
-	if (state === 'ending') return t(`ใกล้หมดสัญญา (${end})`, `Contract ends soon (${end})`);
-	return t(`สัญญาถึง ${end}`, `Contract until ${end}`);
+	const day = displayDay(end, locale);
+	if (state === 'ended') return t(`หมดสัญญาแล้ว (${day})`, `Contract ended (${day})`);
+	if (state === 'ending') return t(`ใกล้หมดสัญญา (${day})`, `Contract ends soon (${day})`);
+	return t(`สัญญาถึง ${day}`, `Contract until ${day}`);
 }
 
 /** "เปลี่ยนชื่อ" waits until the trimmed name is there and differs from the current one. */

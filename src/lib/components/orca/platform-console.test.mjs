@@ -138,3 +138,13 @@ test('"เปลี่ยนชื่อ" is disabled until the trimmed name dif
 	assert.match(source.detail, /<button type="submit" class="k-button" disabled=\{changing \|\| !canRename\}>\{t\("เปลี่ยนชื่อ", "Rename"\)\}<\/button>/);
 	assert.match(source.detail, /if \(!renameReady\(name, company\.displayName\)\) return;\s*changing = true;/);
 });
+
+test('the operator pages write every day in Thai, never YYYY-MM-DD', () => {
+	// The contract end, on the list, the stopped line and the overview.
+	assert.match(source.companies, /contractNote\(company\.contractState, company\.contractEnd, t, orcaLocale\.value\)/);
+	assert.equal(source.detail.match(/contractNote\([^)]*, t, orcaLocale\.value\)/g)?.length, 2);
+	assert.doesNotMatch(source.detail, /contractNote\([^)]*, t\)/);
+	// ใช้ล่าสุด.
+	assert.match(source.detail, /\{overview\.usage\.lastCallDay \? displayDay\(overview\.usage\.lastCallDay, orcaLocale\.value\) : t\("ยังไม่เคยใช้", "Never"\)\}/);
+	assert.doesNotMatch(source.detail, /\{overview\.usage\.lastCallDay \?\?/);
+});
