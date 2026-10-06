@@ -12,6 +12,7 @@ import { serverComponent } from './test-render.mjs';
 const consoleHelpers = await import(await typescriptModuleURL(new URL('../../orca/platform-console.ts', import.meta.url)));
 const company = await import(await typescriptModuleURL(new URL('../../orca/company.ts', import.meta.url)));
 const glossary = await import(await typescriptModuleURL(new URL('../../orca/glossary.ts', import.meta.url)));
+const auditFilters = await import(await typescriptModuleURL(new URL('../../orca/audit-filters.ts', import.meta.url)));
 const B = 'org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const C = 'org-cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const en = (_th, english) => english;
@@ -125,6 +126,39 @@ test('the page opens the stopped gate from the list or from a 423, and never ret
 	assert.equal(source.detail.match(/void onchanged\?\.\(\);/g)?.length, 2, 'after a suspend or restore, and after a rename');
 	// An invitation into a suspended company waits, and says why.
 	assert.match(source.invite, /\{#if preview\.companyStatus\}[\s\S]*?stoppedMessage\(preview\.companyStatus, t\)[\s\S]*?\{:else if data\.signedIn\}/);
+});
+
+test("a company's history puts both sets in one order before grouping, so 'x จาก y รายการ' agrees (Codex PC1 polish review 1)", () => {
+	// Audit.svelte's own expressions for the rows and the whole history, run as shipped.
+	const derived = (name) => source.audit.match(new RegExp(`const ${name} = \\$derived\\(([\\s\\S]*?)\\);\\n`))[1].trim().replace(/,$/, '');
+	const rowsOf = new Function(
+		'deps',
+		`const { events, mode, sort, names, loadedAt, eventLabel, query, outcome, userID, connectionID, toolName, action, timeRange, auditEventMode, filterAuditEvents, sortAuditEvents, groupPlatformViews } = deps;
+		const modeEvents = (${derived('modeEvents')});
+		const visibleEvents = (${derived('visibleEvents')});
+		const rows = (${derived('rows')});
+		const modeRows = (${derived('modeRows')});
+		return { rows: rows.map((row) => [row.resourceID, row.repeated ?? 1]), modeRows: modeRows.length };`
+	);
+	// ORCA looked at บริษัท ทดลองสยาม จำกัด three times in one millisecond. The
+	// API lists them overview, overview, members; by time and then ID they are
+	// overview, members, overview.
+	const company = { id: C, displayName: 'บริษัท ทดลองสยาม จำกัด' };
+	const at = '2026-10-06T09:15:00.123Z';
+	const look = (id, resourceID) => ({ id, createdAt: at, userID: 'platform', action: 'platform.view', resourceID, organizationID: company.id });
+	const events = [look('evt-a', 'overview'), look('evt-c', 'overview'), look('evt-b', 'members')];
+	const none = { query: '', outcome: '', userID: '', connectionID: '', toolName: '', action: '', timeRange: 'all' };
+	const common = { ...auditFilters, ...consoleHelpers, ...none, events, mode: 'administration', names: {}, loadedAt: Date.parse(at), eventLabel: () => company.displayName };
+	for (const sort of ['newest', 'oldest']) {
+		const { rows, modeRows } = rowsOf({ ...common, sort });
+		assert.equal(rows.length, modeRows, `${sort}: ${rows.length} จาก ${modeRows} รายการ`);
+	}
+	assert.deepEqual(rowsOf({ ...common, sort: 'newest' }).rows, [['overview', 1], ['members', 1], ['overview', 1]]);
+	// A filter only ever drops rows from the whole history.
+	const filtered = rowsOf({ ...common, sort: 'newest', query: 'evt-a evt' });
+	assert.deepEqual([filtered.rows.length, filtered.modeRows], [1, 3]);
+	// The one order is a copy: the loaded list keeps the API's order.
+	assert.deepEqual(events.map((event) => event.id), ['evt-a', 'evt-c', 'evt-b']);
 });
 
 test("a company's history names ORCA's looks, grouped in the display only (P6)", () => {

@@ -23,6 +23,7 @@
     auditFilterOptions,
     auditPage,
     filterAuditEvents,
+    sortAuditEvents,
     type AuditMode,
     type AuditSort,
     type AuditTimeRange,
@@ -189,8 +190,10 @@
       data.connections.map((connection) => [connection.id, connection.name]),
     ),
   });
+  // In the table's order, like visibleEvents: grouped in another order, the
+  // filtered rows could outnumber the whole history (Codex PC1 polish review 1).
   const modeEvents = $derived(
-    events.filter((event) => auditEventMode(event) === mode),
+    sortAuditEvents(events.filter((event) => auditEventMode(event) === mode), sort),
   );
   const visibleEvents = $derived(
     filterAuditEvents(
