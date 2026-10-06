@@ -82,10 +82,25 @@ test('the profile form checks what the server checks', () => {
 	assert.deepEqual(console_.profileProblems({ taxID: '010555501234' }), ['taxID']);
 	assert.deepEqual(console_.profileProblems({ contactEmail: 'not an email' }), ['email']);
 	assert.deepEqual(console_.profileProblems({ contractStart: '2027-01-02', contractEnd: '2027-01-01' }), ['dates']);
-	assert.deepEqual(console_.profileProblems({ monthlyPrice: '4,900' }), ['price']);
+	// The price may carry thousands separators, only in the right places.
+	assert.deepEqual(console_.profileProblems({ monthlyPrice: '4,900' }), []);
+	assert.deepEqual(console_.profileProblems({ monthlyPrice: '12,900' }), []);
+	assert.deepEqual(console_.profileProblems({ monthlyPrice: '49,00' }), ['price']);
+	assert.deepEqual(console_.profileProblems({ monthlyPrice: '4900.50' }), ['price']);
+	assert.deepEqual(console_.profileProblems({ monthlyPrice: '1,234,567,890' }), ['price'], 'more than nine digits');
 	assert.deepEqual(console_.profileProblems({ notes: 'ก'.repeat(4001) }), ['notes']);
 	assert.equal(console_.priceValue(' 4900 '), 4900);
 	assert.equal(console_.priceValue(''), null);
+	assert.equal(console_.priceValue('12,900'), 12900, 'the commas are display only');
+	assert.equal(console_.priceValue('123,456,789'), 123456789);
+	assert.equal(console_.priceValue('12,90'), null);
+	// The field shows the price with separators, and keeps what isn't a price as typed.
+	assert.equal(console_.priceText(12900), '12,900');
+	assert.equal(console_.priceText('12900'), '12,900');
+	assert.equal(console_.priceText(' 4,900 '), '4,900');
+	assert.equal(console_.priceText(null), '');
+	assert.equal(console_.priceText('12,90'), '12,90');
+	assert.equal(console_.priceValue(console_.priceText(123456789)), 123456789, 'shown, then read back');
 });
 
 test('the private fields: writing needs a key, reading the key that sealed them (Codex PC1 review 1 MINOR 6)', () => {

@@ -7,6 +7,7 @@
   import { platformHref } from "$lib/orca/navigation";
   import { canInviteOwner, canRevokeOwnerInvitation, emailDomain, ownerStatus, platformRefusal, resendEmail, signInWarnings, type OwnerStatus } from "$lib/orca/platform-companies";
   import { companyStatus, companyStatusNote, contractNote, platformCompanyHref } from "$lib/orca/platform-console";
+  import { usageNumber } from "$lib/orca/platform-usage";
   import { OrcaService, displayDate, orcaError, type OrcaOwnerInvitationLink, type OrcaPlatformCompany } from "$lib/services/orca";
   import { externalBrowserLink } from "$lib/services/orca-platform";
   import PlatformBadge from "./platform/PlatformBadge.svelte";
@@ -276,7 +277,7 @@
                 </span>
               </div>
             </td>
-            <td class="company-seats"><span class="company-seats-label">{t("ใช้งานได้", "Active:")}</span><strong>{company.seats}</strong><small>{t("คน", company.seats === 1 ? "person" : "people")}</small></td>
+            <td class="company-seats"><span class="company-seats-label">{t("ใช้งานได้", "Active:")}</span><strong>{usageNumber(company.seats)}</strong><small>{t("คน", company.seats === 1 ? "person" : "people")}</small></td>
             <td class="company-owner">
               <StatusPill label={statusText(status, company.owners)} tone={statusTone(status)} />
               {#each company.ownerInvitations as invitation (invitation.id)}

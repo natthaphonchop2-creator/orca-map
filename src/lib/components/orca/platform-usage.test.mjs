@@ -181,7 +181,7 @@ async function overviewHarness() {
 	const script = stripTypeScriptTypes((await readFile(files.overview, 'utf8')).match(/<script lang="ts">([\s\S]*?)<\/script>/)[1])
 		.replace(/^\s*import[\s\S]*?;$/gm, '')
 		.replace('$props()', '$state(testProps)');
-	const names = ['onMount', 'term', 't', 'localeHref', 'platformHref', 'OrcaService', 'orcaError', 'catalogSummary', 'googleClientSaved', 'platformCounts', 'PlatformUsageService', 'ArrowRight', 'Building2', 'Check', 'Grid2x2Plus', 'Inbox', 'KeyRound', 'LogIn', 'Shield', 'TriangleAlert'];
+	const names = ['onMount', 'term', 't', 'localeHref', 'platformHref', 'OrcaService', 'orcaError', 'catalogSummary', 'googleClientSaved', 'platformCounts', 'PlatformUsageService', 'usageNumber', 'ArrowRight', 'Building2', 'Check', 'Grid2x2Plus', 'Inbox', 'KeyRound', 'LogIn', 'Shield', 'TriangleAlert'];
 	const { harness } = await import(
 		'data:text/javascript;base64,' +
 			Buffer.from(
@@ -210,7 +210,8 @@ async function overviewHarness() {
 				catalogSummary: platform.catalogSummary,
 				googleClientSaved: platform.googleClientSaved,
 				platformCounts: platform.platformCounts,
-				PlatformUsageService: usageService
+				PlatformUsageService: usageService,
+				usageNumber: usageModule.usageNumber
 			}
 		);
 }

@@ -8,6 +8,7 @@
     contractNote,
     encryptionOffRefusal,
     platformCompanyHref,
+    priceText,
     priceValue,
     privateFieldsState,
     profileProblems,
@@ -24,7 +25,7 @@
     type OrcaPlatformProfile,
     type OrcaPlatformProfileSensitive,
   } from "$lib/services/orca";
-  import { displayDay } from "$lib/orca/platform-usage";
+  import { displayDay, usageNumber as n } from "$lib/orca/platform-usage";
   import { parseErrorContent } from "$lib/errors";
   import PlatformBadge from "./PlatformBadge.svelte";
   import ConfirmDialog from "../ui/ConfirmDialog.svelte";
@@ -101,7 +102,7 @@
       legalName: next.legalName,
       branch: next.branch,
       package: next.package,
-      monthlyPrice: next.monthlyPrice === null || next.monthlyPrice === undefined ? "" : String(next.monthlyPrice),
+      monthlyPrice: priceText(next.monthlyPrice),
       contractStart: next.contractStart,
       contractEnd: next.contractEnd,
     };
@@ -230,15 +231,15 @@
   {#if !overview && !lookError}<p class="detail-loading">{t("กำลังโหลด…", "Loading…")}</p>
   {:else if overview}
     <dl class="detail-facts">
-      <div><dt>{t("สมาชิกที่ใช้งานได้", "Active members")}</dt><dd>{overview.counts.membersByStatus.active ?? 0}</dd></div>
-      <div><dt>{t("เจ้าของ · ผู้ดูแล · พนักงาน", "Owners · admins · employees")}</dt><dd>{overview.counts.membersByRole.owner ?? 0} · {overview.counts.membersByRole.admin ?? 0} · {overview.counts.membersByRole.employee ?? 0}</dd></div>
-      <div><dt>{t("ถูกระงับหรือนำออก", "Suspended or removed")}</dt><dd>{(overview.counts.membersByStatus.suspended ?? 0) + (overview.counts.membersByStatus.removed ?? 0)}</dd></div>
-      <div><dt>{t("พื้นที่ทำงาน", "Workspaces")}</dt><dd>{overview.counts.workspaces}</dd></div>
-      <div><dt>{t("โปรแกรมที่เชื่อม", "Connected programs")}</dt><dd>{overview.counts.connections}</dd></div>
-      <div><dt>{t("บัญชีกลาง", "Company accounts")}</dt><dd>{count(overview.counts.companyAccounts)}{#each Object.entries(overview.counts.companyAccounts) as [key, value] (key)}<small>{accountStatus(key)} {value}</small>{/each}</dd></div>
-      <div><dt>{t("คำเชิญที่รออยู่", "Invitations waiting")}</dt><dd>{overview.counts.invitationsWaiting}</dd></div>
-      <div><dt>{t("คำขออนุมัติที่รออยู่", "Approvals waiting")}</dt><dd>{overview.counts.approvalsWaiting}</dd></div>
-      <div><dt>{t("ใช้ AI 7 วัน · 30 วัน", "AI use, 7 · 30 days")}</dt><dd>{t(`${overview.usage.toolCalls7} · ${overview.usage.toolCalls30} ครั้ง`, `${overview.usage.toolCalls7} · ${overview.usage.toolCalls30} calls`)}<small>{t(`${overview.usage.people7} · ${overview.usage.people30} คน`, `${overview.usage.people7} · ${overview.usage.people30} people`)}</small></dd></div>
+      <div><dt>{t("สมาชิกที่ใช้งานได้", "Active members")}</dt><dd>{n(overview.counts.membersByStatus.active ?? 0)}</dd></div>
+      <div><dt>{t("เจ้าของ · ผู้ดูแล · พนักงาน", "Owners · admins · employees")}</dt><dd>{n(overview.counts.membersByRole.owner ?? 0)} · {n(overview.counts.membersByRole.admin ?? 0)} · {n(overview.counts.membersByRole.employee ?? 0)}</dd></div>
+      <div><dt>{t("ถูกระงับหรือนำออก", "Suspended or removed")}</dt><dd>{n((overview.counts.membersByStatus.suspended ?? 0) + (overview.counts.membersByStatus.removed ?? 0))}</dd></div>
+      <div><dt>{t("พื้นที่ทำงาน", "Workspaces")}</dt><dd>{n(overview.counts.workspaces)}</dd></div>
+      <div><dt>{t("โปรแกรมที่เชื่อม", "Connected programs")}</dt><dd>{n(overview.counts.connections)}</dd></div>
+      <div><dt>{t("บัญชีกลาง", "Company accounts")}</dt><dd>{n(count(overview.counts.companyAccounts))}{#each Object.entries(overview.counts.companyAccounts) as [key, value] (key)}<small>{accountStatus(key)} {n(value)}</small>{/each}</dd></div>
+      <div><dt>{t("คำเชิญที่รออยู่", "Invitations waiting")}</dt><dd>{n(overview.counts.invitationsWaiting)}</dd></div>
+      <div><dt>{t("คำขออนุมัติที่รออยู่", "Approvals waiting")}</dt><dd>{n(overview.counts.approvalsWaiting)}</dd></div>
+      <div><dt>{t("ใช้ AI 7 วัน · 30 วัน", "AI use, 7 · 30 days")}</dt><dd>{t(`${n(overview.usage.toolCalls7)} · ${n(overview.usage.toolCalls30)} ครั้ง`, `${n(overview.usage.toolCalls7)} · ${n(overview.usage.toolCalls30)} calls`)}<small>{t(`${n(overview.usage.people7)} · ${n(overview.usage.people30)} คน`, `${n(overview.usage.people7)} · ${n(overview.usage.people30)} people`)}</small></dd></div>
       <div><dt>{t("ใช้ล่าสุด", "Last used")}</dt><dd>{overview.usage.lastCallDay ? displayDay(overview.usage.lastCallDay, orcaLocale.value) : t("ยังไม่เคยใช้", "Never")}</dd></div>
     </dl>
     <h2 class="detail-heading">{t("เจ้าของบริษัท", "Owners")}</h2>
@@ -271,7 +272,7 @@
                 <td>{displayDate(member.joinedAt)}</td>
                 <td>{displayDate(member.lastActiveAt)}</td>
                 <td>{member.departments.length ? member.departments.join(", ") : "—"}</td>
-                <td>{member.aiSignIns} · {member.keys}</td>
+                <td>{n(member.aiSignIns)} · {n(member.keys)}</td>
               </tr>
             {/each}
           </tbody>
@@ -288,7 +289,7 @@
         <label>{t("ชื่อนิติบุคคล", "Legal name")}<input bind:value={form.legalName} maxlength="255" autocomplete="off" /></label>
         <label>{t("สาขา", "Branch")}<input bind:value={form.branch} maxlength="64" placeholder={t("สำนักงานใหญ่ หรือเลขสาขา", "Head office or branch number")} autocomplete="off" /></label>
         <label>{t("แพ็กเกจ", "Package")}<input bind:value={form.package} maxlength="120" placeholder="Early Partner" autocomplete="off" /></label>
-        <label>{t("ราคาต่อเดือน (บาท)", "Monthly price (baht)")}<input bind:value={form.monthlyPrice} inputmode="numeric" autocomplete="off" /></label>
+        <label>{t("ราคาต่อเดือน (บาท)", "Monthly price (baht)")}<input bind:value={form.monthlyPrice} onblur={() => (form.monthlyPrice = priceText(form.monthlyPrice))} inputmode="numeric" autocomplete="off" /></label>
         <label>{t("เริ่มสัญญา", "Contract start")}<input type="date" bind:value={form.contractStart} /></label>
         <label>{t("สิ้นสุดสัญญา", "Contract end")}<input type="date" bind:value={form.contractEnd} /></label>
       </fieldset>

@@ -167,7 +167,7 @@ export function profileProblems(input: {
 	const date = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 	if ((start && !date.test(start)) || (end && !date.test(end)) || (start && end && end < start)) problems.push('dates');
 	const price = input.monthlyPrice?.trim() ?? '';
-	if (price && !/^[0-9]{1,9}$/.test(price)) problems.push('price');
+	if (price && !PRICE.test(price)) problems.push('price');
 	if ([...(input.notes ?? '')].length > 4000) problems.push('notes');
 	return problems;
 }
@@ -197,8 +197,23 @@ export function encryptionOffRefusal(status: number | undefined, message: string
 	return status === 409 && message.includes('profile_encryption_off');
 }
 
+/**
+ * The price field: whole baht, up to nine digits, typed plain (12900) or with
+ * thousands separators (12,900). Only the display has the commas; the server
+ * gets a number.
+ */
+const PRICE = /^(?:[0-9]{1,9}|[0-9]{1,3}(?:,[0-9]{3}){1,2})$/;
+
 /** The price field as whole baht, or none. */
 export function priceValue(value: string): number | null {
 	const price = value.trim();
-	return /^[0-9]{1,9}$/.test(price) ? Number(price) : null;
+	return PRICE.test(price) ? Number(price.replaceAll(',', '')) : null;
+}
+
+/** A price as the field shows it: 12,900. Something that isn't a price stays as typed. */
+export function priceText(value: number | string | null | undefined): string {
+	if (value === null || value === undefined) return '';
+	const price = typeof value === 'number' ? (Number.isSafeInteger(value) && value >= 0 ? value : null) : priceValue(value);
+	if (price === null) return typeof value === 'string' ? value : '';
+	return price.toLocaleString('en-US');
 }

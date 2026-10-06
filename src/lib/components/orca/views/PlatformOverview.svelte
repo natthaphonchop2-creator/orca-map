@@ -7,7 +7,7 @@
 	import { OrcaService, orcaError, type OrcaCandidate, type OrcaGoogleSignIn, type OrcaPlatformCompany, type PilotRequest } from '$lib/services/orca';
 	import { catalogSummary, googleClientSaved, platformCounts } from '$lib/services/orca-platform';
 	import { PlatformUsageService } from '$lib/services/orca-platform-usage';
-	import type { OrcaPlatformUsage } from '$lib/orca/platform-usage';
+	import { usageNumber, type OrcaPlatformUsage } from '$lib/orca/platform-usage';
 	import PlatformBadge from '../platform/PlatformBadge.svelte';
 	import PlatformUsage from '../platform/PlatformUsage.svelte';
 	import PageHeader from '../ui/PageHeader.svelte';
@@ -79,13 +79,13 @@
 	const tiles = $derived<Tile[]>([
 		{
 			label: term('customerCompanies', t),
-			value: companies ? String(counts.customers) : '—',
+			value: companies ? usageNumber(counts.customers) : '—',
 			detail: companiesError ? t('โหลดไม่สำเร็จ', "Couldn't load") : t(`มีเจ้าของแล้ว ${counts.owned}`, `${counts.owned} with an owner`),
 			href: 'companies'
 		},
 		{
 			label: t('คนที่ใช้งานได้', 'People who can use ORCA'),
-			value: companies ? String(counts.customerSeats) : '—',
+			value: companies ? usageNumber(counts.customerSeats) : '—',
 			detail: companiesError ? t('โหลดไม่สำเร็จ', "Couldn't load") : t('รวมทุกบริษัทลูกค้า', 'Across customer companies'),
 			href: 'companies'
 		},
@@ -93,7 +93,7 @@
 			? [
 					{
 						label: t('คำขอทดลองใช้ใหม่', 'New pilot requests'),
-						value: pilots ? String(counts.pilots.received) : '—',
+						value: pilots ? usageNumber(counts.pilots.received) : '—',
 						detail: pilotsError ? t('โหลดไม่สำเร็จ', "Couldn't load") : t(`ยังไม่ปิด ${counts.pilots.open} จาก ${counts.pilots.total}`, `${counts.pilots.open} of ${counts.pilots.total} still open`),
 						href: 'pilots' as PlatformSection
 					}
