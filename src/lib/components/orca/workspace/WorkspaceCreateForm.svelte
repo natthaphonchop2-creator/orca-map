@@ -188,7 +188,7 @@
 <PageHeader
 	back={{ href: localeHref('/app?view=workspaces'), label: t('พื้นที่ทำงาน AI', 'AI workspaces') }}
 	title={t('สร้างพื้นที่ทำงาน AI', 'New AI workspace')}
-	subtitle={t('เลือกโปรแกรมและคนที่ใช้ได้ Claude หรือ ChatGPT ของทุกคนจะเห็นพื้นที่นี้เอง', "Choose programs and people. Everyone's Claude or ChatGPT will see it by itself.")}
+	subtitle={t('เลือกโปรแกรมและคนที่ใช้ได้', 'Choose programs and people.')}
 />
 
 <form

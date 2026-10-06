@@ -74,7 +74,7 @@
 
 <PageHeader
 	title={term('pilotRequests', t)}
-	subtitle={t('คำขอจากหน้าเว็บไซต์ บันทึกว่าติดตามถึงไหนแล้ว ORCA ไม่ส่งข้อความถึงผู้ขอ', 'Requests from the website. Record how far each got; ORCA never messages the requester.')}
+	subtitle={t('คำขอทดลองใช้จากหน้าเว็บไซต์', 'Trial requests from the website.')}
 >
 	{#snippet eyebrow()}<PlatformBadge />{/snippet}
 	{#snippet action()}<button type="button" class="k-button" disabled={loading || Boolean(saving)} onclick={load}

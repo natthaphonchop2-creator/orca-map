@@ -192,7 +192,7 @@
 </script>
 
 <div class="google-page">
-  <PageHeader title={term("googleSignIn", t)} subtitle={t("ลูกค้าทุกบริษัทเข้า ORCA และรับคำเชิญด้วยบัญชี Google ของตัวเอง ตั้งค่าครั้งเดียวที่นี่", "Every customer signs in and accepts invitations with Google. Set it up once here.")}>
+  <PageHeader title={term("googleSignIn", t)} subtitle={t("ตั้งค่าครั้งเดียว ใช้กับทุกบริษัท", "Set up once for every company.")}>
     {#snippet eyebrow()}<PlatformBadge everyCompany />{/snippet}
   </PageHeader>
 

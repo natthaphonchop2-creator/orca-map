@@ -106,7 +106,7 @@
 <div class="pick">
 <PageHeader
 	title={t('คุณใช้โปรแกรมอะไรในบริษัท?', 'Choose a program')}
-	subtitle={t('เลือกโปรแกรมที่อยากให้ AI ช่วยทำงาน แล้ว ORCA จะพาเชื่อมทีละขั้น', 'Pick a program your AI should work with; ORCA walks you through the rest.')}
+	subtitle={t('เลือกโปรแกรมที่ให้ AI ช่วยทำงาน', 'Pick a program for AI to work with.')}
 />
 
 <div class="pick-search">
@@ -137,7 +137,6 @@
 		<section aria-labelledby="pick-recommended">
 			<header class="pick-sec">
 				<h2 id="pick-recommended">{t('แนะนำสำหรับธุรกิจไทย', 'Recommended for Thai businesses')}</h2>
-				<p>{t('โปรแกรมที่ธุรกิจไทยใช้กันมาก เริ่มจากตรงนี้ได้เลย', 'Programs Thai businesses use most. Start here.')}</p>
 			</header>
 			<div class="pick-feat-grid">
 				{#each recommended as source (source.id)}{@render featured(source)}{/each}
@@ -154,7 +153,6 @@
 						? t(`ผลการค้นหา (${listed.length})`, `Results (${listed.length})`)
 						: t(`${PROGRAM_CHIPS.find((item) => item.id === chip)?.th} (${listed.length})`, `${PROGRAM_CHIPS.find((item) => item.id === chip)?.en} (${listed.length})`)}
 			</h2>
-			{#if browsing}<p>{t('เริ่มจากโปรแกรมเดียวก่อนก็ได้ แล้วค่อยเพิ่มโปรแกรมอื่นภายหลัง', 'Start with one program; add others later.')}</p>{/if}
 		</header>
 		{#if listed.length}
 			<ul class="pick-list">
@@ -272,11 +270,6 @@
 		font-size: 16px;
 		font-weight: 700;
 		line-height: 1.3;
-	}
-	.pick-sec p {
-		margin: 4px 0 0;
-		color: var(--orca-muted);
-		font-size: 13.5px;
 	}
 	.pick-feat-grid {
 		display: grid;

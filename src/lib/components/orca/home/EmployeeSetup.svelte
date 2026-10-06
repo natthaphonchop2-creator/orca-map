@@ -70,8 +70,8 @@
 <SetupCard
 	title={t('ขั้นตอนที่ต้องทำ', 'Steps to finish')}
 	subtitle={noWorkspace
-		? t('เริ่มจากขอสิทธิ์ใช้ข้อมูลบริษัทจากผู้ดูแล', 'Start by asking an admin for access to company data')
-		: t('ทำตามลำดับ เสร็จแล้วคุณถามข้อมูลบริษัทผ่าน AI ได้ทันที', 'Follow them in order. Then you can ask AI about company data.')}
+		? t('ขอสิทธิ์จากผู้ดูแลก่อน', 'Ask an admin for access first')
+		: t('ทำตามลำดับ แล้วถาม AI ได้ทันที', 'Follow them in order, then ask AI.')}
 	steps={list.steps.map((item) => ({ state: stateOf(item.id) }))}
 	doneCount={list.doneCount}
 	remainingMinutes={list.remainingMinutes}

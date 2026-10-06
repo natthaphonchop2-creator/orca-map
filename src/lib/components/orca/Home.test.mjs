@@ -176,7 +176,7 @@ test('Home picks its mode from the viewer\'s own data: setup at once, else a sho
 	let html = page(company());
 	assert.match(html, /<h1[^>]*>ยินดีต้อนรับ วิภา<\/h1>/);
 	assert.match(text(html), /ยังตั้งค่าไม่เสร็จ/);
-	assert.match(text(html), /ตั้งค่า ORCA ให้ บริษัท ตัวอย่าง · 4 ขั้นตอน ประมาณ 10 นาที/);
+	assert.match(text(html), /4 ขั้นตอน ประมาณ 10 นาที/);
 	assert.match(html, /id="setup"/);
 	// A manager of a company already on ORCA reaches the ORCA team on LINE or by email, not through the trial-request form.
 	assert.match(html, /ติดตรงไหน <span class="orca-support[^"]*">(?:<!--[^>]*-->)*<a href="https:\/\/line\.me\/R\/ti\/p\/@147njpwd" target="_blank" rel="noopener noreferrer"/);
@@ -197,7 +197,7 @@ test('Home picks its mode from the viewer\'s own data: setup at once, else a sho
 	const employee = company({ canManage: false, members: [{ id: 'me', displayName: 'มาลี สมมุติ', email: 'mali@example.com', role: 'member' }] });
 	html = page(employee);
 	assert.match(text(html), /ยินดีต้อนรับ มาลี/);
-	assert.match(text(html), /ใช้ AI กับข้อมูลของ บริษัท ตัวอย่าง · 3 ขั้นตอน ประมาณ 7 นาที/);
+	assert.match(text(html), /3 ขั้นตอน ประมาณ 7 นาที/);
 	assert.match(text(html), /ขอสิทธิ์จากผู้ดูแล/);
 	assert.match(text(html), /รบกวนเพิ่ม มาลี สมมุติ \(mali@example\.com\) เข้าพื้นที่ทำงาน AI ของ บริษัท ตัวอย่าง/);
 	assert.match(html, /href="\/app\?view=help"/, 'an employee is pointed at the FAQ, not at the ORCA team');

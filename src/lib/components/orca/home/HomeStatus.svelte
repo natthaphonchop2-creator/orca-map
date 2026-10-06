@@ -117,7 +117,6 @@
 			<header class="home-card-head">
 				<div>
 					<h2 id="home-spaces-title">{manager ? term('workspaces', t) : t('พื้นที่ทำงานของคุณ', 'Your workspaces')}</h2>
-					<p>{t('ใครใช้โปรแกรมไหนได้ และ AI ทำอะไรได้บ้าง', 'Who can use which program, and what AI can do')}</p>
 				</div>
 				<a class="k-button small" href={localeHref('/app?view=workspaces')}>{t('ดูทั้งหมด', 'View all')}</a>
 			</header>
@@ -150,7 +149,6 @@
 			<header class="home-card-head">
 				<div>
 					<h2 id="home-activity-title">{t('การใช้งานล่าสุด', 'Recent use')}</h2>
-					<p>{manager ? t('สิ่งที่ AI ของทีมทำผ่าน ORCA ล่าสุด', "What your team's AI did through ORCA") : t('สิ่งที่ AI ของคุณทำผ่าน ORCA ล่าสุด', 'What your AI did through ORCA')}</p>
 				</div>
 				<a class="k-button small" href={localeHref('/app?view=executions')}>{term('usageHistory', t)}</a>
 			</header>
@@ -195,7 +193,7 @@
 					{#if setupNeeded > 0}
 						<a class="home-alert" href={localeHref('/app?view=servers&status=needs-review')}>
 							<CircleAlert size={17} aria-hidden="true" />
-							<span><strong>{t(`โปรแกรมรอเลือกสิ่งที่ AI ทำได้ ${setupNeeded} โปรแกรม`, `${setupNeeded} ${setupNeeded === 1 ? 'program needs' : 'programs need'} you to choose what AI can do`)}</strong><small>{t('เลือกก่อน ทีมถึงจะใช้ได้', 'Choose it before your team can use them')}</small></span>
+							<span><strong>{t(`โปรแกรมรอเลือกสิ่งที่ AI ทำได้ ${setupNeeded} โปรแกรม`, `${setupNeeded} ${setupNeeded === 1 ? 'program needs' : 'programs need'} you to choose what AI can do`)}</strong></span>
 							<ArrowRight size={15} aria-hidden="true" />
 						</a>
 					{/if}
@@ -223,7 +221,7 @@
 					{#if staleApps > 0}
 						<a class="home-alert quiet" href={localeHref(connectedAppsHref('stale'))}>
 							<CircleAlert size={17} aria-hidden="true" />
-							<span><strong>{t(`มี ${staleApps} แอป AI ที่ไม่ได้ใช้เกิน ${STALE_DAYS} วัน`, `${staleApps} AI apps unused for ${STALE_DAYS}+ days`)}</strong><small>{t('ตัดการเชื่อมต่อถ้าไม่ได้ใช้แล้ว', 'Disconnect the ones no longer used')}</small></span>
+							<span><strong>{t(`มี ${staleApps} แอป AI ที่ไม่ได้ใช้เกิน ${STALE_DAYS} วัน`, `${staleApps} AI apps unused for ${STALE_DAYS}+ days`)}</strong></span>
 							<ArrowRight size={15} aria-hidden="true" />
 						</a>
 					{/if}
@@ -258,7 +256,7 @@
 
 		<a class="home-card home-knowledge" href={localeHref('/app?view=knowledge')}>
 			<span class="home-knowledge-icon" aria-hidden="true"><BookOpen size={18} /></span>
-			<span><strong>{term('knowledge', t)}</strong><small>{t('เก็บคู่มือและข้อมูลของบริษัท ให้ AI ตอบได้ถูกต้อง', 'Keep company guides and facts, so AI answers correctly')}</small></span>
+			<span><strong>{term('knowledge', t)}</strong></span>
 			<ArrowRight size={16} aria-hidden="true" />
 		</a>
 	</aside>
@@ -340,11 +338,6 @@
 		font-size: 15px;
 		font-weight: 700;
 		line-height: 1.4;
-	}
-	.home-card-head p {
-		margin: 2px 0 0;
-		color: var(--orca-muted);
-		font-size: 13px;
 	}
 	.home-card-head :global(.k-button) {
 		flex: none;
@@ -537,10 +530,6 @@
 	.home-knowledge strong {
 		font-size: 14px;
 		font-weight: 600;
-	}
-	.home-knowledge small {
-		color: var(--orca-muted);
-		font-size: 12.5px;
 	}
 	.home-knowledge-icon {
 		display: grid;

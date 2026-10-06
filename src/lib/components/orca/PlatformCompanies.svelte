@@ -231,7 +231,7 @@
 
 <PageHeader
   title={t("บริษัทลูกค้า", "Customer companies")}
-  subtitle={t("เปิดบริษัทให้ลูกค้า แล้วส่งลิงก์ให้เจ้าของดูแลเอง คุณไม่ได้เป็นสมาชิกของบริษัทเหล่านี้", "Open a company and send its owner a link. You are not a member of these companies.")}
+  subtitle={t("คุณไม่ได้เป็นสมาชิกของบริษัทเหล่านี้", "You are not a member of these companies.")}
 >
   {#snippet eyebrow()}<PlatformBadge />{/snippet}
   {#snippet action()}<button type="button" class="k-button primary companies-open" onclick={() => show("open")}><Plus size={16} aria-hidden="true" />{t("เปิดบริษัทใหม่", "Open a company")}</button>{/snippet}

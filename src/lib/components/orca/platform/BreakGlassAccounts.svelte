@@ -119,7 +119,7 @@
 </script>
 
 {#if allowed}
-	<PageHeader title={term('breakGlass', t)} subtitle={t('บัญชีอีเมลและรหัสผ่านของบริษัทของทีม ORCA ใช้เมื่อเข้าสู่ระบบด้วย Google ไม่ได้', "Email-and-password accounts of the ORCA team's company, for when Google sign-in can't be used.")}>
+	<PageHeader title={term('breakGlass', t)} subtitle={t('ใช้เมื่อเข้าสู่ระบบด้วย Google ไม่ได้', "For when Google sign-in can't be used.")}>
 		{#snippet eyebrow()}<PlatformBadge />{/snippet}
 		{#snippet action()}{#if available}<button type="button" class="k-button primary breakglass-create" onclick={() => start()}><Plus size={16} aria-hidden="true" />{t('สร้างบัญชีรหัสผ่าน', 'Create a password account')}</button>{/if}{/snippet}
 	</PageHeader>

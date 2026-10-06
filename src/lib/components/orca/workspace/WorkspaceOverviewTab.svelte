@@ -246,7 +246,7 @@
 			{#if data.canManage && active && !sso && !invitePanel}
 				<li>
 					<span class="ov-step-icon" aria-hidden="true"><MessageCircle size={17} /></span>
-					<div class="ov-step-copy"><strong>{t('ชวนทีมเข้ามาใช้', 'Invite your team')}</strong><span>{t('ส่งข้อความทาง LINE หรืออีเมล พาไปที่ “เชื่อม AI ของฉัน”', 'Send a message by LINE or email that opens “Connect my AI”.')}</span></div>
+					<div class="ov-step-copy"><strong>{t('ชวนทีมเข้ามาใช้', 'Invite your team')}</strong></div>
 					<button type="button" class="k-button small" onclick={() => copy('invite')}>{copied === 'invite' ? t('คัดลอกแล้ว', 'Copied') : t('คัดลอกข้อความเชิญ', 'Copy invite')}</button>
 				</li>
 			{/if}
@@ -260,7 +260,7 @@
 			{#if isMember}
 				<li>
 					<span class="ov-step-icon" aria-hidden="true"><BookOpen size={17} /></span>
-					<div class="ov-step-copy"><strong>{t('เพิ่มความรู้ให้ AI', 'Add knowledge for AI')}</strong><span>{t('บทความและคำสั่งสำเร็จรูปที่ AI ในพื้นที่นี้ใช้ได้', 'Articles and ready-made prompts AI can use here.')}</span></div>
+					<div class="ov-step-copy"><strong>{t('เพิ่มความรู้ให้ AI', 'Add knowledge for AI')}</strong></div>
 					<a class="k-button small" href={localeHref(`/app?view=knowledge&hub=${encodeURIComponent(hub.id)}`)}>{t('เปิดคลังความรู้', 'Open Knowledge')}</a>
 				</li>
 			{/if}

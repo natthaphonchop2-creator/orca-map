@@ -87,7 +87,7 @@
   const subtitle = $derived(
     mode === "administration"
       ? data.canManage
-        ? t("ดูว่าเจ้าของบริษัทและผู้ดูแลเปลี่ยนการตั้งค่าอะไร เมื่อไร", "See what owners and admins changed, and when.")
+        ? t("ใครเปลี่ยนการตั้งค่าอะไร เมื่อไร", "Who changed which setting, and when.")
         : // An employee receives only their own changes.
           t("สิ่งที่คุณเปลี่ยนเอง เช่น ความรู้และคำสั่งสำเร็จรูปที่คุณแก้ และเมื่อไร", "What you changed yourself, such as knowledge and ready-made prompts, and when.")
       : data.canManage
@@ -655,7 +655,7 @@
     </div>{/if}
   <p class="retention-note">
     {t(
-      "แสดง 200 รายการล่าสุดที่คุณมีสิทธิ์ดู ตัวกรองและตัวเลขนับจากรายการชุดนี้",
+      "แสดง 200 รายการล่าสุด",
       "Shows the 200 most recent records you may see. Filters and counts use only these.",
     )}
   </p>

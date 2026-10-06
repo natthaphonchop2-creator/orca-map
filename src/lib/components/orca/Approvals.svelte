@@ -201,8 +201,8 @@
 <PageHeader
   title={data.canManage ? term("waitingApproval", t) : term("myRequests", t)}
   subtitle={data.canManage
-    ? t("งานที่ AI ขอสร้างหรือแก้ข้อมูลจะรอที่นี่ เมื่ออนุมัติ ORCA จะทำให้ด้วยบัญชีของคนที่ขอ", "When AI asks to create or change data, it waits here. Once approved, ORCA does it as the person who asked.")
-    : t("งานที่ AI ของคุณขอสร้างหรือแก้ข้อมูล จะรอผู้ดูแลอนุมัติก่อน", "When your AI asks to create or change data, an admin approves it first.")}
+    ? t("งานที่ AI ขอสร้างหรือแก้ข้อมูล รอคุณอนุมัติ", "What AI asks to create or change waits for you.")
+    : t("งานที่ AI ของคุณขอ รอผู้ดูแลอนุมัติ", "What your AI asks waits for an admin.")}
 />
 
 <div class="approvals-bar" bind:this={bar}>

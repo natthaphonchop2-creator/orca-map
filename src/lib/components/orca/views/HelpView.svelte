@@ -98,7 +98,7 @@
 	]);
 </script>
 
-<PageHeader title={term('help', t)} subtitle={t('คำถามที่พบบ่อย ขั้นตอนตั้งค่าอยู่ที่หน้าหลักที่เดียว', 'Common questions. The setup steps are on Home.')} />
+<PageHeader title={term('help', t)} subtitle={t('คำถามที่พบบ่อย', 'Common questions.')} />
 
 <section class="help-setup" aria-labelledby="help-setup-title">
 	<span class="help-setup-icon" aria-hidden="true"><ListChecks size={20} /></span>

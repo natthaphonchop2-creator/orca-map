@@ -95,7 +95,7 @@
 		localeHref(`/app?view=servers&connection=${encodeURIComponent(id)}${tab ? `&tab=${tab}` : ''}`);
 </script>
 
-<PageHeader title={term('programs', t)} subtitle={t('โปรแกรมที่ AI ของทีมใช้ได้ และสิ่งที่ AI ทำได้ในแต่ละโปรแกรม', 'The programs your team’s AI can use, and what AI can do in each.')}>
+<PageHeader title={term('programs', t)} subtitle={t('โปรแกรมที่ AI ของทีมใช้ได้', 'The programs your team’s AI can use.')}>
 	{#snippet action()}
 		{#if data.canManage}<a class="k-button primary" href={localeHref('/app?view=add-program')}><Plus size={16} aria-hidden="true" />{term('addProgram', t)}</a>{/if}
 	{/snippet}

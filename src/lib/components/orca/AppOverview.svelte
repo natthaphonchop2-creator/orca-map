@@ -89,7 +89,7 @@
 			<p class="k-subtitle">
 				{data.canManage
 					? t(
-							'เลือกว่าใครใช้ AI กับโปรแกรมไหนได้ และ AI ทำอะไรได้บ้าง',
+							'ใครใช้ AI กับโปรแกรมไหนได้',
 							'Choose who can use AI with which programs, and what AI can do.'
 						)
 					: t(

@@ -263,7 +263,7 @@
 
 <PageHeader
 	title={term('connectedAIApps', t)}
-	subtitle={t('ดูว่าใครเชื่อม Claude หรือ ChatGPT กับข้อมูลบริษัทไว้ ถ้ามีคนลาออกหรือทำเครื่องหาย กด ตัดการเชื่อมต่อ ได้ทันที', 'See who connected Claude or ChatGPT to company data. Disconnect at once if someone leaves.')}
+	subtitle={t('ใครเชื่อม AI กับข้อมูลบริษัทไว้บ้าง', 'Who connected AI to company data.')}
 />
 
 {#if error}<div class="k-banner error cx-error" role="alert">

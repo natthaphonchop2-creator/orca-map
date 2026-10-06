@@ -245,7 +245,7 @@
   }
 </script>
 
-<PageHeader title={term("programOAuthApps", t)} subtitle={t("แอปที่ให้พนักงานกด อนุญาต แล้วเชื่อมบัญชีโปรแกรมของตัวเอง ตั้งค่าครั้งเดียวต่อผู้ให้บริการ", "Let people connect their own program accounts with one Allow. Set up once per provider.")}>
+<PageHeader title={term("programOAuthApps", t)} subtitle={t("ให้พนักงานเชื่อมบัญชีโปรแกรมของตัวเอง", "Let people connect their own program accounts.")}>
   {#snippet eyebrow()}<PlatformBadge everyCompany />{/snippet}
   {#snippet action()}{#if data.canManage}<button type="button" class="k-button" disabled={loading} onclick={refresh}><RefreshCw size={16} class={loading ? "k-spin" : ""} aria-hidden="true" />{t("โหลดใหม่", "Refresh")}</button>{/if}{/snippet}
 </PageHeader>

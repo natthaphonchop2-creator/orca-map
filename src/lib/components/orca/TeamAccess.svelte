@@ -194,8 +194,8 @@
       <p class="k-subtitle">
         {data.canManage
           ? t(
-              "คนที่ใช้ ORCA ของบริษัทนี้ เชิญคนใหม่ด้วยลิงก์ แล้วเขาเข้าสู่ระบบด้วยบัญชี Google ของตัวเอง",
-              "People using this company's ORCA. Invite with a link; each person signs in with Google.",
+              "เชิญคนใหม่ด้วยลิงก์",
+              "Invite with a link.",
             )
           : t("คนที่ใช้ ORCA ของบริษัทนี้", "People who use this company's ORCA.")}
       </p>

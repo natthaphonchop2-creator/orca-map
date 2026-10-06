@@ -169,7 +169,7 @@
 	back={{ href: localeHref('/app?view=workspaces'), label: t('พื้นที่ทำงาน AI', 'AI workspaces') }}
 	title={hub.name}
 	{status}
-	subtitle={hub.description || t('AI ของคนที่เลือกใช้โปรแกรมเหล่านี้ได้ตามที่ตั้งไว้', 'The people chosen use these programs through their AI, as set here.')}
+	subtitle={hub.description || t('ใช้โปรแกรมเหล่านี้ผ่าน AI ตามที่ตั้งไว้', 'These programs, through AI, as set here.')}
 >
 	{#snippet action()}
 		{#if canEdit && hub.status !== 'active'}

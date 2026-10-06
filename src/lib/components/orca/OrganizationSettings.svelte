@@ -212,7 +212,7 @@
       </h2>
       <p>
         {t(
-          "ทีม สาขา และโครงการที่สร้างไว้ก่อนหน้านี้ ใช้เป็นป้ายกำกับของพื้นที่ทำงานเท่านั้น ไม่ได้ให้สิทธิ์ใคร",
+          "ใช้เป็นป้ายกำกับเท่านั้น ไม่ได้ให้สิทธิ์ใคร",
           "Teams, branches and projects made earlier. They only label workspaces; they give nobody access.",
         )}
       </p>

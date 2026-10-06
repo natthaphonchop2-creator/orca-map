@@ -74,7 +74,7 @@
 
 <SetupCard
 	title={t('ขั้นตอนที่ต้องทำ', 'Steps to finish')}
-	subtitle={t('ทำตามลำดับ เสร็จแล้วทีมของคุณถามข้อมูลบริษัทผ่าน AI ได้ทันที', 'Follow them in order. Then your team can ask AI about company data.')}
+	subtitle={t('ทำตามลำดับ แล้วทีมถาม AI ได้ทันที', 'Follow them in order, then your team can ask AI.')}
 	steps={list.steps}
 	doneCount={list.doneCount}
 	remainingMinutes={list.remainingMinutes}

@@ -61,7 +61,7 @@
 <PageHeader
   title={term("settings", t)}
   subtitle={canManage
-    ? t("ข้อมูลบริษัทและการตั้งค่าบัญชีของคุณ", "Your company's details and your own account settings.")
+    ? t("ข้อมูลบริษัทและบัญชีของคุณ", "Company details and your account.")
     : t("การตั้งค่าบัญชีของคุณ", "Your account settings.")}
 />
 {#if tabs.length > 1}<nav
