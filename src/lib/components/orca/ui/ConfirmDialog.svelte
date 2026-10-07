@@ -91,8 +91,11 @@
 	}}
 >
 	<div class="orca-confirm-body">
-		{#if Icon}<span class="orca-confirm-icon" aria-hidden="true"><Icon size={20} /></span>{/if}
-		<h2 id={titleID}>{title}</h2>
+		<!-- W0.2: the icon is a plain line icon beside the title, never on a tile. -->
+		<div class="orca-confirm-head">
+			{#if Icon}<span class="orca-confirm-icon" aria-hidden="true"><Icon size={18} strokeWidth={1.75} /></span>{/if}
+			<h2 id={titleID}>{title}</h2>
+		</div>
 		{#if message}<p id={messageID}>{message}</p>{/if}
 		{#if children}{@render children()}{/if}
 		<div class="orca-confirm-actions">
@@ -104,6 +107,7 @@
 
 <style>
 	/* orca-type-remap v1 */
+	/* orca-type-remap v2 */
 	.orca-confirm {
 		width: min(520px, calc(100vw - 32px));
 		max-height: calc(100dvh - 32px);
@@ -120,27 +124,29 @@
 		background: var(--orca-scrim, rgba(21, 24, 35, 0.45));
 	}
 	.orca-confirm-body {
-		padding: 28px 28px 24px;
+		padding: 22px 22px 20px;
 	}
+	.orca-confirm-head {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+	/* The icon's box is the title's line height, so it sits on the title's optical centre. */
 	.orca-confirm-icon {
-		display: grid;
+		display: inline-grid;
+		flex: none;
 		place-items: center;
-		width: 42px;
-		height: 42px;
-		margin-bottom: 18px;
-		border-radius: 10px;
-		background: var(--orca-secondary);
-		color: var(--orca-text-2);
+		height: 22px;
+		color: var(--orca-muted);
 	}
 	.orca-confirm.danger .orca-confirm-icon {
-		background: var(--orca-deny-bg);
 		color: var(--orca-deny);
 	}
 	.orca-confirm h2 {
 		margin: 0;
-		font-size: 18px;
+		font-size: 16px;
 		line-height: 1.4;
-		font-weight: 700;
+		font-weight: 600;
 	}
 	.orca-confirm p {
 		margin: 8px 0 0;
@@ -152,12 +158,11 @@
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: flex-end;
-		gap: 10px;
-		margin-top: 24px;
+		gap: 8px;
+		margin-top: 20px;
 	}
 	.orca-confirm-actions :global(.k-button) {
-		min-height: 42px;
-		padding: 0 18px;
+		padding: 0 14px;
 		font-weight: 600;
 	}
 </style>

@@ -298,7 +298,6 @@
           <tr>
             <td>
               <div class="company-name">
-                <span class="company-mark" aria-hidden="true"><Building2 size={17} /></span>
                 <span>
                   <!-- The company's own page: overview, profile, members, and suspend or restore (platform console C6). -->
                   <a class="company-open" href={localeHref(platformCompanyHref(company.id))}><strong>{company.displayName}</strong></a>
@@ -544,8 +543,8 @@
   .companies-table th { padding: 11px 18px; border-bottom: 1px solid var(--orca-line); background: var(--orca-surface-2); color: var(--orca-muted); font-size: 12px; font-weight: 600; text-align: left; white-space: nowrap; }
   .companies-table td { padding: 14px 18px; border-top: 1px solid var(--orca-line-soft); vertical-align: top; }
   .companies-table tbody tr:first-child td { border-top: 0; }
-  .company-name { display: flex; align-items: flex-start; gap: 12px; min-width: 220px; }
-  .company-mark { display: grid; flex: none; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--orca-secondary); color: var(--orca-text-2); }
+  /* W0.2: the name alone, no building-icon tile. */
+  .company-name { display: flex; align-items: flex-start; gap: 12px; min-width: 200px; }
   .company-name strong { display: block; font-weight: 600; overflow-wrap: anywhere; }
   .company-open { color: inherit; text-decoration: underline; text-decoration-color: var(--orca-line-strong); text-underline-offset: 3px; }
   .company-open:hover { text-decoration-color: currentColor; }
@@ -581,8 +580,9 @@
   .company-dialog h2 { margin: 18px 0 4px; font-size: 16px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
   .company-dialog p { margin: 8px 0; color: var(--orca-muted); font-size: 13.5px; line-height: 1.6; }
   .company-dialog fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
-  .dialog-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; background: var(--orca-secondary); color: var(--orca-text-2); }
-  .dialog-icon.ok { background: var(--orca-ok-bg); color: var(--orca-ok); }
+  /* W0.2: a plain line icon over the title, never on a tile. */
+  .dialog-icon { display: flex; margin-bottom: 10px; color: var(--orca-muted); }
+  .dialog-icon.ok { color: var(--orca-ok); }
   .dialog-label { display: block; margin: 16px 0 6px; color: var(--orca-ink); font-size: 13.5px; font-weight: 600; }
   .dialog-input, .dialog-link { width: 100%; min-height: 32px; padding: 9px 12px; border: 1px solid var(--orca-field-line); border-radius: var(--orca-radius-sm); background: var(--orca-field); color: var(--orca-ink); font: inherit; font-size: 13.5px; }
   .dialog-link { font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace; font-size: 12px; }
