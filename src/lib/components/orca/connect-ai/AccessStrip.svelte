@@ -12,7 +12,7 @@
 	import { copyFeedback, copyText } from '../ui/copy';
 	import { showToast } from '../ui/toast-store.svelte';
 
-	// The line above the steps: which workspaces the person's AI will reach
+	// The line at the top of AI ของฉัน: which workspaces the person's AI will reach
 	// through the company link. With none, the one thing that fixes it: a
 	// manager adds themselves or creates the first workspace, and an employee
 	// copies a request for their admin (generic: they cannot see who the admins are).
@@ -24,8 +24,6 @@
 	const ownHref = $derived(
 		access.ownSignIn.length === 1 ? localeHref(`/app?view=hub&hub=${encodeURIComponent(access.ownSignIn[0].id)}&tab=overview`) : localeHref('/app?view=workspaces')
 	);
-	const shown = $derived(access.usable.slice(0, access.usable.length > 4 ? 3 : 4));
-	const more = $derived(access.usable.length - shown.length);
 	let chosen = $state('');
 	// The chooser always names a real workspace, the first until one is picked.
 	$effect.pre(() => {
@@ -81,14 +79,11 @@
 </script>
 
 {#if access.usable.length}
-	<div class="ca-access ok">
-		<span class="ca-icon" aria-hidden="true"><Check size={14} strokeWidth={2.6} /></span>
-		<p class="ca-text">
-			{t('AI ของคุณจะใช้ข้อมูลได้จาก', 'Your AI can use data from')} <b>{t(`${access.usable.length} พื้นที่ทำงาน:`, `${access.usable.length} ${access.usable.length === 1 ? 'workspace' : 'workspaces'}:`)}</b>
-			<span class="ca-chips">{#each shown as hub (hub.id)}<span class="ca-chip">{hub.name}</span>{/each}{#if more > 0}<span class="ca-chip more">{t(`อีก ${more}`, `${more} more`)}</span>{/if}</span>
-		</p>
-		<a class="ca-link" href={localeHref('/app?view=workspaces')}>{t('ดูพื้นที่ทำงาน', 'See workspaces')}<ArrowRight size={15} aria-hidden="true" /></a>
-	</div>
+	<!-- W0: one line, no banner and no chips; the workspaces are one link away. -->
+	<p class="ca-reach">
+		{t(`AI ของคุณใช้ข้อมูลจาก ${access.usable.length} พื้นที่ทำงาน`, `Your AI uses data from ${access.usable.length} ${access.usable.length === 1 ? 'workspace' : 'workspaces'}`)}
+		<a href={localeHref('/app?view=workspaces')}>{t('ดูพื้นที่ทำงาน', 'See workspaces')}</a>
+	</p>
 {:else if fix === 'own-sign-in'}
 	<div class="ca-access own">
 		<span class="ca-icon" aria-hidden="true"><Info size={15} /></span>
@@ -108,12 +103,12 @@
 			{#if data.canManage}
 				<b class="ca-title">{t('ยังไม่มีข้อมูลให้ AI ของคุณใช้', 'There is no data for your AI yet')}</b>
 				<span>{fix === 'join'
-					? t('คุณยังไม่ได้อยู่ในพื้นที่ทำงาน AI ที่พร้อมใช้ เพิ่มตัวเองเข้าไป แล้วทำขั้นตอนด้านล่างต่อ', 'You are not in a ready AI workspace yet. Add yourself, then follow the steps below.')
+					? t('คุณยังไม่ได้อยู่ในพื้นที่ทำงาน AI ที่พร้อมใช้ เพิ่มตัวเองเข้าไป แล้วเชื่อม AI ด้านล่าง', 'You are not in a ready AI workspace yet. Add yourself, then connect your AI below.')
 					: fix === 'fix-workspace'
-						? t('ยังไม่มีพื้นที่ทำงาน AI ที่พร้อมใช้ เปิดพื้นที่ทำงานเพื่อดูว่าต้องทำอะไรต่อ แล้วกลับมาทำขั้นตอนด้านล่าง', 'No AI workspace is ready yet. Open your workspaces to see what is left, then come back to the steps below.')
+						? t('ยังไม่มีพื้นที่ทำงาน AI ที่พร้อมใช้ เปิดพื้นที่ทำงานเพื่อดูว่าต้องทำอะไรต่อ แล้วกลับมาเชื่อม AI ที่นี่', 'No AI workspace is ready yet. Open your workspaces to see what is left, then come back here to connect your AI.')
 						: fix === 'add-program'
-							? t('เริ่มจากเชื่อมโปรแกรมแรก เช่น FlowAccount แล้วให้ทีมใช้ จากนั้นกลับมาทำขั้นตอนด้านล่าง', 'Start by connecting your first program, such as FlowAccount, and share it with your team. Then come back to the steps below.')
-							: t('สร้างพื้นที่ทำงาน AI แรก แล้วเลือกคนที่ใช้ได้ จากนั้นกลับมาทำขั้นตอนด้านล่าง', 'Create your first AI workspace and choose who can use it, then come back to the steps below.')}</span>
+							? t('เริ่มจากเชื่อมโปรแกรมแรก เช่น FlowAccount แล้วให้ทีมใช้ จากนั้นกลับมาเชื่อม AI ที่นี่', 'Start by connecting your first program, such as FlowAccount, and share it with your team. Then come back here to connect your AI.')
+							: t('สร้างพื้นที่ทำงาน AI แรก แล้วเลือกคนที่ใช้ได้ จากนั้นกลับมาเชื่อม AI ที่นี่', 'Create your first AI workspace and choose who can use it, then come back here to connect your AI.')}</span>
 				{#if fix === 'join'}
 					<div class="ca-actions">
 						{#if access.joinable.length > 1}
@@ -122,7 +117,7 @@
 								{#each access.joinable as hub (hub.id)}<option value={hub.id}>{hub.name}</option>{/each}
 							</select>
 						{/if}
-						<button type="button" class="k-button primary" onclick={addMe} disabled={busy} aria-busy={busy}>
+						<button type="button" class="k-button" onclick={addMe} disabled={busy} aria-busy={busy}>
 							<UserPlus size={16} aria-hidden="true" />{busy ? t('กำลังเพิ่ม…', 'Adding…') : access.joinable.length === 1 ? t(`เพิ่มฉันเข้า ${access.joinable[0].name}`, `Add me to ${access.joinable[0].name}`) : t('เพิ่มฉันเข้าพื้นที่ทำงานนี้', 'Add me to this workspace')}
 						</button>
 					</div>
@@ -130,18 +125,18 @@
 						<p class="ca-error" role="alert">{error}{#if stale}<button type="button" class="k-link-button" onclick={() => onchanged?.()}>{t('โหลดใหม่', 'Reload')}</button>{:else if target}<a href={localeHref(`/app?view=hub&hub=${encodeURIComponent(target.id)}&tab=overview`)}>{t('เปิดพื้นที่ทำงาน', 'Open the workspace')}</a>{/if}</p>
 					{/if}
 				{:else if fix === 'fix-workspace'}
-					<div class="ca-actions"><a class="k-button primary" href={localeHref('/app?view=workspaces')}>{t('เปิดพื้นที่ทำงาน AI', 'Open AI workspaces')}</a></div>
+					<div class="ca-actions"><a class="k-button" href={localeHref('/app?view=workspaces')}>{t('เปิดพื้นที่ทำงาน AI', 'Open AI workspaces')}</a></div>
 				{:else if fix === 'add-program'}
-					<div class="ca-actions"><a class="k-button primary" href={localeHref('/app?view=add-program')}>{t('เชื่อมโปรแกรมแรก', 'Connect your first program')}</a></div>
+					<div class="ca-actions"><a class="k-button" href={localeHref('/app?view=add-program')}>{t('เชื่อมโปรแกรมแรก', 'Connect your first program')}</a></div>
 				{:else}
-					<div class="ca-actions"><a class="k-button primary" href={localeHref('/app?view=new')}>{t('สร้างพื้นที่ทำงานแรก', 'Create the first workspace')}</a></div>
+					<div class="ca-actions"><a class="k-button" href={localeHref('/app?view=new')}>{t('สร้างพื้นที่ทำงานแรก', 'Create the first workspace')}</a></div>
 				{/if}
 			{:else}
 				<b class="ca-title">{t('คุณยังไม่ได้รับสิทธิ์ใช้ข้อมูลบริษัท', 'You do not have access to company data yet')}</b>
 				<span>{t('ขอให้ผู้ดูแลบริษัทเพิ่มคุณเข้าพื้นที่ทำงาน AI ส่งข้อความนี้ให้ผู้ดูแลได้เลย', 'Ask a company admin to add you to an AI workspace. You can send them this message.')}</span>
 				<blockquote class="ca-request">{request}</blockquote>
 				<div class="ca-actions">
-					<button type="button" class="k-button primary" onclick={copyRequest}>{#if copied}<Check size={16} aria-hidden="true" />{t('คัดลอกแล้ว', 'Copied')}{:else}<Copy size={16} aria-hidden="true" />{t('คัดลอกข้อความขอสิทธิ์', 'Copy the request')}{/if}</button>
+					<button type="button" class="k-button" onclick={copyRequest}>{#if copied}<Check size={16} aria-hidden="true" />{t('คัดลอกแล้ว', 'Copied')}{:else}<Copy size={16} aria-hidden="true" />{t('คัดลอกข้อความขอสิทธิ์', 'Copy the request')}{/if}</button>
 				</div>
 				<span class="ca-visually-hidden" role="status" aria-live="polite">{copied ? t('คัดลอกแล้ว', 'Copied') : ''}</span>
 				{#if copyFailed}<p class="ca-error" role="alert">{t('คัดลอกไม่ได้ เลือกข้อความแล้วคัดลอกเอง', 'Copy failed. Select the text and copy it yourself.')}</p>{/if}
@@ -172,15 +167,23 @@
 		background: var(--orca-surface);
 		color: var(--orca-ink);
 	}
-	.ca-access.ok {
-		border-color: var(--orca-ok-line);
-		background: var(--orca-ok-bg);
+	.ca-reach {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px 12px;
+		margin: 0;
+		color: var(--orca-text-2);
+		font-size: 14px;
+	}
+	.ca-reach a {
+		color: var(--orca-ink);
+		font-weight: 500;
+		text-decoration: underline;
+		text-underline-offset: 3px;
 	}
 	.ca-access.none {
 		align-items: flex-start;
 		padding: 16px 18px 18px 16px;
-		border-color: var(--orca-warn-line);
-		background: var(--orca-warn-bg);
 	}
 	.ca-icon {
 		display: grid;
@@ -189,11 +192,8 @@
 		width: 26px;
 		height: 26px;
 		border-radius: 50%;
-		background: var(--orca-ok);
-		color: var(--orca-on-ink);
-	}
-	.none .ca-icon {
-		background: var(--orca-warn);
+		background: var(--orca-secondary);
+		color: var(--orca-text-2);
 	}
 	.ca-access.own {
 		align-items: flex-start;
@@ -224,50 +224,6 @@
 	}
 	.ca-title {
 		font-size: 14px;
-	}
-	.ca-chips {
-		display: inline-flex;
-		flex-wrap: wrap;
-		gap: 6px;
-		margin-left: 6px;
-		vertical-align: middle;
-	}
-	.ca-chip {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		padding: 1px 10px;
-		border: 1px solid var(--orca-ok-line);
-		border-radius: 999px;
-		background: var(--orca-surface);
-		font-size: 12.5px;
-		font-weight: 600;
-		line-height: 1.6;
-	}
-	.ca-chip::before {
-		content: '';
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-		background: var(--orca-ok);
-	}
-	.ca-chip.more::before {
-		display: none;
-	}
-	.ca-link {
-		display: inline-flex;
-		flex: none;
-		align-items: center;
-		gap: 6px;
-		color: var(--orca-ink);
-		font-size: 13.5px;
-		font-weight: 600;
-		text-decoration: none;
-		white-space: nowrap;
-	}
-	.ca-link:hover {
-		text-decoration: underline;
-		text-underline-offset: 3px;
 	}
 	.ca-actions {
 		display: flex;
@@ -344,20 +300,5 @@
 		overflow: hidden;
 		clip: rect(0 0 0 0);
 		white-space: nowrap;
-	}
-	@container ca (max-width: 560px) {
-		.ca-access.ok {
-			flex-wrap: wrap;
-			align-items: flex-start;
-		}
-		.ca-access.ok .ca-text {
-			flex-basis: calc(100% - 40px);
-		}
-		.ca-chips {
-			margin: 4px 0 0;
-		}
-		.ca-link {
-			margin-left: 38px;
-		}
 	}
 </style>

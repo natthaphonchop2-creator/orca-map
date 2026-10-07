@@ -91,9 +91,9 @@ test('W0 polish: states are text with a dot, the platform mark is plain words, a
 	assert.doesNotMatch(pill.slice(pill.indexOf('<style>')), /border-radius: 999px|var\(--orca-\w+-bg\)/, 'never a filled pill');
 	const badge = await readFile(new URL('./platform/PlatformBadge.svelte', import.meta.url), 'utf8');
 	assert.doesNotMatch(badge, /999px|background|@lucide/, 'no pill eyebrow, no decorative icon');
-	const step = await readFile(new URL('./connect-ai/ConnectStep.svelte', import.meta.url), 'utf8');
-	assert.doesNotMatch(step, /\{number\}|ขั้นที่|Step \$\{number\}/, 'no visible or spoken step numbers');
-	assert.doesNotMatch(step, /citron/);
+	// The numbered rail is gone altogether (visual review B1): no step component is left.
+	const { readdir } = await import('node:fs/promises');
+	assert.deepEqual((await readdir(new URL('./connect-ai/', import.meta.url))).filter((name) => /ConnectStep|ConsentDrawing|AIAppPicker/.test(name)), []);
 	for (const file of ['./views/ConnectAIView.svelte', './connect-ai/AppSteps.svelte', './connect-ai/DeveloperKeys.svelte']) {
 		assert.doesNotMatch(await readFile(new URL(file, import.meta.url), 'utf8'), /ขั้นที่ \d|ขั้นตอนเชื่อม|ประมาณ \d+ นาที/, file);
 	}

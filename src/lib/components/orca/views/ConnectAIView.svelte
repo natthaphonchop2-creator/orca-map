@@ -3,7 +3,7 @@
 	import { Check, Copy, Info } from '@lucide/svelte';
 	import { aiConnectionLine } from '$lib/orca/ai-connection';
 	import { aiConnection, setAIConnection } from '$lib/orca/ai-connection.svelte';
-	import type { AIApp } from '$lib/orca/client-config';
+	import { AI_APPS, type AIApp } from '$lib/orca/client-config';
 	import { companyPinned, currentCompany } from '$lib/orca/company';
 	import { companyStop } from '$lib/orca/company-stop';
 	import {
@@ -31,32 +31,31 @@
 	import { MyAIAppsService, aiAppsRevoked, aiAppsUnavailable, type MyAIApps, type MyAIKey } from '$lib/services/orca-ai-apps';
 	import InAppBrowserNotice from '../InAppBrowserNotice.svelte';
 	import AccessStrip from '../connect-ai/AccessStrip.svelte';
-	import AIAppPicker from '../connect-ai/AIAppPicker.svelte';
+	import AIAppCards from '../connect-ai/AIAppCards.svelte';
 	import AppSteps from '../connect-ai/AppSteps.svelte';
 	import ConnectResult from '../connect-ai/ConnectResult.svelte';
-	import ConnectStep from '../connect-ai/ConnectStep.svelte';
 	import ConnectedAIList from '../connect-ai/ConnectedAIList.svelte';
-	import ConsentDrawing from '../connect-ai/ConsentDrawing.svelte';
 	import DeveloperKeys from '../connect-ai/DeveloperKeys.svelte';
 	import ProgramSignIns from '../connect-ai/ProgramSignIns.svelte';
 	import CopyField from '../ui/CopyField.svelte';
 	import PageHeader from '../ui/PageHeader.svelte';
 	import PageTabs from '../ui/PageTabs.svelte';
+	import Sheet from '../ui/Sheet.svelte';
 	import { myAITabs } from './MyAIFrame.svelte';
 	import SupportContact from '../ui/SupportContact.svelte';
 	import { copyFeedback, copyText } from '../ui/copy';
 
-	// view=connect-ai, AI ของฉัน (W0; was "เชื่อม AI ของฉัน", proposal §3.1):
-	// who the AI will reach, five steps from choosing the app to a live check
-	// (B1, polled while waiting), then the person's connected AI apps, their
-	// program sign-ins and, collapsed, keys for developers.
+	// view=connect-ai, AI ของฉัน (W0; was "เชื่อม AI ของฉัน"): one line on what
+	// the AI reaches, the person's connected AI apps (status and last use), one
+	// card per app whose sheet holds the link, a copy button and where to paste
+	// it (its status updates by itself: B1, polled while waiting), the person's
+	// program sign-ins and, under ขั้นสูง, keys for developers.
 	let { data, onchanged }: { data: OrcaBootstrap; onchanged?: () => void | Promise<void> } = $props();
 
 	const access = $derived(connectAccess(data));
 	const ready = $derived(access.usable.length > 0);
 	const endpoint = $derived(data.unifiedConnectURL?.trim() ?? '');
 	const linkOK = $derived(validConnectLink(endpoint));
-	const host = $derived(linkOK ? new URL(endpoint).host : '');
 	// Named when this person has several companies, so each connection says which.
 	const companyName = $derived(companyPinned() ? data.organization.displayName : '');
 	const connector = $derived(connectorName(companyName));
@@ -80,7 +79,6 @@
 			// A per-viewer convenience only.
 		}
 	}
-	let linkCopied = $state(false);
 
 	// ---------- B1: the person's AI apps, polled while step 5 waits ----------
 	let apps = $state<MyAIApps>();
@@ -200,13 +198,14 @@
 	const prompts = $derived(examplePrompts(usableProgramNames(access.usable, data.connections), t));
 	// A failed first check is not "waiting": it says so and offers a retry (Codex release review 63).
 	const result = $derived(session ? 'connected' : !ready ? 'idle' : appsState === 'unavailable' ? 'unknown' : appsState === 'error' ? 'error' : 'waiting');
-	function stepState(step: number): 'done' | 'current' | 'upcoming' {
-		if (session) return 'done';
-		if (!ready) return 'upcoming';
-		if (step === 1) return 'done';
-		if (step === 2) return linkCopied ? 'done' : 'current';
-		return step === 3 && linkCopied ? 'current' : 'upcoming';
+	// W0: one card per app; a card opens its sheet, and the app it names is the one the page watches for.
+	let sheetOpen = $state(false);
+	function openApp(next: AIApp) {
+		choose(next);
+		sheetOpen = true;
+		void poller?.poke();
 	}
+	const connectedApps = $derived(AI_APPS.filter((item) => connectedSession(apps, item, checkedAt, 0)));
 
 	// ---------- Copying the connector's name ----------
 	let nameCopied = $state(false);
@@ -233,69 +232,56 @@
 
 	<div class="ca-strip"><AccessStrip {data} {access} {onchanged} /></div>
 
-	<ol class="ca-steps" class:dim={!ready} inert={!ready} aria-label={t('วิธีเชื่อม AI', 'How to connect your AI')}>
-		<ConnectStep number={1} state={stepState(1)} id="ca-step-1" title={t('เลือก AI ที่คุณใช้', 'Choose the AI you use')}>
-			{#snippet lead()}{t(`เลือก ${name} แล้ว เปลี่ยนได้ทุกเมื่อ`, `${name} chosen. Change it any time.`)}{/snippet}
-			<AIAppPicker {app} onselect={choose} />
-		</ConnectStep>
+	<ConnectedAIList {sessions} {keys} hubs={data.hubs} now={checkedAt} legacy={appsState === 'unavailable'} onchanged={disconnected} />
 
-		<ConnectStep number={2} state={stepState(2)} id="ca-step-2" title={t('คัดลอกลิงก์ ORCA ของบริษัท', "Copy your company's ORCA link")}>
-			{#snippet lead()}{t('ทุกคนในบริษัทใช้ลิงก์เดียวกันนี้ AI จะเห็นเฉพาะข้อมูลที่คุณได้รับสิทธิ์', 'Everyone uses this same link. Your AI sees only what you are allowed to see.')}{/snippet}
-			{#if linkOK}
-				<div class="ca-panel">
-					<div class="ca-copy">
-						<CopyField value={endpoint} label={t(`ลิงก์ ORCA ของ${data.organization.displayName}`, `${data.organization.displayName}'s ORCA link`)} buttonLabel={t('คัดลอกลิงก์ ORCA', 'Copy ORCA link')} oncopied={() => (linkCopied = true)} />
-					</div>
-					{#if isChatApp(app)}
-						<div class="ca-namerow">
-							<span class="ca-namelabel">{t(`ชื่อที่ต้องพิมพ์ใน ${name}`, `Name to type in ${name}`)}</span>
-							<span class="ca-chip"><span>{connector}</span><button type="button" onclick={copyName} aria-label={t(`คัดลอกชื่อ ${connector}`, `Copy the name ${connector}`)}>{#if nameCopied}<Check size={14} aria-hidden="true" />{t('คัดลอกแล้ว', 'Copied')}{:else}<Copy size={14} aria-hidden="true" />{t('คัดลอกชื่อ', 'Copy name')}{/if}</button></span>
-						</div>
-					{/if}
+	<section class="ca-apps" aria-labelledby="ca-apps-title">
+		<h2 id="ca-apps-title">{t('เชื่อม AI', 'Connect AI')}</h2>
+		<AIAppCards connected={connectedApps} onopen={openApp} />
+	</section>
+
+	<Sheet bind:open={sheetOpen} title={t(`เชื่อม ${name}`, `Connect ${name}`)}>
+		{#if !ready}
+			<p class="ca-missing">{t('ยังไม่มีพื้นที่ทำงานที่ AI ของคุณใช้ได้ ดูด้านบนว่าต้องทำอะไรก่อน', "There's no workspace your AI can use yet. See above for what comes first.")}</p>
+		{:else if linkOK}
+			<div class="ca-panel">
+				<div class="ca-copy">
+					<CopyField value={endpoint} label={t(`ลิงก์ ORCA ของ${data.organization.displayName}`, `${data.organization.displayName}'s ORCA link`)} buttonLabel={t('คัดลอกลิงก์ ORCA', 'Copy ORCA link')} />
 				</div>
-				<p class="ca-tip"><Info size={15} aria-hidden="true" />{t('ถ้าเคยเพิ่มลิงก์ของพื้นที่ทำงานไว้ ให้ลบออกแล้วใช้ลิงก์นี้แทน', 'If you added a workspace’s own link before, remove it and use this one instead.')}</p>
-			{:else}
-				<p class="ca-missing">{t('ยังไม่มีลิงก์ ORCA ของบริษัท โหลดหน้านี้ใหม่ หรือแจ้งผู้ดูแลบริษัท', "Your company's ORCA link is not available. Reload this page or tell a company admin.")}</p>
-			{/if}
-		</ConnectStep>
-
-		<ConnectStep number={3} state={stepState(3)} id="ca-step-3" title={isChatApp(app) ? t(`วางใน ${name}`, `Paste it into ${name}`) : t(`ตั้งค่าใน ${name}`, `Set up ${name}`)}>
-			{#snippet lead()}{isChatApp(app)
-					? t(`ทำในหน้าตั้งค่าของ ${name} ไม่ถึง 1 นาที`, `In ${name}'s settings, under a minute.`)
-					: t('ใช้ลิงก์ ORCA ของบริษัทด้านบน คำสั่งด้านล่างใส่ลิงก์ไว้ให้แล้ว', 'Uses your company’s ORCA link above; the commands below already include it.')}{/snippet}
-			{#if linkOK}<AppSteps {app} {endpoint} {connector} {companyName} />{/if}
-		</ConnectStep>
-
-		<ConnectStep number={4} state={stepState(4)} id="ca-step-4" title={t('เข้าสู่ระบบแล้วกดอนุญาต', 'Sign in and allow')}>
-			{#snippet lead()}{#if app === 'claude'}{t('กด', 'Choose')} <b>Connect</b> {t('แล้วหน้าต่าง ORCA จะเด้งขึ้นมา', 'and the ORCA window opens')}{:else if app === 'chatgpt'}{t('กด', 'Choose')} <b>Create</b> {t('แล้วหน้าต่าง ORCA จะเด้งขึ้นมา', 'and the ORCA window opens')}{:else}{t('หน้าต่าง ORCA จะเปิดในเบราว์เซอร์เมื่อเริ่มเชื่อมต่อ', 'The ORCA window opens in your browser when it connects')}{/if}{/snippet}
-			<ConsentDrawing app={name} host={host || 'orca'} name={me?.displayName ?? ''} email={me?.email ?? ''} />
-		</ConnectStep>
-
-		<ConnectStep number={5} state={stepState(5)} id="ca-step-5" title={t('ตรวจผล', 'Check it worked')}>
-			{#snippet lead()}{#if result === 'unknown'}{t('หน้านี้ยังตรวจให้อัตโนมัติไม่ได้ ลองถามดูเอง', 'This page cannot check for you yet. Ask it yourself.')}{:else}{t('กดอนุญาตแล้ว หน้านี้จะขึ้นว่า', 'Once you allow, this page shows')} <b>{t('เชื่อมแล้ว', 'connected')}</b> {t('เอง', 'by itself')}{/if}{/snippet}
+				{#if isChatApp(app)}
+					<div class="ca-namerow">
+						<span class="ca-namelabel">{t(`ชื่อที่ต้องพิมพ์ใน ${name}`, `Name to type in ${name}`)}</span>
+						<span class="ca-chip"><span>{connector}</span><button type="button" onclick={copyName} aria-label={t(`คัดลอกชื่อ ${connector}`, `Copy the name ${connector}`)}>{#if nameCopied}<Check size={14} aria-hidden="true" />{t('คัดลอกแล้ว', 'Copied')}{:else}<Copy size={14} aria-hidden="true" />{t('คัดลอกชื่อ', 'Copy name')}{/if}</button></span>
+					</div>
+				{/if}
+			</div>
+			<div class="ca-where"><AppSteps {app} {endpoint} {connector} {companyName} compact /></div>
+			<p class="ca-tip"><Info size={15} aria-hidden="true" />{t('ถ้าเคยเพิ่มลิงก์ของพื้นที่ทำงานไว้ ให้ลบออกแล้วใช้ลิงก์นี้แทน', 'If you added a workspace’s own link before, remove it and use this one instead.')}</p>
 			<ConnectResult app={name} status={result} when={session ? relativeWhen(session.createdAt, checkedAt, t, lang) : ''} {prompts} onretry={() => void poller?.poke()} />
-		</ConnectStep>
-	</ol>
+		{:else}
+			<p class="ca-missing">{t('ยังไม่มีลิงก์ ORCA ของบริษัท โหลดหน้านี้ใหม่ หรือแจ้งผู้ดูแลบริษัท', "Your company's ORCA link is not available. Reload this page or tell a company admin.")}</p>
+		{/if}
+	</Sheet>
 
-	<div class="ca-sep"></div>
+	<ProgramSignIns {data} onshown={() => requestAnimationFrame(revealAccounts)} />
 
-	<div class="ca-more">
-		<ConnectedAIList {sessions} {keys} hubs={data.hubs} now={checkedAt} legacy={appsState === 'unavailable'} onchanged={disconnected} />
-		<ProgramSignIns {data} onshown={() => requestAnimationFrame(revealAccounts)} />
-		{#if ready}<DeveloperKeys
-			hubs={access.usable}
-			{endpoint}
-			{app}
-			canManage={data.canManage}
-			identity={JSON.stringify([currentCompany(), data.currentUserID, endpoint])}
-			{companyName}
-			oncreated={refreshApps}
-		/>{/if}
-	</div>
+	{#if ready}
+		<details class="ca-advanced">
+			<summary>{term('advanced', t)}</summary>
+			<DeveloperKeys
+				hubs={access.usable}
+				{endpoint}
+				{app}
+				canManage={data.canManage}
+				identity={JSON.stringify([currentCompany(), data.currentUserID, endpoint])}
+				{companyName}
+				oncreated={refreshApps}
+			/>
+		</details>
+	{/if}
 
 	<!-- The ORCA team's LINE and email come from $lib/orca/support (SupportContact). -->
 	<p class="ca-help">
-		{t('ติดขั้นไหน?', 'Stuck on a step?')}
+		{t('ต้องการความช่วยเหลือ?', 'Need help?')}
 		<a href={localeHref('/app?view=help')}>{t('ดูคำตอบในหน้าช่วยเหลือ', 'See the Help page')}</a>{#if data.canManage}{t(' หรือ', ' or ')}{:else}{t(' ถามผู้ดูแลบริษัท หรือ', ', ask a company admin, or ')}{/if}<SupportContact midSentence />
 	</p>
 </div>
@@ -310,18 +296,28 @@
 		margin-bottom: 22px;
 	}
 	.ca-strip {
-		margin-bottom: 36px;
+		margin-bottom: 24px;
 	}
-	.ca-steps {
-		margin: 0;
-		padding: 0;
-		list-style: none;
-		transition: opacity 0.2s var(--orca-ease);
+	.ca-apps {
+		margin: 28px 0;
 	}
-	/* No workspace yet: the steps stay visible, so the person sees what comes next. */
-	.ca-steps.dim {
-		opacity: 0.45;
-		filter: grayscale(0.6);
+	.ca-apps h2 {
+		margin: 0 0 10px;
+		font-size: 16px;
+	}
+	.ca-where {
+		margin-top: 16px;
+	}
+	.ca-advanced {
+		margin-top: 28px;
+		border-top: 1px solid var(--orca-line);
+		padding-top: 12px;
+	}
+	.ca-advanced > summary {
+		color: var(--orca-text-2);
+		font-size: 14px;
+		font-weight: 600;
+		cursor: pointer;
 	}
 	.ca-panel {
 		overflow: hidden;
@@ -417,18 +413,6 @@
 		color: var(--orca-muted);
 		font-size: 13.5px;
 	}
-	.ca-sep {
-		height: 1px;
-		margin: 40px 0 28px;
-		background: var(--orca-line);
-	}
-	.ca-more {
-		display: grid;
-		gap: 14px;
-	}
-	.ca-more > :global(*) {
-		min-width: 0;
-	}
 	/* One sentence that wraps as text, so "หรือ" and the commas stay with their words. */
 	.ca-help {
 		margin: 22px 0 0;
@@ -455,9 +439,6 @@
 		}
 		.ca-namerow {
 			padding: 12px 16px;
-		}
-		.ca-sep {
-			margin: 32px 0 24px;
 		}
 	}
 </style>

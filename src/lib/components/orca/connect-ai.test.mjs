@@ -71,45 +71,53 @@ async function page(props) {
 		OrcaService: {},
 		aiAppsUnavailable: () => false,
 		PageHeader: (renderer, p) => renderer.push(`<h1>${p.title}</h1><span data-status="${p.status.tone}">${p.status.label}</span>`),
-		ConnectStep: (renderer, p) => {
-			mounted.push({ name: 'ConnectStep', props: p });
-			renderer.push(`<li data-step="${p.number}" data-state="${p.state}"><h2>${p.title}</h2>`);
-			p.lead?.(renderer);
+		// W0: the sheet is rendered open, so its content can be read.
+		Sheet: (renderer, p) => {
+			mounted.push({ name: 'Sheet', props: p });
+			renderer.push(`<section data-sheet="${p.title}">`);
 			p.children(renderer);
-			renderer.push('</li>');
+			renderer.push('</section>');
 		},
+		PageTabs: stub(mounted, 'PageTabs'),
+		myAITabs: () => [],
+		AI_APPS: ['chatgpt', 'claude', 'claude-code', 'codex', 'cursor', 'vscode', 'windsurf', 'other'],
 		SupportContact,
-		...Object.fromEntries(['AccessStrip', 'AIAppPicker', 'AppSteps', 'ConnectResult', 'ConnectedAIList', 'ConsentDrawing', 'DeveloperKeys', 'ProgramSignIns', 'CopyField'].map((name) => [name, stub(mounted, name)]))
+		...Object.fromEntries(['AccessStrip', 'AIAppCards', 'AppSteps', 'ConnectResult', 'ConnectedAIList', 'DeveloperKeys', 'ProgramSignIns', 'CopyField'].map((name) => [name, stub(mounted, name)]))
 	});
 	const html = render(Component, { props }).body;
 	const find = (name) => mounted.filter((item) => item.name === name).map((item) => item.props);
 	return { warnings, html, find };
 }
 
-test('the page follows the mockup: access strip, five steps, then the person’s apps, programs and keys', async () => {
+test('W0: AI ของฉัน is one access line, the connected AI apps, one card per app with its sheet, then programs and, under ขั้นสูง, keys', async () => {
 	const { warnings, html, find } = await page({ data: data() });
 	assert.deepEqual(warnings, []);
 	// W0: the page is AI ของฉัน (My AI), the menu item's name.
 	assert.match(html, /<h1>My AI<\/h1>/);
 	assert.match(html, /data-status="neutral">Not connected/);
-	assert.deepEqual(find('ConnectStep').map((step) => [step.number, step.state]), [[1, 'done'], [2, 'current'], [3, 'upcoming'], [4, 'upcoming'], [5, 'upcoming']]);
-	assert.doesNotMatch(html, /\binert\b/);
+	// No numbered step rail, no time estimate.
+	assert.doesNotMatch(html, /data-step=|ca-steps|minute|นาที|Step \d/);
 	assert.deepEqual(find('AccessStrip')[0].access.usable.map((item) => item.id), ['sales']);
+	// The order: access line, connected list, the app cards, the sheet, program sign-ins, ขั้นสูง.
+	const order = ['data-child="AccessStrip"', 'data-child="ConnectedAIList"', 'data-child="AIAppCards"', 'data-sheet=', 'data-child="ProgramSignIns"', 'Advanced</summary>', 'data-child="DeveloperKeys"'].map((marker) => html.indexOf(marker));
+	assert.ok(order.every((index, i) => index >= 0 && (i === 0 || index > order[i - 1])), JSON.stringify(order));
+	assert.deepEqual(find('AIAppCards')[0].connected, [], 'no card says เชื่อมแล้ว before B1 answers');
+	assert.equal(typeof find('AIAppCards')[0].onopen, 'function');
+	assert.equal(find('Sheet')[0].title, 'Connect Claude', 'a card opens its own sheet');
+	assert.equal(find('AppSteps')[0].compact, true, 'one line on where to paste it');
 	const copy = find('CopyField')[0];
 	assert.equal(copy.value, 'https://orca.example.test/api/orca/mcp', 'always the company link');
 	assert.equal(copy.buttonLabel, 'Copy ORCA link');
 	assert.match(html, /If you added a workspace’s own link before, remove it and use this one instead\./);
 	assert.match(html, /Name to type in Claude[\s\S]*ORCA · Example Co\./, 'the connector name carries the company when the person has several');
 	assert.equal(find('AppSteps')[0].connector, 'ORCA · Example Co.');
-	assert.equal(find('ConsentDrawing')[0].host, 'orca.example.test');
-	assert.equal(find('ConsentDrawing')[0].email, 'mali@example.invalid');
 	assert.equal(find('ConnectResult')[0].status, 'waiting');
 	assert.equal(find('ConnectResult')[0].prompts[1], 'Summarize the latest in FlowAccount');
 	const keys = find('DeveloperKeys')[0];
 	assert.deepEqual(keys.hubs.map((item) => item.id), ['sales'], 'a key for one workspace only among those the person can use');
 	assert.equal(keys.canManage, true);
 	// The help line ends with the ORCA team's LINE and email ($lib/orca/support).
-	assert.match(plain(html), /Stuck on a step\? See the Help page or message the ORCA team on LINE @147njpwd \(opens in a new tab\) · email natthaphon\.chop@gmail\.com/);
+	assert.match(plain(html), /Need help\? See the Help page or message the ORCA team on LINE @147njpwd \(opens in a new tab\) · email natthaphon\.chop@gmail\.com/);
 	assert.match(html, /<a href="https:\/\/line\.me\/R\/ti\/p\/@147njpwd" target="_blank" rel="noopener noreferrer"/);
 	assert.match(html, /<a href="mailto:natthaphon\.chop@gmail\.com"/);
 	assert.equal(find('ProgramSignIns').length, 1);
@@ -118,13 +126,18 @@ test('the page follows the mockup: access strip, five steps, then the person’s
 	for (const retired of ['view=api-keys', 'view=accounts', 'tab=connect']) assert.doesNotMatch(html, new RegExp(retired));
 });
 
-test('with no workspace the steps stay visible but dimmed and inert, and keys are not offered', async () => {
+test('with no workspace the sheet offers no link and keys are not offered', async () => {
 	const { html, find } = await page({ data: data({ canManage: false, hubs: [hub('acc', 'Accounts', ['someone'])] }) });
-	assert.match(html, /<ol class="ca-steps[^"]*\bdim\b[^"]*"[^>]*\binert\b/);
-	assert.deepEqual(find('ConnectStep').map((step) => step.state), ['upcoming', 'upcoming', 'upcoming', 'upcoming', 'upcoming']);
-	assert.equal(find('ConnectResult')[0].status, 'idle');
+	assert.equal(find('CopyField').length, 0, 'no link to paste while it reaches nothing');
+	assert.equal(find('ConnectResult').length, 0);
+	assert.match(html, /There's no workspace your AI can use yet/);
 	assert.equal(find('DeveloperKeys').length, 0);
+	assert.doesNotMatch(html, /Advanced<\/summary>/);
 	assert.match(plain(html), /See the Help page, ask a company admin, or message the ORCA team on LINE @147njpwd/);
+	// Waiting needs a reachable link: with none the status would be idle (the rule is unchanged).
+	const view = await readFile(new URL('./views/ConnectAIView.svelte', import.meta.url), 'utf8');
+	assert.match(view, /const result = \$derived\(session \? 'connected' : !ready \? 'idle' :/);
+	assert.match(view, /const waiting = \$derived\(ready && linkOK && appsState !== 'unavailable' && !session\);/);
 });
 
 test('without a usable company link nothing is fabricated', async () => {
@@ -168,13 +181,12 @@ async function strip(props) {
 	return { warnings, html: render(Component, { props }).body };
 }
 
-test('the access strip counts reachable workspaces and names those with their own sign-in apart', async () => {
+test('the access line counts reachable workspaces in one line (W0: no banner, no chips) and names those with their own sign-in apart', async () => {
 	const value = data({ hubs: [hub('sales', 'Sales', ['me']), hub('acc', 'Accounts', ['me'], { userSourceID: 'us-1' })] });
 	const { warnings, html } = await strip({ data: value, access: ai.connectAccess(value) });
 	assert.deepEqual(warnings, []);
-	assert.match(html, /Your AI can use data from[\s\S]*1 workspace:/);
-	assert.match(html, /class="ca-chip[^"]*">Sales</);
-	assert.doesNotMatch(html, /class="ca-chip[^"]*">Accounts</);
+	assert.match(plain(html), /Your AI uses data from 1 workspace See workspaces/);
+	assert.doesNotMatch(html, /ca-chip|ca-access ok|ok-bg/);
 	assert.match(html, /1 more workspace \(Accounts\) uses its own company sign-in/);
 	assert.match(html, /view=hub&amp;hub=acc&amp;tab=overview/);
 });
@@ -183,14 +195,17 @@ test('none, manager: add yourself to a ready workspace, or create the first one'
 	const value = data({ hubs: [hub('acc', 'Accounts', ['someone']), hub('sso', 'SSO', ['someone'], { userSourceID: 'us-1' })] });
 	const one = await strip({ data: value, access: ai.connectAccess(value) });
 	assert.match(one.html, /There is no data for your AI yet/);
-	assert.match(one.html, /class="k-button primary[^"]*"[^>]*>[\s\S]*Add me to Accounts/);
+	// W0: outlined, since สร้าง is the page's one primary button.
+	assert.match(one.html, /class="k-button[^"]*"[^>]*>[\s\S]*Add me to Accounts/);
+	assert.doesNotMatch(one.html, /k-button primary/);
 	assert.doesNotMatch(one.html, /<select/);
 	const two = data({ hubs: [hub('acc', 'Accounts', ['someone']), hub('ops', 'Operations', [])] });
 	assert.match((await strip({ data: two, access: ai.connectAccess(two) })).html, /<select[\s\S]*Accounts[\s\S]*Operations[\s\S]*Add me to this workspace/);
 	const empty = data({ hubs: [] });
 	const first = await strip({ data: empty, access: ai.connectAccess(empty) });
 	assert.match(first.html, /href="\/app\?view=new"[^>]*>Create the first workspace/);
-	assert.equal(first.html.match(/k-button primary/g)?.length, 1, 'one primary action');
+	assert.equal(first.html.match(/class="k-button[ "]/g)?.length, 1, 'one action');
+	assert.doesNotMatch(first.html, /k-button primary/, 'never a second primary beside สร้าง');
 	const brandNew = data({ hubs: [], connections: [] });
 	assert.match((await strip({ data: brandNew, access: ai.connectAccess(brandNew) })).html, /href="\/app\?view=add-program"[^>]*>Connect your first program/, 'a new company starts with its first program');
 	const drafts = data({ hubs: [hub('d', 'Draft', ['me'], { status: 'draft' })] });
@@ -433,17 +448,21 @@ test('step 5 says waiting, connected or asks for a manual check, and step 3 spea
 	assert.match(render(steps.Component, { props: { ...props, app: 'other' } }).body, /Copy setup instructions/);
 });
 
-test('the picker offers Claude first, then ChatGPT, with developer tools behind a toggle', async () => {
-	const picker = await serverComponent(url('AIAppPicker'), { ...common, ChoiceTile: (renderer, p) => renderer.push(`<label data-value="${p.value}" data-selected="${p.selected}">${p.title}</label>`) });
-	assert.deepEqual(picker.warnings, []);
-	const html = render(picker.Component, { props: { app: 'claude', onselect: () => {} } }).body;
-	assert.deepEqual([...html.matchAll(/data-value="([^"]+)"/g)].map((match) => match[1]), ['claude', 'chatgpt']);
+test('W0: one card per app, Claude first, then ChatGPT, developer tools behind a toggle; a connected app says so', async () => {
+	const cards = await serverComponent(url('AIAppCards'), { ...common, ToolIcon: () => {} });
+	assert.deepEqual(cards.warnings, []);
+	const opened = [];
+	let html = render(cards.Component, { props: { onopen: (app) => opened.push(app) } }).body;
+	assert.deepEqual([...html.matchAll(/data-app="([^"]+)"/g)].map((match) => match[1]), ['claude', 'chatgpt']);
+	assert.match(html, /aria-haspopup="dialog"/);
 	assert.match(html, /aria-expanded="false"[\s\S]*Developer tools[\s\S]*Claude Code, Codex, Cursor, VS Code and more/);
-	const drawing = await serverComponent(url('ConsentDrawing'), { ...common, Brand: () => {} });
-	assert.deepEqual(drawing.warnings, []);
-	const window = render(drawing.Component, { props: { app: 'ChatGPT', host: 'orca.example.test', name: 'Mali', email: 'mali@example.invalid' } }).body;
-	assert.match(window, /orca\.example\.test[\s\S]*ChatGPT wants to use company data through ORCA for you[\s\S]*Mali[\s\S]*mali@example\.invalid[\s\S]*Allow/);
-	assert.match(window, /role="img" aria-label="Example of the ORCA window/);
+	assert.doesNotMatch(html, /Connected/);
+	html = render(cards.Component, { props: { connected: ['claude'], onopen: () => {} } }).body;
+	assert.match(plain(html), /Claude ?claude\.ai on the web, desktop and phone Connected/);
+	assert.doesNotMatch(plain(html), /Needs Plus, Pro or Business Connected/);
+	const view = await readFile(new URL('./views/ConnectAIView.svelte', import.meta.url), 'utf8');
+	assert.match(view, /function openApp\(next: AIApp\) \{\s*choose\(next\);\s*sheetOpen = true;/, 'the card picks the app the page watches for, then opens its sheet');
+	assert.match(view, /const connectedApps = \$derived\(AI_APPS\.filter\(\(item\) => connectedSession\(apps, item, checkedAt, 0\)\)\);/);
 });
 
 test('program sign-ins and the in-app browser notice keep their promises', async () => {
@@ -457,7 +476,7 @@ test('program sign-ins and the in-app browser notice keep their promises', async
 	assert.match(view, /import InAppBrowserNotice from '\.\.\/InAppBrowserNotice\.svelte'/);
 	assert.match(view, /<InAppBrowserNotice level=\{2\} variant="workspace" \/>/);
 	assert.doesNotMatch(view, /navigator\.userAgent|withExternalBrowser/);
-	for (const source of [programs, view, ...await Promise.all(['AccessStrip', 'AIAppPicker', 'AppSteps', 'ConnectResult', 'ConnectStep', 'ConnectedAIList', 'ConsentDrawing', 'DeveloperKeys'].map((name) => readFile(url(name), 'utf8')))]) {
+	for (const source of [programs, view, ...await Promise.all(['AccessStrip', 'AIAppCards', 'AppSteps', 'ConnectResult', 'ConnectedAIList', 'DeveloperKeys'].map((name) => readFile(url(name), 'utf8')))]) {
 		assert.doesNotMatch(source, /#fff\b|#ffffff|#151823/i, 'tokens only');
 		assert.doesNotMatch(source, /localStorage\.setItem\((?!.*AI_APP_KEY)/, 'only the chosen app is remembered in the browser');
 	}
