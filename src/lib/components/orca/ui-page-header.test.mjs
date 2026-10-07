@@ -48,6 +48,23 @@ test('StatusPill and EmptyState stay within their contract', async () => {
 	assert.doesNotMatch(render(empty.Component, { props: { message: 'Nothing here.' } }).body, /<a |<button /);
 });
 
+test('W0.1: EmptyState draws its icon as a plain 20px --subtle line icon, never on a tile', async () => {
+	const { readFile } = await import('node:fs/promises');
+	const { compile } = await import('svelte/compiler');
+	const source = await readFile(new URL('./ui/EmptyState.svelte', import.meta.url), 'utf8');
+	assert.match(source, /<span class="orca-empty-icon" aria-hidden="true"><Icon size=\{20\} strokeWidth=\{1\.75\} \/><\/span>/);
+	const css = compile(source, { filename: 'EmptyState.svelte', generate: 'client', css: 'external' }).css.code.replace(/\/\*[\s\S]*?\*\//g, '');
+	const rule = css.match(/\.orca-empty-icon[^{]*\{([^}]*)\}/)?.[1];
+	assert.ok(rule, 'the icon rule');
+	assert.match(rule, /color: var\(--orca-subtle\);/);
+	assert.doesNotMatch(rule, /background|border-radius|width|height/, 'no tile');
+	// Rendered with an icon: the icon, then the sentence.
+	const Icon = (renderer, props) => renderer.push(`<svg data-size="${props.size}"></svg>`);
+	const empty = await serverComponent(new URL('./ui/EmptyState.svelte', import.meta.url), {});
+	const html = render(empty.Component, { props: { icon: Icon, message: 'Nothing here.' } }).body.replace(/<!--[^>]*-->/g, '');
+	assert.match(html, /<span class="orca-empty-icon[^"]*" aria-hidden="true"><svg data-size="20"><\/svg><\/span>\s*<p[^>]*>Nothing here\.<\/p>/);
+});
+
 test('the title is 24px (20px on a phone; one step down, owner 2026-10-07) and outranks the shell\'s `.orca-workspace.orca-app h1`', async () => {
 	const { readFile } = await import('node:fs/promises');
 	const { compile } = await import('svelte/compiler');

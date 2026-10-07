@@ -18,7 +18,7 @@
 </script>
 
 <div class="orca-empty">
-	{#if Icon}<span class="orca-empty-icon"><Icon size={22} aria-hidden="true" /></span>{/if}
+	{#if Icon}<span class="orca-empty-icon" aria-hidden="true"><Icon size={20} strokeWidth={1.75} /></span>{/if}
 	<p>{message}</p>
 	{#if actionLabel && href}<a class="k-button primary" {href}>{actionLabel}</a>
 	{:else if actionLabel && onaction}<button type="button" class="k-button primary" onclick={onaction}>{actionLabel}</button>{/if}
@@ -37,14 +37,10 @@
 		background: var(--orca-surface);
 		text-align: center;
 	}
+	/* W0.1: a plain 20px line icon in --subtle, never a tile. */
 	.orca-empty-icon {
-		display: grid;
-		place-items: center;
-		width: 44px;
-		height: 44px;
-		border-radius: 12px;
-		background: var(--orca-secondary);
-		color: var(--orca-text-2);
+		display: inline-flex;
+		color: var(--orca-subtle);
 	}
 	.orca-empty p {
 		max-width: 46ch;
