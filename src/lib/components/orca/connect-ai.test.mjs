@@ -489,3 +489,9 @@ test('"AI ที่คุณเชื่อมไว้" uses the one AI app til
 	assert.match(list, /<AIAppTile kind="key" size=\{40\} \/>/);
 	assert.doesNotMatch(list, /ToolIcon|#[0-9a-f]{6}\b/i);
 });
+
+test('W0: the sheet says connected in ink with a check, never a green block', async () => {
+	const source = await readFile(url('ConnectResult'), 'utf8');
+	const css = source.slice(source.indexOf('<style>'));
+	assert.doesNotMatch(css, /--orca-ok-bg|--orca-ok-line|color: var\(--orca-ok\)|background: var\(--orca-ok\)/);
+});
