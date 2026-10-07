@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { ArrowRight, ChevronRight, Plus, Search } from '@lucide/svelte';
+	import { ArrowRight, ChevronRight, Search } from '@lucide/svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { catalogSource, filterCatalog } from '$lib/orca/catalog';
 	import { healthByConnection } from '$lib/orca/connection-health';
@@ -21,12 +22,15 @@
 	import { onDestroy, onMount } from 'svelte';
 	import PageHeader from './ui/PageHeader.svelte';
 	import StatusPill from './ui/StatusPill.svelte';
+	import CatalogModal from './programs/CatalogModal.svelte';
 	import ProgramLogo from './programs/ProgramLogo.svelte';
+	import ProgramRequestSheet from './programs/ProgramRequestSheet.svelte';
 
-	// โปรแกรมที่เชื่อม (view=servers): one row per program with what AI can do,
-	// the workspaces that use it and one status chip. The page only mounts it
-	// for managers. A company with no program yet starts from the four
-	// recommended cards, which jump straight to step 2.
+	// โปรแกรม (view=servers): one row per program with what AI can do, the
+	// workspaces that use it and one status. The page only mounts it for
+	// managers. A company with no program yet starts from the four recommended
+	// cards, which open the connect page. W0: เชื่อมโปรแกรม opens the catalog
+	// dialog, held in the address (&catalog=1) so a reload or a link opens it.
 	let { data }: { data: OrcaBootstrap; onchanged?: () => Promise<void> } = $props();
 
 	type Filter = 'all' | 'review' | 'paused' | 'archived';
@@ -91,13 +95,29 @@
 	onDestroy(() => {
 		alive = false;
 	});
+	// The catalog dialog follows the address; closing it drops &catalog (and &return).
+	let catalogOpen = $state(false);
+	$effect(() => {
+		catalogOpen = page.url.searchParams.get('catalog') === '1';
+	});
+	const returnTo = $derived(page.url.searchParams.get('return') ?? '');
+	function closeCatalog() {
+		const url = new URL(page.url.href);
+		if (!url.searchParams.has('catalog')) return;
+		url.searchParams.delete('catalog');
+		url.searchParams.delete('return');
+		void goto(url.pathname + url.search + url.hash, { replaceState: true, keepFocus: true, noScroll: true });
+	}
+	let requestOpen = $state(false);
+	let requested = $state('');
+	const catalogHref = $derived(localeHref('/app?view=servers&catalog=1'));
 	const detail = (id: string, tab = '') =>
 		localeHref(`/app?view=servers&connection=${encodeURIComponent(id)}${tab ? `&tab=${tab}` : ''}`);
 </script>
 
 <PageHeader title={term('programs', t)} subtitle={t('โปรแกรมที่ AI ของทีมใช้ได้', 'The programs your team’s AI can use.')}>
 	{#snippet action()}
-		{#if data.canManage}<a class="k-button primary" href={localeHref('/app?view=add-program')}><Plus size={16} aria-hidden="true" />{term('addProgram', t)}</a>{/if}
+		{#if data.canManage}<a class="k-button" href={catalogHref}>{term('addProgram', t)}</a>{/if}
 	{/snippet}
 </PageHeader>
 
@@ -130,7 +150,7 @@
 			</div>
 		{/if}
 		<div class="programs-start-links">
-			<a class="programs-start-all" href={localeHref('/app?view=add-program')}>{t('ดูโปรแกรมทั้งหมด', 'See every program')}<ChevronRight size={15} aria-hidden="true" /></a>
+			<a class="programs-start-all" href={catalogHref}>{t('ดูโปรแกรมทั้งหมด', 'See every program')}<ChevronRight size={15} aria-hidden="true" /></a>
 			{#if counts.archived}<button type="button" class="k-link-button" onclick={() => (filter = 'archived')}>{t(`ดูที่จัดเก็บแล้ว (${counts.archived})`, `See archived (${counts.archived})`)}</button>{/if}
 		</div>
 	</section>
@@ -195,6 +215,20 @@
 			<button type="button" class="k-button small" onclick={() => { filter = 'all'; query = ''; }}>{t('ล้างตัวกรอง', 'Clear filters')}</button>
 		</div>
 	{/if}
+{/if}
+
+{#if data.canManage}
+	<CatalogModal
+		{data}
+		bind:open={catalogOpen}
+		{returnTo}
+		onclose={closeCatalog}
+		onrequest={(query) => {
+			requested = query;
+			requestOpen = true;
+		}}
+	/>
+	<ProgramRequestSheet bind:open={requestOpen} {data} program={requested} />
 {/if}
 
 <style>

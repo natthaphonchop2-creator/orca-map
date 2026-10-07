@@ -80,9 +80,25 @@ test("Knowledge stays", () => {
   stays("view=knowledge&hub=hub-one", "knowledge");
 });
 
-test("the catalog is step 1 of adding a program", () => {
-  redirects("view=catalog", "/app?view=add-program");
-  redirects("view=catalog&lang=en", "/app?view=add-program&lang=en");
+test("the catalog is the catalog dialog on โปรแกรม (W0)", () => {
+  redirects("view=catalog", "/app?view=servers&catalog=1");
+  redirects("view=catalog&lang=en", "/app?view=servers&lang=en&catalog=1");
+  // The old step 1 too, keeping the way back to the create form.
+  redirects("view=add-program", "/app?view=servers&catalog=1");
+  redirects("view=add-program&return=new", "/app?view=servers&return=new&catalog=1");
+  redirects("view=add-program&source=s1&step=choose", "/app?view=servers&catalog=1");
+  stays("view=servers&catalog=1", "servers");
+  redirects("view=servers&catalog=yes", "/app?view=servers");
+  redirects("view=servers&catalog=1&connection=conn-one", "/app?view=servers&connection=conn-one");
+  redirects("view=knowledge&catalog=1", "/app?view=knowledge");
+});
+
+test("the old step 4 is the program's own page; connecting one stays its own page (W0)", () => {
+  redirects("view=add-program&source=s1&step=done&connection=conn-one", "/app?view=servers&connection=conn-one");
+  redirects("view=add-program&source=s1&step=done&account=pac-1&connection=conn-one&return=new", "/app?view=servers&connection=conn-one");
+  stays("view=add-program&source=s1&step=connect", "add-program");
+  stays("view=add-program&source=s1&step=tools&account=pac-1", "add-program");
+  stays("view=add-program&source=s1&step=connect&return=welcome", "add-program");
 });
 
 test("the programs list stays", () => {
@@ -90,8 +106,8 @@ test("the programs list stays", () => {
   stays("view=servers&status=needs-review", "servers");
 });
 
-test("add=source is step 1 of adding a program", () => {
-  redirects("view=servers&add=source", "/app?view=add-program");
+test("add=source opens the catalog dialog (W0)", () => {
+  redirects("view=servers&add=source", "/app?view=servers&catalog=1");
 });
 
 test("a program to set up is step 2 of adding it", () => {
@@ -299,7 +315,7 @@ test("before the company's data loads, only rules that don't depend on the viewe
   const route = appNavigation(new URLSearchParams("view=user-sources"));
   assert.equal(route.view, "user-sources");
   assert.equal(route.redirect, undefined);
-  assert.equal(appNavigation(new URLSearchParams("view=catalog")).view, "add-program");
+  assert.equal(appNavigation(new URLSearchParams("view=catalog")).view, "servers");
 });
 
 test("redirects never change the address they were given, and keep language and company", () => {

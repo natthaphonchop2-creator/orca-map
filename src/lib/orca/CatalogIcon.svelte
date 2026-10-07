@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { getCatalogPresentation } from './catalog-data';
-	import { Plug } from '@lucide/svelte';
 
+	// A program's logo. Without a mark that stays sharp (W0: no blurred favicon,
+	// never a generic icon), the program's name is shown as text instead.
 	let {
 		name,
 		size = 44,
@@ -12,6 +13,9 @@
 	const source = $derived(getCatalogPresentation(name).icon);
 	const showImage = $derived(!!source && source !== failedSource);
 	const dimension = $derived(Math.max(16, Math.min(Number.isFinite(size) ? size : 44, 128)));
+	// The name's first word, sized to the tile ("Lazada Seller API" → "Lazada").
+	const word = $derived(name.trim().split(/\s+/)[0] || name);
+	const textSize = $derived(Math.max(7, Math.round((dimension / Math.max(word.length, 4)) * 1.5 * 10) / 10));
 </script>
 
 <span
@@ -20,7 +24,7 @@
 	style={`--orca-catalog-icon-size: ${dimension}px`}
 	aria-hidden={decorative ? 'true' : undefined}
 	role={!decorative && !showImage ? 'img' : undefined}
-	aria-label={!decorative && !showImage ? `${name} MCP` : undefined}
+	aria-label={!decorative && !showImage ? name : undefined}
 >
 	{#if showImage}
 		<img
@@ -33,7 +37,7 @@
 			onerror={() => (failedSource = source)}
 		/>
 	{:else}
-		<Plug size={Math.round(dimension * 0.57)} strokeWidth={1.7} aria-hidden="true" />
+		<span class="orca-catalog-name" style={`font-size: ${textSize}px`}>{word}</span>
 	{/if}
 </span>
 
@@ -57,8 +61,18 @@
 	}
 
 	.orca-catalog-icon-fallback {
+		overflow: hidden;
 		border-radius: 24%;
-		background: var(--o-surface-soft, #f0f2ed);
-		color: var(--o-ink-soft, #677065);
+		background: var(--orca-secondary, var(--o-surface-soft, #f0f2ed));
+		color: var(--orca-ink, var(--o-ink-soft, #677065));
+	}
+	.orca-catalog-name {
+		max-width: 100%;
+		overflow: hidden;
+		font-weight: 600;
+		line-height: 1.1;
+		letter-spacing: 0;
+		text-overflow: clip;
+		white-space: nowrap;
 	}
 </style>

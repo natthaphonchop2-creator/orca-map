@@ -19,7 +19,7 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 	.replace(/^\s*import[\s\S]*?from\s+'[^']+';/gm, '')
 	.replace('$props()', '$state(testProps)');
 const names = [
-	'catalogSource', 'currentCompany', 'localeHref', 't', 'orcaError', 'programSaveError', 'programSaveConflict', 'ProgramService', 'OrcaService', 'policyStep', 'onDestroy', 'onMount', 'untrack',
+	'catalogSource', 'currentCompany', 'localeHref', 't', 'orcaError', 'showToast', 'programSaveError', 'programSaveConflict', 'ProgramService', 'OrcaService', 'policyStep', 'onDestroy', 'onMount', 'untrack',
 	...Object.keys(catalogHelpers), ...Object.keys(tools)
 ];
 const require = createRequire(import.meta.url);
@@ -56,6 +56,7 @@ function memoryStorage() {
 async function setup(context, { props = {}, service = {}, storage = memoryStorage() } = {}) {
 	const writes = [];
 	const navigations = [];
+	const toasts = [];
 	let refreshes = 0;
 	const mounts = [];
 	const destroys = [];
@@ -73,7 +74,7 @@ async function setup(context, { props = {}, service = {}, storage = memoryStorag
 			{
 				...catalogHelpers, ...tools, catalogSource, policyStep, untrack,
 				OrcaService: { programAccountPolicy: service.policy ?? (async () => undefined), programAccounts: service.accounts ?? (async () => []) },
-				currentCompany: () => 'default', localeHref: (href) => href, t: (th) => th, orcaError: (cause) => cause.message,
+				currentCompany: () => 'default', localeHref: (href) => href, t: (th) => th, orcaError: (cause) => cause.message, showToast: (message) => toasts.push(message),
 				programSaveError: (cause) => tools.programSaveMessage(cause.message, (th) => th) ?? cause.message,
 				programSaveConflict: (cause) => cause?.status === 409,
 				onMount: (fn) => mounts.push(fn), onDestroy: (fn) => destroys.push(fn),
@@ -93,30 +94,48 @@ async function setup(context, { props = {}, service = {}, storage = memoryStorag
 		stop();
 		delete globalThis.window;
 	});
-	return { view, writes, navigations, storage, refreshes: () => refreshes };
+	return { view, writes, navigations, toasts, storage, refreshes: () => refreshes };
 }
 
-test('an account that works leads to step 3 with a read-only start and the program name prefilled, not taken twice', async (context) => {
-	const { view, navigations } = await setup(context);
+test('W0: an account that works saves the program read-only, with its name not taken twice, and goes back to the catalog', async (context) => {
+	const { view, navigations, writes, toasts, refreshes } = await setup(context);
 	await view.accountReady('flow');
-	assert.deepEqual(navigations, ['/app?view=add-program&source=flow&step=tools']);
 	assert.equal(view.state.toolsFor, 'flow');
 	assert.equal(view.state.preset, 'read');
 	assert.deepEqual(view.state.selected, ['list', 'get']);
-	assert.equal(view.state.name, 'FlowAccount (2)', 'another program already uses the name');
-	// A late answer for another program never moves the page.
+	// The read-only start the owner chose, saved and reviewed as read-only: never a tool that changes data.
+	assert.deepEqual(writes, [{ input: { name: 'FlowAccount (2)', description: '', mcpID: 'flow', toolNames: ['list', 'get'], scopeNote: '', reviewedTools: true, reviewedReadOnly: true, enabled: true }, id: undefined }]);
+	assert.equal(refreshes(), 1);
+	assert.deepEqual(navigations, ['/app?view=servers&catalog=1'], 'back to the catalog, where the card now says เชื่อมแล้ว');
+	assert.deepEqual(toasts, ['เชื่อม FlowAccount แล้ว']);
+	// A late answer for another program never moves the page or saves.
 	await view.accountReady('peak');
 	assert.equal(navigations.length, 1);
+	assert.equal(writes.length, 1);
 });
 
-test('"อนุญาต N อย่างนี้" sends reviewedTools:true, reviewedReadOnly for reads and the optional note, then opens step 4', async (context) => {
+test('W0: with nothing read-only, the page asks what AI may do before saving; from the create form or onboarding it goes back there', async (context) => {
+	const changing = [definition('create', false), definition('send', false)];
+	const asks = await setup(context, { service: { discover: async () => changing } });
+	await asks.view.accountReady('flow');
+	assert.deepEqual(asks.writes, [], 'nothing that changes data is saved unasked');
+	assert.deepEqual(asks.navigations, ['/app?view=add-program&source=flow&step=tools']);
+	const fromForm = await setup(context, { props: { returnTo: 'new' } });
+	await fromForm.view.accountReady('flow');
+	assert.deepEqual(fromForm.navigations, ['/app?view=new&connection=saved-1']);
+	const fromWelcome = await setup(context, { props: { returnTo: 'welcome' } });
+	await fromWelcome.view.accountReady('flow');
+	assert.deepEqual(fromWelcome.navigations, ['/app?view=welcome&page=2']);
+});
+
+test('"อนุญาต N อย่างนี้" sends reviewedTools:true, reviewedReadOnly for reads and the optional note, then goes back to the catalog', async (context) => {
 	const { view, writes, navigations, refreshes, storage } = await setup(context, { props: { step: 'tools' } });
 	await view.discover('flow');
 	flush();
 	await view.save();
 	assert.deepEqual(writes, [{ input: { name: 'FlowAccount (2)', description: '', mcpID: 'flow', toolNames: ['list', 'get'], scopeNote: '', reviewedTools: true, reviewedReadOnly: true, enabled: true }, id: undefined }]);
 	assert.equal(refreshes(), 1);
-	assert.equal(navigations.at(-1), '/app?view=add-program&source=flow&step=done&connection=saved-1');
+	assert.equal(navigations.at(-1), '/app?view=servers&catalog=1');
 	assert.equal(storage.store.has('orca.addProgram.default'), false, 'the draft is cleared after saving');
 	assert.deepEqual([...storage.store.keys()], ['orca.addProgram.saved.default'], 'only which program was saved stays');
 	// Change tools make it a normal (not read-only) review; saving again changes the same program.
@@ -466,16 +485,21 @@ test('บัญชีกลาง at step 2: offered unless the program allows p
 	assert.equal(reload.view.state.accountMode, 'company', 'a reload with the account in the address keeps the choice');
 });
 
-test('a company account connected at step 2: step 3 reads what AI can do on it, and the save names it', async (context) => {
+test('a company account connected in the connect step: what AI can do is read on it, and the save names it', async (context) => {
 	const asked = [];
 	const { view, writes, navigations } = await setup(context, { service: { discover: async (id, account) => { asked.push([id, account]); return offered; } } });
 	await view.companyAccountReady('flow', 'pac-1');
 	assert.deepEqual(asked, [['flow', 'pac-1']]);
-	assert.deepEqual(navigations, ['/app?view=add-program&source=flow&step=tools&account=pac-1']);
 	assert.equal(view.state.toolsAccount, 'pac-1');
+	// W0: saved read-only on the company account at once, then back to the catalog.
+	assert.equal(writes.length, 1);
+	assert.equal(writes[0].input.programAccountID, 'pac-1');
+	assert.equal(writes[0].input.reviewedReadOnly, true);
+	assert.deepEqual(navigations, ['/app?view=servers&catalog=1']);
 	// A late answer for another program never moves the page.
 	await view.companyAccountReady('peak', 'pac-2');
 	assert.equal(navigations.length, 1);
+	assert.equal(writes.length, 1);
 
 	// Step 3 as the address opens it: the account from the address.
 	const page = await setup(context, { props: { step: 'tools', programAccountID: 'pac-1', address: '/app?view=add-program&source=flow&step=tools&account=pac-1' }, service: { discover: async (id, account) => { asked.push([id, account]); return offered; } } });
@@ -485,8 +509,7 @@ test('a company account connected at step 2: step 3 reads what AI can do on it, 
 	assert.equal(asked.at(-1)[1], 'pac-1');
 	assert.equal(page.writes.length, 1);
 	assert.equal(page.writes[0].input.programAccountID, 'pac-1');
-	assert.equal(page.navigations.at(-1), '/app?view=add-program&source=flow&step=done&account=pac-1&connection=saved-1');
-	assert.deepEqual(writes, []);
+	assert.equal(page.navigations.at(-1), '/app?view=servers&catalog=1');
 });
 
 test('the address a company account signed in as reaches the summary before saving, from step 2 or the managers\' list after a reload (CA1b O15)', async (context) => {

@@ -284,7 +284,7 @@ const presentations: Record<string, CatalogPresentation> = {
 	canva: {
 		categoryId: 'design-content',
 		descriptionTh: 'ค้นหา สร้าง แก้ไข และส่งออกงานออกแบบใน Canva',
-		icon: '/orca/catalog/canva.ico',
+		icon: '/orca/catalog/canva.svg',
 		aliases: ['ดีไซน์', 'สไลด์', 'กราฟิก']
 	},
 	'carta-crm': {

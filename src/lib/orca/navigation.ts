@@ -220,8 +220,9 @@ export function appNavigation(
 		only('connection');
 		if (connection) p.set('tab', 'members');
 	} else if (view === 'catalog') {
-		go('add-program');
+		go('servers');
 		only();
+		p.set('catalog', '1');
 	} else if (view === 'pilots') {
 		go('platform');
 		only();
@@ -266,6 +267,21 @@ export function appNavigation(
 			p.delete('catalog');
 			// The account tab folds into ภาพรวม.
 			if (p.get('tab') === 'account') p.set('tab', 'overview');
+		}
+	}
+	if (view === 'add-program') {
+		const done = p.get('step') === 'done' && p.get('connection');
+		if (done) {
+			// The old step 4 ("เสร็จ") is gone: the program's own page.
+			const connection = p.get('connection')!;
+			go('servers');
+			only();
+			p.set('connection', connection);
+		} else if (!p.get('source') || p.get('step') === 'choose') {
+			// The old step 1 is the catalog dialog on โปรแกรม.
+			go('servers');
+			only('return');
+			p.set('catalog', '1');
 		}
 	}
 	if (view === 'servers' && p.get('catalog') !== null && p.get('catalog') !== '1') p.delete('catalog');
