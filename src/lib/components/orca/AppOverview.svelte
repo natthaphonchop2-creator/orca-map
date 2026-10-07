@@ -88,7 +88,7 @@
 		<a class="k-button" href={localeHref('/app?view=connect-ai')}
 			><Sparkles size={16} aria-hidden="true" />{t('เชื่อม AI ของฉัน', 'Connect my AI')}</a
 		>
-		{#if data.canManage}<a class="k-button primary" href={localeHref(createWorkspaceHref)}
+		{#if data.canManage}<a class="k-button" href={localeHref(createWorkspaceHref)}
 				><Plus size={16} aria-hidden="true" />{t('สร้างพื้นที่ทำงาน AI', 'Create AI workspace')}</a
 			>{/if}
 	{/snippet}
@@ -279,19 +279,6 @@
 	.spaces {
 		min-width: 0;
 		color: var(--orca-ink);
-	}
-	.spaces-head {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 16px 24px;
-		margin-bottom: 20px;
-	}
-	.spaces-actions {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-		flex: none;
 	}
 	.spaces-toolbar {
 		display: flex;
@@ -645,10 +632,6 @@
 		}
 	}
 	@media (max-width: 760px) {
-		.spaces-head {
-			flex-direction: column;
-		}
-		.spaces-actions,
 		.spaces-search {
 			width: 100%;
 		}
@@ -656,9 +639,6 @@
 			flex-wrap: nowrap;
 			max-width: 100%;
 			overflow-x: auto;
-		}
-		.spaces-actions > :global(.k-button) {
-			flex: 1 1 auto;
 		}
 	}
 	@container spaces (max-width: 880px) {

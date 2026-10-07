@@ -25,3 +25,20 @@ export function settingsSection(requested: string | null, canManage: boolean, so
 export function advancedFallback(requested: string | null, canManage: boolean, sources: SignInSources): string | undefined {
 	return canManage && requested === 'advanced' && sources === 'none' ? '/app?view=settings&section=company' : undefined;
 }
+
+/** ตั้งค่า's tabs after W0: ทีม and พื้นที่ทำงาน AI moved in. Employees: their workspaces and their account. */
+export type SettingsTabID = 'company' | 'team' | 'workspaces' | 'account' | 'advanced';
+export function settingsTabs(canManage: boolean, sources: SignInSources): SettingsTabID[] {
+	if (!canManage) return ['workspaces', 'account'];
+	const sections = settingsSections(true, sources);
+	return ['company', 'team', 'workspaces', 'account', ...(sections.includes('advanced') ? (['advanced'] as const) : [])];
+}
+
+/** Where each tab lives: ทีม and พื้นที่ทำงาน AI keep their own addresses. */
+export const SETTINGS_TAB_HREF: Record<SettingsTabID, string> = {
+	company: '/app?view=settings&section=company',
+	team: '/app?view=members',
+	workspaces: '/app?view=workspaces',
+	account: '/app?view=settings&section=account',
+	advanced: '/app?view=settings&section=advanced'
+};

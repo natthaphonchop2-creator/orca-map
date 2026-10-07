@@ -15,6 +15,7 @@
   import ConnectionCenter from "$lib/components/orca/ConnectionCenter.svelte";
   import ConnectionSettings from "$lib/components/orca/ConnectionSettings.svelte";
   import SettingsCenter from "$lib/components/orca/SettingsCenter.svelte";
+  import SettingsFrame from "$lib/components/orca/views/SettingsFrame.svelte";
   import KnowledgeLibrary from "$lib/components/orca/KnowledgeLibrary.svelte";
   import AddProgramView from "$lib/components/orca/views/AddProgramView.svelte";
   import HelpView from "$lib/components/orca/views/HelpView.svelte";
@@ -348,7 +349,7 @@
       <ConnectionCenter data={managementData!} onchanged={refresh} />
     {/if}
   {:else if view === "connect-ai"}<ConnectAIView data={currentData!} onchanged={refresh} />
-  {:else if view === "members"}<TeamView {data} onchanged={refresh} />
+  {:else if view === "members"}<SettingsFrame {data} current="team"><TeamView {data} onchanged={refresh} /></SettingsFrame>
   {:else if view === "secrets" && data.canManage}<MyAIFrame data={currentData!} />
   {:else if view === "approvals" || view === "executions" || view === "audit"}<OversightView
       {data}
@@ -367,7 +368,7 @@
       companyTab={navigation.params.get("tab") ?? ""}
       onchanged={refresh}
     />{/key}
-  {:else if view === "workspaces"}<AppOverview data={managementData!} onchanged={refresh} />
+  {:else if view === "workspaces"}<SettingsFrame {data} current="workspaces"><AppOverview data={managementData!} onchanged={refresh} /></SettingsFrame>
   {:else if view === "help"}<HelpView {data} />
   {:else}{#key data}<WorkspaceDashboard data={currentData!} {pendingApprovals} />{/key}
   {/if}

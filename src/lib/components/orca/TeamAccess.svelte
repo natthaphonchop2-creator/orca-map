@@ -212,7 +212,7 @@
           </div>
         </div>
         <button
-          class="k-button primary"
+          class="k-button"
           onclick={() => {
             moreOpen = false;
             inviting = true;
