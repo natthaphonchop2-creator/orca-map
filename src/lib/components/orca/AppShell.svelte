@@ -7,7 +7,7 @@
   import { activeNavigationView, APP_VIEWS, platformHref, showsPlatformSwitch, type PlatformSection } from "$lib/orca/navigation";
   import { hubAsksApproval } from "$lib/orca/approvals";
   import { term } from "$lib/orca/glossary";
-  import { createMenu, createShortcut, settingsEntries, workspaceSections, type JumpTarget, type NavIcon, type NavSectionID, type SettingsEntryID } from "$lib/orca/workspace-nav";
+  import { createMenu, createShortcut, menuFeatures, settingsEntries, workspaceSections, type JumpTarget, type NavIcon, type NavSectionID, type SettingsEntryID } from "$lib/orca/workspace-nav";
   import { createSequence, isJumpShortcut } from "$lib/orca/menu-keys";
   import { createRail, railFocusTarget, type RailState } from "$lib/orca/rail";
   import {
@@ -125,7 +125,7 @@
   const platformMode = $derived(view === "platform" && operator);
   // LINE's writes wait for a manager even in a workspace that runs at once (design §14l).
   const requestsApproval = $derived(!!data?.hubs.some((hub) => hubAsksApproval(hub, data?.connections ?? [])));
-  const features = $derived(data?.features);
+  const features = $derived(menuFeatures(data?.features));
 
   // ---------- The rail ----------
   type RailItem = { id: string; label: string; href: string; icon: NavIcon | "platform"; platformIcon?: typeof House; soon?: boolean; count?: number };

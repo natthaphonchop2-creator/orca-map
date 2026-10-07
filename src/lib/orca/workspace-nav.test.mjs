@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { importTypeScript } from './test-import.mjs';
 
@@ -43,7 +44,7 @@ test('ตั้งค่า ▾: ทีม, พื้นที่ทำงาน
 
 const menu = (role) => createMenu({ views: [], ...role }).map((group) => group.map((item) => (item.soon ? `${item.id} (soon)` : item.id)).join(' '));
 
-test('the สร้าง menu by role and flag: groups with hairlines, a group left empty is dropped', () => {
+test('the สร้าง menu by role and flag: groups with hairlines, a group left empty is dropped', async () => {
 	assert.deepEqual(menu({ canManage: true }), ['workspace', 'program workflow (soon)', 'agent (soon) knowledge ai', 'invite account']);
 	assert.deepEqual(menu({ canManage: true, features: { skills: true, docTemplates: true }, views: ['documents'] }), [
 		'workspace', 'program workflow (soon)', 'skill agent (soon) knowledge template ai', 'invite account'
@@ -51,6 +52,13 @@ test('the สร้าง menu by role and flag: groups with hairlines, a group 
 	// เทมเพลตเอกสาร needs its flag and its page in this build (it arrives with kv2 phase 2a).
 	assert.ok(!menu({ canManage: true, features: { docTemplates: true }, views: [] }).join(' ').includes('template'));
 	assert.ok(!menu({ canManage: true, features: {}, views: ['documents'] }).join(' ').includes('template'));
+	// The shell reads both company switches (kv2 phase 2a): document templates alone, or library v2 alone, shows no row.
+	const shell = (features) => menu({ canManage: true, features: nav.menuFeatures(features), views: ['documents'] }).join(' ').includes('template');
+	assert.equal(shell({ libraryV2: true, docTemplates: true }), true);
+	for (const features of [{ docTemplates: true }, { libraryV2: true }, { libraryV2: true, docTemplates: 'true' }, {}, undefined]) assert.equal(shell(features), false, JSON.stringify(features));
+	assert.ok(!menu({ canManage: false, features: nav.menuFeatures({ libraryV2: true, docTemplates: true }), views: ['documents'] }).join(' ').includes('template'), 'managers only');
+	const shellSource = await readFile(new URL('../components/orca/AppShell.svelte', import.meta.url), 'utf8');
+	assert.match(shellSource, /const features = \$derived\(menuFeatures\(data\?\.features\)\);/, 'the shell reads its menus through menuFeatures');
 	// Members: only what they may use; no manager rows, no empty groups.
 	assert.deepEqual(menu({ canManage: false }), ['agent (soon) knowledge ai']);
 	assert.deepEqual(menu({ canManage: false, features: { skills: true, docTemplates: true }, views: ['documents'] }), ['agent (soon) knowledge ai']);

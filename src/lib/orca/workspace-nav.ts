@@ -18,6 +18,14 @@ export function skillsEnabled(data: { features?: WorkspaceFeatures } | undefined
 /** The company's features that switch parts of the menus on. `docTemplates` is kv2 phase 2a's. */
 export type MenuFeatures = { skills?: boolean; docTemplates?: boolean } | undefined;
 
+/**
+ * The menus' features from the bootstrap's: เทมเพลตเอกสาร needs both company
+ * switches, library v2 and document templates (kv2 phase 2a), as its page does.
+ */
+export function menuFeatures(features: { skills?: boolean; libraryV2?: boolean; docTemplates?: boolean } | undefined): MenuFeatures {
+	return { skills: features?.skills === true, docTemplates: features?.libraryV2 === true && features?.docTemplates === true };
+}
+
 export type NavIcon =
 	| 'home' | 'my-ai' | 'skills' | 'workflows' | 'programs' | 'knowledge' | 'history'
 	| 'settings' | 'team' | 'workspaces' | 'company' | 'account' | 'help';
