@@ -372,6 +372,10 @@ test('W0.1 home layout: two columns from 1100 px, and on a phone ต้องด
 	const css = dashboard.slice(dashboard.indexOf('<style>'));
 	assert.match(css, /\.home-layout \{\s*display: grid;\s*grid-template-columns: minmax\(0, 1fr\);\s*grid-template-areas: 'attention' 'overview' 'recent' 'skills';/, 'the phone order');
 	assert.match(css, /@media \(min-width: 1100px\) \{\s*\.home-layout \{\s*grid-template-columns: minmax\(0, 1fr\) 360px;[\s\S]*?grid-template-areas: 'attention overview' 'recent overview' 'recent skills';/, 'left ต้องดูแล and ล่าสุด, right ภาพรวม and Skills');
+	// Nothing to look at: ภาพรวม starts at the top, with no empty ต้องดูแล row above it.
+	assert.match(dashboard, /class:no-attention=\{attentionCount === 0\}/);
+	assert.match(css, /\.home-layout\.no-attention \{\s*grid-template-areas: 'overview' 'recent' 'skills';/);
+	assert.match(css, /@media \(min-width: 1100px\) \{[\s\S]*?\.home-layout\.no-attention \{\s*grid-template-rows: auto 1fr;\s*grid-template-areas: 'recent overview' 'recent skills';/);
 	assert.match(css, /\.home-attention \{\s*grid-area: attention;/);
 	assert.match(css, /\.home-skills \{\s*grid-area: skills;/);
 	const status = await readFile(new URL('./home/HomeStatus.svelte', import.meta.url), 'utf8');

@@ -248,7 +248,7 @@
 
 <!-- W0.1: two columns from 1100 px (ต้องดูแล and ล่าสุด at the left; ภาพรวม and Skills ที่ใช้บ่อย at the right);
      on a phone ต้องดูแล → ภาพรวม → ล่าสุด → Skills ที่ใช้บ่อย. The order is grid-template-areas, per breakpoint. -->
-<div class="home-layout" class:with-skills={skillsEnabled(data)}>
+<div class="home-layout" class:with-skills={skillsEnabled(data)} class:no-attention={attentionCount === 0}>
 
 {#if attentionCount > 0}
 	<section class="home-attention" aria-labelledby="home-attention-title">
@@ -310,12 +310,20 @@
 		align-items: start;
 		gap: 28px;
 	}
+	/* Nothing to look at: no empty ต้องดูแล row (and its gap) above ภาพรวม. */
+	.home-layout.no-attention {
+		grid-template-areas: 'overview' 'recent' 'skills';
+	}
 	@media (min-width: 1100px) {
 		.home-layout {
 			grid-template-columns: minmax(0, 1fr) 360px;
 			grid-template-rows: auto auto 1fr;
 			grid-template-areas: 'attention overview' 'recent overview' 'recent skills';
 			column-gap: 24px;
+		}
+		.home-layout.no-attention {
+			grid-template-rows: auto 1fr;
+			grid-template-areas: 'recent overview' 'recent skills';
 		}
 	}
 	.home-attention {
