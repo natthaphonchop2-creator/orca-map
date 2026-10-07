@@ -314,19 +314,17 @@
 .orca-workspace.orca-app .compact .workspace-mode-label {
   display: none;
 }
-/* "เชื่อม AI ของฉัน": a plain bordered button with the sparkle on an ink tile. The owner removed
-   every effect (orbit light, twinkle, glow, sweep) on 2026-10-07. */
 .orca-workspace.orca-app .workspace-pin {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px 10px 10px;
+  padding: 11px 12px;
   border: 1px solid var(--orca-line-strong);
   border-radius: var(--orca-radius-lg);
   background: var(--orca-surface);
   color: var(--orca-ink);
   text-decoration: none;
-  transition: border-color 0.15s var(--orca-ease);
+  transition: border-color 0.15s var(--orca-ease), box-shadow 0.15s var(--orca-ease);
 }
 .orca-workspace.orca-app .workspace-pin:hover {
   border-color: var(--orca-line-hover, var(--orca-line-strong));
@@ -336,40 +334,8 @@
   border-color: var(--orca-chosen);
   box-shadow: 0 0 0 1px var(--orca-chosen);
 }
-.orca-workspace.orca-app .workspace-pin-icon {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: #151823;
-  color: var(--orca-citron);
-}
 .orca-workspace.orca-app .workspace-pin svg {
   flex: none;
-}
-/* "คลังความรู้" keeps only its book on an ink tile; no edge light (owner, 2026-10-07). */
-.orca-workspace.orca-app .workspace-nav a .workspace-nav-ai-icon {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  margin: -3px;
-  border-radius: 6px;
-  background: #151823;
-}
-.orca-workspace.orca-app .workspace-nav a .workspace-nav-ai-icon svg {
-  width: 14px;
-  height: 14px;
-  color: var(--orca-citron);
-}
-@media screen {
-  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-pin-icon,
-  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-nav a .workspace-nav-ai-icon {
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-  }
 }
 .orca-workspace.orca-app .workspace-pin-copy {
   display: flex;
@@ -405,7 +371,7 @@
 }
 .orca-workspace.orca-app .compact .workspace-pin {
   justify-content: center;
-  padding: 8px 5px;
+  padding: 10px 5px;
 }
 .orca-workspace.orca-app .compact .workspace-pin-copy {
   display: none;
