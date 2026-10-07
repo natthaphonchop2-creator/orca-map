@@ -154,6 +154,10 @@ test('the rail\'s active item: a grey tile only on the rail; the citron dot only
 	assert.doesNotMatch(outside, /transition|animation/, 'w02.css: no motion outside no-preference');
 	assert.match(motion, /@media \(prefers-reduced-motion: no-preference\)/);
 	assert.doesNotMatch(motion, /glow|orbit|sweep|infinite/i, 'functional motion only');
+	// Touch screens: every tab bar and segment, ทีม's included, keeps 40 px (Codex W0.2 round 1, MINOR 3).
+	const coarse = motion.slice(motion.indexOf('@media (pointer: coarse)'));
+	for (const control of ['.team-tabs button', '.orca-page-tabs a', '.approvals-tabs button', '.audit-tabs a', '.detail-tabs a', '.dc-tabs button', '.seg button', '.cat-tabs button'])
+		assert.ok(coarse.slice(0, coarse.indexOf('min-height: 40px', coarse.indexOf(control))).includes(control), `${control} is in the 40 px rule`);
 	const system = await readFile(new URL('./orca-system.css', import.meta.url), 'utf8');
 	assert.match(system, /@media \(prefers-reduced-motion: reduce\) \{[^}]*transition-duration: 0\.01ms !important;[^}]*animation: none !important;[^}]*scroll-behavior: auto !important;/);
 });
@@ -380,4 +384,17 @@ test('⌘K from a row of an open menu: the menu closes and ไปที่… re
 	assert.match(source, /function leaveMenu\(\) \{\s*const menu = \(document\.activeElement as Element \| null\)\?\.closest\("\.pm"\);\s*const trigger = menu\?\.querySelector<HTMLElement>\(":scope > button"\);\s*menu\?\.querySelector<HTMLDialogElement>\("dialog\[open\]"\)\?\.close\(\);\s*creating = companyOpen = accountOpen = false;\s*trigger\?\.focus\(\);/, 'the phone sheet closes before its button takes focus');
 	const handler = source.slice(source.indexOf('function onShortcut('), source.indexOf('// ไปที่…: the pages'));
 	assert.match(handler, /if \(isJumpShortcut\(event\)\) \{\s*event\.preventDefault\(\);\s*leaveMenu\(\);\s*closeDrawer\(\);\s*jumping = true;/, 'the button is focused before ไปที่… remembers where to return');
+});
+
+// Codex W0.2 round 1, MAJOR 1: the search's cached titles follow access. The shell
+// recomputes the usable workspaces from every bootstrap, prunes the cache with them,
+// gives them to the target builder, and loads (once) only those.
+test('ค้นหา… keeps cached titles to the workspaces the viewer can use, on every bootstrap', async () => {
+	const source = await readFile(shell, 'utf8');
+	assert.match(source, /const usableHubs = \$derived\(usableHubIDs\(data\?\.hubs, data\?\.currentUserID\)\);/);
+	assert.match(source, /\$effect\(\(\) => \{\s*const ids = usableHubs;\s*untrack\(\(\) => keepWorkspaces\(ids\)\);\s*\}\);/);
+	assert.match(source, /usableHubIDs: usableHubs,\s*knowledge: jumpCache\.knowledge/);
+	assert.match(source, /void warmJumpCache\(\{\s*hubIDs: ids,\s*templates,[\s\S]*?usable: \(id\) => usableHubs\.includes\(id\),/);
+	assert.match(source, /const templates = features\?\.docTemplates === true;/, 'templates only with the company flag');
+	assert.match(source, /if \(!jumping \|\| platformMode \|\| !data\) return;/, 'only when the search opens, never on the platform');
 });

@@ -6,7 +6,7 @@
 	import { aiConnectionAppFor, aiConnectionReaches } from '$lib/orca/ai-connection';
 	import { aiConnection } from '$lib/orca/ai-connection.svelte';
 	import { currentCompany } from '$lib/orca/company';
-	import { rememberLibrary } from '$lib/orca/jump-cache.svelte';
+	import { forgetWorkspace, refusedStatus, rememberLibrary } from '$lib/orca/jump-cache.svelte';
 	import { term } from '$lib/orca/glossary';
 	import {
 		accessRequestMessage,
@@ -65,15 +65,18 @@
 		hubID,
 		initialKind,
 		initialCreate = false,
-		initialItem = '',
+		itemRequest,
 		onchanged
 	}: {
 		data: OrcaBootstrap;
 		hubID: string;
 		initialKind?: LibraryKind;
 		initialCreate?: boolean;
-		/** ค้นหา…'s link to one item (&item=): its page opens once the library is loaded. */
-		initialItem?: string;
+		/**
+		 * ค้นหา…'s link to one item (&item=), a new object for every navigation: its
+		 * page opens once the library is loaded, each time it is asked for.
+		 */
+		itemRequest?: { id: string };
 		onchanged: () => Promise<void>;
 	} = $props();
 
@@ -205,17 +208,24 @@
 		const list = items;
 		if (id && loadedHub === id) untrack(() => rememberLibrary(id, list));
 	});
-	// ค้นหา…'s link to one item (&item=): its page, once, after the library is loaded.
-	const consumedItems = new Set<string>();
+	// ค้นหา…'s link to one item (&item=): each navigation is its own request (A, B, then A
+	// again opens A; Codex W0.2 round 1, MAJOR 2), handled once the library is loaded.
+	let pendingItem = $state<{ id: string }>();
 	$effect(() => {
-		const id = hub?.id;
-		const wanted = initialItem;
-		if (!id || !wanted || loadedHub !== id) return;
+		const request = itemRequest;
 		untrack(() => {
-			const key = `${id}:${wanted}`;
-			if (consumedItems.has(key) || dirty) return;
-			consumedItems.add(key);
-			const found = items.find((item) => item.id === wanted);
+			pendingItem = request?.id ? request : undefined;
+		});
+	});
+	$effect(() => {
+		const request = pendingItem;
+		const id = hub?.id;
+		if (!request || !id || loadedHub !== id) return;
+		untrack(() => {
+			pendingItem = undefined;
+			// Unsaved text in the editor: it stays; the request is dropped, never swapped in under it.
+			if (dirty) return;
+			const found = items.find((item) => item.id === request.id);
 			if (!found) return;
 			kind = found.kind;
 			show({ name: 'detail', id: found.id });
@@ -257,6 +267,8 @@
 			schedulePoll();
 		} catch (cause) {
 			if (request !== requestNumber || disposed) return;
+			// Refused (signed out, no access, gone, company stopped): ค้นหา… drops this workspace's titles.
+			if (refusedStatus(getHttpStatusCode(cause))) forgetWorkspace(id);
 			// The company is suspended or closed: the page goes (company-stop
 			// opens the suspended page); nothing here asks again.
 			if (companyRefused(cause)) return;

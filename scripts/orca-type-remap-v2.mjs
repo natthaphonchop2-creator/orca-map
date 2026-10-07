@@ -10,7 +10,8 @@
 //   node scripts/orca-type-remap-v2.mjs --since <rev> [--check]
 //     As v1's --since: remap only the lines `git diff <rev>` adds (another branch's hunks in a
 //     file that is already marked), once per merge, and commit. It stops if <rev> is older
-//     than this remap (an added line holds the v2 marker).
+//     than this remap (an added line holds the v2 marker), and a second run against the same
+//     <rev> stops too: each run stamps the files it changes with the marker.
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, relative } from 'node:path';
@@ -59,7 +60,7 @@ function addedLines(rev) {
 			const start = Number(m[1]), count = m[2] === undefined ? 1 : Number(m[2]);
 			for (let i = 0; i < count; i++) map.get(file).add(start + i);
 		} else if (file && line.startsWith('+') && line.includes(MARK)) {
-			throw new Error(`--since ${rev} reaches back past the remap (${file} gains the marker); use a later revision`);
+			throw new Error(`--since ${rev}: ${file} gains a remap v2 marker or stamp since then, so its lines may already be remapped (the remap itself, or an earlier --since run); commit and use a later revision`);
 		}
 	}
 	return map;
@@ -102,6 +103,16 @@ for (const [file, only] of targets) {
 	if (!n) continue;
 	changed++; decls += n;
 	if (src.includes(MARK)) {
+		// A --since run stamps the file next to its marker. The stamp holds the marker, so a second
+		// run against the same <rev> sees it as an added line and stops (the guard in addedLines)
+		// instead of stepping the same lines down again (22 -> 20 -> 18; Codex W0.2 round 1, NOTE 4).
+		if (only) {
+			const lines = out.split('\n');
+			const at = lines.findIndex((line) => line.includes(MARK));
+			const html = lines[at].trim().startsWith('<!--');
+			lines.splice(at + 1, 0, html ? `<!-- ${MARK}: --since ${since} -->` : `${lines[at].match(/^\s*/)[0]}/* ${MARK}: --since ${since} */`);
+			out = lines.join('\n');
+		}
 		if (check) console.log(`${relative('.', file)}: ${n}`);
 		else writeFileSync(file, out);
 		continue;

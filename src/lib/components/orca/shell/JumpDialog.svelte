@@ -15,6 +15,7 @@
 		groupLabel,
 		placeholder,
 		emptyHint,
+		loading = false,
 		onpick
 	}: {
 		open?: boolean;
@@ -23,6 +24,8 @@
 		placeholder: string;
 		/** Under "ไม่พบ …": what can be found here. */
 		emptyHint: string;
+		/** The workspaces' titles are still loading: a quiet row says so, typing never waits. */
+		loading?: boolean;
 		/** Before a chosen row opens (a company switch may wait for a save). */
 		onpick?: (target: JumpTarget, event: MouseEvent) => void;
 	} = $props();
@@ -154,12 +157,15 @@
 							>
 						{/each}
 					</div>
-				{:else}
+				{/each}
+				<!-- Nothing found, unless titles are still loading (then only the quiet row below). -->
+				{#if !sections.length && !loading}
 					<div class="jump-empty" role="status">
 						<p>{query.trim() ? t(`ไม่พบ “${query.trim()}”`, `Nothing found for “${query.trim()}”`) : t('ยังไม่มีอะไรให้ค้น', 'Nothing to search yet')}</p>
 						<p class="jump-empty-hint">{emptyHint}</p>
 					</div>
-				{/each}
+				{/if}
+				{#if loading}<p class="jump-loading" role="status">{t('กำลังโหลดความรู้…', 'Loading knowledge…')}</p>{/if}
 			{/if}
 		</div>
 		<footer class="jump-foot" aria-hidden="true">
@@ -293,6 +299,13 @@
 		margin-top: 4px;
 		color: var(--orca-muted);
 		font-size: 12px;
+	}
+	.jump-loading {
+		margin: 0;
+		padding: 8px 10px 4px;
+		color: var(--orca-subtle);
+		font-size: 12px;
+		line-height: 1.4;
 	}
 	.jump-foot {
 		display: flex;

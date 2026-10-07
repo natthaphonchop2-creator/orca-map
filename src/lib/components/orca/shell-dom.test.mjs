@@ -14,7 +14,7 @@ const PLAYWRIGHT = '/Users/natthaphon/Developer/MCP orgzi/outputs/node_modules/p
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 const BUILD = path.join(root, 'build');
 const ORIGIN = 'https://orca.test';
-const sources = ['src/lib/components/orca/AppShell.svelte', 'src/lib/components/orca/shell/PopMenu.svelte', 'src/lib/components/orca/shell/CreateMenu.svelte', 'src/lib/components/orca/shell/JumpDialog.svelte', 'src/lib/components/orca/w01.css', 'src/lib/components/orca/w02.css', 'src/lib/orca/rail.ts', 'src/lib/orca/menu-keys.ts', 'src/lib/orca/jump-targets.ts'];
+const sources = ['src/lib/components/orca/AppShell.svelte', 'src/lib/components/orca/shell/PopMenu.svelte', 'src/lib/components/orca/shell/CreateMenu.svelte', 'src/lib/components/orca/shell/JumpDialog.svelte', 'src/lib/components/orca/w01.css', 'src/lib/components/orca/w02.css', 'src/lib/orca/rail.ts', 'src/lib/orca/menu-keys.ts', 'src/lib/orca/jump-targets.ts', 'src/lib/orca/jump-cache.svelte.ts'];
 
 function unavailable() {
 	if (!existsSync(PLAYWRIGHT)) return `Playwright is not at ${PLAYWRIGHT}`;
@@ -31,18 +31,18 @@ const bootstrap = {
 	organization: { displayName: 'Siam Herb', timezone: 'Asia/Bangkok', version: 1 },
 	currentUserID: '7', canManage: true, canManageRoles: true, members, units: [], connections: [], hubs: [], unifiedConnectURL: 'https://orca.test/mcp', features: {}
 };
-function api(pathname) {
+function api(pathname, boot = bootstrap) {
 	const p = pathname.replace(/^\/api/, '');
 	if (p === '/me') return [200, { id: '7', email: 'manop@example.test', username: 'manop', iconURL: '', role: 1, effectiveRole: 1, groups: [] }];
-	if (p === '/orca/bootstrap') return [200, bootstrap];
+	if (p === '/orca/bootstrap') return [200, boot];
 	if (p === '/orca/companies') return [404, { error: 'not found' }];
 	if (p === '/app-preferences') return [200, {}];
 	if (p === '/orca/me/ai-apps' || p === '/orca/secrets') return [200, { sessions: [], keys: [] }];
 	return [200, { items: [] }];
 }
 
-async function open(browser, viewport, { reducedMotion = 'no-preference' } = {}) {
-	const context = await browser.newContext({ viewport, deviceScaleFactor: 1, locale: 'en-US', reducedMotion });
+async function open(browser, viewport, { reducedMotion = 'no-preference', hasTouch = false, isMobile = false, boot = bootstrap, answer, target = '/app' } = {}) {
+	const context = await browser.newContext({ viewport, deviceScaleFactor: 1, locale: 'en-US', reducedMotion, hasTouch, isMobile });
 	await context.addInitScript(() => {
 		try {
 			localStorage.setItem('orca.workspace.rail.pinned', '0');
@@ -53,7 +53,7 @@ async function open(browser, viewport, { reducedMotion = 'no-preference' } = {})
 	await context.route(`${ORIGIN}/**`, async (route) => {
 		const url = new URL(route.request().url());
 		if (url.pathname.startsWith('/api/')) {
-			const [status, body] = api(url.pathname);
+			const [status, body] = (await answer?.(url.pathname.replace(/^\/api/, ''))) ?? api(url.pathname, boot);
 			return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 		}
 		const file = path.join(BUILD, decodeURIComponent(url.pathname));
@@ -61,7 +61,7 @@ async function open(browser, viewport, { reducedMotion = 'no-preference' } = {})
 		return route.fulfill({ path: path.join(BUILD, 'fallback.html'), contentType: 'text/html' });
 	});
 	const page = await context.newPage();
-	await page.goto(`${ORIGIN}/app?lang=en`, { waitUntil: 'networkidle' });
+	await page.goto(`${ORIGIN}${target}${target.includes('?') ? '&' : '?'}lang=en`, { waitUntil: 'networkidle' });
 	await page.waitForSelector('.w1-create');
 	return { context, page };
 }
@@ -173,7 +173,7 @@ test('ค้นหา… finds a settings tab and a person, opens the active row
 		assert.deepEqual(await groups(), ['Members']);
 		assert.match(await page.locator('.jump-row.active').textContent(), /Manop/);
 		await page.fill('dialog.orca-jump input', 'zzqx');
-		assert.match(await page.locator('.jump-empty').textContent(), /Nothing found for “zzqx”[\s\S]*a page, a program or a person/);
+		assert.match(await page.locator('.jump-empty').textContent(), /Nothing found for “zzqx”[\s\S]*a page, a program, a person or knowledge/);
 		await page.fill('dialog.orca-jump input', 'acc');
 		const rows = await page.$$eval('.jump-row', (nodes) => nodes.map((node) => node.querySelector('.jump-label').textContent));
 		const at = rows.indexOf('My account');
@@ -213,6 +213,70 @@ test('reduced motion turns the W0.2 transitions and animations off', { skip }, a
 		await still.page.waitForSelector('dialog.orca-jump[open]');
 		assert.equal(await still.page.evaluate(() => getComputedStyle(document.querySelector('dialog.orca-jump')).animationName), 'none', 'no animation');
 		await still.context.close();
+	} finally {
+		await browser.close();
+	}
+});
+
+// The visual sweep of W0.2: on a fresh page ⌘K then a knowledge title found nothing,
+// because titles came only from an opened library. The first opening now loads the
+// titles of the workspaces the viewer can use, quietly, and typing never waits.
+test('a cold search finds knowledge after the first opening loads it: only usable workspaces, no templates while the flag is off, a quiet loading row', { skip }, async () => {
+	const { chromium } = createRequire(import.meta.url)(PLAYWRIGHT);
+	const browser = await chromium.launch();
+	try {
+		const hubs = [
+			{ id: 'sales', name: 'Sales desk', status: 'active', memberIDs: ['7'], effectiveMemberIDs: ['7'], unitIDs: [], toolNames: [], connectionID: '', dailyLimit: 0, version: 1, createdAt: '', updatedAt: '', connectURL: '', usedToday: 0, description: '' },
+			{ id: 'hr', name: 'People desk', status: 'active', memberIDs: ['8'], effectiveMemberIDs: ['8'], unitIDs: [], toolNames: [], connectionID: '', dailyLimit: 0, version: 1, createdAt: '', updatedAt: '', connectURL: '', usedToday: 0, description: '' }
+		];
+		const asked = [];
+		let release;
+		const held = new Promise((resolve) => (release = resolve));
+		const answer = async (p) => {
+			if (!/^\/orca\/hubs\//.test(p)) return undefined;
+			asked.push(p);
+			if (p === '/orca/hubs/sales/library') {
+				await held;
+				return [200, { items: [{ id: 'k1', hubID: 'sales', title: 'Return policy', kind: 'knowledge', status: 'published', ownerID: '7', createdAt: '', updatedAt: '', version: 1 }], departments: [], members: [] }];
+			}
+			return [200, { items: [] }];
+		};
+		const { context, page } = await open(browser, { width: 1440, height: 900 }, { boot: { ...bootstrap, hubs }, answer });
+		assert.deepEqual(asked, [], 'nothing is fetched before the search opens');
+		await page.keyboard.press('Control+KeyK');
+		await page.waitForSelector('dialog.orca-jump[open]');
+		await page.keyboard.type('policy');
+		await page.waitForSelector('.jump-loading');
+		assert.match(await page.locator('.jump-loading').textContent(), /Loading knowledge/);
+		assert.equal(await page.locator('.jump-empty').count(), 0, 'no "Nothing found" while it loads');
+		assert.equal(await page.locator('dialog.orca-jump input').inputValue(), 'policy', 'typing went through meanwhile');
+		release();
+		await page.waitForSelector('.jump-row');
+		assert.equal(await page.locator('.jump-loading').count(), 0, 'the loading row goes');
+		assert.equal(await page.locator('.jump-row.active .jump-label').textContent(), 'Return policy');
+		assert.deepEqual(asked, ['/orca/hubs/sales/library'], 'only the usable workspace, and no templates while the flag is off');
+		await page.keyboard.press('Escape');
+		await page.keyboard.press('Control+KeyK');
+		await page.waitForSelector('dialog.orca-jump[open]');
+		assert.equal(asked.length, 1, 'loaded once per page');
+		await context.close();
+	} finally {
+		await browser.close();
+	}
+});
+
+// Codex W0.2 round 1, MINOR 3: every tab bar and segment keeps a 40 px tap target on a touch screen.
+test('on a touch screen the tab bars and segments are at least 40 px tall (ทีม\'s สมาชิก · คำเชิญ · แผนก included)', { skip }, async () => {
+	const { chromium } = createRequire(import.meta.url)(PLAYWRIGHT);
+	const browser = await chromium.launch();
+	try {
+		const { context, page } = await open(browser, { width: 390, height: 844 }, { hasTouch: true, isMobile: true, target: '/app?view=members' });
+		assert.equal(await page.evaluate(() => matchMedia('(pointer: coarse)').matches), true, 'a coarse pointer');
+		await page.waitForSelector('.team-tabs button');
+		const heights = await page.$$eval('.team-tabs button, .orca-page-tabs a', (nodes) => nodes.map((node) => Math.round(node.getBoundingClientRect().height)));
+		assert.ok(heights.length >= 4, `the tabs: ${heights}`);
+		assert.ok(heights.every((height) => height >= 40), `all at least 40 px: ${heights}`);
+		await context.close();
 	} finally {
 		await browser.close();
 	}

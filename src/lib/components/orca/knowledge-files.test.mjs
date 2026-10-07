@@ -735,7 +735,7 @@ test('a batch sent in full whose answer is a refusal midway is unknown, asked fo
 				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
 				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
 				getHttpStatusCode: (error) => error.status, isAbortError: (error) => error?.name === 'AbortError', parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
-				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, localeHref: (value) => value,
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, forgetWorkspace: () => {}, refusedStatus: () => false, localeHref: (value) => value,
 				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
 				OrcaLibraryService: {
 					load: async (id) => { loads.push(id); return { items: [], members, departments: [] }; },
@@ -806,7 +806,7 @@ test('under an editor, an older reading answer that is refused never stops the n
 				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
 				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
 				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
-				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, localeHref: (value) => value,
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, forgetWorkspace: () => {}, refusedStatus: () => false, localeHref: (value) => value,
 				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
 				OrcaLibraryService: {
 					load: () => (answers.length ? answers.shift()() : Promise.resolve({ items: [reading], members, departments: [] })),
@@ -921,7 +921,7 @@ test('access lost under an editor: the editor says so and keeps the text; once i
 				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
 				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales'), state: {} },
 				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
-				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, localeHref: (value) => value,
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, forgetWorkspace: () => {}, refusedStatus: () => false, localeHref: (value) => value,
 				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
 				OrcaLibraryService: {
 					load: async (id) => {
@@ -968,7 +968,7 @@ async function libraryPage(t, answer) {
 				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
 				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales'), state: {} },
 				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
-				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, localeHref: (value) => value,
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, forgetWorkspace: () => {}, refusedStatus: () => false, localeHref: (value) => value,
 				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
 				OrcaLibraryService: { load: () => answer(), usage: async () => ({ bytes: 0, bytesLimit: 1, chars: 0, charsLimit: 1, uploadsToday: 0, uploadsLimit: 50, items: 0, itemsLimit: 1000 }) }
 			}
@@ -982,6 +982,57 @@ async function libraryPage(t, answer) {
 	await new Promise((resolve) => setImmediate(resolve));
 	return { view, flush: client.flush };
 }
+
+// ค้นหา…'s &item= (W0.2, Codex round 1 MAJOR 2): every navigation is its own request, so
+// choosing A, then B, then A again while staying on คลังความรู้ shows A; unsaved text still wins.
+test('search results A, then B, then A on the same library page open A the last time; an open editor with unsaved text stays', async (t) => {
+	const client = await import('svelte/internal/client');
+	const harness = await scriptHarness('./KnowledgeLibrary.svelte', '{ setRequest(value) { itemRequest = value; }, setDirty(value) { dirty = value; }, show, get screen() { return screen; }, stopPolling }');
+	const salesHub = hub('sales', { memberIDs: ['me'] });
+	let view;
+	const stop = client.effect_root(() => {
+		view = harness(
+			{ data: { hubs: [salesHub], currentUserID: 'me', canManage: true, features: { libraryV2: true }, members, units: [] }, hubID: 'sales', initialKind: undefined, initialCreate: false, itemRequest: undefined, onchanged: async () => {} },
+			{
+				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
+				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales'), state: {} },
+				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, forgetWorkspace: () => {}, refusedStatus: () => false, localeHref: (value) => value,
+				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
+				OrcaLibraryService: { load: async () => ({ items: [article('a'), article('b')], members, departments: [] }), usage: async () => ({ bytes: 0, bytesLimit: 1, chars: 0, charsLimit: 1, uploadsToday: 0, uploadsLimit: 50, items: 0, itemsLimit: 1000 }) }
+			}
+		);
+	});
+	t.after(() => {
+		view.stopPolling();
+		stop();
+	});
+	client.flush();
+	await new Promise((resolve) => setImmediate(resolve));
+	client.flush();
+	const open = (id) => {
+		view.setRequest({ id });
+		client.flush();
+		return view.screen;
+	};
+	assert.deepEqual(open('a'), { name: 'detail', id: 'a' });
+	assert.deepEqual(open('b'), { name: 'detail', id: 'b' });
+	assert.deepEqual(open('a'), { name: 'detail', id: 'a' }, 'A again, after B');
+	// The same item asked for again (a new navigation to the same address) after going back to the list.
+	view.show({ name: 'list' });
+	client.flush();
+	assert.deepEqual(open('a'), { name: 'detail', id: 'a' }, 'the same id, a new request');
+	// Unsaved text: the editor stays, whatever is asked for.
+	view.show({ name: 'editor', kind: 'knowledge', id: 'a' });
+	view.setDirty(true);
+	client.flush();
+	assert.equal(open('b').name, 'editor', 'the editor with unsaved text is never swapped');
+	// An id the library does not hold changes nothing.
+	view.setDirty(false);
+	view.show({ name: 'list' });
+	client.flush();
+	assert.deepEqual(open('gone'), { name: 'list' });
+});
 
 test('a load asked for before the person began typing never closes their editor (Codex S7 fourth confirmation #2)', async (t) => {
 	for (const outcome of ['refused', 'gone']) {
@@ -1433,7 +1484,7 @@ test('a file action or an upload starts a fresh polling budget and asks for the 
 				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
 				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
 				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
-				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, localeHref: (value) => value,
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, forgetWorkspace: () => {}, refusedStatus: () => false, localeHref: (value) => value,
 				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
 				OrcaLibraryService: {
 					load: async () => { loadCount += 1; return { items: [reading('old')], members, departments: [] }; },
@@ -1489,7 +1540,7 @@ test('the quota meter asks again when a reading ends, and keeps only its newest 
 				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
 				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
 				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
-				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, localeHref: (value) => value,
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, forgetWorkspace: () => {}, refusedStatus: () => false, localeHref: (value) => value,
 				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
 				OrcaLibraryService: {
 					load: async () => ({ ...(lists.length > 1 ? lists.shift() : lists[0]), members, departments: [] }),
@@ -1604,7 +1655,7 @@ test('with the day\'s uploads used up nothing is sent, and each file says why (t
 				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
 				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
 				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
-				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, localeHref: (value) => value,
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, forgetWorkspace: () => {}, refusedStatus: () => false, localeHref: (value) => value,
 				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
 				OrcaLibraryService: {
 					load: async () => ({ items: [], members, departments: [] }),
@@ -1644,7 +1695,7 @@ test('the meter asks again when a recheck, or the reading under an editor, shows
 					...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
 					page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
 					getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
-					aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, localeHref: (value) => value,
+					aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, forgetWorkspace: () => {}, refusedStatus: () => false, localeHref: (value) => value,
 					memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
 					OrcaLibraryService: {
 						load: async () => ({ items: lists.length > 1 ? lists.shift() : lists[0], members, departments: [] }),
@@ -1706,7 +1757,7 @@ test('"ลองอีกครั้ง" goes through the same quota gate; unsa
 				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
 				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
 				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
-				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, localeHref: (value) => value,
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, forgetWorkspace: () => {}, refusedStatus: () => false, localeHref: (value) => value,
 				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
 				OrcaLibraryService: {
 					load: async () => ({ items: [reading, article('a')], members, departments: [] }),
@@ -1879,7 +1930,7 @@ test('a quiet ask dropped while an upload goes on in batches keeps the asking go
 				...k, t: th, term, untrack: client.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
 				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
 				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
-				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, localeHref: (value) => value,
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: () => 'default', rememberLibrary: () => {}, forgetWorkspace: () => {}, refusedStatus: () => false, localeHref: (value) => value,
 				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
 				OrcaLibraryService: {
 					load: () => (queue.length ? queue.shift()() : Promise.resolve({ items: [reading('r')], members, departments: [] })),

@@ -26,6 +26,19 @@ export type JumpTarget = {
 	reload?: boolean;
 };
 
+/** The workspaces whose library the viewer reads (knowledge.ts libraryScope's "mine"): open and theirs. */
+const OPEN_HUB = ['active', 'draft', 'paused'];
+export function usableHubIDs(hubs: readonly { id?: unknown; status?: unknown; memberIDs?: unknown; effectiveMemberIDs?: unknown }[] | null | undefined, currentUserID: string | undefined): string[] {
+	if (!currentUserID || !Array.isArray(hubs)) return [];
+	return hubs
+		.filter((hub) => {
+			if (!hub || typeof hub.id !== 'string' || !OPEN_HUB.includes(hub.status as string)) return false;
+			const members = hub.effectiveMemberIDs !== undefined ? hub.effectiveMemberIDs : hub.memberIDs;
+			return Array.isArray(members) && members.includes(currentUserID);
+		})
+		.map((hub) => hub.id as string);
+}
+
 type Named = { id?: unknown; name?: unknown; displayName?: unknown; title?: unknown };
 const text = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
 const id = (value: unknown) => (typeof value === 'string' || typeof value === 'number' ? String(value) : '');
@@ -120,6 +133,12 @@ export type JumpSources = {
 	members?: readonly (Named & { email?: unknown; status?: unknown })[] | null;
 	/** A person's display name (the shell's memberName). */
 	memberName?: (member: never) => string;
+	/**
+	 * The workspaces whose library the viewer can read now (usableHubIDs). When
+	 * given, knowledge and templates of any other workspace are left out, however
+	 * they were cached (Codex W0.2 round 1, MAJOR 1).
+	 */
+	usableHubIDs?: readonly string[];
 	/** What a page already loaded: the knowledge library's and the document templates' titles. */
 	knowledge?: readonly { id: string; title: string; hubID: string; kind?: string; hubName?: string }[] | null;
 	templates?: readonly { id: string; title: string; hubID: string; hubName?: string }[] | null;
@@ -182,17 +201,18 @@ export function buildJumpTargets(sources: JumpSources): JumpTarget[] {
 			const email = text(member.email);
 			add({ id: `person:${key}`, label: name || email, href: `/app?view=members&member=${encodeURIComponent(key)}`, group: 'person', hint: name ? email : undefined, keywords: email });
 		}
+	const usable = sources.usableHubIDs ? new Set(sources.usableHubIDs) : undefined;
 	for (const item of list(sources.knowledge)) {
 		const key = id(item?.id);
 		const hub = id(item?.hubID);
-		if (!key || !hub) continue;
+		if (!key || !hub || (usable && !usable.has(hub))) continue;
 		const kind = item.kind === 'template' || item.kind === 'file' ? item.kind : 'knowledge';
 		add({ id: `knowledge:${key}`, label: text(item.title), href: `/app?view=knowledge&hub=${encodeURIComponent(hub)}&kind=${kind}&item=${encodeURIComponent(key)}`, group: 'knowledge', hint: item.hubName || hubNames.get(hub) || undefined });
 	}
 	for (const item of list(sources.templates)) {
 		const key = id(item?.id);
 		const hub = id(item?.hubID);
-		if (!key || !hub) continue;
+		if (!key || !hub || (usable && !usable.has(hub))) continue;
 		add({ id: `template:${key}`, label: text(item.title), href: `/app?view=documents&hub=${encodeURIComponent(hub)}&template=${encodeURIComponent(key)}`, group: 'template', hint: item.hubName || hubNames.get(hub) || undefined });
 	}
 	// Another of the person's companies: a new page, like the switcher.

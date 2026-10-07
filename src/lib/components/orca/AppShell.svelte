@@ -8,8 +8,11 @@
   import { hubAsksApproval } from "$lib/orca/approvals";
   import { term } from "$lib/orca/glossary";
   import { createMenu, createShortcut, menuFeatures, settingsEntries, workspaceSections, type CreateItem, type NavIcon, type NavSectionID, type SettingsEntryID } from "$lib/orca/workspace-nav";
-  import { buildJumpTargets, type JumpGroup, type JumpTarget } from "$lib/orca/jump-targets";
-  import { jumpCache } from "$lib/orca/jump-cache.svelte";
+  import { buildJumpTargets, usableHubIDs, type JumpGroup, type JumpTarget } from "$lib/orca/jump-targets";
+  import { jumpCache, keepWorkspaces, warmJumpCache } from "$lib/orca/jump-cache.svelte";
+  import { getHttpStatusCode } from "$lib/errors";
+  import { OrcaLibraryService } from "$lib/services/orca-library";
+  import { OrcaDocTemplateService } from "$lib/services/orca-doc-templates";
   import { createSequence, isJumpShortcut } from "$lib/orca/menu-keys";
   import { createRail, railFocusTarget, type RailState } from "$lib/orca/rail";
   import {
@@ -380,6 +383,7 @@
         hubs: data?.hubs,
         members: data?.members,
         memberName: (member: Parameters<typeof memberName>[0]) => memberName(member),
+        usableHubIDs: usableHubs,
         knowledge: jumpCache.knowledge.map((item) => ({ ...item, hubName: hubName(item.hubID) })),
         templates: features?.docTemplates ? jumpCache.templates.map((item) => ({ ...item, hubName: hubName(item.hubID) })) : [],
         // The platform: its customer companies as its pages listed them; a company: the switcher's.
@@ -400,9 +404,34 @@
   );
   const jumpEmptyHint = $derived(
     platformMode ? t("ลองค้นชื่อหน้า หรือชื่อบริษัท", "Try a page or a company name")
-      : canManage ? t("ลองค้นชื่อหน้า โปรแกรม หรือคน", "Try a page, a program or a person")
-      : t("ลองค้นชื่อหน้า หรือพื้นที่ทำงาน", "Try a page or a workspace name"),
+      : canManage ? t("ลองค้นชื่อหน้า โปรแกรม คน หรือความรู้", "Try a page, a program, a person or knowledge")
+      : t("ลองค้นชื่อหน้า พื้นที่ทำงาน หรือความรู้", "Try a page, a workspace or knowledge"),
   );
+  // The workspaces whose library this viewer reads now. Whenever the bootstrap
+  // changes, the titles of any other workspace leave the search at once (Codex
+  // W0.2 round 1, MAJOR 1).
+  const usableHubs = $derived(usableHubIDs(data?.hubs, data?.currentUserID));
+  $effect(() => {
+    const ids = usableHubs;
+    untrack(() => keepWorkspaces(ids));
+  });
+  // The first ค้นหา… of the page loads the usable workspaces' titles quietly, so a
+  // cold search finds knowledge too (W0.2 visual sweep). Typing never waits for it.
+  $effect(() => {
+    if (!jumping || platformMode || !data) return;
+    const ids = usableHubs;
+    const templates = features?.docTemplates === true;
+    untrack(() => {
+      void warmJumpCache({
+        hubIDs: ids,
+        templates,
+        loadLibrary: (id) => OrcaLibraryService.load(id),
+        loadTemplates: (id) => OrcaDocTemplateService.list(id),
+        status: (cause) => getHttpStatusCode(cause) ?? undefined,
+        usable: (id) => usableHubs.includes(id),
+      });
+    });
+  });
   // Another company from the search: the same guard as the switcher (a save in flight waits).
   function pickJump(target: JumpTarget, event: MouseEvent) {
     if (target.group !== "company" || !target.reload) return;
@@ -657,6 +686,6 @@
       {@render children()}
     </main>
   </div>
-  <JumpDialog bind:open={jumping} targets={jumpTargets} groupLabel={jumpGroupLabel} placeholder={jumpPlaceholder} emptyHint={jumpEmptyHint} onpick={pickJump} />
+  <JumpDialog bind:open={jumping} targets={jumpTargets} groupLabel={jumpGroupLabel} placeholder={jumpPlaceholder} emptyHint={jumpEmptyHint} loading={jumpCache.loading && !platformMode} onpick={pickJump} />
   <Toast />
 </div>

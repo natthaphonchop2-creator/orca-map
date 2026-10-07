@@ -197,7 +197,7 @@ test('a poll of the knowledge library meets the suspension: the page stops, and 
 				...k, t: th, term, untrack: svelte.untrack, onDestroy: () => {}, beforeNavigate: () => {}, goto: async () => {}, replaceState: () => {},
 				page: { url: new URL('https://orca.example.test/app?view=knowledge&hub=sales&kind=file'), state: {} },
 				getHttpStatusCode: (error) => error.status, isAbortError: () => false, parseErrorContent: (error) => ({ status: error.status ?? 0, message: error.message ?? '' }),
-				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: company.currentCompany, rememberLibrary: () => {}, localeHref: (value) => value,
+				aiConnection: {}, aiConnectionReaches: () => true, aiConnectionAppFor: () => 'Claude', currentCompany: company.currentCompany, rememberLibrary: () => {}, forgetWorkspace: () => {}, refusedStatus: () => false, localeHref: (value) => value,
 				memberName: (member) => member.displayName, orcaError: (error) => error.message, statusLabels: {}, showToast: () => {}, connectionReady: () => true,
 				OrcaLibraryService: {
 					load: (id) => client.doGet(libraryPath(id), { fetch, dontLogErrors: true }),

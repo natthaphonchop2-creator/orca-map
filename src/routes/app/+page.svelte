@@ -103,6 +103,8 @@
           ? "file"
           : undefined,
   );
+  // ค้นหา…'s &item=: a new request object for every navigation, so A, B, then A opens A again.
+  const knowledgeItemRequest = $derived({ id: page.url.searchParams.get("item") ?? "", url: page.url });
   const createLibraryItem = $derived(
     !!libraryKind && page.url.searchParams.get("create") === "1",
   );
@@ -335,7 +337,7 @@
       {hubID}
       initialKind={libraryKind}
       initialCreate={createLibraryItem}
-      initialItem={page.url.searchParams.get("item") ?? ""}
+      itemRequest={knowledgeItemRequest}
       onchanged={refresh}
     />
   {:else if view === "documents"}<DocumentsView data={currentData!} {hubID} templateID={page.url.searchParams.get("template") ?? ""} />
