@@ -82,7 +82,7 @@
   </header>
   <main class="o-auth o-wrap">
     <section class="o-auth-story">
-      <p class="o-login-eyebrow"><span aria-hidden="true"></span>ORCA Workspace</p>
+      <p class="o-login-eyebrow">ORCA Workspace</p>
       <h1>
         {t("พื้นที่ทำงาน AI", "The AI workspace")}<br />{t(
           "สำหรับบริษัทของคุณ",

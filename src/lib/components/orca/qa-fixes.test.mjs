@@ -122,3 +122,16 @@ test('W0.1: the sign-in, invite, CompanyGate and file pages use the light primar
 		}
 	}
 });
+
+test('W0.1: the sign-in page says ORCA Workspace in plain small grey text, never a pill with a dot', async () => {
+	const page = await read('../../../routes/login/+page.svelte');
+	assert.match(page, /<p class="o-login-eyebrow">ORCA Workspace<\/p>/);
+	assert.doesNotMatch(page, /o-login-eyebrow"><span/, 'no citron dot');
+	const login = (await read('./login.css')).replace(/\/\*[\s\S]*?\*\//g, '');
+	const rule = login.match(/\.orca\.o-auth-page\.o-login \.o-login-eyebrow \{[^}]*\}/)?.[0];
+	assert.ok(rule, 'login.css styles the line');
+	assert.match(rule, /color: var\(--login-muted\);/);
+	assert.match(rule, /font-size: 12\.5px;/);
+	assert.doesNotMatch(rule, /border|background|border-radius|padding|height/, 'no pill: no border, fill, rounding or padding');
+	assert.doesNotMatch(login, /\.o-login-eyebrow span/, 'the dot rule is gone');
+});
