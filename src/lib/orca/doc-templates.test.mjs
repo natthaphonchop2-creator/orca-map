@@ -54,7 +54,13 @@ test('document templates need both company switches', () => {
 test('a refusal is said in plain Thai, never the parser\'s words', () => {
 	assert.match(d.refusalText('banned_function', th), /WEBSERVICE/);
 	assert.match(d.refusalText('scan_timeout', th), /ไม่ทันเวลา/);
-	assert.match(d.refusalText('external_relationship', th), /ลิงก์/);
+	assert.match(d.refusalText('external_relationship', th), /ดึงรูปหรือข้อมูล/);
+	// A link to a local or network file has its own words, in both languages, and neither is the generic text.
+	assert.match(d.refusalText('external_hyperlink_scheme', th), /ไฟล์ในเครื่องหรือในเครือข่าย/);
+	assert.match(d.refusalText('external_hyperlink_scheme', (_th, en) => en), /https:\/\//);
+	assert.notEqual(d.refusalText('external_hyperlink_scheme', th), d.refusalText('external_relationship', th));
+	assert.notEqual(d.refusalText('external_hyperlink_scheme', th), d.refusalText('anything_else', th));
+	for (const reason of ['external_relationship', 'external_hyperlink_scheme']) assert.doesNotMatch(d.refusalText(reason, th), /เพิกถอน|กรุณา/);
 	const unknown = d.refusalText('zip: not a valid zip file at offset 12', th);
 	assert.doesNotMatch(unknown, /zip|offset/);
 	assert.equal(d.versionStateText('scanned', th), 'รอตรวจทาน');
