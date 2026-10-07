@@ -82,7 +82,9 @@ export function refusalText(reason: string | undefined, t: Translate): string {
 	const texts: Record<string, [string, string]> = {
 		macro: ['ไฟล์มีมาโคร บันทึกเป็น .xlsx ใน Excel แล้วอัปโหลดใหม่', 'The file has macros. Save it as .xlsx and upload it again.'],
 		encrypted_or_legacy: ['ไฟล์มีรหัสผ่านหรือเป็น Excel แบบเก่า เปิดรหัสแล้วบันทึกเป็น .xlsx', 'The file is password-protected or an old format. Remove the password and save it as .xlsx.'],
-		external_relationship: ['ไฟล์ลิงก์ไปยังไฟล์หรือเว็บอื่น ลบลิงก์ภายนอกใน Excel ก่อน', 'The file links to other files or websites. Remove external links in Excel first.'],
+		// Plain web and email links stay (owner, 2026-10-08): these two are what is still refused.
+		external_relationship: ['ไฟล์ดึงรูปหรือข้อมูลจากไฟล์หรือเว็บอื่น ลบลิงก์นั้นใน Excel ก่อน', 'The file pulls an image or data from another file or website. Remove that link in Excel first.'],
+		external_hyperlink_scheme: ['ไฟล์มีลิงก์ไปยังไฟล์ในเครื่องหรือในเครือข่าย เปลี่ยนเป็นลิงก์เว็บ (https://) หรือลบออกก่อน', 'The file links to a file on a computer or network. Change it to a web link (https://) or remove it first.'],
 		connections: ['ไฟล์ดึงข้อมูลจากแหล่งภายนอก ลบการเชื่อมต่อข้อมูลใน Excel ก่อน', 'The file pulls data from outside. Remove its data connections in Excel first.'],
 		banned_function: ['ไฟล์มีสูตรที่ดึงข้อมูลจากภายนอก เช่น WEBSERVICE ลบสูตรนั้นก่อน', 'A formula fetches outside data (such as WEBSERVICE). Remove it first.'],
 		embedded_object: ['ไฟล์มีวัตถุฝังหรือไฟล์แนบอยู่ข้างใน ลบออกก่อน', 'The file has embedded objects. Remove them first.'],
