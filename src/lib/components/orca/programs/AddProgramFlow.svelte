@@ -239,6 +239,13 @@
 		if (account && !(account in accountHints)) void readAccountHint(account);
 		discovering = true;
 		discoverError = '';
+		// What was read before belongs to the earlier reading: a new one, on whichever
+		// account, starts clean, so nothing saves on tools read elsewhere (independent W0
+		// review). saveError stays: a conflict's notice (rebase) must survive the re-read it
+		// starts; the connect step's ready paths clear it themselves.
+		tools = [];
+		toolsFor = '';
+		toolsAccount = '';
 		try {
 			const found = account ? await ProgramService.discover(id, account) : await ProgramService.discover(id);
 			if (!alive || request !== discovery) return false;
@@ -262,12 +269,20 @@
 		}
 	}
 
+	/**
+	 * The account the connect step last said works ('' for the person's own, or the
+	 * company account's id); undefined before any. ลองอีกครั้ง saves only when the
+	 * tools were read on exactly this one.
+	 */
+	let readyAccount = $state<string | undefined>();
 	/** The page saves at once when the start is the read-only default (W0); otherwise it asks. */
 	const savesAtOnce = () =>
 		mode === 'page' && preset === 'read' && autoReviewSelection(tools, selected).length > 0 && !saveProblem({ name, selected });
 	// The account works: see what AI can do, then save read-only (or ask, with nothing read-only).
 	async function accountReady(id: string) {
 		if (id !== sourceID) return;
+		readyAccount = '';
+		saveError = '';
 		if (!(await discover(id, '')) || id !== sourceID) return;
 		if (savesAtOnce()) await save(true);
 		else await go('tools', { account: null });
@@ -276,6 +291,8 @@
 	async function companyAccountReady(id: string, accountID: string, accountHint = '') {
 		if (id !== sourceID || !accountID) return;
 		if (accountHint) accountHints = { ...accountHints, [accountID]: accountHint };
+		readyAccount = accountID;
+		saveError = '';
 		if (!(await discover(id, accountID)) || id !== sourceID) return;
 		if (savesAtOnce()) await save(true);
 		else await go('tools', { account: accountID });
@@ -396,9 +413,10 @@
 		// draft (Codex release review deploy44 rounds 1 and 2, MAJOR).
 		const latestAccount = latest.programAccountID ?? '';
 		if (latestAccount !== toolsAccount) {
-			toolsFor = '';
 			clearDraft(storage(), key);
+			// The account changes under the page: the same reset as choosing it (accountChanged), then the notice.
 			accountMode = latestAccount ? 'company' : 'personal';
+			accountChanged();
 			saveError = latestAccount
 				? t(
 						'มีคนเปลี่ยนโปรแกรมนี้ให้ใช้บัญชีกลางอีกบัญชีหลังจากคุณบันทึก หน้านี้แสดงฉบับล่าสุดแล้ว ตรวจแล้วบันทึกอีกครั้ง หรือกลับไปเลือกบัญชีใหม่',
@@ -435,6 +453,7 @@
 		saveError = '';
 		toolsFor = '';
 		toolsAccount = '';
+		readyAccount = undefined;
 	}
 	/**
 	 * ลองอีกครั้ง after the save right after connecting failed or was refused.
@@ -444,7 +463,7 @@
 	 */
 	async function retry() {
 		if (saving || discovering || toolsFor !== sourceID) return;
-		if ((accountMode === 'company') !== !!toolsAccount) {
+		if ((accountMode === 'company') !== !!toolsAccount || (readyAccount !== undefined && readyAccount !== toolsAccount)) {
 			accountChanged();
 			return;
 		}
@@ -533,7 +552,7 @@
 		{/if}
 		{@render strip(false)}
 		{#if companyAllowed}
-			<fieldset class="ap-mode" disabled={discovering}>
+			<fieldset class="ap-mode" disabled={discovering || saving}>
 				<legend>{t('AI ใช้บัญชีของใคร', 'Whose account AI uses')}</legend>
 				<label class="ap-mode-option" class:on={accountMode === 'personal'}>
 					<input type="radio" name="ap-mode" value="personal" bind:group={accountMode} onchange={accountChanged} />

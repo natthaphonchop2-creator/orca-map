@@ -226,10 +226,16 @@ export function sessionMatchesApp(session: MyAISession, app: AIApp, since = Infi
  * every developer tool (Codex W0 review 2, MAJOR 2).
  */
 export function sessionApp(session: MyAISession): AIApp | undefined {
-	if (session.client === 'claude' && !CLAUDE_CODE.test(session.app)) return 'claude';
-	if (session.client === 'chatgpt') return 'chatgpt';
+	// The app's own name first (Claude Code, Codex, Cursor…), then the server's hint (independent W0 review).
 	for (const app of DEV_APPS) if (app !== 'other' && DEV_NAMES[app]?.test(session.app)) return app;
+	if (session.client === 'claude') return 'claude';
+	if (session.client === 'chatgpt') return 'chatgpt';
 	return session.client === 'other' ? 'other' : undefined;
+}
+
+/** The newest live sign-in through the company's link that is exactly this app (sessionApp): the sheet's "เชื่อมแล้ว". */
+export function appSession(apps: MyAIApps | undefined, app: AIApp, now: number): MyAISession | undefined {
+	return liveSessions(apps, now).find((session) => companyLinkSession(session) && sessionApp(session) === app);
 }
 
 /** The apps with a live sign-in through the company's link, each card at most once. */

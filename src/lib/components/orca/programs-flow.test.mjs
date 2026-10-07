@@ -830,3 +830,51 @@ test('Codex W0 review 2 (NOTE): a retry after a conflict whose newer program hol
 	assert.equal(writes.length, 2, 'no silent save of a selection with a write');
 	assert.deepEqual(run.navigations, ['/app?view=add-program&source=flow&step=tools'], 'the manager reviews what AI may do first');
 });
+
+test('independent W0 review: a failed save on company account pac-A, then pac-B whose reading fails: ลองอีกครั้ง writes nothing', async (context) => {
+	const writes = [];
+	const run = await setup(context, {
+		service: {
+			discover: async (id, account) => {
+				if (account === 'pac-B') throw new Error('อ่านรายการไม่สำเร็จ');
+				return offered;
+			},
+			save: async (input, id) => {
+				writes.push({ input, id });
+				throw new Error('บันทึกไม่สำเร็จ');
+			}
+		}
+	});
+	run.view.setMode('company');
+	await run.view.companyAccountReady('flow', 'pac-A');
+	assert.equal(writes.length, 1);
+	assert.equal(writes[0].input.programAccountID, 'pac-A');
+	assert.equal(run.view.state.saveError, 'บันทึกไม่สำเร็จ');
+	// pac-B is picked in CompanyAccountConnect, and its reading fails.
+	await run.view.companyAccountReady('flow', 'pac-B');
+	assert.equal(run.view.state.discoverError, 'อ่านรายการไม่สำเร็จ');
+	assert.equal(run.view.state.saveError, '', "pac-A's error and its retry are gone");
+	assert.equal(run.view.state.toolsFor, '', "pac-A's tools are dropped");
+	assert.equal(run.view.state.toolsAccount, '');
+	assert.deepEqual(run.view.state.tools, []);
+	await run.view.retry();
+	assert.equal(writes.length, 1, 'nothing is saved on pac-A');
+	assert.deepEqual(run.navigations, [], 'and no "connected" return');
+	assert.deepEqual(run.toasts, []);
+	// The same account still retries (the guard refuses only another one).
+	const second = await setup(context, { service: { save: async (input, id) => { writes.push({ input, id }); throw new Error('x'); } } });
+	second.view.setMode('company');
+	await second.view.companyAccountReady('flow', 'pac-A');
+	const before = writes.length;
+	await second.view.retry();
+	assert.equal(writes.length, before + 1, 'the same account retries');
+	const source = await readFile(new URL('./programs/AddProgramFlow.svelte', import.meta.url), 'utf8');
+	assert.match(source, /readyAccount !== undefined && readyAccount !== toolsAccount/, 'retry compares the exact company account');
+});
+
+test('independent W0 review (NOTE 1): the account choice is locked while a save is in flight, and a conflict changes it through accountChanged', async () => {
+	const source = await readFile(new URL('./programs/AddProgramFlow.svelte', import.meta.url), 'utf8');
+	assert.match(source, /<fieldset class="ap-mode" disabled=\{discovering \|\| saving\}>/);
+	const rebase = source.slice(source.indexOf('async function rebase('), source.indexOf('function pick('));
+	assert.match(rebase, /accountMode = latestAccount \? 'company' : 'personal';\s*accountChanged\(\);/);
+});

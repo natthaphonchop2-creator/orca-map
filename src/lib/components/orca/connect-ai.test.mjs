@@ -537,3 +537,20 @@ test('W0 visual review: AI rows use the real logos, ตัดการเชื�
 	assert.match(done, /color: var\(--orca-ink\);/);
 	assert.doesNotMatch(done, /--orca-ok/);
 });
+
+test('independent W0 review (NOTES 2 and 3): the sheet and the cards agree, and an app\'s own name wins over the server\'s hint', async () => {
+	const live = (extra) => ({ id: extra.app, hubID: '', hubName: '', createdAt: ago(5), lastRefreshedAt: ago(1), expiresAt: ago(-600), ...extra });
+	const codexOnly = { sessions: [live({ app: 'Codex', client: 'other' })], keys: [] };
+	for (const app of ['claude', 'chatgpt', 'claude-code', 'codex', 'cursor', 'vscode', 'windsurf', 'other'])
+		assert.equal(!!ai.appSession(codexOnly, app, NOW), ai.connectedApps(codexOnly, NOW).includes(app), app);
+	assert.equal(ai.appSession(codexOnly, 'cursor', NOW), undefined, 'a Cursor sheet never says connected for a Codex sign-in');
+	assert.equal(ai.appSession(codexOnly, 'codex', NOW)?.app, 'Codex');
+	// The name first: a Codex sign-in the server hinted as ChatGPT is Codex; Claude Code hinted claude is Claude Code.
+	assert.equal(ai.sessionApp(live({ app: 'Codex', client: 'chatgpt' })), 'codex');
+	assert.equal(ai.sessionApp(live({ app: 'Claude Code', client: 'claude' })), 'claude-code');
+	assert.equal(ai.sessionApp(live({ app: 'ChatGPT', client: 'chatgpt' })), 'chatgpt');
+	assert.equal(ai.sessionApp(live({ app: 'Claude', client: 'claude' })), 'claude');
+	const view = await readFile(new URL('./views/ConnectAIView.svelte', import.meta.url), 'utf8');
+	assert.match(view, /const session = \$derived\(appSession\(apps, app, checkedAt\)\);/);
+	assert.doesNotMatch(view, /connectedSession|newSince/, 'no newness fallback on the sheet either');
+});

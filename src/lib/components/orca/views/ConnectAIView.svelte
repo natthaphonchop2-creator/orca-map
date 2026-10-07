@@ -11,8 +11,8 @@
 		aiConnectionFrom,
 		appName,
 		connectAccess,
+		appSession,
 		connectedApps,
-		connectedSession,
 		connectorName,
 		createPoller,
 		examplePrompts,
@@ -86,10 +86,8 @@
 	let appsState = $state<'loading' | 'ready' | 'unavailable' | 'error'>('loading');
 	let legacyKeys = $state<MyAIKey[]>([]);
 	let checkedAt = $state(Date.now());
-	// A developer tool's new sign-in counts from a little before the page opened,
-	// so a server clock a few minutes behind this device does not hide it.
-	const newSince = Date.now() - 5 * 60_000;
-	const session = $derived(connectedSession(apps, app, checkedAt, newSince));
+	// The sheet says connected by the same exact rule as the cards (appSession): the app's own sign-in only.
+	const session = $derived(appSession(apps, app, checkedAt));
 	const waiting = $derived(ready && linkOK && appsState !== 'unavailable' && !session);
 	let generation = 0;
 	let destroyed = false;
