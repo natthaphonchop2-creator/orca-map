@@ -522,3 +522,18 @@ test('W0: the sheet says connected in ink with a check, never a green block', as
 	const css = source.slice(source.indexOf('<style>'));
 	assert.doesNotMatch(css, /--orca-ok-bg|--orca-ok-line|color: var\(--orca-ok\)|background: var\(--orca-ok\)/);
 });
+
+test('W0 visual review: AI rows use the real logos, ตัดการเชื่อมต่อ drops under the text on a phone, and a good program state is ink', async () => {
+	const tile = await readFile(new URL('./AIAppTile.svelte', import.meta.url), 'utf8');
+	assert.match(tile, /\{#if kind === 'claude' \|\| kind === 'chatgpt'\}<ToolIcon name=\{kind\}/, 'claude.svg and chatgpt.svg, as on the cards');
+	assert.match(tile, /\{:else if kind === 'key'\}<KeyRound/, 'keys keep the grey key icon');
+	const list = await readFile(url('ConnectedAIList'), 'utf8');
+	const phone = list.slice(list.indexOf('@media (max-width: 480px)'));
+	assert.match(phone, /li \{\s*flex-wrap: wrap;/);
+	assert.match(phone, /\.ca-copy \{\s*flex: 1 1 calc\(100% - 54px\);/, 'the text takes the row, so the button wraps under it');
+	const programs = await readFile(url('ProgramSignIns'), 'utf8');
+	assert.match(programs, /<span class="ca-done"><Check [^>]*\/>\{row\.state === 'account-connected' \? t\('ลงชื่อเข้าใช้แล้ว'/);
+	const done = programs.slice(programs.indexOf('.ca-done {'), programs.indexOf('}', programs.indexOf('.ca-done {')));
+	assert.match(done, /color: var\(--orca-ink\);/);
+	assert.doesNotMatch(done, /--orca-ok/);
+});

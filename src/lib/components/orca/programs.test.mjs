@@ -178,7 +178,8 @@ test('the programs list (W0: the approved card grid): logo, name, account type, 
 	assert.match(html, /c-read บัญชีของแต่ละคน เชื่อมแล้ว AI ทำได้ 1 อย่าง · 3 คน/);
 	assert.match(html, /c-write บัญชีกลาง เชื่อมแล้ว AI ทำได้ 2 อย่าง · 0 คน/);
 	assert.match(html, /c-paused บัญชีของแต่ละคน หยุดชั่วคราว/);
-	assert.match(html, /c-new บัญชีของแต่ละคน รอเลือกสิ่งที่ AI ทำได้ ยังไม่ได้เลือกสิ่งที่ AI ทำได้/);
+	assert.match(html, /c-new บัญชีของแต่ละคน รอเลือกสิ่งที่ AI ทำได้ ?$|c-new บัญชีของแต่ละคน รอเลือกสิ่งที่ AI ทำได้ (?!ยังไม่ได้เลือก)/);
+	assert.doesNotMatch(html, /ยังไม่ได้เลือกสิ่งที่ AI ทำได้/, 'the state alone says it; the right side stays empty');
 	assert.match(raw, /<span class="programs-state warn[^"]*"><i[^>]*><\/i>รอเลือกสิ่งที่ AI ทำได้<\/span>/, 'a state is text with a dot');
 	assert.match(raw, /<a href="\/app\?view=servers&amp;connection=c-read"/, 'the card opens the program');
 	// Above the grid: search and one dropdown filter, never black chips.

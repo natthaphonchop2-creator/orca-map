@@ -281,7 +281,9 @@ test('the overview tiles and ล่าสุด follow the role: เชื่อ
 	// An employee: their own programs (ใช้ได้), their own history without a person, and no manager pages.
 	html = render(HomeStatus, { props: { data: company({ canManage: false, connections: [titled], hubs: [workspace] }), events, accounts, ai: 'none' } }).body;
 	plain = text(html);
-	assert.match(plain, /โปรแกรม 1 ใช้ได้/);
+	// The tile is named for what it opens (AI ของฉัน › บัญชีโปรแกรมของคุณ): employees have no โปรแกรม page.
+	assert.match(plain, /บัญชีโปรแกรมของคุณ 1 ใช้ได้/);
+	assert.doesNotMatch(plain, /(?<!บัญชี)โปรแกรม 1 ใช้ได้/);
 	assert.doesNotMatch(plain, /เชื่อมแล้ว|ต้องเชื่อมใหม่|วิภา ตัวอย่าง|มาลี สมมุติ/);
 	assert.match(plain, /AI ของฉัน ยังไม่ได้เชื่อม/);
 	assert.doesNotMatch(html, /view=servers/, 'employees reach programs through AI ของฉัน');

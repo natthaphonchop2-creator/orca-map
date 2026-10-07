@@ -301,18 +301,21 @@ test("when what failed turns out to be gone already, the dialog closes and says 
   } finally { stop(); }
 });
 
-test("the app tile: a letter in the app's colour for Claude and ChatGPT, an icon otherwise, hidden from screen readers", async () => {
+test("the app tile: Claude and ChatGPT as their real logo files (W0), an icon otherwise, hidden from screen readers", async () => {
   const { warnings, Component } = await serverComponent(new URL("./AIAppTile.svelte", import.meta.url), {
     KeyRound: (renderer) => renderer.push("<svg data-icon=\"key\"></svg>"),
     Sparkles: (renderer) => renderer.push("<svg data-icon=\"app\"></svg>"),
+    ToolIcon: (renderer, props) => renderer.push(`<img data-logo="${props.name}" data-size="${props.size}">`),
   });
   assert.deepEqual(warnings, []);
   const tile = (kind, size) => render(Component, { props: { kind, size } }).body;
   const claude = tile("claude");
-  assert.match(claude, /<span class="ai-app-tile kind-claude[^"]*"[^>]*>(?:<!--[^>]*-->)*C(?:<!--[^>]*-->)*<\/span>/);
+  assert.match(claude, /<span class="ai-app-tile kind-claude[^"]*"[^>]*>(?:<!--[^>]*-->)*<img data-logo="claude" data-size="20">(?:<!--[^>]*-->)*<\/span>/);
   assert.match(claude, /aria-hidden="true"/);
   assert.match(claude, /--ai-tile-size: 32px;/);
-  assert.match(tile("chatgpt", 24), /kind-chatgpt[^>]*--ai-tile-size: 24px;[^>]*>(?:<!--[^>]*-->)*G</);
+  assert.match(tile("chatgpt", 24), /kind-chatgpt[^>]*--ai-tile-size: 24px;[^>]*>(?:<!--[^>]*-->)*<img data-logo="chatgpt"/);
+  const source = await readFile(new URL("./AIAppTile.svelte", import.meta.url), "utf8");
+  assert.doesNotMatch(source.slice(source.indexOf("<style>")), /#[0-9a-f]{3,6}\b/i, "no letter tiles in brand colours");
   assert.match(tile("key"), /data-icon="key"/);
   assert.match(tile("other"), /data-icon="app"/);
 });

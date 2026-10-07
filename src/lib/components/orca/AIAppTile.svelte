@@ -1,18 +1,19 @@
 <script lang="ts">
 	import { KeyRound, Sparkles } from '@lucide/svelte';
+	import ToolIcon from '$lib/orca/ToolIcon.svelte';
 	import type { AppKind } from '$lib/orca/connected-ai-apps';
 
 	// The one tile before an AI app's name (แอป AI ที่เชื่อมอยู่, its confirm
-	// dialog, and เชื่อม AI ของฉัน's "AI ที่คุณเชื่อมไว้"): Claude and ChatGPT as a
-	// letter in the app's own colour,
-	// a key or any other app as an icon on the quiet fill. Decorative only: the
-	// name always sits next to it.
+	// dialog, and AI ของฉัน's "AI ที่คุณเชื่อมไว้"): Claude and ChatGPT as their
+	// real logo files on a plain tile (W0: real logos only, the same as AI ของฉัน's
+	// cards), a key or any other app as a grey icon. Decorative only: the name
+	// always sits next to it.
 	let { kind, size = 32 }: { kind: AppKind; size?: number } = $props();
 	const icon = $derived(Math.round(size / 2));
 </script>
 
 <span class="ai-app-tile kind-{kind}" style:--ai-tile-size="{size}px" aria-hidden="true"
-	>{#if kind === 'claude'}C{:else if kind === 'chatgpt'}G{:else if kind === 'key'}<KeyRound size={icon} />{:else}<Sparkles size={icon} />{/if}</span
+	>{#if kind === 'claude' || kind === 'chatgpt'}<ToolIcon name={kind} size={Math.round(size * 0.62)} decorative />{:else if kind === 'key'}<KeyRound size={icon} />{:else}<Sparkles size={icon} />{/if}</span
 >
 
 <style>
@@ -30,17 +31,10 @@
 		font-weight: 800;
 		line-height: 1;
 	}
-	/* The apps' own colours are the only literals here: each is shaded from the
-	   brand colour so its white letter (--orca-on-deny: white on a solid fill in
-	   both themes) reads at 4.5:1 or better. */
-	.ai-app-tile.kind-claude {
-		background: #b85a3b;
-		box-shadow: none;
-		color: var(--orca-on-deny);
-	}
+	/* A real logo sits on the plain surface with a hairline, like a program's. */
+	.ai-app-tile.kind-claude,
 	.ai-app-tile.kind-chatgpt {
-		background: #0e8467;
-		box-shadow: none;
-		color: var(--orca-on-deny);
+		background: var(--orca-surface);
+		box-shadow: inset 0 0 0 1px var(--orca-line);
 	}
 </style>

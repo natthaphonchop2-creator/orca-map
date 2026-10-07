@@ -76,7 +76,8 @@
 
 <section class="home-tiles" class:three={!skills} aria-label={t('ภาพรวม', 'Overview')}>
 	<a class="home-tile" href={localeHref(manager ? '/app?view=servers' : '/app?view=connect-ai#accounts')}>
-		<span class="home-tile-label">{term('programs', t)}<ChevronRight size={14} aria-hidden="true" /></span>
+		<!-- Employees have no โปรแกรม page: their tile is named for what it opens, AI ของฉัน › บัญชีโปรแกรมของคุณ. -->
+		<span class="home-tile-label">{manager ? term('programs', t) : t('บัญชีโปรแกรมของคุณ', 'Your program accounts')}<ChevronRight size={14} aria-hidden="true" /></span>
 		<span class="home-tile-value">{programs.length.toLocaleString()}<small>{manager ? t('เชื่อมแล้ว', 'connected') : t('ใช้ได้', 'you can use')}</small></span>
 		<span class="home-tile-foot">
 			<span class="home-logos" aria-hidden="true">{#each programs.slice(0, 6) as connection (connection.id)}<CatalogIcon name={iconName(connection)} size={22} />{/each}</span>

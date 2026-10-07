@@ -288,7 +288,11 @@ test('the owner to-do counts one set: the companies that get the invite button (
 	assert.deepEqual(none.state.todos, []);
 	assert.equal(none.state.clearText, 'ไม่มีงานค้าง ยังไม่มีบริษัทลูกค้า และปุ่ม Google เปิดอยู่');
 	const source = await readFile(files.overview, 'utf8');
-	assert.match(source, /<p class="overview-clear"><Check size=\{17\} aria-hidden="true" \/>\{clearText\}<\/p>/);
+	// W0: one ink line with a green dot, never a green box.
+	assert.match(source, /<p class="overview-clear"><span class="overview-clear-dot" aria-hidden="true"><\/span>\{clearText\}<\/p>/);
+	const css = source.slice(source.indexOf('<style>'));
+	assert.doesNotMatch(css, /--orca-(ok|warn|deny)-bg/, 'no tinted tiles or boxes');
+	assert.match(css, /\.overview-todo-icon \{\s*display: inline-flex;\s*flex: none;\s*color: var\(--orca-subtle\);/);
 });
 
 test('only the newest usage load counts: an older answer that lands later changes nothing', async () => {

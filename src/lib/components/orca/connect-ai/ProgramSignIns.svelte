@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
-	import { CircleAlert, RefreshCw } from '@lucide/svelte';
+	import { Check, CircleAlert, RefreshCw } from '@lucide/svelte';
 	import CatalogIcon from '$lib/orca/CatalogIcon.svelte';
 	import { workspaceToolingReady } from '$lib/orca/activation';
 	import { catalogSourceDisplayName } from '$lib/orca/catalog';
@@ -140,7 +140,7 @@
 					{#each companySources as source (source.sourceID)}
 						<li>
 							<span class="ca-logo small"><CatalogIcon name={source.name} size={22} /></span>
-							<span class="ca-signed-copy"><b>{source.name}</b><span class="ca-done">{t('ใช้บัญชีกลาง', 'Uses the company account')}</span></span>
+							<span class="ca-signed-copy"><b>{source.name}</b><span class="ca-done"><Check size={13} strokeWidth={2.25} aria-hidden="true" />{t('ใช้บัญชีกลาง', 'Uses the company account')}</span></span>
 						</li>
 					{/each}
 				</ul>
@@ -154,7 +154,7 @@
 					{#each signedIn as row (row.source.sourceID)}
 						<li>
 							<span class="ca-logo small"><CatalogIcon name={row.name} size={22} /></span>
-							<span class="ca-signed-copy"><b>{row.name}</b><span class="ca-done">{row.state === 'account-connected' ? t('ลงชื่อเข้าใช้ไว้แล้ว', 'Signed in') : t('บันทึกบัญชีไว้แล้ว', 'Account saved')}</span></span>
+							<span class="ca-signed-copy"><b>{row.name}</b><span class="ca-done"><Check size={13} strokeWidth={2.25} aria-hidden="true" />{row.state === 'account-connected' ? t('ลงชื่อเข้าใช้แล้ว', 'Signed in') : t('บันทึกบัญชีไว้แล้ว', 'Account saved')}</span></span>
 							<button type="button" class="k-button small" onclick={() => open(row)} aria-label={t(`ลงชื่อเข้าใช้ ${row.name} ใหม่`, `Sign in to ${row.name} again`)}>{t('ลงชื่อเข้าใช้ใหม่', 'Sign in again')}</button>
 						</li>
 					{/each}
@@ -297,10 +297,14 @@
 		font-weight: 600;
 		line-height: 1.4;
 	}
+	/* W0: a good state is ink with a check; colour only for warn or fail. */
 	.ca-done {
-		color: var(--orca-ok);
-		font-size: 12px;
-		font-weight: 600;
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		color: var(--orca-ink);
+		font-size: 12.5px;
+		font-weight: 500;
 	}
 	@container ca (max-width: 560px) {
 		.ca-next {

@@ -207,11 +207,10 @@
 						{#if reconnect.has(connection.id)}<span class="programs-state warn"><i aria-hidden="true"></i>{t(RECONNECT_WORD.th, RECONNECT_WORD.en)}</span>
 						{:else if status === 'ready'}<span class="programs-state ok"><Check size={14} strokeWidth={2.25} aria-hidden="true" />{t(copy.th, copy.en)}</span>
 						{:else}<span class="programs-state {copy.tone}"><i aria-hidden="true"></i>{t(copy.th, copy.en)}</span>{/if}
-						<span class="programs-meta"
-							>{summary.count && summary.reviewed
-								? t(`AI ทำได้ ${summary.count} อย่าง · ${people(connection)} คน`, `AI can do ${summary.count} · ${people(connection)} people`)
-								: t('ยังไม่ได้เลือกสิ่งที่ AI ทำได้', 'What AI can do is not chosen yet')}</span
-						>
+						<!-- Nothing chosen yet: the state says it; the right side stays empty (W0 visual review). -->
+						{#if summary.count && summary.reviewed}<span class="programs-meta"
+								>{t(`AI ทำได้ ${summary.count} อย่าง · ${people(connection)} คน`, `AI can do ${summary.count} · ${people(connection)} people`)}</span
+							>{/if}
 					</div>
 				</li>
 			{/each}
