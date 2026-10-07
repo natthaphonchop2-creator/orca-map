@@ -160,22 +160,37 @@ const connection = (id, mcpID, extra = {}) => ({
 	toolNames: ['list_invoices'], tools: flowTools, scopeNote: '', version: 1, updatedAt: '', ...extra
 });
 
-test('the programs list: one row per program with what AI can do, workspaces and one status; empty shows the four cards', async () => {
+test('the programs list (W0: the approved card grid): logo, name, account type, one state and what AI can do for how many people; empty shows the four cards', async () => {
 	const calls = [];
-	const deps = { ...base, page: { url: new URL('https://orca.invalid/app?view=servers') }, PageHeader: spy(calls, 'PageHeader'), StatusPill: (renderer, props) => renderer.push(`<span data-pill="${props.tone}">${props.label}</span>`), ProgramService: { candidates: async () => [] }, OrcaService: {} };
+	const attention = await importTypeScript(new URL('../../orca/home-attention.ts', import.meta.url));
+	const deps = { ...base, ...attention, page: { url: new URL('https://orca.invalid/app?view=servers') }, PageHeader: spy(calls, 'PageHeader'), ProgramService: { candidates: async () => [] }, OrcaService: {} };
 	const { warnings, Component } = await serverComponent(new URL('./ConnectionCenter.svelte', import.meta.url), deps);
 	assert.deepEqual(warnings, []);
 	const data = {
 		canManage: true, platformOperator: false,
-		connections: [connection('c-read', 's1'), connection('c-write', 's2', { reviewedReadOnly: false, toolNames: ['list_invoices', 'create_invoice'] }), connection('c-paused', 's3', { enabled: false }), connection('c-new', 's4', { reviewedTools: false, reviewedReadOnly: false, toolNames: [] })],
-		hubs: [{ id: 'h', name: 'H', status: 'active', connectionID: 'c-read', toolNames: ['list_invoices'], sources: [{ connectionID: 'c-read', toolNames: ['list_invoices'] }] }]
+		connections: [connection('c-read', 's1'), connection('c-write', 's2', { reviewedReadOnly: false, toolNames: ['list_invoices', 'create_invoice'], programAccountID: 'pac-1' }), connection('c-paused', 's3', { enabled: false }), connection('c-new', 's4', { reviewedTools: false, reviewedReadOnly: false, toolNames: [] })],
+		hubs: [{ id: 'h', name: 'H', status: 'active', connectionID: 'c-read', toolNames: ['list_invoices'], sources: [{ connectionID: 'c-read', toolNames: ['list_invoices'] }], memberIDs: ['a', 'b'], effectiveMemberIDs: ['a', 'b', 'c'] }]
 	};
-	const html = text(render(Component, { props: { data } }).body);
-	// W0: admins read the connection state as เชื่อมแล้ว (was พร้อมใช้).
-	assert.match(html, /c-read.*1 อย่าง.*อ่านอย่างเดียว.*1 พื้นที่.*data-pill="ok">เชื่อมแล้ว/);
-	assert.match(html, /c-write.*2 อย่าง.*อ่านและแก้ไข.*ยังไม่ได้ใช้/);
-	assert.match(html, /c-paused.*data-pill="neutral">หยุดชั่วคราว/);
-	assert.match(html, /c-new.*ยังไม่ได้เลือก.*data-pill="warn">รอเลือกสิ่งที่ AI ทำได้/);
+	const raw = render(Component, { props: { data } }).body;
+	const html = text(raw).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+	assert.equal(raw.match(/<li class="programs-card/g)?.length, 4, 'one card per program');
+	// W0: admins read the connection state as เชื่อมแล้ว (was พร้อมใช้), with a check.
+	assert.match(html, /c-read บัญชีของแต่ละคน เชื่อมแล้ว AI ทำได้ 1 อย่าง · 3 คน/);
+	assert.match(html, /c-write บัญชีกลาง เชื่อมแล้ว AI ทำได้ 2 อย่าง · 0 คน/);
+	assert.match(html, /c-paused บัญชีของแต่ละคน หยุดชั่วคราว/);
+	assert.match(html, /c-new บัญชีของแต่ละคน รอเลือกสิ่งที่ AI ทำได้ ยังไม่ได้เลือกสิ่งที่ AI ทำได้/);
+	assert.match(raw, /<span class="programs-state warn[^"]*"><i[^>]*><\/i>รอเลือกสิ่งที่ AI ทำได้<\/span>/, 'a state is text with a dot');
+	assert.match(raw, /<a href="\/app\?view=servers&amp;connection=c-read"/, 'the card opens the program');
+	// Above the grid: search and one dropdown filter, never black chips.
+	assert.match(raw, /<input type="search"/);
+	assert.match(raw, /<select[\s\S]*?<option value="all"[^>]*>ทั้งหมด 4<\/option>[\s\S]*?<option value="review"[^>]*>ต้องจัดการ 1<\/option>[\s\S]*?<option value="paused"[^>]*>หยุดชั่วคราว 1<\/option>/);
+	assert.doesNotMatch(raw, /programs-filters|programs-table|orca-pill/);
+	const centerSource = await readFile(new URL('./ConnectionCenter.svelte', import.meta.url), 'utf8');
+	// A company account that needs connecting again says so, in the same word as Home.
+	assert.match(centerSource, /\{#if reconnect\.has\(connection\.id\)\}<span class="programs-state warn"><i aria-hidden="true"><\/i>\{t\(RECONNECT_WORD\.th, RECONNECT_WORD\.en\)\}/);
+	assert.match(centerSource, /void OrcaService\.programAccounts\(\)/);
+	assert.match(centerSource, /grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/, 'three columns');
+	assert.match(centerSource.slice(centerSource.indexOf('@media (max-width: 720px)')), /\.programs-grid \{\s*grid-template-columns: minmax\(0, 1fr\);/, 'one on a phone');
 	assert.equal(calls[0].props.title, 'โปรแกรม');
 	assert.equal(typeof calls[0].props.action, 'function', 'เชื่อมโปรแกรม beside the title');
 	const empty = render(Component, { props: { data: { ...data, connections: [], hubs: [] } } }).body;

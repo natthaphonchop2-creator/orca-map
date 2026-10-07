@@ -89,7 +89,7 @@ No new endpoint. New calls to existing endpoints:
 
 | Where | Call | Why |
 |---|---|---|
-| Home (Owners/Admins) | `GET /orca/program-accounts` (`OrcaService.programAccounts`, `{ items: OrcaProgramAccount[] }`) | count programs whose company account needs reconnecting (`status: "needs_reconnect"`) for ต้องดูแล and the โปรแกรม tile |
+| Home and โปรแกรม (Owners/Admins) | `GET /orca/program-accounts` (`OrcaService.programAccounts`, `{ items: OrcaProgramAccount[] }`) | count programs whose company account needs reconnecting (`status: "needs_reconnect"`) for ต้องดูแล and the โปรแกรม tile |
 | Home (everyone) | `GET /orca/hubs/<id>/library` for each workspace the viewer can use, up to 10 (`OrcaLibraryService.load`, `{ items: LibraryItem[], departments, members }`); before, managers read the first 3 and employees none | the คลังความรู้ tile's count of published items and latest change |
 | Programs › catalog modal, Onboarding 2 | `GET /orca/candidates` (`ProgramService.candidates`, `{ items: OrcaCandidate[] }`), as the old step 1 did | the catalog and the suggestions |
 | ตั้งค่า › ทีม / พื้นที่ทำงาน AI (Owners/Admins) | `GET /orca/user-sources` (`OrcaUserSourcesService.list`, `{ items }`), once per page and company, as ตั้งค่า did | whether the ขั้นสูง tab shows |

@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { ArrowRight, ChevronRight, Search } from '@lucide/svelte';
+	import { ArrowRight, Check, ChevronRight, Search } from '@lucide/svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { catalogSource, filterCatalog } from '$lib/orca/catalog';
 	import { healthByConnection } from '$lib/orca/connection-health';
 	import { sourcePresentationNames } from '$lib/orca/connection-presentation';
-	import { gatewayUsesConnection } from '$lib/orca/gateway-sources';
+	import { gatewayMemberIDs, gatewayUsesConnection } from '$lib/orca/gateway-sources';
+	import { programsToReconnect, RECONNECT_WORD } from '$lib/orca/home-attention';
 	import { term } from '$lib/orca/glossary';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import {
@@ -17,11 +18,10 @@
 		recommendedPrograms
 	} from '$lib/orca/program-catalog';
 	import { accessSummary } from '$lib/orca/program-tools';
-	import { OrcaService, type OrcaBootstrap, type OrcaCandidate, type OrcaConnectionHealth } from '$lib/services/orca';
+	import { OrcaService, type OrcaBootstrap, type OrcaCandidate, type OrcaConnection, type OrcaConnectionHealth, type OrcaProgramAccount } from '$lib/services/orca';
 	import { ProgramService } from '$lib/services/orca-programs';
 	import { onDestroy, onMount } from 'svelte';
 	import PageHeader from './ui/PageHeader.svelte';
-	import StatusPill from './ui/StatusPill.svelte';
 	import CatalogModal from './programs/CatalogModal.svelte';
 	import ProgramLogo from './programs/ProgramLogo.svelte';
 	import ProgramRequestSheet from './programs/ProgramRequestSheet.svelte';
@@ -39,6 +39,8 @@
 	let query = $state('');
 	let candidates = $state.raw<OrcaCandidate[]>([]);
 	let health = $state.raw<Map<string, OrcaConnectionHealth>>(new Map());
+	/** The company accounts, for ต้องเชื่อมใหม่ (the same read as Home); none until read. */
+	let accounts = $state.raw<OrcaProgramAccount[]>();
 	let alive = true;
 
 	const live = $derived(data.connections.filter((item) => !item.deletedAt));
@@ -74,6 +76,14 @@
 			] as { id: Filter; label: string }[]
 		).filter((item) => item.id === 'all' || counts[item.id] > 0 || filter === item.id)
 	);
+	const reconnect = $derived(new Set(programsToReconnect(live, accounts).map((item) => item.id)));
+	// The people who can use a program: everyone in the workspaces that use it.
+	function people(connection: OrcaConnection): number {
+		const ids = new Set<string>();
+		for (const hub of data.hubs)
+			if (hub.status !== 'archived' && hub.status !== 'deleted' && gatewayUsesConnection(hub, connection.id)) for (const id of gatewayMemberIDs(hub)) ids.add(id);
+		return ids.size;
+	}
 
 	onMount(() => {
 		if (!data.canManage) return;
@@ -83,6 +93,13 @@
 			})
 			.catch(() => {
 				// Logos and the recommended cards are extras; the list works without them.
+			});
+		void OrcaService.programAccounts()
+			.then((result) => {
+				if (alive) accounts = result;
+			})
+			.catch(() => {
+				// Without the list no program is said to need reconnecting.
 			});
 		void OrcaService.connectionHealth()
 			.then((result) => {
@@ -158,59 +175,47 @@
 	</section>
 {:else}
 	<div class="programs-toolbar">
-		<div class="programs-filters" role="group" aria-label={t('กรองตามสถานะ', 'Filter by status')}>
-			{#each filters as item (item.id)}
-				<button type="button" class:on={filter === item.id} aria-pressed={filter === item.id} onclick={() => (filter = item.id)}
-					>{item.label}<span>{counts[item.id]}</span></button
-				>
-			{/each}
-		</div>
-		{#if live.length > 6}
-			<label class="programs-search">
-				<Search size={16} aria-hidden="true" />
-				<input type="search" bind:value={query} placeholder={t('ค้นหาโปรแกรม', 'Search programs')} aria-label={t('ค้นหาโปรแกรม', 'Search programs')} />
-			</label>
-		{/if}
+		<label class="programs-search">
+			<Search size={16} aria-hidden="true" />
+			<input type="search" bind:value={query} placeholder={t('ค้นหาโปรแกรม', 'Search programs')} aria-label={t('ค้นหาโปรแกรม', 'Search programs')} />
+		</label>
+		<!-- W0: one filter as a dropdown ("ทั้งหมด n ▾"), never a row of black chips. -->
+		<label class="programs-filter">
+			<span class="sr-only">{t('กรองตามสถานะ', 'Filter by status')}</span>
+			<select bind:value={filter}>
+				{#each filters as item (item.id)}<option value={item.id}>{item.label} {counts[item.id]}</option>{/each}
+			</select>
+		</label>
 	</div>
 
 	{#if rows.length}
-		<div class="programs-table" role="table" aria-label={term('programs', t)}>
-			<div class="programs-head" role="row">
-				<span role="columnheader">{t('โปรแกรม', 'Program')}</span>
-				<span role="columnheader">{term('whatAICanDo', t)}</span>
-				<span role="columnheader">{t('พื้นที่ทำงาน', 'Workspaces')}</span>
-				<span role="columnheader">{t('สถานะ', 'Status')}</span>
-				<span aria-hidden="true"></span>
-			</div>
+		<ul class="programs-grid" aria-label={term('programs', t)}>
 			{#each rows as connection (connection.id)}
 				{@const summary = accessSummary(connection)}
-				{@const status = programStatusCopy(statuses.get(connection.id) ?? 'ready')}
-				{@const workspaces = data.hubs.filter((hub) => gatewayUsesConnection(hub, connection.id) && hub.status !== 'archived' && hub.status !== 'deleted').length}
+				{@const status = statuses.get(connection.id) ?? 'ready'}
+				{@const copy = programStatusCopy(status)}
 				{@const source = candidates.find((item) => item.id === connection.mcpID)}
-				<div class="programs-row" role="row">
-					<span class="programs-name" role="cell">
+				<li class="programs-card">
+					<div class="programs-card-top">
 						<ProgramLogo name={logos[connection.mcpID] || connection.name} size={40} />
-						<span>
-							<a href={detail(connection.id)}>{connection.name}</a>
-							<small>{connection.description || (source ? t(...programLine(catalogSource(source))) : connection.scopeNote || '')}</small>
+						<span class="programs-card-name">
+							<a href={detail(connection.id)} title={connection.description || (source ? t(...programLine(catalogSource(source))) : connection.scopeNote || '')}>{connection.name}</a>
+							<small>{connection.programAccountID ? t('บัญชีกลาง', 'Company account') : t('บัญชีของแต่ละคน', "Each person's own account")}</small>
 						</span>
-					</span>
-					<span class="programs-cell" role="cell" data-label={term('whatAICanDo', t)}>
-						{#if summary.count && summary.reviewed}
-							<b>{t(`${summary.count} อย่าง`, `${summary.count} ${summary.count === 1 ? 'thing' : 'things'}`)}</b>
-							<small>{summary.readOnly ? t('อ่านอย่างเดียว', 'Read only') : t('อ่านและแก้ไข', 'Read and change')}</small>
-						{:else}<small>{t('ยังไม่ได้เลือก', 'Not chosen yet')}</small>{/if}
-					</span>
-					<span class="programs-cell" role="cell" data-label={t('พื้นที่ทำงาน', 'Workspaces')}>
-						<a class="programs-count" href={detail(connection.id, 'workspaces')}>{workspaces
-							? t(`${workspaces} พื้นที่`, `${workspaces} ${workspaces === 1 ? 'workspace' : 'workspaces'}`)
-							: t('ยังไม่ได้ใช้', 'Not used yet')}</a>
-					</span>
-					<span class="programs-cell" role="cell" data-label={t('สถานะ', 'Status')}><StatusPill label={t(status.th, status.en)} tone={status.tone} dot /></span>
-					<span class="programs-go" aria-hidden="true"><ChevronRight size={16} /></span>
-				</div>
+					</div>
+					<div class="programs-card-foot">
+						{#if reconnect.has(connection.id)}<span class="programs-state warn"><i aria-hidden="true"></i>{t(RECONNECT_WORD.th, RECONNECT_WORD.en)}</span>
+						{:else if status === 'ready'}<span class="programs-state ok"><Check size={14} strokeWidth={2.25} aria-hidden="true" />{t(copy.th, copy.en)}</span>
+						{:else}<span class="programs-state {copy.tone}"><i aria-hidden="true"></i>{t(copy.th, copy.en)}</span>{/if}
+						<span class="programs-meta"
+							>{summary.count && summary.reviewed
+								? t(`AI ทำได้ ${summary.count} อย่าง · ${people(connection)} คน`, `AI can do ${summary.count} · ${people(connection)} people`)
+								: t('ยังไม่ได้เลือกสิ่งที่ AI ทำได้', 'What AI can do is not chosen yet')}</span
+						>
+					</div>
+				</li>
 			{/each}
-		</div>
+		</ul>
 	{:else}
 		<div class="programs-empty">
 			<p>{t('ไม่พบโปรแกรมที่ตรงกับตัวกรอง', 'No programs match.')}</p>
@@ -241,108 +246,78 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 12px;
+		gap: 10px 12px;
 		margin-bottom: 16px;
-	}
-	.programs-filters {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-	}
-	.programs-filters button {
-		display: inline-flex;
-		align-items: center;
-		gap: 8px;
-		padding: 6px 14px;
-		border: 1px solid var(--orca-line);
-		border-radius: 999px;
-		background: var(--orca-surface);
-		color: var(--orca-text-2);
-		font: inherit;
-		font-size: 13.5px;
-		font-weight: 500;
-		cursor: pointer;
-	}
-	.programs-filters button span {
-		color: var(--orca-muted);
-		font-size: 12px;
-	}
-	.programs-filters button.on {
-		border-color: var(--orca-chosen);
-		background: var(--orca-chosen);
-		color: var(--orca-on-ink);
-		font-weight: 600;
-	}
-	.programs-filters button.on span {
-		color: inherit;
 	}
 	.programs-search {
 		position: relative;
 		display: block;
-		width: min(320px, 100%);
-		color: var(--orca-muted);
+		flex: 1 1 240px;
+		max-width: 360px;
+		color: var(--orca-subtle);
 	}
 	.programs-search :global(svg) {
 		position: absolute;
 		top: 50%;
-		left: 12px;
+		left: 11px;
 		transform: translateY(-50%);
+		pointer-events: none;
 	}
 	.programs-search input {
 		width: 100%;
-		padding: 9px 12px 9px 36px;
-		border: 1px solid var(--orca-field-line);
+		height: 36px;
+		padding: 0 12px 0 34px;
+		border: 1px solid var(--orca-field-line, var(--orca-line-strong));
 		border-radius: var(--orca-radius);
-		background: var(--orca-field);
+		background: var(--orca-field, var(--orca-surface));
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 13.5px;
+		font-size: 14px;
 	}
-	.programs-table {
-		overflow: hidden;
+	.programs-filter select {
+		height: 36px;
+		padding: 0 30px 0 12px;
+		border: 1px solid var(--orca-field-line, var(--orca-line-strong));
+		border-radius: var(--orca-radius);
+		background-color: var(--orca-field, var(--orca-surface));
+		color: var(--orca-ink);
+		font: inherit;
+		font-size: 13px;
+	}
+	.programs-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 12px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.programs-card {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		min-width: 0;
+		padding: 16px;
 		border: 1px solid var(--orca-line);
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
 	}
-	.programs-head,
-	.programs-row {
-		display: grid;
-		grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) 20px;
-		align-items: center;
-		gap: 16px;
-		padding: 14px 20px;
+	.programs-card:hover {
+		border-color: var(--orca-line-strong);
 	}
-	.programs-head {
-		padding-block: 11px;
-		border-bottom: 1px solid var(--orca-line);
-		background: var(--orca-surface-2);
-		color: var(--orca-muted);
-		font-size: 12.5px;
-		font-weight: 600;
-	}
-	.programs-row {
-		position: relative;
-		border-top: 1px solid var(--orca-line-soft);
-		transition: background-color 0.15s var(--orca-ease);
-	}
-	.programs-head + .programs-row {
-		border-top: 0;
-	}
-	.programs-row:hover {
-		background: var(--orca-hover);
-	}
-	.programs-name {
+	.programs-card-top {
 		display: flex;
 		align-items: center;
-		gap: 14px;
+		gap: 12px;
 		min-width: 0;
 	}
-	.programs-name > span:last-child {
+	.programs-card-name {
 		display: flex;
 		flex-direction: column;
 		min-width: 0;
 	}
-	.programs-name a {
+	.programs-card-name a {
 		overflow: hidden;
 		color: var(--orca-ink);
 		font-size: 14px;
@@ -351,46 +326,59 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	/* The whole row opens the program. */
-	.programs-name a::after {
+	/* The whole card opens the program. */
+	.programs-card-name a::after {
 		content: '';
 		position: absolute;
 		inset: 0;
+		border-radius: inherit;
 	}
-	.programs-name a:focus-visible {
-		outline: none;
+	.programs-card:has(a:focus-visible) {
+		outline: 2px solid var(--orca-focus, var(--orca-ink));
+		outline-offset: 2px;
 	}
-	.programs-row:has(.programs-name a:focus-visible) {
-		outline: 2px solid var(--orca-focus);
-		outline-offset: -2px;
+	.programs-card-name a:focus-visible {
+		outline: 0;
 	}
-	.programs-name small,
-	.programs-cell small {
-		display: block;
-		overflow: hidden;
+	.programs-card-name small,
+	.programs-meta {
 		color: var(--orca-muted);
 		font-size: 12.5px;
-		text-overflow: ellipsis;
+	}
+	.programs-card-foot {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 6px 8px;
+		margin-top: auto;
+		padding-top: 12px;
+		border-top: 1px solid var(--orca-line);
+	}
+	.programs-meta {
+		text-align: right;
+	}
+	/* A state is text with a dot (or a check when connected), never a filled pill. */
+	.programs-state {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		color: var(--orca-ink);
+		font-size: 13px;
+		font-weight: 500;
 		white-space: nowrap;
 	}
-	.programs-cell {
-		min-width: 0;
-		font-size: 13.5px;
+	.programs-state i {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--orca-muted);
 	}
-	.programs-cell b {
-		display: block;
-		font-weight: 600;
+	.programs-state.warn i {
+		background: var(--orca-warn);
 	}
-	.programs-count {
-		position: relative;
-		z-index: 1;
-		color: var(--orca-text-2);
-		text-decoration: underline;
-		text-decoration-color: var(--orca-line-strong);
-		text-underline-offset: 3px;
-	}
-	.programs-go {
-		color: var(--orca-subtle);
+	.programs-state.deny i {
+		background: var(--orca-deny);
 	}
 	.programs-empty {
 		display: flex;
@@ -512,43 +500,17 @@
 			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 	}
-	/* Under 720px each row is a card. */
+	@media (max-width: 1100px) {
+		.programs-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
 	@media (max-width: 720px) {
-		.programs-table {
-			border: 0;
-			background: transparent;
+		.programs-grid {
+			grid-template-columns: minmax(0, 1fr);
 		}
-		.programs-head {
-			display: none;
-		}
-		.programs-row {
-			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-			/* The cells' small labels line up across the card. */
-			align-items: start;
-			gap: 12px;
-			margin-bottom: 12px;
-			padding: 16px;
-			border: 1px solid var(--orca-line);
-			border-radius: var(--orca-radius-lg);
-			background: var(--orca-surface);
-		}
-		.programs-head + .programs-row {
-			border-top: 1px solid var(--orca-line);
-		}
-		.programs-name {
-			grid-column: 1 / -1;
-		}
-		.programs-cell::before {
-			content: attr(data-label);
-			display: block;
-			margin-bottom: 2px;
-			color: var(--orca-muted);
-			font-size: 11.5px;
-		}
-		.programs-go {
-			position: absolute;
-			top: 26px;
-			right: 16px;
+		.programs-search {
+			max-width: none;
 		}
 		.programs-start {
 			padding: 20px;
