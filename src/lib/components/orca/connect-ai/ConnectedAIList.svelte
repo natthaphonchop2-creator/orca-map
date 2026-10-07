@@ -115,6 +115,7 @@
 </ConfirmDialog>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.ca-connected {
 		margin-bottom: 8px;
@@ -125,7 +126,7 @@
 		gap: 10px;
 		margin: 0 0 12px;
 		color: var(--orca-ink);
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 650;
 		line-height: 1.4;
 	}
@@ -164,14 +165,14 @@
 	}
 	.ca-copy b {
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.45;
 		overflow-wrap: anywhere;
 	}
 	.ca-copy small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.ca-cut {

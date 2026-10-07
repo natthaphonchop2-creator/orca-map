@@ -351,11 +351,12 @@
 </ConfirmDialog>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
   .approvals-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
   /* W0.1: plain text, never a black chip: the chosen one in ink and bold, its count plain beside it. */
   .approvals-tabs { display: inline-flex; gap: 4px; }
-  .approvals-tabs button { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; border: 0; border-radius: var(--orca-radius); background: transparent; color: var(--orca-muted); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+  .approvals-tabs button { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; border: 0; border-radius: var(--orca-radius); background: transparent; color: var(--orca-muted); font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; }
   .approvals-tabs button:hover { color: var(--orca-ink); }
   .approvals-tabs button.chosen { color: var(--orca-ink); font-weight: 600; }
   .approvals-tabs button span { color: var(--orca-subtle); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
@@ -365,9 +366,9 @@
   .approval-list { display: grid; gap: 12px; }
   .approval-card { display: grid; gap: 12px; min-width: 0; padding: 18px 20px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); }
   .approval-card > header { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .approval-icon { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border: 1px solid var(--orca-line); border-radius: 10px; background: var(--orca-surface); }
+  .approval-icon { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius); background: var(--orca-surface); }
   .approval-title { flex: 1 1 auto; min-width: 0; }
-  .approval-title h2 { margin: 0; color: var(--orca-ink); font-size: 14px; font-weight: 650; line-height: 1.4; overflow-wrap: anywhere; }
+  .approval-title h2 { margin: 0; color: var(--orca-ink); font-size: 13.5px; font-weight: 650; line-height: 1.4; overflow-wrap: anywhere; }
   .approval-title span { color: var(--orca-muted); font-size: 13px; }
   .approval-meta, .approval-decision { margin: 0; color: var(--orca-muted); font-size: 13px; line-height: 1.6; }
   .approval-meta span { display: inline-block; }
@@ -377,12 +378,12 @@
   .approval-redacted { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 14px; border: 1px dashed var(--orca-line-strong); border-radius: var(--orca-radius); background: var(--orca-surface-2); color: var(--orca-muted); font-size: 13.5px; }
   .approval-redacted :global(svg) { flex: none; }
   .approval-args { display: grid; grid-template-columns: minmax(90px, max-content) minmax(0, 1fr); gap: 6px 16px; margin: 0; padding: 12px 14px; border: 1px solid var(--orca-line-soft); border-radius: var(--orca-radius); background: var(--orca-surface-2); color: var(--orca-ink); font-size: 13.5px; }
-  .approval-args dt { color: var(--orca-muted); font-size: 12.5px; }
+  .approval-args dt { color: var(--orca-muted); font-size: 12px; }
   .approval-args dd { max-height: 240px; margin: 0; overflow: auto; overflow-wrap: anywhere; white-space: pre-line; }
   .line-send { display: grid; gap: 8px; min-width: 0; padding: 12px 14px; border: 1px solid var(--orca-line-soft); border-radius: var(--orca-radius); background: var(--orca-surface-2); color: var(--orca-ink); font-size: 13.5px; }
   .line-send p { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; }
-  .line-send-id { color: var(--orca-muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
-  .line-send-note { color: var(--orca-muted); font-size: 12.5px; }
+  .line-send-id { color: var(--orca-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .line-send-note { color: var(--orca-muted); font-size: 12px; }
   .line-send-note :global(svg) { flex: none; }
   .line-send-text { max-height: 320px; padding: 10px 12px; overflow: auto; border: 1px solid var(--orca-line); border-radius: var(--orca-radius); background: var(--orca-surface); line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }
   .line-send-warn { color: var(--orca-warn); font-size: 13px; font-weight: 500; }
@@ -395,7 +396,7 @@
   .approval-card .approval-approve { border-color: var(--orca-line-strong); font-weight: 600; }
   .approval-approve :global(svg) { color: var(--orca-ok); }
   .approval-reason { display: block; margin-top: 16px; color: var(--orca-ink); font-size: 13px; font-weight: 600; }
-  .approval-reason-input { width: 100%; min-height: 40px; margin-top: 6px; padding: 8px 12px; border: 1px solid var(--orca-field-line); border-radius: var(--orca-radius); background: var(--orca-field); color: var(--orca-ink); font: inherit; font-size: 13.5px; }
+  .approval-reason-input { width: 100%; min-height: 32px; margin-top: 6px; padding: 8px 12px; border: 1px solid var(--orca-field-line); border-radius: var(--orca-radius-sm); background: var(--orca-field); color: var(--orca-ink); font: inherit; font-size: 13.5px; }
   .approval-reason-input:focus-visible { border-color: var(--orca-focus); outline: none; box-shadow: 0 0 0 3px var(--orca-focus-halo); }
   @media (max-width: 720px) {
     .approval-card { padding: 16px; }

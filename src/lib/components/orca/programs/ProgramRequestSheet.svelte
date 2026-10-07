@@ -139,6 +139,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.request-inline {
 		padding: 20px;
@@ -151,7 +152,7 @@
 	}
 	.request-inline h2 {
 		margin: 0;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 	}
 	.request-inline header p {
@@ -184,7 +185,7 @@
 		width: 100%;
 		padding: 10px 12px;
 		border: 1px solid var(--orca-field-line);
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field);
 		color: var(--orca-ink);
 		font: inherit;
@@ -231,7 +232,7 @@
 	.request-done strong {
 		display: block;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.request-done p {
 		margin: 2px 0 0;

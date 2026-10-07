@@ -160,6 +160,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.pilot-callout {
 		display: flex;
@@ -208,7 +209,7 @@
 		flex: none;
 		align-items: center;
 		gap: 7px;
-		min-height: 34px;
+		min-height: 32px;
 		padding: 0 14px;
 		border: 0;
 		border-radius: 999px;
@@ -274,7 +275,7 @@
 	}
 	.pilot-title h2 {
 		margin: 0;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 650;
 		line-height: 1.4;
 		overflow-wrap: anywhere;
@@ -282,7 +283,7 @@
 	.pilot-title p {
 		margin: 1px 0 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.pilot-meta {
 		display: flex;
@@ -337,7 +338,7 @@
 	.pilot-status legend {
 		margin-bottom: 8px;
 		padding: 0;
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		color: var(--orca-text-2);
 	}

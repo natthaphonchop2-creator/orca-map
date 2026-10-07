@@ -104,6 +104,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.audience {
 		min-width: 0;
@@ -126,7 +127,7 @@
 		gap: 8px;
 		margin: 8px 0 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.audience-me :global(svg) {
@@ -140,7 +141,7 @@
 		color: var(--orca-warn);
 	}
 	.audience-me .k-link-button {
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.audience-departments {
 		margin-top: 22px;

@@ -166,10 +166,11 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
   .audit-details {
     min-width: 0;
-    font-size: 12.5px;
+    font-size: 12px;
   }
   dl {
     display: grid;
@@ -185,7 +186,7 @@
   }
   dt {
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
   }
   dd {
     min-width: 0;

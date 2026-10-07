@@ -595,6 +595,7 @@
 />
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.kn-back {
 		display: inline-flex;
@@ -625,7 +626,7 @@
 	}
 	.kd-title h1 {
 		margin: 0;
-		font-size: 24px;
+		font-size: 22px;
 		font-weight: 600;
 		line-height: 1.35;
 		overflow-wrap: anywhere;
@@ -651,7 +652,7 @@
 		gap: 10px;
 	}
 	.kd-actions :global(.k-button) {
-		min-height: 42px;
+		min-height: 32px;
 		padding: 0 16px;
 		font-weight: 600;
 	}
@@ -678,7 +679,7 @@
 	.kd-summary {
 		margin: 0;
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.fd-alert {
@@ -721,7 +722,7 @@
 	.fd-state h2,
 	.fd-card h2 {
 		margin: 0 0 6px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 700;
 	}
 	.fd-state p {
@@ -818,7 +819,7 @@
 	.fd-meta {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.55;
 	}
 	.fd-buttons {
@@ -837,7 +838,7 @@
 		display: grid;
 		gap: 6px;
 		color: var(--orca-text-2);
-		font-size: 12.5px;
+		font-size: 12px;
 		overflow-wrap: anywhere;
 	}
 	.fd-bar {
@@ -868,14 +869,14 @@
 		gap: 2px;
 		align-self: flex-start;
 		padding: 3px;
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-secondary);
 	}
 	.fd-tabs button {
 		min-height: 34px;
 		padding: 6px 12px;
 		border: 0;
-		border-radius: 8px;
+		border-radius: var(--orca-radius-sm);
 		background: transparent;
 		color: var(--orca-muted);
 		font-size: 13px;
@@ -911,7 +912,7 @@
 	/* W0: every page's H1 is 24, and 20 on a phone. */
 	@media (max-width: 720px) {
 		.kd-title h1 {
-			font-size: 20px;
+			font-size: 18px;
 		}
 	}
 </style>

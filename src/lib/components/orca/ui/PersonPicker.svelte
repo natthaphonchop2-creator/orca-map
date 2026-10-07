@@ -154,7 +154,7 @@
 		min-height: 52px;
 		padding: 7px 10px;
 		border: 1px solid var(--orca-field-line);
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field);
 	}
 	.orca-picker-field:focus-within {
@@ -248,10 +248,10 @@
 		z-index: 20;
 		max-height: 300px;
 		margin: 0;
-		padding: 6px;
+		padding: 8px;
 		overflow: auto;
 		border: 1px solid var(--orca-line);
-		border-radius: var(--orca-radius-lg);
+		border-radius: var(--orca-radius-xl);
 		background: var(--orca-popover);
 		box-shadow: var(--orca-popover-shadow);
 		list-style: none;

@@ -138,8 +138,8 @@ test('the rail\'s active item: a grey tile only on the rail; the citron dot only
 	assert.match(active, /background: var\(--orca-secondary\)/);
 	assert.doesNotMatch(css, /\.w1-rail:not\(\.open\)[^{]*\.active::after|\.orca-w01 \.w1-item\.active::after/, 'no corner dot on the collapsed rail');
 	assert.match(css, /\.orca-w01 \.w1-rail\.open \.w1-item\.active::after,\s*\.orca-w01 \.w1-drawer \.w1-item\.active::after \{[^}]*background: var\(--orca-citron\)/);
-	// 56 px rail, 272 px panel over the content, the content moves only when pinned; no slide with reduced motion.
-	assert.match(css, /--w1-rail: 56px;\s*--w1-panel: 272px;/);
+	// W0.2: 52 px rail, 256 px panel over the content, the content moves only when pinned; no slide with reduced motion.
+	assert.match(css, /--w1-rail: 52px;\s*--w1-panel: 256px;/);
 	assert.match(css, /\.orca-w01 \.w1-stage \{[^}]*margin-left: var\(--w1-rail\);/);
 	assert.match(css, /\.orca-w01\.rail-pinned \.w1-stage \{\s*margin-left: var\(--w1-panel\);/);
 	assert.match(css, /@media \(prefers-reduced-motion: no-preference\) \{\s*\.orca-w01 \.w1-rail \{\s*transition: width/);
@@ -180,7 +180,7 @@ test('the top bar: the company at the left without a plan, ＋ สร้าง �
 	assert.equal(html.match(/class="w1-create"/g)?.length, 1, 'one primary');
 	assert.match(top, /<button class="w1-create"[^>]*>(?:<!--[^>]*-->)*<span>Create<\/span>/);
 	const css = await readFile(new URL('./w01.css', import.meta.url), 'utf8');
-	assert.match(css, /\.orca-w01 \.w1-create \{[^}]*height: 36px;[^}]*background: var\(--orca-ink\);[^}]*color: var\(--orca-on-ink, #fff\);/, 'solid ink; ink is light in dark');
+	assert.match(css, /\.orca-w01 \.w1-create \{[^}]*height: 32px;[^}]*background: var\(--orca-ink\);[^}]*color: var\(--orca-on-ink, #fff\);/, 'solid ink; ink is light in dark');
 	assert.match(css, /\.orca-w01 \.w1-top \{\s*position: fixed;\s*inset: 0 0 auto 0;/, 'full width');
 });
 

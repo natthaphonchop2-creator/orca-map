@@ -207,6 +207,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.pm {
 		position: relative;
@@ -221,7 +222,7 @@
 		overflow: auto;
 		padding: 4px;
 		border: 1px solid var(--orca-line);
-		border-radius: var(--orca-radius-lg);
+		border-radius: var(--orca-radius-xl);
 		background: var(--orca-popover, var(--orca-surface));
 		color: var(--orca-ink);
 		box-shadow: var(--orca-popover-shadow);
@@ -243,11 +244,11 @@
 		max-width: none;
 		max-height: 92dvh;
 		margin: 0;
-		padding: 4px 4px calc(8px + env(safe-area-inset-bottom));
+		padding: 4px 8px calc(8px + env(safe-area-inset-bottom));
 		overflow: auto;
 		border: 1px solid var(--orca-line);
 		border-bottom: 0;
-		border-radius: var(--orca-radius-xl, 16px) var(--orca-radius-xl, 16px) 0 0;
+		border-radius: var(--orca-radius-xl, 18px) var(--orca-radius-xl, 18px) 0 0;
 		background: var(--orca-popover, var(--orca-surface));
 		color: var(--orca-ink);
 		box-shadow: none;
@@ -266,7 +267,7 @@
 	}
 	.pm-sheet-head h2 {
 		margin: 0;
-		font-size: 18px;
+		font-size: 16px;
 		font-weight: 600;
 	}
 	.pm-close {

@@ -340,9 +340,9 @@
 		margin-bottom: 0;
 	}
 	.kn-add {
-		min-height: 44px !important;
-		padding: 0 18px !important;
-		font-size: 14px !important;
+		min-height: 32px !important;
+		padding: 0 12px !important;
+		font-size: 13px !important;
 		font-weight: 600 !important;
 	}
 	.kn-ctx {
@@ -452,7 +452,7 @@
 		display: inline-flex;
 		gap: 2px;
 		padding: 3px;
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-secondary);
 	}
 	.seg button,
@@ -460,10 +460,10 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 8px;
-		min-height: 36px;
+		min-height: 32px;
 		padding: 7px 14px;
 		border: 0;
-		border-radius: 8px;
+		border-radius: var(--orca-radius-sm);
 		background: transparent;
 		color: var(--orca-muted);
 		font-size: 13.5px;
@@ -504,10 +504,10 @@
 		align-items: center;
 		gap: 8px;
 		width: 236px;
-		min-height: 40px;
+		min-height: 32px;
 		padding: 0 12px;
 		border: 1px solid var(--orca-field-line);
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field);
 		color: var(--orca-subtle);
 	}
@@ -542,6 +542,7 @@
 		min-height: 32px;
 		padding: 0 8px;
 		border: 0;
+		border-top: 2px solid transparent; /* balances the underline: the label sits in the middle */
 		border-bottom: 2px solid transparent;
 		border-radius: 0;
 		background: transparent;
@@ -613,7 +614,7 @@
 		place-items: center;
 		width: 34px;
 		height: 34px;
-		border-radius: 9px;
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
 	}
@@ -632,7 +633,7 @@
 	.kl-t b {
 		display: block;
 		overflow: hidden;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.4;
 		white-space: nowrap;
@@ -643,7 +644,7 @@
 		overflow: hidden;
 		margin-top: 1px;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 		white-space: nowrap;
 		text-overflow: ellipsis;
@@ -711,7 +712,7 @@
 		display: block;
 		min-width: 0;
 		color: var(--orca-text-2);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.45;
 		white-space: nowrap;
 	}
@@ -753,7 +754,7 @@
 		border-top: 1px solid var(--orca-line-soft);
 		background: var(--orca-surface-2);
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.kl-f span {
 		display: inline-flex;
@@ -773,7 +774,7 @@
 		border-radius: var(--orca-radius-sm);
 		background: transparent;
 		color: var(--orca-ink);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -823,7 +824,7 @@
 	.kn-empty p {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.kn-empty small {
@@ -838,7 +839,7 @@
 		place-items: center;
 		width: 44px;
 		height: 44px;
-		border-radius: 12px;
+		border-radius: var(--orca-radius-lg);
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
 	}

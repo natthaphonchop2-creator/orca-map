@@ -287,6 +287,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.ca {
 		container: ca / inline-size;
@@ -303,7 +304,7 @@
 	}
 	.ca-apps h2 {
 		margin: 0 0 10px;
-		font-size: 16px;
+		font-size: 15px;
 	}
 	.ca-where {
 		margin-top: 16px;
@@ -315,7 +316,7 @@
 	}
 	.ca-advanced > summary {
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -331,7 +332,7 @@
 	.ca-copy :global(.orca-copy.large .orca-copy-button) {
 		min-height: 52px;
 		padding: 0 22px;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ca-copy :global(.orca-copy-label) {
 		color: var(--orca-subtle);
@@ -385,7 +386,7 @@
 		background: transparent;
 		color: var(--orca-muted);
 		font: inherit;
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -399,7 +400,7 @@
 		gap: 8px;
 		margin: 12px 0 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.ca-tip :global(svg) {
@@ -417,7 +418,7 @@
 	.ca-help {
 		margin: 22px 0 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.7;
 	}
 	.ca-help a {

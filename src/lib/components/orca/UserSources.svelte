@@ -234,10 +234,11 @@
 </section>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
   .user-sources { display: grid; gap: 16px; min-width: 0; }
   .source-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px; margin-bottom: 4px; }
-  .source-title { margin: 0; font-size: 16px; font-weight: 600; }
+  .source-title { margin: 0; font-size: 15px; font-weight: 600; }
   .source-subtitle { margin: 2px 0 0; color: var(--orca-muted); font-size: 13px; line-height: 1.6; }
   .editor-heading, .mapping-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .editor-heading h2, .mapping-heading h3 { margin: 0; }
@@ -253,7 +254,7 @@
   fieldset { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; min-width: 0; margin: 0; padding: 0; border: 0; }
   fieldset > label:nth-child(2), fieldset > label:nth-child(5), .source-switch, .mapping-heading, .identity-mapping, .source-help { grid-column: 1 / -1; }
   label { display: grid; gap: 6px; min-width: 0; font-size: 13px; font-weight: 600; }
-  .source-editor :is(input:not([type=checkbox]), select) { width: 100%; min-width: 0; min-height: 36px; padding: 7px 11px; border: 1px solid var(--orca-field-line, var(--orca-line-strong)); border-radius: var(--orca-radius); background: var(--orca-surface); color: var(--orca-ink); font: inherit; font-size: 13.5px; font-weight: 400; line-height: 1.45; }
+  .source-editor :is(input:not([type=checkbox]), select) { width: 100%; min-width: 0; min-height: 36px; padding: 7px 11px; border: 1px solid var(--orca-field-line, var(--orca-line-strong)); border-radius: var(--orca-radius-sm); background: var(--orca-surface); color: var(--orca-ink); font: inherit; font-size: 13.5px; font-weight: 400; line-height: 1.45; }
   .source-editor select { height: 36px; padding-block: 0; }
   .source-editor :is(input:not([type=checkbox]), select):focus-visible { outline: none; border-color: var(--orca-focus, var(--orca-ink)); box-shadow: 0 0 0 3px var(--orca-focus-halo, rgba(21, 24, 35, 0.1)); }
   .source-editor input[readonly] { background: var(--orca-surface-2); color: var(--orca-muted); }
@@ -275,17 +276,17 @@
   .source-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--orca-radius); background: var(--orca-secondary); color: var(--orca-nav); }
   .source-name { min-width: 0; }
   .source-name h2 { margin: 0; font-size: 13.5px; line-height: 1.45; font-weight: 600; overflow-wrap: anywhere; }
-  .source-name span { display: block; margin-top: 1px; overflow: hidden; color: var(--orca-muted); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+  .source-name span { display: block; margin-top: 1px; overflow: hidden; color: var(--orca-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
   .source-status { padding: 1px 8px; border-radius: var(--orca-radius-sm); background: var(--orca-secondary); color: var(--orca-nav); font-size: 11.5px; font-weight: 500; white-space: nowrap; }
   .source-status.enabled { background: var(--orca-ok-bg); color: var(--orca-ok); }
-  .source-count { color: var(--orca-muted); font-size: 12.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .source-count { color: var(--orca-muted); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .source-row .source-actions { flex-wrap: nowrap; gap: 4px; }
   .source-row .source-actions :global(.k-button) { margin-right: 4px; }
   .source-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 48px 24px; color: var(--orca-subtle); text-align: center; font-size: 13px; }
-  .source-empty h2 { margin: 4px 0 0; color: var(--orca-ink); font-size: 14px; font-weight: 600; }
+  .source-empty h2 { margin: 4px 0 0; color: var(--orca-ink); font-size: 13.5px; font-weight: 600; }
   .source-empty :global(.k-button) { margin-top: 8px; }
   .delete-confirm { display: grid; gap: 10px; padding: 18px 20px; border-color: color-mix(in srgb, var(--orca-deny) 30%, transparent); }
-  .delete-confirm h2 { margin: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+  .delete-confirm h2 { margin: 0; font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
   .delete-confirm p { margin: 0; color: var(--orca-muted); font-size: 13.5px; }
   .delete-confirm .source-actions { margin-top: 4px; }
   @media (max-width: 1000px) {

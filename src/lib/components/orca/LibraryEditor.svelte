@@ -527,6 +527,7 @@
 </ConfirmDialog>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.kn-back {
 		display: inline-flex;
@@ -552,7 +553,7 @@
 	}
 	.ed-h h1 {
 		margin: 0;
-		font-size: 24px;
+		font-size: 22px;
 		font-weight: 600;
 		line-height: 1.35;
 	}
@@ -619,7 +620,7 @@
 	}
 	.ed-file small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.field.kn-grow {
@@ -634,14 +635,14 @@
 	.ta {
 		width: 100%;
 		border: 1px solid var(--orca-field-line);
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field);
 		color: var(--orca-ink);
 	}
 	.kn-input {
-		min-height: 46px;
+		min-height: 32px;
 		padding: 11px 12px;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.kn-input.short {
 		min-height: 0;
@@ -703,7 +704,7 @@
 	}
 	.disc .muted {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 400;
 	}
 	.ed-alert,
@@ -755,13 +756,13 @@
 	}
 	.ed-draft {
 		flex: 1;
-		min-height: 44px !important;
+		min-height: 36px !important;
 		justify-content: center;
 		font-weight: 600 !important;
 	}
 	.ed-publish {
 		flex: 1.5;
-		min-height: 44px !important;
+		min-height: 36px !important;
 		justify-content: center;
 		font-weight: 600 !important;
 	}
@@ -808,7 +809,7 @@
 	/* W0: every page's H1 is 24, and 20 on a phone. */
 	@media (max-width: 720px) {
 		.ed-h h1 {
-			font-size: 20px;
+			font-size: 18px;
 		}
 	}
 </style>

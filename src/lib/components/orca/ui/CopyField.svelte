@@ -48,6 +48,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.orca-copy {
 		display: flex;
@@ -62,7 +63,7 @@
 		align-items: center;
 		justify-content: center;
 		gap: 8px;
-		min-height: 36px;
+		min-height: 32px;
 		padding: 0 14px;
 		border: 1px solid transparent;
 		border-radius: var(--orca-radius);
@@ -77,7 +78,7 @@
 	.orca-copy.large .orca-copy-button {
 		min-height: 54px;
 		padding: 0 26px;
-		font-size: 15px;
+		font-size: 14px;
 	}
 	.orca-copy.small .orca-copy-button {
 		border-color: var(--orca-line);
@@ -109,7 +110,7 @@
 		overflow-wrap: anywhere;
 		color: var(--orca-ink);
 		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-		font-size: 12.5px;
+		font-size: 12px;
 		user-select: all;
 	}
 	.orca-copy-announce {

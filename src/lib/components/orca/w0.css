@@ -1,18 +1,19 @@
 /* orca-type-remap v1 */
+/* orca-type-remap v2 */
 /*
  * W0, the calm workspace (approved 2026-10-07; output/orca-w0). Loaded after
  * orca-system.css, so these rules win at the same specificity.
- * - Type: h1 24 (20 at ≤720 px), body 14, small 12.5.
+ * - Type (W0.2, owner 2026-10-08, one more step down): h1 22 (18 at ≤720 px), body 13.5, small 12.
  * - Black, white and grey. Citron only on small points: the active item's dot.
  * - No effects or animation on the menu or on buttons.
  */
 
 /* ---------- Type ---------- */
 .orca-workspace.orca-app.orca-w0 {
-  font-size: 14px;
+  font-size: 13.5px;
 }
 .orca-workspace.orca-app.orca-w0 h1 {
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1.35;
   font-weight: 600;
 }
@@ -20,23 +21,23 @@
   font-weight: 600;
 }
 .orca-workspace.orca-app.orca-w0 h2 {
-  font-size: 16px;
+  font-size: 15px;
 }
 .orca-workspace.orca-app.orca-w0 h3 {
-  font-size: 14px;
+  font-size: 13.5px;
 }
 .orca-workspace.orca-app.orca-w0 .k-subtitle,
 .orca-workspace.orca-app.orca-w0 .orca-page-subtitle {
   margin-top: 4px;
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--orca-muted);
 }
 .orca-workspace.orca-app.orca-w0 .k-small {
-  font-size: 12.5px;
+  font-size: 12px;
 }
 @media (max-width: 720px) {
   .orca-workspace.orca-app.orca-w0 h1 {
-    font-size: 20px;
+    font-size: 18px;
   }
 }
 .orca-workspace.orca-app.orca-w0 .sr-only {
@@ -216,7 +217,7 @@
   border-radius: var(--orca-radius);
 }
 .orca-workspace.orca-app.orca-w0 .workspace-mode a {
-  border-radius: 6px;
+  border-radius: var(--orca-radius-sm);
 }
 
 /* ---------- Top bar ---------- */

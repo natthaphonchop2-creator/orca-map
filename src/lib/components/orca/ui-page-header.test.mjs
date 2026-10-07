@@ -65,20 +65,20 @@ test('W0.1: EmptyState draws its icon as a plain 20px --subtle line icon, never 
 	assert.match(html, /<span class="orca-empty-icon[^"]*" aria-hidden="true"><svg data-size="20"><\/svg><\/span>\s*<p[^>]*>Nothing here\.<\/p>/);
 });
 
-test('the title is 24px (20px on a phone; one step down, owner 2026-10-07) and outranks the shell\'s `.orca-workspace.orca-app h1`', async () => {
+test('the title is 22px (18px on a phone; W0.2, one more step down, owner 2026-10-08) and outranks the shell\'s `.orca-workspace.orca-app h1`', async () => {
 	const { readFile } = await import('node:fs/promises');
 	const { compile } = await import('svelte/compiler');
 	const source = await readFile(new URL('./ui/PageHeader.svelte', import.meta.url), 'utf8');
 	const css = compile(source, { filename: 'PageHeader.svelte', generate: 'client', css: 'external' }).css.code.replace(/\/\*[\s\S]*?\*\//g, '');
 	const shell = await readFile(new URL('./orca-system.css', import.meta.url), 'utf8');
-	assert.match(shell, /\.orca-workspace\.orca-app h1 \{\s*font-size: 20px;/);
+	assert.match(shell, /\.orca-workspace\.orca-app h1 \{\s*font-size: 18px;/);
 	// Scoped, `.orca-page-header .orca-page-title h1` is 0-3-1 at least: more than the shell's 0-2-1.
 	const rule = css.match(/(\.orca-page-header[^{]*\.orca-page-title[^{]*h1[^{]*)\{([^}]*)\}/);
 	assert.ok(rule, 'the title rule names the header, the title and the h1');
-	assert.match(rule[2], /font-size:\s*24px/);
+	assert.match(rule[2], /font-size:\s*22px/);
 	const classes = (rule[1].match(/\.[\w-]+(?![^(]*\))/g) ?? []).length;
 	assert.ok(classes >= 3, `${rule[1].trim()} has ${classes} classes outside :where()`);
-	assert.match(css, /@media \(max-width: 720px\)\s*\{\s*\.orca-page-header[^{]*h1[^{]*\{\s*font-size:\s*20px/);
+	assert.match(css, /@media \(max-width: 720px\)\s*\{\s*\.orca-page-header[^{]*h1[^{]*\{\s*font-size:\s*18px/);
 });
 
 test('W0: inside a frame that shows the page H1, a PageHeader keeps only its action and status', async () => {

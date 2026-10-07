@@ -175,6 +175,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.wc {
 		border: 1px solid var(--orca-line);
@@ -187,7 +188,7 @@
 	}
 	.wc-h h2 {
 		margin: 0 0 3px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 	}
 	.wc-h p {
@@ -202,7 +203,7 @@
 	}
 	.opt {
 		border: 1px solid transparent;
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 	}
 	.opt.on {
 		border-color: var(--orca-chosen);
@@ -219,7 +220,7 @@
 		padding-top: 13px;
 	}
 	.opt:not(.on) .opt-l:hover {
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-hover);
 	}
 	.kn-radio {
@@ -258,7 +259,7 @@
 	.opt-b small {
 		display: block;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.nested {
@@ -266,7 +267,7 @@
 	}
 	.al {
 		border: 1px solid var(--orca-line);
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-surface-2);
 	}
 	.al.nested {
@@ -299,7 +300,7 @@
 		width: 28px;
 		height: 28px;
 		border: 1px solid var(--orca-line);
-		border-radius: 8px;
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-surface);
 		color: var(--orca-text-2);
 	}
@@ -331,7 +332,7 @@
 		margin: 14px 20px 0;
 		padding: 12px 14px;
 		border: 1px solid var(--orca-ok-line);
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-ok-bg);
 	}
 	.avs {
@@ -393,10 +394,10 @@
 		margin: 8px 20px 0;
 		padding: 10px 14px 10px 30px;
 		border: 1px solid var(--orca-line);
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-surface-2);
 		color: var(--orca-text-2);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.7;
 	}
 	.acts {

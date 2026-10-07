@@ -149,6 +149,7 @@
 </dialog>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
   .lifecycle-actions { display: flex; flex-wrap: wrap; gap: 8px; }
   .lifecycle-actions.compact { flex-wrap: nowrap; gap: 4px; }
@@ -165,15 +166,15 @@
   .dialog-icon.danger { background: var(--orca-deny-bg, #fdecee); color: var(--orca-deny, #b3262f); }
   .dialog-icon.warn { background: var(--orca-warn-bg, #fff5dc); color: var(--orca-warn, #8a5a00); }
   .dialog-icon :global(svg) { width: 20px; height: 20px; }
-  h2 { margin: 16px 0 4px; font-size: 16px; line-height: 1.4; font-weight: 600; }
+  h2 { margin: 16px 0 4px; font-size: 15px; line-height: 1.4; font-weight: 600; }
   p { margin: 10px 0; line-height: 1.7; font-size: 13.5px; color: var(--orca-muted, #5b6270); }
   .entity-name { font-weight: 600; color: var(--orca-ink, #151823); overflow-wrap: anywhere; margin: 0 0 14px; }
-  .preserved { font-size: 12.5px; color: var(--orca-subtle, #6b7280); }
-  .affected-gateways { border: 1px solid var(--orca-line, #e5e7eb); background: var(--orca-surface-2, #fafafa); border-radius: var(--orca-radius, 8px); padding: 12px 14px; font-size: 12.5px; line-height: 1.7; }
+  .preserved { font-size: 12px; color: var(--orca-subtle, #6b7280); }
+  .affected-gateways { border: 1px solid var(--orca-line, #e5e7eb); background: var(--orca-surface-2, #fafafa); border-radius: var(--orca-radius, 8px); padding: 12px 14px; font-size: 12px; line-height: 1.7; }
   .affected-gateways strong { display: block; color: var(--orca-ink, #151823); }
   ul { padding-left: 20px; margin: 8px 0 0; max-height: 140px; overflow-y: auto; list-style: disc; }
   .affected-gateways a { color: var(--orca-ink, #151823); text-decoration: underline; text-underline-offset: 3px; }
-  .dialog-error { margin-top: 14px; color: var(--orca-deny, #b3262f); background: var(--orca-deny-bg, #fdecee); border-radius: var(--orca-radius, 8px); padding: 10px 12px; font-size: 12.5px; line-height: 1.7; }
+  .dialog-error { margin-top: 14px; color: var(--orca-deny, #b3262f); background: var(--orca-deny-bg, #fdecee); border-radius: var(--orca-radius, 8px); padding: 10px 12px; font-size: 12px; line-height: 1.7; }
   .dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 22px; }
   button:focus-visible, a:focus-visible { outline: 2px solid var(--orca-focus, var(--orca-ink, #151823)); outline-offset: 2px; }
 </style>

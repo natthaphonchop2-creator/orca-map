@@ -25,6 +25,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.um {
 		padding: 18px 20px;
@@ -54,7 +55,7 @@
 		justify-content: space-between;
 		gap: 2px 10px;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.um-line b {
 		color: var(--orca-ink);

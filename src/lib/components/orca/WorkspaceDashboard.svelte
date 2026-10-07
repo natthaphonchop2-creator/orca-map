@@ -303,6 +303,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.home-layout {
 		display: grid;
@@ -343,7 +344,7 @@
 	}
 	.home-skills-head h2 {
 		margin: 0;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 600;
 	}
 	.home-skills-all {
@@ -363,17 +364,17 @@
 	.home-skill-uses {
 		flex: none;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.home-skill-none {
 		margin: 0;
 		padding: 14px 16px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.home-attention h2 {
 		margin: 0 0 10px;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 600;
 	}
 	.home-count {
@@ -402,13 +403,13 @@
 		min-width: 0;
 	}
 	.home-row-copy strong {
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		line-height: 1.45;
 	}
 	.home-row-copy small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.home-row .k-button {

@@ -247,6 +247,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.programs-toolbar {
 		display: flex;
@@ -272,20 +273,20 @@
 	}
 	.programs-search input {
 		width: 100%;
-		height: 36px;
+		height: 32px;
 		padding: 0 12px 0 34px;
 		border: 1px solid var(--orca-field-line, var(--orca-line-strong));
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field, var(--orca-surface));
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.programs-filter select {
-		height: 36px;
+		height: 32px;
 		padding: 0 30px 0 12px;
 		border: 1px solid var(--orca-field-line, var(--orca-line-strong));
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background-color: var(--orca-field, var(--orca-surface));
 		color: var(--orca-ink);
 		font: inherit;
@@ -328,7 +329,7 @@
 	.programs-card-name a {
 		overflow: hidden;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		text-decoration: none;
 		text-overflow: ellipsis;
@@ -351,7 +352,7 @@
 	.programs-card-name small,
 	.programs-meta {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.programs-card-foot {
 		display: flex;
@@ -409,13 +410,13 @@
 	}
 	.programs-start h2 {
 		margin: 0;
-		font-size: 18px;
+		font-size: 16px;
 		font-weight: 700;
 	}
 	.programs-start > p {
 		margin: 6px 0 20px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.programs-start-grid {
 		display: grid;
@@ -438,7 +439,7 @@
 	}
 	.programs-start-card strong {
 		margin-top: 14px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 	}
 	.programs-start-card span {
@@ -450,7 +451,7 @@
 		margin-top: auto;
 		padding-top: 12px;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-style: normal;
 	}
 	.programs-start-card .go {

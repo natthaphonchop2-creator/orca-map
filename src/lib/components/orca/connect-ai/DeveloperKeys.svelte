@@ -225,6 +225,7 @@
 </details>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.ca-keys {
 		margin-top: 14px;
@@ -321,7 +322,7 @@
 		align-items: center;
 		gap: 6px;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 650;
 	}
 	.ca-created b :global(svg) {
@@ -347,7 +348,7 @@
 		background: var(--orca-field);
 		color: var(--orca-ink);
 		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-		font-size: 12.5px;
+		font-size: 12px;
 		overflow-wrap: anywhere;
 		user-select: all;
 	}
@@ -375,7 +376,7 @@
 		justify-self: start;
 	}
 	.small {
-		font-size: 12.5px !important;
+		font-size: 12px !important;
 	}
 	.ca-facts {
 		display: grid;

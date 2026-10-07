@@ -144,6 +144,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
   .client-setup {
     --setup-mono: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
@@ -173,14 +174,14 @@
   .endpoint input {
     flex: 1 1 auto;
     min-width: 0;
-    height: 36px;
+    height: 32px;
     padding: 0 11px;
     border: 1px solid var(--orca-field-line, var(--orca-line-strong));
-    border-radius: var(--orca-radius);
+    border-radius: var(--orca-radius-sm);
     background: var(--orca-surface-2);
     color: var(--orca-ink);
     font-family: var(--setup-mono);
-    font-size: 12.5px;
+    font-size: 12px;
     text-overflow: ellipsis;
   }
   .endpoint input:focus-visible {
@@ -205,7 +206,7 @@
   }
   .auth-mode {
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 500;
   }
   .client-setup .setup-note {
@@ -263,7 +264,7 @@
     grid-template-columns: 120px minmax(0, 1fr);
     gap: 6px 12px;
     margin: 0 0 12px;
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .app-panel dt {
     color: var(--orca-muted);
@@ -283,7 +284,7 @@
     background: var(--orca-surface-2);
     color: var(--orca-ink);
     font-family: var(--setup-mono);
-    font-size: 12.5px;
+    font-size: 12px;
     line-height: 1.6;
   }
   .config-header {
@@ -297,13 +298,13 @@
     min-width: 0;
     color: var(--orca-nav);
     font-family: var(--setup-mono);
-    font-size: 12.5px;
+    font-size: 12px;
     overflow-wrap: anywhere;
   }
   .client-setup p {
     margin: 12px 0 0;
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
     line-height: 1.65;
   }
   .advanced-body .docs {
@@ -312,7 +313,7 @@
     gap: 6px;
     margin-top: 12px;
     color: var(--orca-ink);
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 500;
     text-decoration: underline;
     text-decoration-thickness: 1px;
@@ -338,11 +339,11 @@
     font-weight: 600;
   }
   .app-field select {
-    height: 36px;
+    height: 32px;
     max-width: 280px;
     padding: 0 10px;
     border: 1px solid var(--orca-field-line, var(--orca-line-strong));
-    border-radius: var(--orca-radius);
+    border-radius: var(--orca-radius-sm);
     background: var(--orca-surface);
     color: var(--orca-ink);
     font: inherit;

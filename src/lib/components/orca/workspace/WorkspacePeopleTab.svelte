@@ -178,6 +178,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.pp-edit {
 		max-width: 760px;
@@ -187,7 +188,7 @@
 	.pp-list-head h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 	}
 	.pp-edit > p {
@@ -209,7 +210,7 @@
 		padding: 16px 18px 12px;
 	}
 	.pp-list-head h2 {
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.pp-legacy {
 		color: var(--orca-muted);
@@ -237,7 +238,7 @@
 		border-radius: 50%;
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 700;
 	}
 	.pp-avatar.me {

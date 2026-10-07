@@ -236,6 +236,7 @@
 </section>{/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
   .org-panel {
     min-width: 0;
@@ -266,7 +267,7 @@
     max-width: 72ch;
     margin: 2px 0 0;
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
     line-height: 1.6;
   }
   .org-count {
@@ -296,7 +297,7 @@
     padding: 12px 18px;
     border-top: 1px solid var(--orca-line);
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
     line-height: 1.6;
   }
   .org-panel-note a {
@@ -389,7 +390,7 @@
     border-bottom: 1px solid var(--orca-line);
     background: var(--orca-surface-2);
     color: var(--orca-nav);
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 500;
     text-align: start;
     white-space: nowrap;

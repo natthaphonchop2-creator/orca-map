@@ -156,6 +156,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.ca-access {
 		display: flex;
@@ -173,7 +174,7 @@
 		gap: 4px 12px;
 		margin: 0;
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ca-reach a {
 		color: var(--orca-ink);
@@ -208,7 +209,7 @@
 		flex: 1;
 		min-width: 0;
 		margin: 0;
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.ca-text b {
@@ -223,7 +224,7 @@
 		font-size: 13.5px;
 	}
 	.ca-title {
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ca-actions {
 		display: flex;
@@ -233,16 +234,16 @@
 		margin-top: 10px;
 	}
 	.ca-actions .k-button {
-		min-height: 40px;
+		min-height: 32px;
 		font-weight: 600;
 	}
 	.ca-select {
 		min-width: 0;
 		max-width: 100%;
-		height: 40px;
+		height: 32px;
 		padding: 0 12px;
 		border: 1px solid var(--orca-field-line);
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field);
 		color: var(--orca-ink);
 		font: inherit;

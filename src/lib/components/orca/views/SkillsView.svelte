@@ -95,10 +95,11 @@
 {/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.sk-status {
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.sk-empty {
 		padding: 40px 24px 28px;
@@ -109,20 +110,20 @@
 	}
 	.sk-empty h2 {
 		margin: 0;
-		font-size: 16px;
+		font-size: 15px;
 	}
 	.sk-empty p {
 		max-width: 44ch;
 		margin: 6px auto 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.sk-starters {
 		margin-top: 20px;
 	}
 	.sk-starters h2 {
 		margin: 0 0 10px;
-		font-size: 16px;
+		font-size: 15px;
 	}
 	.sk-panel,
 	.sk-grid {
@@ -151,14 +152,14 @@
 		min-width: 0;
 	}
 	.sk-copy strong {
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 	}
 	.sk-copy small,
 	.sk-meta,
 	.sk-kn {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.sk-toolbar {
 		margin-bottom: 16px;
@@ -177,14 +178,14 @@
 	}
 	.sk-search input {
 		width: 100%;
-		height: 36px;
+		height: 32px;
 		padding: 0 12px 0 34px;
 		border: 1px solid var(--orca-field-line, var(--orca-line-strong));
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field, var(--orca-surface));
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.sk-grid {
 		display: grid;
@@ -201,7 +202,7 @@
 		background: var(--orca-surface);
 	}
 	.sk-name {
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.sk-desc {
@@ -209,7 +210,7 @@
 		margin: 2px 0 0;
 		overflow: hidden;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		-webkit-line-clamp: 2;
 		line-clamp: 2;
 		-webkit-box-orient: vertical;

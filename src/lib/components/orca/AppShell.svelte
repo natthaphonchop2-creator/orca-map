@@ -368,9 +368,9 @@
 </script>
 
 {#snippet itemIcon(item: RailItem)}
-  {#if item.icon === "platform" && item.platformIcon}<item.platformIcon size={20} strokeWidth={1.75} aria-hidden="true" />
-  {:else if item.icon === "programs"}<McpMark size={20} />
-  {:else if item.icon !== "platform"}{@const Icon = icons[item.icon]}<Icon size={20} strokeWidth={1.75} aria-hidden="true" />{/if}
+  {#if item.icon === "platform" && item.platformIcon}<item.platformIcon size={18} strokeWidth={1.75} aria-hidden="true" />
+  {:else if item.icon === "programs"}<McpMark size={18} />
+  {:else if item.icon !== "platform"}{@const Icon = icons[item.icon]}<Icon size={18} strokeWidth={1.75} aria-hidden="true" />{/if}
 {/snippet}
 
 {#snippet railBody(mobile: boolean)}
@@ -404,7 +404,7 @@
                   {@const Icon = icons[entry.icon]}
                   <a class="w1-item w1-subitem" class:active={activeSetting === entry.id} href={localeHref(entry.href)} onclick={closeDrawer}
                     aria-current={activeSetting === entry.id ? "page" : undefined} data-label={entry.label}
-                    ><Icon size={18} strokeWidth={1.75} aria-hidden="true" /><span class="w1-label">{entry.label}</span></a
+                    ><Icon size={16} strokeWidth={1.75} aria-hidden="true" /><span class="w1-label">{entry.label}</span></a
                   >
                 {/each}
               </div>
@@ -427,7 +427,7 @@
   </div>
   <div class="w1-rail-foot">
     <a class="w1-item" href={localeHref("/app?view=help")} onclick={closeDrawer} class:active={activeView === "help"} aria-current={activeView === "help" ? "page" : undefined} data-label={term("help", t)}
-      ><CircleQuestionMark size={20} strokeWidth={1.75} aria-hidden="true" /><span class="w1-label">{term("help", t)}</span></a
+      ><CircleQuestionMark size={18} strokeWidth={1.75} aria-hidden="true" /><span class="w1-label">{term("help", t)}</span></a
     >
     <div class="w1-brand-row">
       <!-- The official ORCA mark (Brand.svelte): the mark alone on the rail, the logo when open. -->
@@ -473,7 +473,7 @@
 >
   <a href="#orca-main" class="k-skip">{t("ข้ามไปยังเนื้อหา", "Skip to content")}</a>
   <header class="w1-top">
-    <button class="w1-icon-button w1-menu" onclick={() => drawer?.showModal()} aria-label={t("เปิดเมนู", "Open menu")} aria-haspopup="dialog"><Menu size={22} /></button>
+    <button class="w1-icon-button w1-menu" onclick={() => drawer?.showModal()} aria-label={t("เปิดเมนู", "Open menu")} aria-haspopup="dialog"><Menu size={20} /></button>
     {#if data}
       <!-- The company at the top left (W0.1): no plan label for customers. -->
       <PopMenu id="orca-company-menu" label={t("เปลี่ยนบริษัท", "Switch company")} buttonClass="w1-company" kind="menu" align="left" bind:open={companyOpen}
@@ -500,7 +500,7 @@
     {/if}
     <span class="w1-top-spacer"></span>
     <button class="w1-icon-button w1-refresh" disabled={refreshing} onclick={onrefresh} aria-label={t("อัปเดตข้อมูล", "Refresh data")} title={t("อัปเดตข้อมูล", "Refresh data")}
-      ><RefreshCw size={17} class={refreshing ? "k-spin" : ""} /></button
+      ><RefreshCw size={16} class={refreshing ? "k-spin" : ""} /></button
     >
     {#if data && !platformMode && createGroups.length}
       <!-- The one primary button on every page. The platform's pages have none. -->

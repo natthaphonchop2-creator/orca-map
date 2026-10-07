@@ -291,6 +291,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.ov-created {
 		display: flex;
@@ -322,7 +323,7 @@
 	.ov-created h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 		line-height: 1.4;
 	}
@@ -370,12 +371,12 @@
 		background: var(--orca-ink);
 	}
 	.ov-created-actions .k-button {
-		min-height: 42px;
+		min-height: 32px;
 	}
 	.ov-copy-failed {
 		margin: 8px 0 0;
 		color: var(--orca-deny);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.ov-banner {
 		display: flex;
@@ -432,7 +433,7 @@
 		gap: 8px;
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 700;
 		line-height: 1.4;
 	}
@@ -479,7 +480,7 @@
 		width: 34px;
 		height: 34px;
 		border: 1px solid var(--orca-line);
-		border-radius: 9px;
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-logo-tile);
 	}
 	.ov-signin {
@@ -511,7 +512,7 @@
 	}
 	.ov-row-copy span {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.ov-card-foot {
 		display: flex;
@@ -521,7 +522,7 @@
 		padding: 12px 18px;
 		border-top: 1px solid var(--orca-line-soft);
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.ov-card-foot :global(svg) {
@@ -540,15 +541,15 @@
 	.ov-usage-value {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ov-usage-value b {
 		color: var(--orca-ink);
-		font-size: 22px;
+		font-size: 20px;
 		font-weight: 700;
 	}
 	.ov-usage-value span {
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.ov-meter {
 		height: 6px;
@@ -569,7 +570,7 @@
 	.ov-usage-note {
 		margin: 10px 0 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.ov-next {
@@ -614,7 +615,7 @@
 	}
 	.ov-step-copy span {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.ov-steps .k-button {

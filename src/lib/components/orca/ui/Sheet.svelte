@@ -86,6 +86,7 @@
 </dialog>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.orca-sheet {
 		width: min(560px, 100vw);
@@ -119,7 +120,7 @@
 	}
 	.orca-sheet-head h2 {
 		margin: 0;
-		font-size: 16px;
+		font-size: 15px;
 		line-height: 1.4;
 		font-weight: 700;
 	}

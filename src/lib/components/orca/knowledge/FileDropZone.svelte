@@ -126,6 +126,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.fz {
 		display: grid;
@@ -156,14 +157,14 @@
 	.fz-title {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 700;
 	}
 	.fz-rules,
 	.fz-note {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.55;
 	}
 	.fz-rules {
@@ -191,8 +192,8 @@
 	}
 	.fz-pick {
 		margin: 8px 0 4px;
-		min-height: 40px !important;
-		padding: 0 16px !important;
+		min-height: 32px !important;
+		padding: 0 12px !important;
 		font-weight: 600 !important;
 	}
 	.fz-input {

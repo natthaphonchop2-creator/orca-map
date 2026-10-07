@@ -646,6 +646,7 @@
 {#if mode === 'page'}<ProgramRequestSheet bind:open={requestOpen} {data} program={programName} />{/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.ap {
 		max-width: 1080px;
@@ -678,7 +679,7 @@
 	}
 	.ap-strip-name {
 		overflow: hidden;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 		line-height: 1.3;
 		text-overflow: ellipsis;
@@ -691,7 +692,7 @@
 		gap: 10px;
 		margin-top: 3px;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.ap-strip-account {
 		min-width: 0;
@@ -725,7 +726,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ap-problem {
 		display: flex;
@@ -810,7 +811,7 @@
 		min-width: 0;
 	}
 	.ap-mode-option strong {
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ap-mode-option small {
 		color: var(--orca-muted);

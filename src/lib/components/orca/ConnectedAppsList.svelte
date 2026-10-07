@@ -149,6 +149,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.cx-apps {
 		container: cx-apps / inline-size;
@@ -231,7 +232,7 @@
 		margin: 0;
 		overflow-wrap: anywhere;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 650;
 		line-height: 1.4;
 	}
@@ -308,7 +309,7 @@
 		flex: none;
 		padding: 1px 8px;
 		border: 1px solid var(--orca-line);
-		border-radius: 6px;
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-surface);
 		color: var(--orca-muted);
 		font-size: 11.5px;
@@ -373,7 +374,7 @@
 		align-items: center;
 		gap: 6px;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 500;
 		white-space: nowrap;
 	}
@@ -383,7 +384,7 @@
 		gap: 8px;
 		margin: 14px 0 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.55;
 	}
 	.cx-foot > :global(svg) {

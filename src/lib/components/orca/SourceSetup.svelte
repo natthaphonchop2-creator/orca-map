@@ -1304,6 +1304,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
   /* These styles load before the shared workspace CSS (WorkspaceDetail and WorkspaceWizard import
      this component first), so overrides of shared classes carry an extra class. */
@@ -1469,7 +1470,7 @@
     background: none;
     color: var(--orca-text-2);
     font: inherit;
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 500;
     text-decoration: underline;
     text-decoration-color: var(--orca-line-strong);

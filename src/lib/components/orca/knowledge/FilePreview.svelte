@@ -132,6 +132,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.fp {
 		border: 1px solid var(--orca-line);
@@ -143,7 +144,7 @@
 	}
 	.fp-head h2 {
 		margin: 0 0 4px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 700;
 	}
 	.fp-head p {
@@ -193,7 +194,7 @@
 		gap: 8px 12px;
 		padding: 10px 22px 14px;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.fp-empty {
 		margin: 0;

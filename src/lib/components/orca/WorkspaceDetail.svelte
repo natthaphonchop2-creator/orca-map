@@ -219,6 +219,7 @@
 />
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.hub-alert,
 	.hub-archived,
@@ -274,9 +275,10 @@
 		gap: 6px;
 		margin-bottom: -1px;
 		padding: 10px 0;
+		border-top: 2px solid transparent; /* balances the underline: the label sits in the middle */
 		border-bottom: 2px solid transparent;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		text-decoration: none;
 		white-space: nowrap;

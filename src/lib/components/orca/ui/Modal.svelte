@@ -83,6 +83,7 @@
 </dialog>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.orca-modal {
 		width: min(560px, calc(100vw - 48px));
@@ -92,7 +93,7 @@
 		padding: 0;
 		overflow: hidden;
 		border: 1px solid var(--orca-line);
-		border-radius: var(--orca-radius-xl, 16px);
+		border-radius: var(--orca-radius-xl, 18px);
 		background: var(--orca-dialog, var(--orca-surface));
 		color: var(--orca-ink);
 		/* A hairline edge, no shadow (W0). */
@@ -116,11 +117,11 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 12px;
-		padding: 18px 18px 6px 22px;
+		padding: 16px 16px 4px 20px;
 	}
 	.orca-modal-head h2 {
 		margin: 0;
-		font-size: 18px;
+		font-size: 16px;
 		line-height: 1.4;
 		font-weight: 600;
 	}
@@ -143,7 +144,7 @@
 	.orca-modal-body {
 		flex: 1;
 		min-height: 0;
-		padding: 10px 22px 22px;
+		padding: 8px 20px 20px;
 		overflow: auto;
 	}
 	.orca-modal-foot {
@@ -152,7 +153,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 12px;
-		padding: 14px 22px;
+		padding: 12px 20px;
 		border-top: 1px solid var(--orca-line);
 	}
 	/* A phone: a bottom sheet, full width, up to 92% of the screen. */
@@ -165,7 +166,7 @@
 			max-height: 92dvh;
 			margin: auto 0 0;
 			border-bottom: 0;
-			border-radius: var(--orca-radius-xl, 16px) var(--orca-radius-xl, 16px) 0 0;
+			border-radius: var(--orca-radius-xl, 18px) var(--orca-radius-xl, 18px) 0 0;
 		}
 		.orca-modal.wide {
 			height: 92dvh;

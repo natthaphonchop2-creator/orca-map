@@ -1,14 +1,22 @@
 /* orca-type-remap v1 */
 /*
  * W0.1 shell (approved 2026-10-07; output/orca-w01): a full-width top bar, a
- * 56 px icon rail that opens as a 272 px panel over the content (no reflow),
+ * 52 px icon rail that opens as a 256 px panel over the content (no reflow),
  * pinned beside the content, and content up to 1320 px. Loaded after w0.css.
+ * W0.2 (2026-10-08): one step smaller (32 px controls, 34 px rows); the rail and
+ * top bar on --orca-chrome; the icons keep their place while the panel opens.
  * Black, white and grey; citron only on the open panel's active dot.
  */
 .orca-workspace.orca-app.orca-w01 {
   --w1-top: 52px;
-  --w1-rail: 56px;
-  --w1-panel: 272px;
+  --w1-rail: 52px;
+  --w1-panel: 256px;
+  /* Rows and the icon column: every rail item is 34 px tall and 8 px in from the
+     edge; its 18 px icon sits at the same x whether the rail is closed or open. */
+  --w1-row: 34px;
+  --w1-inset: 8px;
+  --w1-icon: 18px;
+  --w1-pad: calc((var(--w1-rail) - 2 * var(--w1-inset) - var(--w1-icon)) / 2);
 }
 
 /* ---------- Top bar ---------- */
@@ -20,9 +28,10 @@
   align-items: center;
   gap: 8px;
   height: var(--w1-top);
-  padding: 0 12px 0 10px;
+  /* The company's initial over the rail's icon column; the account at the content's right gutter. */
+  padding: 0 32px 0 8px;
   border-bottom: 1px solid var(--orca-line);
-  background: var(--orca-bg);
+  background: var(--orca-chrome, var(--orca-bg));
 }
 .orca-w01 .w1-top-spacer {
   flex: 1;
@@ -31,8 +40,8 @@
   display: inline-grid;
   flex: none;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border: 0;
   border-radius: var(--orca-radius);
   background: transparent;
@@ -51,14 +60,14 @@
   align-items: center;
   gap: 8px;
   max-width: 320px;
-  min-height: 36px;
+  min-height: 32px;
   padding: 0 8px 0 4px;
   border: 0;
   border-radius: var(--orca-radius);
   background: transparent;
   color: var(--orca-ink);
   font: inherit;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -81,26 +90,27 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: var(--orca-radius);
+  border-radius: var(--orca-radius-sm);
   background: var(--orca-secondary);
   color: var(--orca-ink);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
-/* ＋ สร้าง ▾: the one primary, solid ink and 36 px; light in dark. */
+/* ＋ สร้าง ▾: the one primary, solid ink and 32 px; light in dark. */
 .orca-w01 .w1-create {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 36px;
-  padding: 0 12px 0 14px;
+  height: 32px;
+  padding: 0 10px 0 12px;
   border: 1px solid var(--orca-ink);
   border-radius: var(--orca-radius);
   background: var(--orca-ink);
   color: var(--orca-on-ink, #fff);
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
+  line-height: 1;
   cursor: pointer;
 }
 .orca-w01 .w1-create:hover {
@@ -109,8 +119,8 @@
 .orca-w01 .w1-avatar-button {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -121,8 +131,8 @@
   display: grid;
   flex: none;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: var(--orca-ink);
   color: var(--orca-on-ink, #fff);
@@ -140,11 +150,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 36px;
+  min-height: 32px;
   padding: 4px 8px;
   border-radius: var(--orca-radius);
   color: var(--orca-ink);
-  font-size: 14px;
+  font-size: 13.5px;
   text-decoration: none;
 }
 .orca-w01 .w1-menu-row:hover,
@@ -177,19 +187,19 @@
 }
 .orca-w01 .w1-who strong {
   display: block;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
 }
 .orca-w01 .w1-who small {
   display: block;
   color: var(--orca-muted);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 .orca-w01 .w1-menu-control {
   padding: 2px 8px;
 }
 .orca-w01 #orca-account-menu {
-  min-width: 280px;
+  min-width: 264px;
 }
 
 /* ---------- The rail ---------- */
@@ -211,7 +221,7 @@
 }
 @media (prefers-reduced-motion: no-preference) {
   .orca-w01 .w1-rail {
-    transition: width 0.16s var(--orca-ease);
+    transition: width var(--orca-dur-slow, 0.22s) var(--orca-ease);
   }
 }
 .orca-w01 .w1-rail-scroll {
@@ -231,19 +241,20 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
-  width: calc(100% - 16px);
-  min-height: 40px;
-  margin: 0 8px;
-  padding: 0 10px;
+  gap: 10px;
+  width: calc(100% - 2 * var(--w1-inset));
+  min-height: var(--w1-row);
+  margin: 0 var(--w1-inset);
+  padding: 0 var(--w1-pad);
   overflow: hidden;
   border: 0;
   border-radius: var(--orca-radius);
   background: transparent;
   color: var(--orca-nav);
   font: inherit;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
+  line-height: 1.4;
   text-align: left;
   text-decoration: none;
   white-space: nowrap;
@@ -252,6 +263,8 @@
 .orca-w01 .w1-item > svg,
 .orca-w01 .w1-item > .mcp-mark {
   flex: none;
+  width: var(--w1-icon);
+  height: var(--w1-icon);
   color: var(--orca-subtle);
 }
 .orca-w01 .w1-item:hover {
@@ -299,27 +312,26 @@
   font-weight: 400;
 }
 .orca-w01 .w1-jump {
-  margin-bottom: 6px;
-  border: 1px solid var(--orca-line);
-  background: var(--orca-surface);
+  margin-bottom: 4px;
   color: var(--orca-subtle);
+  font-weight: 400;
 }
 .orca-w01 .w1-jump kbd {
   margin-left: auto;
-  padding: 0 5px;
-  border: 1px solid var(--orca-line);
-  border-radius: 4px;
   color: var(--orca-subtle);
-  font: 11.5px ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
-/* Section headers: 30 px in both states; only a hairline on the rail. */
+/* Section headers: 26 px in both states; only a hairline on the rail. */
 .orca-w01 .w1-sec {
   display: flex;
   align-items: center;
-  height: 30px;
-  margin: 4px 18px 0;
+  height: 26px;
+  margin: 4px calc(var(--w1-inset) + var(--w1-pad)) 0;
   color: var(--orca-subtle);
   font-size: 12px;
+  line-height: 1;
   white-space: nowrap;
 }
 .orca-w01 .w1-sec::after {
@@ -345,12 +357,12 @@
 /* On the rail the waiting count sits on the icon's corner. */
 .orca-w01 .w1-rail:not(.open) .w1-count {
   position: absolute;
-  top: 4px;
-  left: 22px;
+  top: 2px;
+  left: calc(var(--w1-pad) + var(--w1-icon) - 6px);
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
-  border-radius: 8px;
+  border-radius: var(--orca-radius-sm);
   background: var(--orca-ink);
   color: var(--orca-on-ink, #fff);
   font-size: 10.5px;
@@ -364,12 +376,12 @@
 }
 .orca-w01 .w1-caret {
   position: absolute;
-  top: 4px;
-  right: 14px;
+  top: 3px;
+  right: 11px;
   display: none;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: 0;
   border-radius: var(--orca-radius);
   background: transparent;
@@ -383,30 +395,40 @@
 .orca-w01 .w1-group.open .w1-caret svg {
   transform: rotate(180deg);
 }
+.orca-w01 .w1-caret:hover {
+  background: var(--orca-hover);
+  color: var(--orca-ink);
+}
 .orca-w01 .w1-rail:not(.open) .w1-sub {
   display: none;
 }
 .orca-w01 .w1-subitem {
-  min-height: 36px;
-  padding-left: 40px;
-  font-size: 13.5px;
+  min-height: 32px;
+  padding-left: calc(var(--w1-pad) + 26px);
+  font-size: 13px;
+}
+.orca-w01 .w1-subitem > svg {
+  width: 16px;
+  height: 16px;
 }
 .orca-w01 .w1-rail-foot {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px 0 10px;
+  padding: 8px 0;
   border-top: 1px solid var(--orca-line);
 }
+/* The mark and the full logo share one 34 px row, so the swap never moves ช่วยเหลือ above it. */
 .orca-w01 .w1-brand-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 40px;
-  padding: 0 8px 0 16px;
+  height: var(--w1-row);
+  padding: 0 var(--w1-inset) 0 calc(var(--w1-inset) + var(--w1-pad) - 3px);
 }
 .orca-w01 .w1-brand {
   --orca-brand-size: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   color: var(--orca-ink);
@@ -426,8 +448,8 @@
 .orca-w01 .w1-pin {
   display: none;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: 0;
   border-radius: var(--orca-radius);
   background: transparent;
@@ -436,6 +458,10 @@
 }
 .orca-w01 .w1-rail.open .w1-pin {
   display: grid;
+}
+.orca-w01 .w1-pin:hover {
+  background: var(--orca-hover);
+  color: var(--orca-ink);
 }
 .orca-w01 .w1-pin[aria-pressed='true'] {
   background: var(--orca-secondary);
@@ -446,10 +472,10 @@
   left: calc(var(--w1-rail) + 6px);
   z-index: 50;
   padding: 4px 8px;
-  border-radius: var(--orca-radius-sm, 6px);
+  border-radius: var(--orca-radius-sm, 8px);
   background: var(--orca-ink);
   color: var(--orca-on-ink, #fff);
-  font-size: 12.5px;
+  font-size: 12px;
   white-space: nowrap;
   transform: translateY(-50%);
   pointer-events: none;
@@ -469,7 +495,7 @@
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 28px 40px 40px;
+  padding: 24px 32px 32px;
 }
 .orca-workspace.orca-app.orca-w01 .workspace-main > * {
   max-width: 1320px;
@@ -508,7 +534,10 @@
     display: none;
   }
   .orca-workspace.orca-app.orca-w01 .workspace-main {
-    padding: 20px 16px 28px;
+    padding: 16px 16px 24px;
+  }
+  .orca-w01 .w1-top {
+    padding: 0 14px 0 10px;
   }
 }
 @media (max-width: 480px) {

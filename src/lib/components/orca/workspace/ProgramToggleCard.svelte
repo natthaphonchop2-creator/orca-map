@@ -65,6 +65,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.program-card {
 		display: flex;
@@ -108,7 +109,7 @@
 		width: 38px;
 		height: 38px;
 		border: 1px solid var(--orca-line);
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-logo-tile);
 	}
 	.off .program-logo {
@@ -123,7 +124,7 @@
 	.program-name {
 		overflow: hidden;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 700;
 		line-height: 1.3;
 		text-overflow: ellipsis;
@@ -184,7 +185,7 @@
 		padding: 11px 16px;
 		border-top: 1px solid var(--orca-line-soft);
 		color: var(--orca-text-2);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		line-height: 1.4;
 	}
@@ -211,7 +212,7 @@
 		background: var(--orca-surface);
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		cursor: pointer;
 	}

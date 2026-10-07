@@ -526,6 +526,7 @@
 </dialog>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
   .companies-open { min-height: 42px; padding: 0 18px; font-weight: 600; }
   .companies-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: -4px 0 14px; font-size: 13px; }
@@ -549,7 +550,7 @@
   .company-seats { white-space: nowrap; }
   .company-seats strong { font-weight: 600; }
   .companies-table td.company-seats small { display: inline; margin-left: 4px; }
-  .companies-table small { display: block; color: var(--orca-muted); font-size: 12.5px; }
+  .companies-table small { display: block; color: var(--orca-muted); font-size: 12px; }
   .company-seats strong { font-variant-numeric: tabular-nums; }
   .company-seats-label { display: none; }
   .company-owner { min-width: 240px; }
@@ -574,24 +575,24 @@
 
   .company-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 28px 28px 24px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-xl); background: var(--orca-surface); color: var(--orca-ink); box-shadow: var(--orca-dialog-shadow); }
   .company-dialog::backdrop { background: var(--orca-scrim, rgba(21, 24, 35, 0.45)); }
-  .company-dialog h2 { margin: 18px 0 4px; font-size: 18px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+  .company-dialog h2 { margin: 18px 0 4px; font-size: 16px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
   .company-dialog p { margin: 8px 0; color: var(--orca-muted); font-size: 13.5px; line-height: 1.6; }
   .company-dialog fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
   .dialog-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; background: var(--orca-secondary); color: var(--orca-text-2); }
   .dialog-icon.ok { background: var(--orca-ok-bg); color: var(--orca-ok); }
   .dialog-label { display: block; margin: 16px 0 6px; color: var(--orca-ink); font-size: 13.5px; font-weight: 600; }
-  .dialog-input, .dialog-link { width: 100%; min-height: 42px; padding: 9px 12px; border: 1px solid var(--orca-field-line); border-radius: var(--orca-radius); background: var(--orca-field); color: var(--orca-ink); font: inherit; font-size: 13.5px; }
+  .dialog-input, .dialog-link { width: 100%; min-height: 32px; padding: 9px 12px; border: 1px solid var(--orca-field-line); border-radius: var(--orca-radius-sm); background: var(--orca-field); color: var(--orca-ink); font: inherit; font-size: 13.5px; }
   .dialog-link { font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace; font-size: 12px; }
   .dialog-share { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .line-share { text-decoration: none; }
-  .company-dialog .dialog-note { font-size: 12.5px; }
+  .company-dialog .dialog-note { font-size: 12px; }
   .company-dialog .dialog-note.ok { display: flex; align-items: center; gap: 6px; color: var(--orca-ok); }
   .dialog-warning { display: flex; align-items: flex-start; gap: 8px; margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--orca-warn-line); border-radius: var(--orca-radius); background: var(--orca-warn-bg); color: var(--orca-warn); font-size: 13px; line-height: 1.6; }
   .dialog-warning :global(svg) { flex: none; margin-top: 3px; }
   .dialog-warning-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; color: var(--orca-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
   .dialog-error { padding: 10px 12px; border-radius: var(--orca-radius); background: var(--orca-deny-bg); color: var(--orca-deny) !important; font-size: 13px !important; }
   .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 24px; }
-  .dialog-actions :global(.k-button) { min-height: 42px; padding: 0 18px; font-weight: 600; }
+  .dialog-actions :global(.k-button) { min-height: 32px; padding: 0 18px; font-weight: 600; }
 
   /* Under 720px of page each company is a card; the cards also start when the list itself is narrower
      than the table needs (a laptop with the sidebar open), so no action is ever cut off. */
@@ -606,7 +607,7 @@
     .companies-table tbody tr:first-child { border-top: 0; }
     .companies-table td { padding: 4px 0; border: 0; }
     .companies-table td.company-seats { padding-left: 46px; }
-    .company-seats-label { display: inline; margin-right: 4px; color: var(--orca-muted); font-size: 12.5px; }
+    .company-seats-label { display: inline; margin-right: 4px; color: var(--orca-muted); font-size: 12px; }
     .companies-table td.company-owner { padding-left: 46px; }
     .companies-table td.company-flag { padding-left: 46px; }
     .companies-actions-col { padding-left: 46px !important; text-align: left; }

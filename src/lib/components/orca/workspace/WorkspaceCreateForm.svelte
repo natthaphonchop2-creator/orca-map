@@ -340,6 +340,7 @@
 <ToolNarrowSheet bind:open={narrowOpen} connection={narrowConnection} selected={programs[narrowID] ?? []} approval={writeMode === 'approval'} onapply={(tools) => { programs = { ...programs, [narrowID]: tools }; edited(); }} />
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.ws-form {
 		max-width: 1056px;
@@ -366,11 +367,11 @@
 		width: 100%;
 		padding: 11px 12px;
 		border: 1px solid var(--orca-field-line);
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field);
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.5;
 	}
 	.ws-name .ws-input {
@@ -393,13 +394,13 @@
 	.ws-error {
 		margin: 6px 0 0;
 		color: var(--orca-deny);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.ws-hint {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.ws-programs {
@@ -458,7 +459,7 @@
 		gap: 8px;
 		margin: 12px 0 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.ws-info :global(svg) {
@@ -568,7 +569,7 @@
 		place-items: center;
 		width: 40px;
 		height: 40px;
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
 	}
@@ -579,7 +580,7 @@
 	}
 	.ws-bar-copy b {
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.4;
 		overflow-wrap: anywhere;
 	}
@@ -590,7 +591,7 @@
 	}
 	.ws-bar-copy > span {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.4;
 	}
 	.ws-bar-actions {
@@ -630,7 +631,7 @@
 		border: 1px solid transparent;
 		background: var(--orca-ink);
 		color: var(--orca-on-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ws-create:hover:not(:disabled) {
 		background: var(--orca-ink);

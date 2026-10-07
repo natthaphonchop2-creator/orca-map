@@ -143,6 +143,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	/* ภาพรวม: one panel of rows (label and value at the left, the logos or state at the right). */
 	.home-tiles {
@@ -153,7 +154,7 @@
 	}
 	.home-overview-title {
 		margin: 0 0 10px;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 600;
 	}
 	.home-tile {
@@ -197,14 +198,14 @@
 	.home-tile-value {
 		grid-area: value;
 		min-width: 0;
-		font-size: 20px;
+		font-size: 18px;
 		font-weight: 600;
 		line-height: 1.2;
 		font-variant-numeric: tabular-nums;
 	}
 	.home-tile-value.text {
 		overflow: hidden;
-		font-size: 18px;
+		font-size: 16px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
@@ -261,7 +262,7 @@
 	}
 	.home-meta {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.home-recent {
 		grid-area: recent;
@@ -276,7 +277,7 @@
 	}
 	.home-recent-head h2 {
 		margin: 0;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 600;
 	}
 	.home-link {
@@ -297,7 +298,7 @@
 		margin: 0;
 		padding: 18px 16px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.home-events {
 		margin: 0;
@@ -321,7 +322,7 @@
 	}
 	.home-event-copy strong {
 		overflow: hidden;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		line-height: 1.45;
 		text-overflow: ellipsis;
@@ -329,13 +330,13 @@
 	}
 	.home-event-copy small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.home-event time {
 		flex: none;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-variant-numeric: tabular-nums;
 		white-space: nowrap;
 	}
@@ -344,7 +345,7 @@
 			padding: 12px 14px;
 		}
 		.home-tile-value {
-			font-size: 18px;
+			font-size: 16px;
 		}
 		/* A phone shows at most four logos per tile. */
 		.home-logos :global(.orca-catalog-icon:nth-child(n + 5)) {

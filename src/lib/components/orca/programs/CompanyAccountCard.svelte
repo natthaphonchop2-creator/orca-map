@@ -512,6 +512,7 @@
 />
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.ca-card {
 		min-width: 0;
@@ -529,7 +530,7 @@
 	}
 	.ca-head h2 {
 		margin: 0;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 650;
 	}
 	.ca-head p {
@@ -607,10 +608,10 @@
 		font-weight: 400;
 	}
 	.ca-field input {
-		min-height: 40px;
+		min-height: 32px;
 		padding: 8px 10px;
 		border: 1px solid var(--orca-line);
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-surface);
 		color: var(--orca-ink);
 		font: inherit;

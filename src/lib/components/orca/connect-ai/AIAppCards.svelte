@@ -58,6 +58,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.ai-cards {
 		display: grid;
@@ -99,14 +100,14 @@
 		width: 40px;
 		height: 40px;
 		border: 1px solid var(--orca-line);
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-surface);
 		color: var(--orca-text-2);
 	}
 	.small .ai-logo {
 		width: 32px;
 		height: 32px;
-		border-radius: 8px;
+		border-radius: var(--orca-radius-sm);
 	}
 	.ai-copy {
 		display: flex;
@@ -115,13 +116,13 @@
 		min-width: 0;
 	}
 	.ai-copy strong {
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.ai-copy small {
 		overflow: hidden;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
@@ -155,7 +156,7 @@
 	}
 	.ai-dev-toggle small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 400;
 	}
 	.ai-dev-toggle :global(.ai-turned) {

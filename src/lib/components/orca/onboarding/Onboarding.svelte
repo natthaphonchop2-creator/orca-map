@@ -154,6 +154,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.onb-page {
 		min-height: 100dvh;
@@ -177,7 +178,7 @@
 		min-width: 0;
 		overflow: hidden;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
@@ -212,7 +213,7 @@
 	.onb-sub {
 		margin: 4px 0 24px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.onb-chips {
 		display: flex;
@@ -224,14 +225,14 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 6px;
-		min-height: 40px;
+		min-height: 32px;
 		padding: 0 14px;
 		border: 1px solid var(--orca-line-strong);
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface);
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		cursor: pointer;
 	}
@@ -260,14 +261,14 @@
 	}
 	.onb-field input {
 		width: 100%;
-		height: 40px;
+		height: 32px;
 		padding: 0 12px;
 		border: 1px solid var(--orca-field-line, var(--orca-line-strong));
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field, var(--orca-surface));
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.onb-actions {
 		display: flex;
@@ -301,14 +302,14 @@
 		min-width: 0;
 	}
 	.onb-app-copy strong {
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.45;
 	}
 	.onb-app-copy small {
 		overflow: hidden;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -328,13 +329,13 @@
 	.onb-later {
 		flex: none;
 		color: var(--orca-subtle);
-		font-size: 12.5px;
+		font-size: 12px;
 		white-space: nowrap;
 	}
 	.onb-status {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.onb-below {
 		display: flex;
@@ -362,7 +363,7 @@
 	.onb-hint {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	@media (max-width: 820px) {
 		.onb-top {

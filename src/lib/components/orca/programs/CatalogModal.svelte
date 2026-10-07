@@ -129,6 +129,7 @@
 </Modal>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.cat-tools {
 		position: sticky;
@@ -155,14 +156,14 @@
 	}
 	.cat-search input {
 		width: 100%;
-		height: 38px;
+		height: 32px;
 		padding: 0 12px 0 34px;
 		border: 1px solid var(--orca-field-line, var(--orca-line-strong));
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field, var(--orca-surface));
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.cat-tabs {
 		display: flex;
@@ -178,6 +179,7 @@
 		flex: none;
 		padding: 8px 10px;
 		border: 0;
+		border-top: 2px solid transparent; /* balances the underline: the label sits in the middle */
 		border-bottom: 2px solid transparent;
 		background: none;
 		color: var(--orca-muted);
@@ -222,7 +224,7 @@
 	.cat-name {
 		overflow: hidden;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.45;
 		text-decoration: none;
@@ -236,7 +238,7 @@
 	.cat-copy small {
 		overflow: hidden;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -257,7 +259,7 @@
 	.cat-later {
 		flex: none;
 		color: var(--orca-subtle);
-		font-size: 12.5px;
+		font-size: 12px;
 		white-space: nowrap;
 	}
 	.cat-card.soon .cat-name {
@@ -266,7 +268,7 @@
 	.cat-status {
 		margin: 16px 0 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.cat-status p {
 		margin: 0 0 10px;
@@ -274,7 +276,7 @@
 	.cat-foot {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	/* The one highlighted link: a citron underline (W0). */
 	.cat-request {

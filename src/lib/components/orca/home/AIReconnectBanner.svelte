@@ -44,6 +44,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	/* One row of the ต้องดูแล panel, which draws the border. */
 	.home-reconnect {
@@ -58,7 +59,7 @@
 		min-width: 0;
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 	}
 	/* A long workspace name ("ใช้ลิงก์ของ …") wraps inside the button on a phone instead of overflowing (Codex review 73). */

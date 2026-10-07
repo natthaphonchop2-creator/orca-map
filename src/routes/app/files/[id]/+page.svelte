@@ -121,11 +121,12 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
   .file-main { display: flex; justify-content: center; }
   .file-panel { align-self: center; width: min(100%, 460px); }
   .file-loading { display: flex; align-items: center; gap: 10px; }
-  .file-title { margin: 0 0 6px; font-size: 20px; line-height: 1.35; overflow-wrap: anywhere; }
+  .file-title { margin: 0 0 6px; font-size: 18px; line-height: 1.35; overflow-wrap: anywhere; }
   .file-facts { margin: 0 0 18px; color: var(--orca-muted); font-size: 13.5px; }
   .file-note { margin: 14px 0 0; color: var(--orca-muted); font-size: 13px; line-height: 1.6; }
   a.o-button, button.o-button { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }

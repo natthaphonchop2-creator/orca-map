@@ -78,6 +78,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.kd-card {
 		padding: 20px 22px;
@@ -87,7 +88,7 @@
 	}
 	.kd-card h2 {
 		margin: 0 0 10px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 700;
 	}
 	.kd-hint {
@@ -126,7 +127,7 @@
 		margin-bottom: 12px;
 		padding: 12px 14px;
 		border: 1px solid var(--orca-ok-line);
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-ok-bg);
 	}
 	.live.off {

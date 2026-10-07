@@ -265,6 +265,7 @@
 />
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.dc {
 		display: grid;
@@ -276,7 +277,7 @@
 		justify-self: start;
 		gap: 2px;
 		padding: 3px;
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-secondary);
 	}
 	.dc-kinds a {
@@ -285,7 +286,7 @@
 		gap: 8px;
 		min-height: 36px;
 		padding: 7px 14px;
-		border-radius: 8px;
+		border-radius: var(--orca-radius-sm);
 		color: var(--orca-muted);
 		font-size: 13.5px;
 		font-weight: 500;
@@ -313,6 +314,7 @@
 		min-height: 34px;
 		padding: 0 8px;
 		border: 0;
+		border-top: 2px solid transparent; /* balances the underline: the label sits in the middle */
 		border-bottom: 2px solid transparent;
 		margin-bottom: -1px;
 		background: transparent;
@@ -337,7 +339,7 @@
 	.dc-block h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 650;
 	}
 	.dc-list {
@@ -366,7 +368,7 @@
 	.dc-title {
 		overflow-wrap: anywhere;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	a.dc-title {

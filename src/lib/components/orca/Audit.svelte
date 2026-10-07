@@ -732,6 +732,7 @@
 </dialog>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
   /* The page follows its own width, not the window's: the sidebar takes a share. */
   .observability {
@@ -755,10 +756,11 @@
   .audit-tabs a {
     display: inline-flex;
     align-items: center;
-    min-height: 46px;
+    min-height: 36px;
+    border-top: 2px solid transparent; /* balances the underline: the label sits in the middle */
     border-bottom: 2px solid transparent;
     color: var(--orca-muted);
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 500;
     text-decoration: none;
     white-space: nowrap;
@@ -800,10 +802,10 @@
   .pagination select {
     width: 100%;
     min-width: 0;
-    height: 38px;
+    height: 32px;
     padding: 0 28px 0 11px;
     border: 1px solid var(--orca-field-line);
-    border-radius: var(--orca-radius);
+    border-radius: var(--orca-radius-sm);
     background-color: var(--orca-field);
     color: var(--orca-ink);
     font: inherit;
@@ -814,10 +816,10 @@
     display: flex;
     align-items: center;
     gap: 9px;
-    height: 38px;
+    height: 32px;
     padding: 0 12px;
     border: 1px solid var(--orca-field-line);
-    border-radius: var(--orca-radius);
+    border-radius: var(--orca-radius-sm);
     background: var(--orca-field);
     color: var(--orca-subtle);
   }
@@ -886,7 +888,7 @@
     gap: 4px 8px;
     margin: 0;
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .audit-error {
     display: flex;
@@ -1001,13 +1003,13 @@
     display: block;
     margin-top: 2px;
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
     overflow-wrap: break-word;
   }
   .duration,
   .timestamp {
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
@@ -1041,7 +1043,7 @@
     padding: 10px 16px;
     border-top: 1px solid var(--orca-line);
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .pagination > div {
     display: flex;
@@ -1059,7 +1061,7 @@
     width: 72px;
     height: 32px;
     padding: 0 8px;
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .pagination button {
     display: inline-grid;
@@ -1085,7 +1087,7 @@
   .retention-note {
     margin: 12px 0 0;
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
     line-height: 1.6;
   }
   /* The detail drawer */
@@ -1116,7 +1118,7 @@
   }
   .drawer-heading h2 {
     margin: 0;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     line-height: 1.45;
     overflow-wrap: anywhere;
@@ -1124,7 +1126,7 @@
   .drawer-heading p {
     margin: 2px 0 0;
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .drawer-close {
     display: inline-grid;
@@ -1152,7 +1154,7 @@
     justify-content: space-between;
     gap: 10px;
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .identity-details {
     display: grid;
@@ -1168,7 +1170,7 @@
   }
   dt {
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
   }
   dd {
     min-width: 0;
@@ -1207,7 +1209,7 @@
   .admission-note {
     margin: 16px 0 0;
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
     line-height: 1.6;
   }
   .admission-note {

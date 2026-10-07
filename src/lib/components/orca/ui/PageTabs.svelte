@@ -28,11 +28,12 @@
 </nav>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.orca-page-tabs {
 		display: flex;
 		gap: 2px;
-		margin: 0 0 24px;
+		margin: 0 0 20px;
 		overflow-x: auto;
 		box-shadow: inset 0 -1px 0 var(--orca-line);
 		scrollbar-width: none;
@@ -45,11 +46,12 @@
 		flex: none;
 		align-items: center;
 		gap: 6px;
-		min-height: 40px;
+		min-height: 36px;
 		padding: 0 10px;
+		border-top: 2px solid transparent; /* balances the underline: the label sits in the middle */
 		border-bottom: 2px solid transparent;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		text-decoration: none;
 		white-space: nowrap;

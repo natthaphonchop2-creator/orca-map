@@ -204,6 +204,7 @@
 {#if !inline}<ProgramRequestSheet bind:open={requestOpen} {data} program={query.trim()} />{/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.pick {
 		container-type: inline-size;
@@ -230,7 +231,7 @@
 		background: var(--orca-field);
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 16px;
+		font-size: 15px;
 		box-shadow: 0 1px 2px color-mix(in srgb, var(--orca-ink) 6%, transparent);
 	}
 	.pick-search input::placeholder {
@@ -267,7 +268,7 @@
 	}
 	.pick-sec h2 {
 		margin: 0;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 		line-height: 1.3;
 	}
@@ -309,7 +310,7 @@
 	}
 	.pick-feat h3 {
 		margin: 18px 0 4px;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 		line-height: 1.35;
 	}
@@ -326,7 +327,7 @@
 		margin-top: auto;
 		padding-top: 16px;
 		color: var(--orca-subtle);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.pick-go {
 		display: grid;
@@ -387,7 +388,7 @@
 		min-width: 0;
 	}
 	.pick-row-copy b {
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.35;
 	}
@@ -395,7 +396,7 @@
 		margin-top: 1px;
 		overflow: hidden;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
@@ -492,7 +493,7 @@
 	.pick-operator {
 		margin: 12px 0 0;
 		text-align: center;
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.pick-operator a {
 		color: var(--orca-muted);
@@ -506,7 +507,7 @@
 	@container (max-width: 640px) {
 		.pick-search input {
 			height: 50px;
-			font-size: 15px;
+			font-size: 14px;
 		}
 		.pick-chips {
 			margin-bottom: 32px;
@@ -525,10 +526,10 @@
 		}
 		.pick-feat h3 {
 			margin-top: 12px;
-			font-size: 14px;
+			font-size: 13.5px;
 		}
 		.pick-feat p {
-			font-size: 12.5px;
+			font-size: 12px;
 		}
 		.pick-list {
 			grid-template-columns: minmax(0, 1fr);

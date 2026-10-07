@@ -141,6 +141,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.everyone {
 		max-width: 720px;
@@ -163,7 +164,7 @@
 		width: 48px;
 		height: 48px;
 		border: 1px solid var(--orca-line);
-		border-radius: 12px;
+		border-radius: var(--orca-radius-lg);
 		background: var(--orca-logo-tile);
 	}
 	.everyone-head-copy {
@@ -176,7 +177,7 @@
 	.everyone-head h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 		line-height: 1.35;
 	}
@@ -199,14 +200,14 @@
 		place-items: center;
 		width: 34px;
 		height: 34px;
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
 	}
 	.everyone-list strong {
 		display: block;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.45;
 	}
@@ -222,7 +223,7 @@
 		gap: 8px;
 		margin: 20px 0 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.everyone-note :global(svg) {
@@ -269,7 +270,7 @@
 		background: var(--orca-ink);
 		color: var(--orca-on-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -290,7 +291,7 @@
 	.everyone-progress {
 		flex-basis: 100%;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.everyone-progress:empty {
 		display: none;

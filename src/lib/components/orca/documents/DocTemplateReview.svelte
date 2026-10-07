@@ -461,6 +461,7 @@
 />
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.dt {
 		display: grid;
@@ -486,7 +487,7 @@
 	.dt-section h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 650;
 	}
 	.dt-row {
@@ -563,7 +564,7 @@
 	}
 	.dt .k-field > span {
 		color: var(--orca-text-2);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.dt-check {
 		display: inline-flex;
@@ -685,7 +686,7 @@
 		flex-wrap: wrap;
 		gap: 6px 14px;
 		margin: 0;
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.dt-legend span {
 		padding: 1px 6px;

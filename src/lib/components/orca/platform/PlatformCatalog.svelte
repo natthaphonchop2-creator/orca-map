@@ -270,6 +270,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.catalog-add {
 		min-height: 42px;
@@ -326,14 +327,14 @@
 		background: var(--orca-surface);
 	}
 	.catalog-counts strong {
-		font-size: 20px;
+		font-size: 18px;
 		font-weight: 700;
 		line-height: 1.3;
 		font-variant-numeric: tabular-nums;
 	}
 	.catalog-counts span {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.catalog-counts li.ok strong {
 		color: var(--orca-ok);
@@ -346,7 +347,7 @@
 	}
 	.catalog-section h2 {
 		margin: 0 0 12px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 650;
 	}
 	.catalog-section-head {
@@ -365,10 +366,10 @@
 		align-items: center;
 		gap: 8px;
 		width: min(320px, 100%);
-		min-height: 38px;
+		min-height: 32px;
 		padding: 0 12px;
 		border: 1px solid var(--orca-field-line);
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field);
 		color: var(--orca-subtle);
 	}
@@ -379,7 +380,7 @@
 	.catalog-search input {
 		flex: 1;
 		min-width: 0;
-		height: 36px;
+		height: 32px;
 		border: 0;
 		outline: none;
 		background: transparent;
@@ -430,7 +431,7 @@
 		display: block;
 		overflow: hidden;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
@@ -457,10 +458,10 @@
 	}
 	.catalog-form input {
 		width: 100%;
-		min-height: 42px;
+		min-height: 32px;
 		padding: 9px 12px;
 		border: 1px solid var(--orca-field-line);
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field);
 		color: var(--orca-ink);
 		font: inherit;
@@ -472,7 +473,7 @@
 	.catalog-hint {
 		margin: 2px 0 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.6;
 	}
 	.catalog-legend {

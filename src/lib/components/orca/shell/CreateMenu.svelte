@@ -63,6 +63,7 @@
 {/snippet}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.cm-group + .cm-group {
 		margin-top: 4px;
@@ -77,7 +78,7 @@
 		padding: 0 10px;
 		border-radius: var(--orca-radius);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		text-decoration: none;
 		white-space: nowrap;

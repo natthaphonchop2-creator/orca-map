@@ -222,6 +222,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.overview-tiles {
 		display: grid;
@@ -254,21 +255,21 @@
 		font-weight: 500;
 	}
 	.overview-tile-value {
-		font-size: 24px;
+		font-size: 22px;
 		font-weight: 700;
 		line-height: 1.3;
 		font-variant-numeric: tabular-nums;
 	}
 	.overview-tile-detail {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.overview-block {
 		margin-bottom: 28px;
 	}
 	.overview-block h2 {
 		margin: 0 0 12px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 650;
 	}
 	.overview-todos {
@@ -307,7 +308,7 @@
 	}
 	.overview-todo-copy small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.overview-todos .k-button {
 		flex: none;
@@ -384,7 +385,7 @@
 		min-width: 0;
 	}
 	.platform-section-copy strong {
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	@media (max-width: 720px) {
@@ -396,7 +397,7 @@
 			padding: 14px;
 		}
 		.overview-tile-value {
-			font-size: 20px;
+			font-size: 18px;
 		}
 		.overview-todos li {
 			flex-wrap: wrap;

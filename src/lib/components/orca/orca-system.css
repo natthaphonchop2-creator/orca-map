@@ -1,3 +1,4 @@
+/* orca-type-remap v2 */
 /* orca-type-remap v1 */
 /*
  * ORCA workspace design system: a calm, formal console.
@@ -8,16 +9,19 @@
 .orca-workspace.orca-app {
   color-scheme: light;
   --orca-ink: #151823;
-  --orca-bg: #ffffff;
-  --orca-sidebar: #fafafa;
+  /* W0.2 (owner 2026-10-08): the page is a light grey, cards are white on it, the rail and
+     top bar sit between the two (--orca-chrome). Hairlines, no card shadows. */
+  --orca-bg: #f5f6f8;
+  --orca-chrome: #fafafb;
+  --orca-sidebar: var(--orca-chrome);
   --orca-surface: #ffffff;
-  --orca-surface-2: #fafafa;
-  --orca-secondary: #f4f4f5;
-  --orca-hover: #f0f1f3;
-  --orca-line: #e5e7eb;
-  --orca-line-strong: #d4d4d8;
+  --orca-surface-2: #f8f9fa;
+  --orca-secondary: #eceef2;
+  --orca-hover: #f0f1f4;
+  --orca-line: #e3e5e9;
+  --orca-line-strong: #d1d4da;
   --orca-muted: #5b6270;
-  --orca-subtle: #676e7b; /* v3: 4.5:1 on the secondary and hover fills too */
+  --orca-subtle: #646b78; /* 4.5:1 on the page, the secondary and hover fills too */
   --orca-nav: #3f4452;
   --orca-citron: #d7f471;
   --orca-citron-hover: #cdef56;
@@ -28,11 +32,18 @@
   --orca-warn-bg: #fff5dc;
   --orca-deny: #b3262f;
   --orca-deny-bg: #fdecee;
-  --orca-radius-sm: 6px;
-  --orca-radius: 8px;
-  --orca-radius-lg: 12px; /* panels, tables, menus */
-  --orca-radius-xl: 16px; /* dialogs */
-  --orca-ease: cubic-bezier(0.4, 0, 0.2, 1); /* 150 ms colour transitions, as on the website */
+  /* One radius scale (W0.2): small controls and fields 8, buttons 10, cards and panels 14,
+     dialogs, sheets and menus 18. Nested corners: inner = outer - padding. */
+  --orca-radius-sm: 8px;
+  --orca-radius: 10px;
+  --orca-radius-lg: 14px;
+  --orca-radius-xl: 18px;
+  /* Functional motion only (W0.2): short eased fades, rises and colour changes, never
+     decoration; prefers-reduced-motion turns all of it off (below). */
+  --orca-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --orca-dur-fast: 150ms;
+  --orca-dur: 180ms;
+  --orca-dur-slow: 220ms;
   --orca-popover-shadow: 0 10px 30px -12px rgba(21, 24, 35, 0.22);
   /* legacy variables used across existing components */
   --k-ink: var(--orca-ink);
@@ -59,7 +70,7 @@
 
 /* ---------- Type ---------- */
 .orca-workspace.orca-app h1 {
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.35;
   font-weight: 600;
   letter-spacing: 0;
@@ -69,7 +80,7 @@
   letter-spacing: -0.02em;
 }
 .orca-workspace.orca-app h2 {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.45;
   font-weight: 600;
 }
@@ -102,7 +113,7 @@
   color: var(--orca-muted);
 }
 .orca-workspace.orca-app .k-small {
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 /* ---------- Sidebar ---------- */
@@ -238,7 +249,7 @@
 .orca-workspace.orca-app .workspace-nav a {
   min-height: 40px;
   padding: 9px 10px;
-  font-size: 14px;
+  font-size: 13.5px;
 }
 .orca-workspace.orca-app .workspace-nav a svg {
   width: 18px;
@@ -284,7 +295,7 @@
   padding: 4px 8px;
   border-radius: 999px;
   color: var(--orca-muted);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
@@ -306,7 +317,7 @@
   grid-template-columns: 1fr;
   gap: 2px;
   margin-inline: 0;
-  border-radius: 12px;
+  border-radius: var(--orca-radius-lg);
 }
 .orca-workspace.orca-app .compact .workspace-mode a svg {
   display: block;
@@ -345,7 +356,7 @@
 }
 .orca-workspace.orca-app .workspace-pin-copy strong {
   overflow: hidden;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -394,7 +405,7 @@
 .orca-workspace.orca-app .workspace-home-link {
   display: inline-flex;
   min-width: 0;
-  border-radius: 6px;
+  border-radius: var(--orca-radius-sm);
   color: inherit;
   text-decoration: none;
 }
@@ -466,13 +477,13 @@
 /* ---------- Buttons ---------- */
 .orca-workspace.orca-app .k-button {
   gap: 6px;
-  min-height: 36px;
-  padding: 0 14px;
+  min-height: 32px;
+  padding: 0 12px;
   border: 1px solid var(--orca-line);
   border-radius: var(--orca-radius);
   background: var(--orca-surface);
   color: var(--orca-ink) !important;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1.2;
   box-shadow: none;
@@ -484,6 +495,7 @@
   border-color: var(--orca-line-strong);
 }
 .orca-workspace.orca-app .k-button svg {
+  flex: none;
   width: 16px;
   height: 16px;
 }
@@ -530,9 +542,9 @@
   color: var(--orca-ink) !important;
 }
 .orca-workspace.orca-app .k-button.small {
-  min-height: 32px;
+  min-height: 28px;
   padding: 0 10px;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 .orca-workspace.orca-app .k-button:disabled,
 .orca-workspace.orca-app .k-button[aria-disabled='true'] {
@@ -557,11 +569,11 @@
 .orca-workspace.orca-app .k-field input:not([type='checkbox']):not([type='radio']),
 .orca-workspace.orca-app .k-field select,
 .orca-workspace.orca-app .k-field textarea {
-  min-height: 36px;
-  padding: 7px 11px;
+  min-height: 32px;
+  padding: 5px 10px;
   /* --orca-field(-line) equal the light literals (#fff, #d4d4d8); in dark the border meets 3:1. */
   border: 1px solid var(--orca-field-line, var(--orca-line-strong));
-  border-radius: var(--orca-radius);
+  border-radius: var(--orca-radius-sm);
   background: var(--orca-field, var(--orca-surface));
   color: var(--orca-ink);
   font-size: 13.5px;
@@ -584,7 +596,7 @@
 
 /* ---------- Surfaces ---------- */
 .orca-workspace.orca-app .k-panel {
-  padding: 20px;
+  padding: 16px;
   border: 1px solid var(--orca-line);
   border-radius: var(--orca-radius-lg);
   background: var(--orca-surface);
@@ -601,9 +613,9 @@
 }
 .orca-workspace.orca-app .k-banner {
   gap: 10px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border: 1px solid var(--orca-line);
-  border-radius: var(--orca-radius);
+  border-radius: var(--orca-radius-lg);
   background: var(--orca-surface-2);
   color: var(--orca-ink);
   font-size: 13px;
@@ -708,24 +720,24 @@
   box-shadow: none;
 }
 .orca-workspace.orca-app .k-table th {
-  height: 40px;
+  height: 36px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--orca-line);
   background: var(--orca-surface-2);
   color: var(--orca-nav);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   text-align: start;
 }
 .orca-workspace.orca-app .k-table td {
-  padding: 10px 12px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
   font-size: 13.5px;
 }
 
 /* ---------- Footer ---------- */
 .orca-workspace.orca-app .k-footer {
-  margin-top: 36px;
+  margin-top: 32px;
   padding-top: 16px;
   font-size: 12px;
   color: var(--orca-muted);
@@ -810,7 +822,10 @@ html:has(.orca-workspace.orca-app .workspace-drawer[open]) {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .orca-workspace.orca-app * {
+  .orca-workspace.orca-app *,
+  .orca-workspace.orca-app *::before,
+  .orca-workspace.orca-app *::after,
+  .orca-workspace.orca-app dialog::backdrop {
     transition-duration: 0.01ms !important;
   }
 }

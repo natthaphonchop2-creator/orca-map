@@ -123,6 +123,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	section.help-faq h2 {
 		margin-bottom: 12px;
@@ -143,7 +144,7 @@
 		gap: 12px;
 		padding: 16px 20px;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		list-style: none;
 		cursor: pointer;

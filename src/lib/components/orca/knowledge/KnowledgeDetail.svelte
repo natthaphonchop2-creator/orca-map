@@ -281,6 +281,7 @@
 </ConfirmDialog>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.kn-back {
 		display: inline-flex;
@@ -311,7 +312,7 @@
 	}
 	.kd-title h1 {
 		margin: 0;
-		font-size: 24px;
+		font-size: 22px;
 		font-weight: 600;
 		line-height: 1.35;
 		overflow-wrap: anywhere;
@@ -337,7 +338,7 @@
 		gap: 10px;
 	}
 	.kd-actions :global(.k-button) {
-		min-height: 42px;
+		min-height: 32px;
 		padding: 0 16px;
 		font-weight: 600;
 	}
@@ -357,7 +358,7 @@
 	.kd-summary {
 		margin: 0;
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.kd-card {
@@ -368,12 +369,12 @@
 	}
 	.kd-card h2 {
 		margin: 0 0 10px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 700;
 	}
 	.prose {
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.8;
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
@@ -443,10 +444,10 @@
 		font-weight: 400;
 	}
 	.kd-field input {
-		min-height: 42px;
+		min-height: 32px;
 		padding: 0 12px;
 		border: 1px solid var(--orca-field-line);
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field);
 		color: var(--orca-ink);
 		font-size: 13.5px;
@@ -513,7 +514,7 @@
 	/* W0: every page's H1 is 24, and 20 on a phone. */
 	@media (max-width: 720px) {
 		.kd-title h1 {
-			font-size: 20px;
+			font-size: 18px;
 		}
 	}
 </style>

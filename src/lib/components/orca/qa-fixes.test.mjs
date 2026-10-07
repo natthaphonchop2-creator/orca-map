@@ -131,7 +131,7 @@ test('W0.1: the sign-in page says ORCA Workspace in plain small grey text, never
 	const rule = login.match(/\.orca\.o-auth-page\.o-login \.o-login-eyebrow \{[^}]*\}/)?.[0];
 	assert.ok(rule, 'login.css styles the line');
 	assert.match(rule, /color: var\(--login-muted\);/);
-	assert.match(rule, /font-size: 12\.5px;/);
+	assert.match(rule, /font-size: 12px;/, 'small text, one step down in W0.2');
 	assert.doesNotMatch(rule, /border|background|border-radius|padding|height/, 'no pill: no border, fill, rounding or padding');
 	assert.doesNotMatch(login, /\.o-login-eyebrow span/, 'the dot rule is gone');
 });

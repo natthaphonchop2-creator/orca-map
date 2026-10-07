@@ -352,6 +352,7 @@
 />
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.pd-back {
 		display: inline-block;
@@ -382,7 +383,7 @@
 	}
 	.pd-title h1 {
 		margin: 0;
-		font-size: 24px;
+		font-size: 22px;
 		font-weight: 600;
 		line-height: 1.3;
 		overflow-wrap: anywhere;
@@ -390,7 +391,7 @@
 	.pd-title p {
 		margin: 4px 0 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.pd-actions {
 		flex: none;
@@ -425,6 +426,7 @@
 		gap: 8px;
 		margin-bottom: -1px;
 		padding: 10px 0 11px;
+		border-top: 2px solid transparent; /* balances the underline: the label sits in the middle */
 		border-bottom: 2px solid transparent;
 		color: var(--orca-muted);
 		font-size: 13.5px;
@@ -470,7 +472,7 @@
 	}
 	.pd-card-head h2 {
 		margin: 0;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 	}
 	.pd-card-head p {
@@ -496,7 +498,7 @@
 		border-radius: 999px;
 		background: var(--orca-surface-2);
 		color: var(--orca-text-2);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.pd-chips li.more {
 		color: var(--orca-muted);
@@ -584,7 +586,7 @@
 	.pd-row-copy small,
 	.pd-event-copy small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.pd-event {
 		display: flex;
@@ -610,7 +612,7 @@
 			flex-wrap: wrap;
 		}
 		.pd-title h1 {
-			font-size: 20px;
+			font-size: 18px;
 		}
 		.pd-actions {
 			width: 100%;

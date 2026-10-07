@@ -86,7 +86,7 @@
 		align-items: center;
 		justify-content: center;
 		gap: 8px;
-		min-height: 42px;
+		min-height: 32px;
 		padding: 0 16px;
 		border: 1px solid transparent;
 		border-radius: var(--orca-radius);

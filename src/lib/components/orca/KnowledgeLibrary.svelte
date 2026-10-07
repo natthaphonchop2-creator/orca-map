@@ -917,6 +917,7 @@
 />
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.editor-note {
 		display: flex;
@@ -952,7 +953,7 @@
 		place-items: center;
 		width: 42px;
 		height: 42px;
-		border-radius: 11px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
 	}
@@ -963,7 +964,7 @@
 	.gate-line {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.55;
 	}
@@ -971,7 +972,7 @@
 		flex: none;
 	}
 	.gate-action :global(.k-button) {
-		min-height: 42px;
+		min-height: 32px;
 		padding: 0 18px;
 		font-weight: 600;
 	}

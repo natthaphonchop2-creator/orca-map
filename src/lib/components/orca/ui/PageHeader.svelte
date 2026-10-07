@@ -61,6 +61,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.orca-page-header {
 		margin: 0 0 24px;
@@ -87,7 +88,7 @@
 		gap: 8px;
 		margin-bottom: 10px;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.orca-page-row {
 		display: flex;
@@ -109,7 +110,7 @@
 	/* Under .orca-page-header so it outranks the shell's `.orca-workspace.orca-app h1` (24px). */
 	.orca-page-header .orca-page-title h1 {
 		margin: 0;
-		font-size: 24px;
+		font-size: 22px;
 		line-height: 1.3;
 		font-weight: 700;
 	}
@@ -117,7 +118,7 @@
 		max-width: 680px;
 		margin: 6px 0 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.orca-page-hidden {
@@ -144,7 +145,7 @@
 	}
 	@media (max-width: 720px) {
 		.orca-page-header .orca-page-title h1 {
-			font-size: 20px;
+			font-size: 18px;
 		}
 		.orca-page-action {
 			width: 100%;

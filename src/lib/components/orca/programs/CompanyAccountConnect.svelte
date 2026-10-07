@@ -375,10 +375,10 @@
 		font-weight: 400;
 	}
 	.cc-field input {
-		min-height: 40px;
+		min-height: 32px;
 		padding: 8px 10px;
 		border: 1px solid var(--orca-line);
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-surface);
 		color: var(--orca-ink);
 		font: inherit;

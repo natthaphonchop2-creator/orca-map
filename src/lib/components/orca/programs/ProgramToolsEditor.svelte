@@ -249,6 +249,7 @@
 </form>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.tools {
 		container-type: inline-size;
@@ -262,7 +263,7 @@
 	}
 	.tools-sec h2 {
 		margin: 0;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 		line-height: 1.3;
 	}
@@ -291,7 +292,7 @@
 	.tools-cap {
 		margin: 12px 0 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	/* Presets */
 	.presets {
@@ -339,7 +340,7 @@
 		place-items: center;
 		width: 40px;
 		height: 40px;
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
 	}
@@ -358,7 +359,7 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 8px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 		line-height: 1.35;
 	}
@@ -385,7 +386,7 @@
 		align-items: center;
 		gap: 6px;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 500;
 	}
 	.preset-foot.ok {
@@ -427,7 +428,7 @@
 		place-items: center;
 		width: 36px;
 		height: 36px;
-		border-radius: 9px;
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-secondary);
 		color: var(--orca-subtle);
 	}
@@ -448,7 +449,7 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 4px 6px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 700;
 		line-height: 1.35;
 	}
@@ -459,7 +460,7 @@
 	}
 	.grp-sub {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.grp.off .grp-title {
@@ -549,7 +550,7 @@
 	}
 	.opt-desc {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 		overflow-wrap: anywhere;
 	}
@@ -588,7 +589,7 @@
 		border-top: 1px solid var(--orca-line-soft);
 		background: var(--orca-surface-2);
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.grp-foot :global(svg) {
 		flex: none;
@@ -667,7 +668,7 @@
 		width: 100%;
 		padding: 11px 12px;
 		border: 1px solid var(--orca-field-line);
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field);
 		color: var(--orca-ink);
 		font: inherit;
@@ -678,7 +679,7 @@
 	.hint {
 		margin: 6px 0 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	/* For developers */
 	.dev {
@@ -706,7 +707,7 @@
 		border: 1px solid var(--orca-line);
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface-2);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.dev-body p {
 		margin: 0 0 8px;
@@ -743,7 +744,7 @@
 		place-items: center;
 		width: 38px;
 		height: 38px;
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-ok-bg);
 		color: var(--orca-ok);
 	}
@@ -757,13 +758,13 @@
 	}
 	.sbar-copy b {
 		display: block;
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.35;
 	}
 	.sbar-copy span {
 		display: block;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.4;
 	}
 	.sbar-actions {
@@ -775,7 +776,7 @@
 	:global(.orca-workspace.orca-app) .k-button.sbar-go {
 		min-height: 48px;
 		padding: 0 22px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.sbar-error {

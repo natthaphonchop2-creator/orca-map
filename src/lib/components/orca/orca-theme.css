@@ -29,7 +29,7 @@
 	--orca-field: #ffffff;
 	--orca-field-line: #d4d4d8;
 	--orca-popover: #ffffff; /* account and company menus */
-	--orca-topbar: rgba(255, 255, 255, 0.94);
+	--orca-topbar: var(--orca-chrome, #fafafb);
 	--orca-scrim: rgba(21, 24, 35, 0.45); /* new code only; existing backdrops: section 5 */
 	--orca-dialog-shadow: 0 16px 48px -12px rgba(21, 24, 35, 0.28);
 	--orca-ok-line: #c7e5d3;
@@ -50,18 +50,20 @@
 	/* ---------- 2. Dark values of every name ---------- */
 	:root[data-orca-theme='dark'] .orca-workspace.orca-app {
 		color-scheme: dark;
-		--orca-bg: #08090a;
-		--orca-sidebar: #0b0c0e;
-		--orca-surface: #0e0f11;
-		--orca-surface-2: #141517;
-		--orca-secondary: rgba(255, 255, 255, 0.06);
+		/* W0.2: the page #0d0e10, cards one plane up (#16171a), the rail and top bar between. */
+		--orca-bg: #0d0e10;
+		--orca-chrome: #111215;
+		--orca-sidebar: var(--orca-chrome);
+		--orca-surface: #16171a;
+		--orca-surface-2: #1b1c20;
+		--orca-secondary: rgba(255, 255, 255, 0.07);
 		--orca-hover: rgba(255, 255, 255, 0.05);
 		--orca-line: rgba(255, 255, 255, 0.08);
-		--orca-line-strong: rgba(255, 255, 255, 0.12);
+		--orca-line-strong: rgba(255, 255, 255, 0.13);
 		--orca-ink: #f7f8f8;
 		--orca-nav: rgba(255, 255, 255, 0.8);
 		--orca-muted: #8a8f98;
-		--orca-subtle: rgba(255, 255, 255, 0.46);
+		--orca-subtle: rgba(255, 255, 255, 0.5); /* 4.5:1 on the cards and their inner fills */
 		--orca-citron: #d7f471;
 		--orca-citron-hover: #e3f794;
 		--orca-citron-soft: rgba(215, 244, 113, 0.12);
@@ -79,10 +81,10 @@
 		--orca-focus: #d7f471;
 		--orca-focus-halo: rgba(215, 244, 113, 0.18);
 		--orca-control: #d7f471;
-		--orca-field: #141517;
+		--orca-field: #1b1c20;
 		--orca-field-line: rgba(255, 255, 255, 0.34); /* 3:1 on the surface (WCAG 1.4.11) */
-		--orca-popover: #141517;
-		--orca-topbar: rgba(8, 9, 10, 0.8);
+		--orca-popover: #1c1d21;
+		--orca-topbar: var(--orca-chrome);
 		--orca-scrim: rgba(0, 0, 0, 0.6);
 		--orca-dialog-shadow: 0 40px 120px -40px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 		--orca-ok-line: rgba(52, 199, 123, 0.35);
@@ -98,7 +100,7 @@
 		--orca-chosen: #d7f471;
 		--orca-tab-indicator: #d7f471;
 		--orca-field-line-hover: rgba(255, 255, 255, 0.52); /* dark only: hovered field */
-		--orca-raised: #1a1b1e; /* dark only: the website's raised plane (blocks inside a dialog) */
+		--orca-raised: #222327; /* dark only: the raised plane (blocks inside a dialog) */
 	}
 
 	/* ---------- 3. The canvas ---------- */
@@ -106,7 +108,7 @@
 	   base-layer body colour (daisy dark base-100 is black). */
 	:root[data-orca-theme='dark'],
 	:root[data-orca-theme='dark'] body {
-		background-color: #08090a;
+		background-color: #0d0e10;
 	}
 
 	/* ---------- 4. Field defaults ---------- */

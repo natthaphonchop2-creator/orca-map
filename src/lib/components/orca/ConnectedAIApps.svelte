@@ -414,7 +414,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 8px;
-		height: 36px;
+		height: 32px;
 		padding: 0 14px;
 		border: 1px solid var(--orca-line-strong);
 		border-radius: 999px;
@@ -478,10 +478,10 @@
 		align-items: center;
 		gap: 9px;
 		width: 280px;
-		height: 38px;
+		height: 32px;
 		padding: 0 12px;
 		border: 1px solid var(--orca-field-line);
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field);
 		color: var(--orca-subtle);
 	}

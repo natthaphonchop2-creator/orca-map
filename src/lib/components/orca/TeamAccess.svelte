@@ -423,6 +423,7 @@
 {#if data.canManage}<MemberInvitations {data} bind:inviting bind:openCount={invitationCount} showList={section === "invitations"} onchanged={memberChanged} />{/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
   .team-heading {
     flex: 1 1 360px;
@@ -461,9 +462,9 @@
     z-index: 30;
     display: grid;
     min-width: 230px;
-    padding: 6px;
+    padding: 8px;
     border: 1px solid var(--orca-line);
-    border-radius: var(--orca-radius-lg);
+    border-radius: var(--orca-radius-xl);
     background: var(--orca-popover, var(--orca-surface));
     box-shadow: 0 12px 32px -12px rgba(21, 24, 35, 0.28);
     text-align: start;
@@ -522,9 +523,10 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    min-height: 44px;
+    min-height: 36px;
     padding: 0 2px;
     border: 0;
+    border-top: 2px solid transparent; /* balances the underline: the label sits in the middle */
     border-bottom: 2px solid transparent;
     background: transparent;
     color: var(--orca-muted);
@@ -595,10 +597,10 @@
     margin: 0 0 12px;
   }
   .team-filter select {
-    min-height: 36px;
+    min-height: 32px;
     padding: 0 30px 0 12px;
     border: 1px solid var(--orca-field-line, var(--orca-line-strong));
-    border-radius: var(--orca-radius);
+    border-radius: var(--orca-radius-sm);
     background-color: var(--orca-field, var(--orca-surface));
     color: var(--orca-ink);
     font: inherit;
@@ -614,10 +616,10 @@
   }
   .team-search {
     width: min(280px, 100%);
-    min-height: 36px;
+    min-height: 32px;
     padding: 6px 11px;
     border: 1px solid var(--orca-field-line, var(--orca-line-strong));
-    border-radius: var(--orca-radius);
+    border-radius: var(--orca-radius-sm);
     background: var(--orca-surface);
     color: var(--orca-ink);
     font: inherit;
@@ -684,7 +686,7 @@
   }
   .team-none {
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .team-hub-link {
     display: flex;
@@ -746,7 +748,7 @@
   }
   .team-empty h2 {
     margin-top: 4px;
-    font-size: 14px;
+    font-size: 13.5px;
   }
   .team-empty p {
     margin: 0;

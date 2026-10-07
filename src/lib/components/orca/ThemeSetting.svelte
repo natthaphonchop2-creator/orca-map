@@ -31,6 +31,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	/* The spacing of SettingsCenter's .settings-panel-head, whose styles are scoped there. */
 	.theme-setting {
@@ -59,7 +60,7 @@
 	.theme-setting p {
 		margin: 2px 0 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.6;
 	}
 	/* Present (for the live region) but takes no room until there is something to say. */

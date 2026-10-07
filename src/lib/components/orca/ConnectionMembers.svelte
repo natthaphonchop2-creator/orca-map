@@ -123,6 +123,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.cm {
 		min-width: 0;
@@ -145,7 +146,7 @@
 		align-items: center;
 		gap: 8px;
 		margin: 0;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 	}
 	.cm-head h2 span {
@@ -218,7 +219,7 @@
 	}
 	.cm-person small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.cm-hubs {
 		min-width: 0;

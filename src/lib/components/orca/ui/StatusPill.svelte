@@ -11,6 +11,7 @@
 <span class="orca-pill {tone}" {title}>{#if dot}<span class="orca-pill-dot" class:tone-ok={dotTone === 'ok'} class:tone-warn={dotTone === 'warn'} class:tone-deny={dotTone === 'deny'} aria-hidden="true"></span>{/if}{label}</span>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	/* W0: a state is text with a dot, in its colour; never a filled pill or a badge. */
 	.orca-pill {
@@ -22,7 +23,7 @@
 		border: 0;
 		background: none;
 		color: var(--orca-text-2);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 500;
 		line-height: 1.5;
 		white-space: nowrap;

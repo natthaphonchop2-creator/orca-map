@@ -185,14 +185,15 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
   .invite-panel { align-self: center; }
   .invite-loading { display: flex; align-items: center; gap: 10px; }
   .invite-done { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--orca-ok-bg, #e8f5ec); color: var(--orca-ok, #1d7a42); }
-  .invite-facts { display: grid; gap: 0; margin: 4px 0 18px; border: 1px solid var(--orca-line, #e5e7eb); border-radius: 10px; overflow: hidden; }
+  .invite-facts { display: grid; gap: 0; margin: 4px 0 18px; border: 1px solid var(--orca-line, #e5e7eb); border-radius: var(--orca-radius); overflow: hidden; }
   .invite-facts div { display: grid; grid-template-columns: minmax(110px, 40%) minmax(0, 1fr); }
   .invite-facts div + div { border-top: 1px solid var(--orca-line, #e5e7eb); }
-  .invite-facts dt { padding: 10px 12px; background: var(--orca-surface-2, #fafafa); color: var(--orca-muted, #5b6270); font-size: 12.5px; }
+  .invite-facts dt { padding: 10px 12px; background: var(--orca-surface-2, #fafafa); color: var(--orca-muted, #5b6270); font-size: 12px; }
   .invite-facts dd { margin: 0; padding: 10px 12px; font-size: 13.5px; font-weight: 500; overflow-wrap: anywhere; }
   .invite-panel :global(.o-alert a) { color: inherit; font-weight: 600; text-decoration: underline; }
   a.o-button { text-decoration: none; }

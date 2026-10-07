@@ -122,6 +122,7 @@
 {#if failed}<p class="ca-failed" role="alert">{t('คัดลอกไม่ได้ เลือกข้อความแล้วคัดลอกเอง', 'Copy failed. Select the text and copy it yourself.')}</p>{/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.ca-need {
 		display: flex;
@@ -144,7 +145,7 @@
 	.ca-where {
 		margin: 0 0 12px;
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.ca-mini {
@@ -162,7 +163,7 @@
 		padding: 13px 18px;
 		border-top: 1px solid var(--orca-line-soft);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.9;
 	}
 	.ca-mini li:first-child {
@@ -196,7 +197,7 @@
 		background: var(--orca-surface-2);
 		color: var(--orca-ink);
 		font-family: inherit;
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		line-height: 1.4;
 		white-space: nowrap;
@@ -212,14 +213,14 @@
 		margin-top: 14px;
 	}
 	.ca-act .k-button {
-		min-height: 42px;
+		min-height: 32px;
 		padding: 0 16px;
 		font-weight: 600;
 	}
 	.ca-small {
 		flex: 1 1 260px;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.ca-dev {
@@ -277,7 +278,7 @@
 		margin: 0;
 		color: var(--orca-ink);
 		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.ca-config {
 		width: 100%;
@@ -354,7 +355,7 @@
 	.ca-failed {
 		margin: 10px 0 0;
 		color: var(--orca-deny);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	@container ca (max-width: 560px) {
 		.ca-mini li {

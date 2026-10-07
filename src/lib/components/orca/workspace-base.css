@@ -1,3 +1,4 @@
+/* orca-type-remap v2 */
 /* orca-type-remap v1 */
 @font-face {
 	font-family: 'ORCA Noto Sans Thai';
@@ -30,7 +31,7 @@
 	color: var(--k-ink);
 	background: #fff;
 	min-height: 100vh;
-	font-size: 15px;
+	font-size: 14px;
 	line-height: 1.65;
 	color-scheme: light;
 }
@@ -44,18 +45,18 @@
 	margin: 0;
 }
 .orca-workspace h1 {
-	font-size: clamp(24px, 3.4vw, 40px);
+	font-size: clamp(22px, 3.4vw, 36px);
 	letter-spacing: -0.035em;
 	font-weight: 700;
 	line-height: 1.35;
 }
 .orca-workspace h2 {
-	font-size: 18px;
+	font-size: 16px;
 	font-weight: 650;
 	line-height: 1.5;
 }
 .orca-workspace h3 {
-	font-size: 16px;
+	font-size: 15px;
 	font-weight: 600;
 }
 .orca-workspace button,
@@ -148,7 +149,7 @@
 	overflow-wrap: anywhere;
 }
 .k-org span {
-	font-size: 12.5px;
+	font-size: 12px;
 	color: var(--k-accent);
 }
 .k-top-actions {
@@ -178,7 +179,7 @@
 	min-height: 86px;
 	color: var(--k-ink);
 	border-radius: 10px;
-	font-size: 14px;
+	font-size: 13.5px;
 	text-decoration: none;
 }
 .k-rail a:hover {
@@ -213,7 +214,7 @@
 }
 .k-subtitle {
 	color: var(--k-muted);
-	font-size: 16px;
+	font-size: 15px;
 	max-width: 800px;
 }
 .k-heading-row {
@@ -253,7 +254,7 @@
 	border-radius: 6px;
 	color: var(--k-ink) !important;
 	background: #fff;
-	font-size: 14px;
+	font-size: 13.5px;
 	font-weight: 500;
 	text-decoration: none !important;
 	white-space: nowrap;
@@ -276,7 +277,7 @@
 .k-button.small {
 	min-height: 37px;
 	padding: 7px 12px;
-	font-size: 12.5px;
+	font-size: 12px;
 }
 .k-button.quiet {
 	border-color: transparent;
@@ -328,7 +329,7 @@
 	color: var(--k-muted);
 }
 .k-small {
-	font-size: 12.5px;
+	font-size: 12px;
 }
 .k-banner {
 	display: flex;
@@ -368,7 +369,7 @@
 .k-field > label,
 .k-label {
 	font-weight: 600;
-	font-size: 14px;
+	font-size: 13.5px;
 }
 .k-field input:not([type='checkbox']):not([type='radio']),
 .k-field textarea,
@@ -447,7 +448,7 @@
 }
 .k-check-copy p {
 	color: var(--k-muted);
-	font-size: 12.5px;
+	font-size: 12px;
 	margin-top: 4px;
 	overflow-wrap: anywhere;
 }
@@ -491,7 +492,7 @@
 	align-items: center;
 	flex-wrap: wrap;
 	margin-top: 14px;
-	font-size: 12.5px;
+	font-size: 12px;
 	color: var(--k-muted);
 }
 .k-meta span {
@@ -512,7 +513,7 @@
 }
 .k-table th {
 	background: #f9f9fc;
-	font-size: 12.5px;
+	font-size: 12px;
 	color: var(--k-muted);
 	font-weight: 500;
 	white-space: nowrap;
@@ -537,11 +538,11 @@
 	padding: 18px 0 0 36px;
 }
 .k-summary h2 {
-	font-size: 16px;
+	font-size: 15px;
 }
 .k-summary-name {
 	color: var(--k-accent);
-	font-size: 20px;
+	font-size: 18px;
 	font-weight: 600;
 	margin-top: 17px !important;
 	overflow-wrap: anywhere;
@@ -625,7 +626,7 @@
 	border-radius: 50%;
 	border: 1px solid #d3d7e4;
 	background: #fff;
-	font-size: 15px;
+	font-size: 14px;
 }
 .k-steps .current button {
 	color: var(--k-accent);
@@ -700,7 +701,7 @@
 }
 .k-key-secret input {
 	font-family: ui-monospace, SFMono-Regular, monospace !important;
-	font-size: 12.5px !important;
+	font-size: 12px !important;
 }
 .k-footer {
 	display: flex;
@@ -747,7 +748,7 @@
 		--k-rail: 145px;
 	}
 	.k-rail a {
-		font-size: 12.5px;
+		font-size: 12px;
 		padding: 13px 12px;
 	}
 	.k-main {
@@ -791,7 +792,7 @@
 	.orca-workspace {
 		--k-header: 68px;
 		--k-rail: 0px;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.k-topbar {
 		padding: 11px 18px;
@@ -804,7 +805,7 @@
 		gap: 10px;
 	}
 	.k-org strong {
-		font-size: 12.5px;
+		font-size: 12px;
 		max-width: 160px;
 	}
 	.k-org span {
@@ -853,7 +854,7 @@
 		margin-bottom: 25px;
 	}
 	.k-subtitle {
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.k-panel {
 		padding: 19px 17px;
@@ -942,7 +943,7 @@
 	background: var(--o-canvas);
 }
 .orca-app h1 {
-	font-size: clamp(24px, 3vw, 34px);
+	font-size: clamp(22px, 3vw, 30px);
 	font-weight: 650;
 	letter-spacing: -0.025em;
 }
@@ -992,7 +993,7 @@
 	max-width: 1660px;
 }
 .orca-app .k-subtitle {
-	font-size: 16px;
+	font-size: 15px;
 }
 .orca-app .k-button {
 	border-radius: 10px;
@@ -1127,14 +1128,14 @@
 .orca-app .app-checklist-row strong,
 .orca-app .app-workspace-row strong {
 	display: block;
-	font-size: 15px;
+	font-size: 14px;
 	font-weight: 600;
 }
 .orca-app .app-checklist-row small,
 .orca-app .app-workspace-row small {
 	display: block;
 	color: var(--o-muted);
-	font-size: 12.5px;
+	font-size: 12px;
 	margin-top: 3px;
 }
 .orca-app .app-check-marker {
@@ -1169,7 +1170,7 @@
 	border-color: #b0b991;
 }
 .orca-app .app-overview-stats strong {
-	font-size: 24px;
+	font-size: 22px;
 	font-weight: 600;
 	line-height: 1;
 }
@@ -1194,7 +1195,7 @@
 		padding-inline: 10px;
 	}
 	.orca-app .k-rail a {
-		font-size: 12.5px;
+		font-size: 12px;
 		padding-inline: 11px;
 		gap: 10px;
 	}
@@ -1217,7 +1218,7 @@
 	.orca-app {
 		--k-rail: 0px;
 		--k-header: 72px;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.orca-app .k-topbar {
 		padding: 12px 18px;
@@ -1265,7 +1266,7 @@
 		gap: 12px;
 	}
 	.orca-app .app-checklist-row strong {
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.orca-app .app-checklist-row small {
 		font-size: 11.5px;
@@ -1282,7 +1283,7 @@
 	.orca-app .app-overview-stats strong {
 		grid-column: 3;
 		grid-row: 1;
-		font-size: 22px;
+		font-size: 20px;
 	}
 	.orca-app .app-overview-stats span {
 		grid-column: 2;
@@ -1290,6 +1291,6 @@
 		font-size: 13.5px;
 	}
 	.orca-app .k-subtitle {
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 }

@@ -45,6 +45,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.site-settings {
 		position: relative;
@@ -56,10 +57,10 @@
 		min-height: 44px;
 		padding: 8px;
 		border: 0;
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: transparent;
 		color: #545e72;
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		white-space: nowrap;
 		cursor: pointer;
@@ -84,7 +85,7 @@
 		gap: 20px;
 		padding: 18px;
 		border: 1px solid #d9deea;
-		border-radius: 14px;
+		border-radius: var(--orca-radius-lg);
 		background: #fff;
 		box-shadow: 0 12px 32px #15182314;
 	}

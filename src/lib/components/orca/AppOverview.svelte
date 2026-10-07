@@ -275,6 +275,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.spaces {
 		min-width: 0;
@@ -292,10 +293,10 @@
 		align-items: center;
 		gap: 8px;
 		width: min(320px, 100%);
-		height: 36px;
+		height: 32px;
 		padding: 0 11px;
 		border: 1px solid var(--orca-field-line, var(--orca-line-strong));
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-surface);
 		color: var(--orca-subtle);
 	}
@@ -337,7 +338,7 @@
 		background: transparent;
 		color: var(--orca-muted);
 		font: inherit;
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 500;
 		white-space: nowrap;
 		cursor: pointer;
@@ -414,7 +415,7 @@
 		border-bottom: 1px solid var(--orca-line);
 		background: var(--orca-surface-2);
 		color: var(--orca-nav);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 500;
 		text-align: start;
 		white-space: nowrap;
@@ -457,7 +458,7 @@
 		overflow: hidden;
 		margin-top: 2px;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.spaces-name small.spaces-mobile-meta {
 		display: none;
@@ -468,7 +469,7 @@
 	.spaces-systems,
 	.spaces-none {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.spaces-systems-inner {
 		display: flex;
@@ -510,7 +511,7 @@
 		gap: 6px;
 		min-width: 96px;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-variant-numeric: tabular-nums;
 	}
 	.spaces-bar {
@@ -582,7 +583,7 @@
 	.spaces-empty h3 {
 		margin: 4px 0 0;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.spaces-empty p {
@@ -606,7 +607,7 @@
 		padding: 10px 18px;
 		border-top: 1px solid var(--orca-line);
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.spaces-note {
 		margin-top: 16px;

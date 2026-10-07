@@ -119,9 +119,9 @@
 		min-width: 260px;
 		max-width: min(360px, calc(100vw - 32px));
 		margin: 0;
-		padding: 6px;
+		padding: 8px;
 		border: 1px solid var(--orca-line);
-		border-radius: var(--orca-radius-lg);
+		border-radius: var(--orca-radius-xl);
 		background: var(--orca-popover);
 		box-shadow: var(--orca-popover-shadow);
 		list-style: none;

@@ -79,6 +79,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	/* The sign-in page is dark (--login-*), the invite page light (--orca-*). */
 	.o-inapp {
@@ -87,7 +88,7 @@
 		margin: 18px 0 4px;
 		padding: 16px;
 		border: 1px solid var(--login-citron, var(--orca-line-strong));
-		border-radius: 12px;
+		border-radius: var(--orca-radius-lg);
 		background: var(--login-surface-2, var(--orca-surface));
 	}
 	/* First in its card (the invite page): space below, not above. */
@@ -101,7 +102,7 @@
 		gap: 8px;
 		margin: 0;
 		color: var(--login-text, var(--orca-ink));
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 		line-height: 1.4;
 	}
@@ -136,7 +137,7 @@
 	}
 	.o-inapp .o-inapp-failed {
 		color: var(--login-deny, var(--orca-deny));
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.o-inapp-url {
 		overflow-wrap: anywhere;

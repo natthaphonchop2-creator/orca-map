@@ -234,6 +234,7 @@
 />
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.st {
 		max-width: 1056px;
@@ -243,11 +244,11 @@
 		width: 100%;
 		padding: 11px 12px;
 		border: 1px solid var(--orca-field-line);
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field);
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.5;
 	}
 	.st-input:focus {
@@ -267,7 +268,7 @@
 	.st-error {
 		margin: 6px 0 0;
 		color: var(--orca-deny);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.st-hint {
 		margin: 10px 0 0;
@@ -313,7 +314,7 @@
 	.st-danger h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 	}
 	.st-danger p {

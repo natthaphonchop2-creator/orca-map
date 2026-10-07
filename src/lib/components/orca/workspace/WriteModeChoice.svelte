@@ -55,6 +55,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.write-note {
 		display: flex;
@@ -136,14 +137,14 @@
 		align-items: center;
 		gap: 8px;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 700;
 		line-height: 1.4;
 	}
 	.write-text {
 		margin-top: 3px;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	/* Nothing chosen changes data: greyed, still choosable for later. */

@@ -62,6 +62,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.ap {
 		display: grid;
@@ -83,17 +84,17 @@
 	.ap-label small,
 	.ap-count {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 400;
 	}
 	.ap-search {
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		min-height: 40px;
+		min-height: 32px;
 		padding: 0 12px;
 		border: 1px solid var(--orca-field-line);
-		border-radius: var(--orca-radius);
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-field);
 		color: var(--orca-subtle);
 	}
@@ -148,7 +149,7 @@
 		place-items: center;
 		width: 26px;
 		height: 26px;
-		border-radius: 7px;
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
 	}
@@ -173,6 +174,6 @@
 		margin: 0;
 		padding: 10px;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 </style>

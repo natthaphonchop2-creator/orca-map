@@ -121,6 +121,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.usage {
 		margin-bottom: 28px;
@@ -130,7 +131,7 @@
 	}
 	.usage-head h2 {
 		margin: 0;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 650;
 	}
 	.usage-head p {
@@ -164,20 +165,20 @@
 	}
 	/* A headline number keeps proportional figures; only the table's columns are tabular. */
 	.usage-tile-value {
-		font-size: 24px;
+		font-size: 22px;
 		font-weight: 700;
 		line-height: 1.3;
 	}
 	.usage-tile-extra {
 		margin-left: 6px;
 		color: var(--orca-muted);
-		font-size: 18px;
+		font-size: 16px;
 		font-weight: 600;
 	}
 	.usage-tile-detail {
 		min-height: 1.5em;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.usage-tile-detail.failed {
 		color: var(--orca-deny);
@@ -218,7 +219,7 @@
 	}
 	.usage-subtitle small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 400;
 	}
 	.usage-list {
@@ -306,10 +307,10 @@
 			padding: 14px;
 		}
 		.usage-tile-value {
-			font-size: 20px;
+			font-size: 18px;
 		}
 		.usage-tile-extra {
-			font-size: 16px;
+			font-size: 15px;
 		}
 	}
 	/* Each company is a card when the list is narrower than the table needs

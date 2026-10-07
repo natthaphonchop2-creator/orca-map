@@ -176,6 +176,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.ca-programs {
 		display: grid;
@@ -201,14 +202,14 @@
 		width: 44px;
 		height: 44px;
 		border: 1px solid var(--orca-line);
-		border-radius: 10px;
+		border-radius: var(--orca-radius);
 		background: var(--orca-logo-tile);
 		color: var(--orca-text-2);
 	}
 	.ca-logo.small {
 		width: 34px;
 		height: 34px;
-		border-radius: 8px;
+		border-radius: var(--orca-radius-sm);
 	}
 	.ca-logo :global(.orca-catalog-icon) {
 		padding: 0 !important;
@@ -228,7 +229,7 @@
 		gap: 6px;
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 650;
 		line-height: 1.45;
 	}
@@ -245,12 +246,12 @@
 	.ca-copy p.ca-own {
 		margin-top: 6px;
 		color: var(--orca-text-2);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.ca-go {
 		flex: none;
-		min-height: 42px !important;
-		padding: 0 16px !important;
+		min-height: 32px !important;
+		padding: 0 12px !important;
 		font-weight: 600 !important;
 	}
 	.ca-signed {
@@ -259,7 +260,7 @@
 	.ca-signed h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 650;
 	}
 	.ca-signed > p {
@@ -303,7 +304,7 @@
 		align-items: center;
 		gap: 4px;
 		color: var(--orca-ink);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 500;
 	}
 	@container ca (max-width: 560px) {

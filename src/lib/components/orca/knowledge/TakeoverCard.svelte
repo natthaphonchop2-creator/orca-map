@@ -80,6 +80,7 @@
 </ConfirmDialog>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.tk {
 		padding: 18px 20px;
@@ -89,7 +90,7 @@
 	}
 	.tk h2 {
 		margin: 0 0 6px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 700;
 	}
 	.tk p {

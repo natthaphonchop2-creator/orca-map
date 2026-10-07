@@ -217,11 +217,12 @@
 <ToolNarrowSheet bind:open={narrowOpen} connection={narrowConnection} selected={toolsFor(narrowID) ?? []} approval={changesWait} onapply={(tools) => setProgram(narrowID, tools)} />
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.pg-head h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 	}
 	.pg-head p {
@@ -320,7 +321,7 @@
 	.pg-list-title {
 		margin: 32px 0 10px;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 700;
 	}
 	.pg-lists {

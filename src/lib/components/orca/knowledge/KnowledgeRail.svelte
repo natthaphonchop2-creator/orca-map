@@ -124,6 +124,7 @@
 </aside>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.rail {
 		display: flex;
@@ -146,7 +147,7 @@
 	}
 	.ask-h b,
 	.connect-h b {
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 		line-height: 1.4;
 	}
@@ -157,7 +158,7 @@
 		width: 30px;
 		height: 30px;
 		border: 1px solid var(--orca-citron-line);
-		border-radius: 9px;
+		border-radius: var(--orca-radius-sm);
 		background: var(--orca-citron-soft);
 		color: var(--orca-ink);
 	}
@@ -190,7 +191,7 @@
 	}
 	.ask-copy {
 		width: 100%;
-		min-height: 40px;
+		min-height: 32px;
 		margin-top: 12px;
 		justify-content: center;
 		font-weight: 600;
@@ -235,7 +236,7 @@
 		align-items: flex-start;
 		gap: 4px;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.pill {

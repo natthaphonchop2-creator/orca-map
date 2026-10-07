@@ -50,6 +50,7 @@
 </label>
 
 <style>
+	/* orca-type-remap v2 */
 	/* orca-type-remap v1 */
 	.orca-choice {
 		position: relative;
@@ -103,7 +104,7 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 8px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 		line-height: 1.4;
 	}
@@ -119,7 +120,7 @@
 	.orca-choice-description {
 		margin-top: 2px;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.orca-choice-radio {
