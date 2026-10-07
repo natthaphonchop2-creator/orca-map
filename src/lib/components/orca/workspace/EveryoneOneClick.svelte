@@ -266,15 +266,15 @@
 		padding: 0 24px;
 		border: 1px solid transparent;
 		border-radius: var(--orca-radius);
-		background: var(--orca-citron);
-		color: var(--orca-on-citron);
+		background: var(--orca-ink);
+		color: var(--orca-on-ink);
 		font: inherit;
 		font-size: 14px;
 		font-weight: 600;
 		cursor: pointer;
 	}
 	.everyone-go:hover:not(:disabled) {
-		background: var(--orca-citron-hover);
+		background: var(--orca-ink);
 	}
 	.everyone-go:disabled {
 		cursor: progress;

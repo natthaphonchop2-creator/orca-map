@@ -48,6 +48,7 @@
 </script>
 
 <PageHeader
+	frame
 	title={term('history', t)}
 	subtitle={manager ? t('คำขอที่รออนุมัติ การใช้งาน และการตั้งค่าที่เปลี่ยน', 'Requests waiting, usage and changed settings.') : t('คำขอและการใช้งานของคุณ', 'Your requests and usage.')}
 />

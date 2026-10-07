@@ -417,7 +417,7 @@ test('step 5 says waiting, connected or asks for a manual check, and step 3 spea
 	assert.deepEqual(steps.warnings, []);
 	const props = { endpoint: 'https://orca.example.test/api/orca/mcp', connector: 'ORCA · Example Co.' };
 	const claude = render(steps.Component, { props: { ...props, app: 'claude' } }).body;
-	assert.match(claude, /<kbd[^>]*>Settings<\/kbd>[\s\S]*<kbd[^>]*>Connectors<\/kbd>[\s\S]*<kbd[^>]*>Add custom connector<\/kbd>[\s\S]*<b[^>]*>ORCA · Example Co\.<\/b>[\s\S]*Paste the link from step 2/);
+	assert.match(claude, /<kbd[^>]*>Settings<\/kbd>[\s\S]*<kbd[^>]*>Connectors<\/kbd>[\s\S]*<kbd[^>]*>Add custom connector<\/kbd>[\s\S]*<b[^>]*>ORCA · Example Co\.<\/b>[\s\S]*Paste your company’s ORCA link/);
 	assert.match(claude, /href="https:\/\/claude\.ai\/settings\/connectors" target="_blank" rel="noopener noreferrer"/);
 	assert.doesNotMatch(claude, /above|ด้านบน/, 'steps name step 2, never "above"');
 	const chatgpt = render(steps.Component, { props: { ...props, app: 'chatgpt' } }).body;

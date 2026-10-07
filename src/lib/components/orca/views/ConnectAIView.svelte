@@ -233,7 +233,7 @@
 
 	<div class="ca-strip"><AccessStrip {data} {access} {onchanged} /></div>
 
-	<ol class="ca-steps" class:dim={!ready} inert={!ready} aria-label={t('ขั้นตอนเชื่อม AI', 'Steps to connect your AI')}>
+	<ol class="ca-steps" class:dim={!ready} inert={!ready} aria-label={t('วิธีเชื่อม AI', 'How to connect your AI')}>
 		<ConnectStep number={1} state={stepState(1)} id="ca-step-1" title={t('เลือก AI ที่คุณใช้', 'Choose the AI you use')}>
 			{#snippet lead()}{t(`เลือก ${name} แล้ว เปลี่ยนได้ทุกเมื่อ`, `${name} chosen. Change it any time.`)}{/snippet}
 			<AIAppPicker {app} onselect={choose} />
@@ -262,7 +262,7 @@
 		<ConnectStep number={3} state={stepState(3)} id="ca-step-3" title={isChatApp(app) ? t(`วางใน ${name}`, `Paste it into ${name}`) : t(`ตั้งค่าใน ${name}`, `Set up ${name}`)}>
 			{#snippet lead()}{isChatApp(app)
 					? t(`ทำในหน้าตั้งค่าของ ${name} ไม่ถึง 1 นาที`, `In ${name}'s settings, under a minute.`)
-					: t('ใช้ลิงก์จากขั้นที่ 2 คำสั่งด้านล่างใส่ลิงก์ไว้ให้แล้ว', 'Uses the link from step 2; the commands below already include it.')}{/snippet}
+					: t('ใช้ลิงก์ ORCA ของบริษัทด้านบน คำสั่งด้านล่างใส่ลิงก์ไว้ให้แล้ว', 'Uses your company’s ORCA link above; the commands below already include it.')}{/snippet}
 			{#if linkOK}<AppSteps {app} {endpoint} {connector} {companyName} />{/if}
 		</ConnectStep>
 

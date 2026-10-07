@@ -73,6 +73,7 @@
 </script>
 
 <PageHeader
+	frame
 	title={term('settings', t)}
 	subtitle={data.canManage ? t('บริษัท ทีม พื้นที่ทำงาน AI และบัญชีของคุณ', 'Company, team, AI workspaces and your account.') : t('พื้นที่ทำงาน AI และบัญชีของคุณ', 'Your AI workspaces and your account.')}
 />

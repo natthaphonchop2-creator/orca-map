@@ -344,8 +344,8 @@
 		color: var(--orca-text-2);
 	}
 	.preset.on .preset-icon {
-		background: var(--orca-citron);
-		color: var(--orca-on-citron);
+		background: var(--orca-ink);
+		color: var(--orca-on-ink);
 	}
 	.preset-body {
 		display: flex;
@@ -367,9 +367,9 @@
 	}
 	.preset-badge {
 		padding: 1px 9px;
-		border: 1px solid var(--orca-citron-line);
+		border: 1px solid var(--orca-line-strong);
 		border-radius: 999px;
-		background: var(--orca-citron-soft);
+		background: var(--orca-secondary);
 		color: var(--orca-ink);
 		font-size: 11.5px;
 		font-weight: 600;

@@ -298,9 +298,9 @@
 		box-shadow: var(--orca-popover-shadow);
 	}
 	.pick-feat:not(.soon):hover .pick-go {
-		border-color: var(--orca-citron);
-		background: var(--orca-citron);
-		color: var(--orca-on-citron);
+		border-color: var(--orca-ink);
+		background: var(--orca-ink);
+		color: var(--orca-on-ink);
 	}
 	.pick-feat .pick-pill {
 		position: absolute;

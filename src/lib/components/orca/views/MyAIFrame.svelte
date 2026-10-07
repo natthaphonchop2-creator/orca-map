@@ -30,6 +30,6 @@
 	const holder = $derived(page.url.searchParams.get('holder') ?? '');
 </script>
 
-<PageHeader title={term('myAI', t)} subtitle={t('ใช้ ORCA ใน ChatGPT หรือ Claude', 'Use ORCA in ChatGPT or Claude.')} />
+<PageHeader frame title={term('myAI', t)} subtitle={t('ใช้ ORCA ใน ChatGPT หรือ Claude', 'Use ORCA in ChatGPT or Claude.')} />
 <PageTabs tabs={myAITabs(t)} current="secrets" label={term('myAI', t)} />
 <ConnectedAIApps {data} {filter} {holder} />

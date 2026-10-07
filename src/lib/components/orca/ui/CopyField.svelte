@@ -66,8 +66,8 @@
 		padding: 0 14px;
 		border: 1px solid transparent;
 		border-radius: var(--orca-radius);
-		background: var(--orca-citron);
-		color: var(--orca-on-citron);
+		background: var(--orca-ink);
+		color: var(--orca-on-ink);
 		font: inherit;
 		font-size: 13.5px;
 		font-weight: 600;
@@ -85,7 +85,7 @@
 		color: var(--orca-ink);
 	}
 	.orca-copy-button:hover:not(:disabled) {
-		background: var(--orca-citron-hover);
+		background: var(--orca-ink);
 	}
 	.orca-copy.small .orca-copy-button:hover:not(:disabled) {
 		background: var(--orca-secondary);

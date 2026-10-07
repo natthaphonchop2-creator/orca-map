@@ -206,7 +206,7 @@
 						<dt>{t('การยืนยันตัวตน', 'Authorization')}</dt><dd>Bearer &lt;{t('คีย์ของคุณ', 'your key')}&gt;</dd>
 					</dl>
 					{#if instructions}<button type="button" class="k-button small" onclick={() => copy(instructions, 'instructions')}>{#if copied === 'instructions'}<Check size={14} aria-hidden="true" />{t('คัดลอกแล้ว', 'Copied')}{:else}<Copy size={14} aria-hidden="true" />{t('คัดลอกคำสั่งตั้งค่า', 'Copy setup instructions')}{/if}</button>{/if}
-					<p class="ca-muted small">{t('เลือกเครื่องมือของคุณในขั้นที่ 1 เพื่อดูวิธีตั้งค่าเฉพาะ', 'Choose your tool in step 1 for its own setup.')}</p>
+					<p class="ca-muted small">{t('เลือกเครื่องมือของคุณด้านบน เพื่อดูวิธีตั้งค่าเฉพาะ', 'Choose your tool above for its own setup.')}</p>
 				{:else}
 					{#each setup.commands as command, index (command)}
 						<div class="ca-code"><code>{command}</code><button type="button" class="k-button small" onclick={() => copy(command, `command-${index}`)} aria-label={t(`คัดลอกคำสั่งที่ ${index + 1}`, `Copy command ${index + 1}`)}>{#if copied === `command-${index}`}<Check size={14} aria-hidden="true" />{t('คัดลอกแล้ว', 'Copied')}{:else}<Copy size={14} aria-hidden="true" />{t('คัดลอก', 'Copy')}{/if}</button></div>

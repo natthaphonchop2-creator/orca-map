@@ -13,7 +13,8 @@
 		back,
 		eyebrow,
 		action,
-		id = 'orca-page-title'
+		id = 'orca-page-title',
+		frame = false
 	}: {
 		title: string;
 		subtitle?: string;
@@ -22,10 +23,13 @@
 		eyebrow?: Snippet;
 		action?: Snippet;
 		id?: string;
+		/** The frame's own header (ตั้งค่า, ประวัติ, AI ของฉัน): always the page's H1. */
+		frame?: boolean;
 	} = $props();
 	// Inside a frame that already shows the page's H1 (ตั้งค่า, ประวัติ, AI ของฉัน):
 	// only the action and status stay, on a row of their own.
-	const nested = pageHeaderClaimed();
+	const claimed = pageHeaderClaimed();
+	const nested = $derived(!frame && claimed);
 </script>
 
 {#if nested}

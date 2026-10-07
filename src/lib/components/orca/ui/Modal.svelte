@@ -158,7 +158,8 @@
 		.orca-modal,
 		.orca-modal.wide {
 			width: 100vw;
-			height: auto;
+			/* fit-content: a modal dialog is fixed with both insets, so auto would stretch it. */
+			height: fit-content;
 			max-height: 92dvh;
 			margin: auto 0 0;
 			border-bottom: 0;

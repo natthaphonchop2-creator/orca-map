@@ -38,7 +38,7 @@
 	const starters = [
 		{ name: t('สรุปยอดขายเดือนนี้', "This month's sales summary"), program: 'FlowAccount', meta: 'FlowAccount' },
 		{ name: t('ค่าใช้จ่ายรายสัปดาห์', 'Weekly expenses'), program: 'PEAK', meta: 'PEAK' },
-		{ name: t('ตอบลูกค้าใน LINE', 'Answer customers on LINE'), program: 'LINE OA', meta: t('LINE OA · คลังความรู้', 'LINE OA · Knowledge') }
+		{ name: t('ตอบลูกค้าใน LINE', 'Answer customers on LINE'), program: 'LINE OA (Messaging API)', meta: t('LINE OA · คลังความรู้', 'LINE OA · Knowledge') }
 	];
 </script>
 

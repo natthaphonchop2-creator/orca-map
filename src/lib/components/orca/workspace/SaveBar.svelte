@@ -106,11 +106,11 @@
 	}
 	.save-primary {
 		padding: 0 20px;
-		background: var(--orca-citron);
-		color: var(--orca-on-citron);
+		background: var(--orca-ink);
+		color: var(--orca-on-ink);
 	}
 	.save-primary:hover:not(:disabled) {
-		background: var(--orca-citron-hover);
+		background: var(--orca-ink);
 	}
 	.save-cancel:disabled,
 	.save-primary:disabled {

@@ -81,3 +81,32 @@ test('W0: inside a frame that shows the page H1, a PageHeader keeps only its act
 	const plain = await serverComponent(new URL('./ui/PageHeader.svelte', import.meta.url), { StatusPill: pill, pageHeaderClaimed: () => false });
 	assert.equal(render(plain.Component, { props: { title: 'Team' } }).body.match(/<h1/g)?.length, 1);
 });
+
+test('W0 polish: states are text with a dot, the platform mark is plain words, and AI ของฉัน has no numbered steps', async () => {
+	const { readFile } = await import('node:fs/promises');
+	const pill = await readFile(new URL('./ui/StatusPill.svelte', import.meta.url), 'utf8');
+	const pillRule = pill.slice(pill.indexOf('.orca-pill {'), pill.indexOf('}', pill.indexOf('.orca-pill {')));
+	assert.match(pillRule, /background: none;/);
+	assert.match(pillRule, /border: 0;/);
+	assert.doesNotMatch(pill.slice(pill.indexOf('<style>')), /border-radius: 999px|var\(--orca-\w+-bg\)/, 'never a filled pill');
+	const badge = await readFile(new URL('./platform/PlatformBadge.svelte', import.meta.url), 'utf8');
+	assert.doesNotMatch(badge, /999px|background|@lucide/, 'no pill eyebrow, no decorative icon');
+	const step = await readFile(new URL('./connect-ai/ConnectStep.svelte', import.meta.url), 'utf8');
+	assert.doesNotMatch(step, /\{number\}|ขั้นที่|Step \$\{number\}/, 'no visible or spoken step numbers');
+	assert.doesNotMatch(step, /citron/);
+	for (const file of ['./views/ConnectAIView.svelte', './connect-ai/AppSteps.svelte', './connect-ai/DeveloperKeys.svelte']) {
+		assert.doesNotMatch(await readFile(new URL(file, import.meta.url), 'utf8'), /ขั้นที่ \d|ขั้นตอนเชื่อม|ประมาณ \d+ นาที/, file);
+	}
+});
+
+test('W0: a frame\'s own header stays the page\'s H1 even though the frame claims the header for its children', async () => {
+	const { readFile } = await import('node:fs/promises');
+	const nested = await serverComponent(new URL('./ui/PageHeader.svelte', import.meta.url), { pageHeaderClaimed: () => true });
+	const html = render(nested.Component, { props: { title: 'ตั้งค่า', subtitle: 'บริษัท', frame: true } }).body;
+	assert.match(html, /<h1 id="orca-page-title"[^>]*>ตั้งค่า<\/h1>/);
+	for (const file of ['./views/SettingsFrame.svelte', './views/OversightView.svelte', './views/MyAIFrame.svelte']) {
+		const source = await readFile(new URL(file, import.meta.url), 'utf8');
+		assert.match(source, /claimPageHeader\(\);/, file);
+		assert.match(source, /<PageHeader\s+frame\b/, `${file}: its own header is marked as the frame's`);
+	}
+});

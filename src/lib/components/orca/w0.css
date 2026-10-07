@@ -297,6 +297,15 @@
   }
 }
 
+/* ---------- Buttons: the primary is ink (white in dark), never citron ---------- */
+.orca-workspace.orca-app.orca-w0 .k-button.primary,
+.orca-workspace.orca-app.orca-w0 .k-button.primary:hover {
+  border-color: var(--orca-ink);
+  background: var(--orca-ink);
+  box-shadow: none;
+  color: var(--orca-on-ink, #fff) !important;
+}
+
 /* ---------- Page tab bars inside frames: one look ---------- */
 .orca-workspace.orca-app.orca-w0 :is(.settings-tabs, .oversight-tabs) {
   gap: 2px;
@@ -304,8 +313,11 @@
 
 /* ---------- Dark ---------- */
 @media screen {
+  /* Chosen options and tab bars are white in dark, not citron: citron stays on small points. */
   :root[data-orca-theme='dark'] .orca-workspace.orca-app.orca-w0 {
     --orca-dot-ring: transparent;
+    --orca-chosen: var(--orca-ink);
+    --orca-tab-indicator: var(--orca-ink);
   }
   :root[data-orca-theme='dark'] .orca-workspace.orca-app.orca-w0 .workspace-nav a.active {
     background: var(--orca-secondary);

@@ -470,9 +470,9 @@
 		box-shadow: var(--orca-popover-shadow);
 	}
 	.programs-start-card:not(.soon):hover .go {
-		border-color: var(--orca-citron);
-		background: var(--orca-citron);
-		color: var(--orca-on-citron);
+		border-color: var(--orca-ink);
+		background: var(--orca-ink);
+		color: var(--orca-on-ink);
 	}
 	.programs-start-card.soon {
 		border-color: var(--orca-line-soft);

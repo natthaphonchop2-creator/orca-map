@@ -3,8 +3,9 @@
 	import { Check } from '@lucide/svelte';
 	import { t } from '$lib/orca/locale.svelte';
 
-	// One numbered step of เชื่อม AI ของฉัน: the number (a check once done), a
-	// title with one line under it, and the step's own content beside them.
+	// One part of AI ของฉัน's connect guide: a quiet marker (a check once done;
+	// no numbers, W0), a title with one line under it, and its content beside.
+	// `number` keeps the order for the page's own logic only.
 	let {
 		number,
 		state,
@@ -24,10 +25,10 @@
 
 <li class="ca-step {state}" aria-labelledby={id} aria-current={state === 'current' ? 'step' : undefined}>
 	<div class="ca-marker" aria-hidden="true">
-		<span class="ca-number">{#if state === 'done'}<Check size={16} strokeWidth={2.6} />{:else}{number}{/if}</span>
+		<span class="ca-number">{#if state === 'done'}<Check size={16} strokeWidth={2.6} />{/if}</span>
 	</div>
 	<div class="ca-label">
-		<h2 {id}><span class="ca-hidden">{t(`ขั้นที่ ${number}: `, `Step ${number}: `)}</span>{title}{#if state === 'done'}<span class="ca-hidden">{t(' (เสร็จแล้ว)', ' (done)')}</span>{/if}</h2>
+		<h2 {id}>{title}{#if state === 'done'}<span class="ca-hidden">{t(' (เสร็จแล้ว)', ' (done)')}</span>{/if}</h2>
 		{#if lead}<p>{@render lead()}</p>{/if}
 	</div>
 	<div class="ca-body">{@render children()}</div>
@@ -76,15 +77,13 @@
 		line-height: 1;
 	}
 	.done .ca-number {
-		border-color: var(--orca-ok);
-		background: var(--orca-ok);
+		border-color: var(--orca-ink);
+		background: var(--orca-ink);
 		color: var(--orca-on-ink);
 	}
 	.current .ca-number {
-		border-color: var(--orca-chosen);
-		background: var(--orca-chosen);
-		color: var(--orca-on-ink);
-		box-shadow: 0 0 0 5px var(--orca-citron-soft);
+		border-color: var(--orca-ink);
+		border-width: 2px;
 	}
 	.ca-label {
 		min-width: 0;

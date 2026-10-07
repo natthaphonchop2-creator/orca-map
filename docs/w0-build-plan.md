@@ -89,12 +89,15 @@ No new endpoint. New calls to existing endpoints:
 
 | Where | Call | Why |
 |---|---|---|
-| Home (Owners/Admins) | `GET /program-accounts` (`OrcaService.programAccounts`, `OrcaProgramAccount[]`) | count programs whose company account needs reconnecting (`status: "needs_reconnect"`) for ต้องดูแล and the โปรแกรม tile |
-| Home (Owners/Admins) | `GET /hubs/<id>/library` for every usable workspace (was the first 3) (`OrcaLibraryService.load`) | the คลังความรู้ tile's count |
-| Programs › catalog modal, Onboarding 2 | `GET` catalog candidates (`ProgramService.candidates`), as the old picker did | the catalog |
-| ตั้งค่า › ทีม / พื้นที่ทำงาน AI (Owners/Admins) | `GET` user sources (`OrcaUserSourcesService.list`), once per page, as ตั้งค่า did | whether the ขั้นสูง tab shows |
+| Home (Owners/Admins) | `GET /orca/program-accounts` (`OrcaService.programAccounts`, `{ items: OrcaProgramAccount[] }`) | count programs whose company account needs reconnecting (`status: "needs_reconnect"`) for ต้องดูแล and the โปรแกรม tile |
+| Home (everyone) | `GET /orca/hubs/<id>/library` for each workspace the viewer can use, up to 10 (`OrcaLibraryService.load`, `{ items: LibraryItem[], departments, members }`); before, managers read the first 3 and employees none | the คลังความรู้ tile's count of published items and latest change |
+| Programs › catalog modal, Onboarding 2 | `GET /orca/candidates` (`ProgramService.candidates`, `{ items: OrcaCandidate[] }`), as the old step 1 did | the catalog and the suggestions |
+| ตั้งค่า › ทีม / พื้นที่ทำงาน AI (Owners/Admins) | `GET /orca/user-sources` (`OrcaUserSourcesService.list`, `{ items }`), once per page and company, as ตั้งค่า did | whether the ขั้นสูง tab shows |
 
-Home no longer calls `GET /invitations` (the "ชวนทีม" banner is cut).
+Paths are relative to `/api`; a company other than `default` uses `/orca/orgs/<id>/…`.
+Home no longer calls `GET /orca/invitations` (the "ชวนทีม" banner is cut). The
+connect page's save is the same `ProgramService.save` call the old step 3 made,
+now made right after the account works with the read-only default.
 Skills: `services/orca-skills.ts` is a typed stub (`SkillsService.list(): Promise<OrcaSkill[]>`)
 that returns `[]` without any request; the page and its nav item exist only when
 `features.skills === true`.
@@ -108,3 +111,13 @@ that returns `[]` without any request; the page and its nav item exist only when
 - New: the redirects above, Skills hidden without the flag, the สร้าง dialog's
   rows by role, onboarding (who sees it, skip, storage failure), the catalog
   modal states (เชื่อมแล้ว for admins), PageHeader nesting.
+
+## Shell notes
+
+- A frame's own header passes `frame` to PageHeader; any PageHeader inside the
+  frame keeps only its action and status (and a hidden h2 with its title).
+- W0 styles live in `src/lib/components/orca/w0.css`, loaded after
+  `orca-system.css`. The primary button is ink (white in dark); citron stays on
+  the active menu dot, the onboarding dots and the one highlighted link.
+- Screenshots: built app served to Playwright through `page.route` (no server),
+  every `/api` call mocked.

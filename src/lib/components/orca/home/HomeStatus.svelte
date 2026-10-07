@@ -58,6 +58,17 @@
 		const member = data.members.find((item) => item.id === id);
 		return member ? memberName(member) : t('สมาชิก', 'Member');
 	};
+	// Today: the time only; yesterday: เมื่อวาน; older: the date (the mockup's ล่าสุด).
+	function when(value: string): string {
+		const date = new Date(value);
+		if (Number.isNaN(date.getTime())) return displayDate(value);
+		const now = new Date();
+		const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+		if (date.toDateString() === now.toDateString())
+			return date.toLocaleTimeString(orcaLocale.value === 'en' ? 'en-GB' : 'th-TH', { hour: '2-digit', minute: '2-digit' });
+		if (date.toDateString() === yesterday.toDateString()) return t('เมื่อวาน', 'Yesterday');
+		return displayDate(value);
+	}
 	const eventProgram = (event: OrcaAuditEvent) => data.connections.find((connection) => connection.id === event.connectionID);
 	// Only a call that did not go through gets a word; "admitted" was received, never waiting.
 	function failure(event: OrcaAuditEvent): string {
@@ -122,7 +133,7 @@
 							<small>{[manager ? whoName(event.userID) : '', hubName(event.hubID)].filter(Boolean).join(' · ')}</small>
 						</span>
 						{#if failed}<span class="home-state deny">{failed}</span>
-						{:else}<time datetime={event.createdAt}>{displayDate(event.createdAt)}</time>{/if}
+						{:else}<time datetime={event.createdAt}>{when(event.createdAt)}</time>{/if}
 					</li>
 				{/each}
 			</ul>
@@ -188,9 +199,10 @@
 	}
 	.home-tile-foot {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 8px;
+		gap: 6px 8px;
 		min-height: 24px;
 		margin-top: auto;
 	}
@@ -306,6 +318,10 @@
 		.home-tiles,
 		.home-tiles.three {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+		/* Three tiles on two columns: the last one takes the row. */
+		.home-tiles.three .home-tile:last-child {
+			grid-column: 1 / -1;
 		}
 	}
 	@media (max-width: 720px) {
