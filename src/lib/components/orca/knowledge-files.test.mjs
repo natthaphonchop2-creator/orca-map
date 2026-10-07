@@ -68,7 +68,8 @@ async function list(props) {
 	const rails = [];
 	const { warnings, Component } = await serverComponent(new URL('./knowledge/KnowledgeList.svelte', import.meta.url), {
 		...k, term, t: th, localeHref: (value) => value, PageHeader, StatusPill, ScopeChip: noop,
-		KnowledgeRail: (_renderer, input) => rails.push(input)
+		KnowledgeRail: (_renderer, input) => rails.push(input),
+		UsageCard: (renderer, input) => { rails.push({ usageCard: input.usage }); renderer.push('<usage-card></usage-card>'); }
 	});
 	assert.deepEqual(warnings, []);
 	const html = show(Component, { hub: hub('sales'), choices: [hub('sales')], items: [], departments, members, currentUserID: 'me', now: Date.parse('2026-09-28T10:00:00Z'), onchoose: noop, oncreate: noop, onopen: noop, onreload: noop, ...props });
@@ -90,14 +91,15 @@ test('with library v2 the library has three kinds; the file tab has its drop zon
 	assert.match(html, /ไฟล์(?:<!--[^>]*-->)*<span class="c[^"]*">4<\/span>/);
 	assert.match(html, /คำสั่งสำเร็จรูป(?:<!--[^>]*-->)*<span class="c[^"]*">0<\/span>/);
 	assert.match(html, /<file-zone><\/file-zone>/);
-	assert.match(html, /k-button primary kn-add[^>]*>[\s\S]*?เพิ่มไฟล์/);
+	assert.match(html, /class="k-button kn-add[^>]*>[\s\S]*?เพิ่มไฟล์/);
+	assert.doesNotMatch(html, /k-button primary/, 'W0: outlined beside สร้าง');
 	assert.match(html, /<b>ราคาสินค้า 2569<\/b><small class="kl-fm[^"]*">Excel · 340 KB<\/small>/);
 	assert.match(html, /กำลังอ่าน/);
 	assert.match(html, /อ่านไม่ได้: ตั้งรหัสผ่านไว้ หรือเป็น Office รุ่นเก่า/, 'a failed file says why in the list');
 	assert.match(html, /ตั้งโดยเจ้าของ/, 'someone else\'s file has its owner\'s audience');
-	assert.equal(rails[0].files, true);
-	assert.equal(rails[0].usage, usage);
-	assert.equal(rails[0].item?.id, 'ready', 'ask about a file the AI can read');
+	// W0 (visual review B2): the intro rail is gone; the company's file quota stays, under the list.
+	assert.deepEqual(rails, [{ usageCard: usage }]);
+	assert.match(html, /<div class="kn-usage[^"]*"><usage-card><\/usage-card><\/div>/);
 	// The status pills: the failed one with a solid deny dot, the reading one hollow.
 	// Status colours only as dots: a neutral pill with a red dot (Codex S7 second confirmation #5).
 	assert.match(html, /<span class="kl-s[^"]*"[^>]*>(?:<!--[^>]*-->)*<span class="orca-pill neutral"[^>]*><span class="orca-pill-dot tone-deny"/);
@@ -123,7 +125,7 @@ test('after the flag went off, files left behind stay listed, without uploads', 
 	assert.doesNotMatch(html, /file-zone|เพิ่มไฟล์/, 'no upload while it is off');
 	assert.match(html, /คลังความรู้แบบไฟล์ของบริษัทปิดอยู่ ไฟล์ที่มีอยู่ยังเปิดดู ดาวน์โหลด และลบได้/);
 	assert.match(html, /<b>ราคาสินค้า 2569<\/b>/);
-	assert.equal(rails[0].item?.kind, 'knowledge', 'the AI searches articles only: the card asks about one');
+	assert.equal(rails.length, 0, 'no rail, and no quota without one');
 });
 
 test('the drop zone: the rules, one button, and each file\'s state or reason', async () => {
@@ -321,12 +323,14 @@ test('after the flag went off, the file list says เผยแพร่แล้
 	assert.match(html, /aria-pressed="false"[^>]*>เผยแพร่แล้ว<\/button>/, 'the chip too');
 	assert.doesNotMatch(html, /AI ใช้ได้/);
 	assert.doesNotMatch(html, /ฉบับใหม่รอคุณกดใช้/, 'nothing to put in use while it is off');
-	assert.equal(rails[0].paused, 'files');
+	// W0: no legend beside the list; the page's own note says why.
+	assert.equal(rails.length, 0);
+	assert.match(html, /คลังความรู้แบบไฟล์ของบริษัทปิดอยู่/);
 	// With the flag the same rows are "AI ใช้ได้".
 	const on = await list({ items, kind: 'file', features: ON, fileZone: zone });
 	assert.match(on.html, /AI ใช้ได้/);
 	assert.match(on.html, /ฉบับใหม่รอคุณกดใช้/);
-	assert.equal(on.rails[0].paused, undefined);
+	assert.equal(on.rails.length, 0);
 });
 
 test('an owner who left is not called a workspace member; the takeover card names the kind', async () => {
@@ -679,7 +683,9 @@ test('a workspace not active yet: its lists say "เผยแพร่แล้�
 		assert.doesNotMatch(html, /AI ใช้ได้/, kind);
 		assert.match(html, /<i class="dt plain"[^>]*><\/i>เผยแพร่แล้ว <b>1<\/b>/, kind);
 		assert.match(html, /<span class="orca-pill neutral[^"]*"[^>]*>(?:<[^>]+>)*เผยแพร่แล้ว/, kind);
-		assert.equal(rails[0].paused, 'workspace', kind);
+		// W0: no legend beside the list; the page's note says the workspace is not active.
+		assert.equal(rails.length, 0, kind);
+		assert.match(html, /พื้นที่ทำงานนี้ยังไม่เปิดใช้งาน AI จะใช้ความรู้ได้เมื่อเปิดใช้งาน/, kind);
 	}
 	const { Component } = await serverComponent(new URL('./knowledge/KnowledgeRail.svelte', import.meta.url), { ...k, t: th, term, localeHref: (value) => value, copyFeedback: () => ({ dispose: noop, copied: noop }), copyText: noop, showToast: noop, onDestroy: noop });
 	const rail = (paused) => show(Component, { item: undefined, connected: true, ask: false, files: true, paused });
@@ -864,10 +870,11 @@ test('without library v2 a workspace not active keeps today\'s page; with it, no
 	const draftHub = hub('sales', { status: 'draft' });
 	const today = await list({ hub: draftHub, choices: [draftHub], items: [article('a')], features: OFF, fileZone: zone });
 	assert.match(today.html, /AI ใช้ได้/, 'today\'s words: the release\'s floor');
-	assert.equal(today.rails[0].ask, true);
-	assert.equal(today.rails[0].paused, undefined);
+	// W0: no "ลองถาม AI" beside any list.
+	assert.equal(today.rails.length, 0);
 	const v2 = await list({ hub: draftHub, choices: [draftHub], items: [article('a')], features: ON, fileZone: zone });
-	assert.equal(v2.rails[0].ask, false);
+	assert.equal(v2.rails.length, 0);
+	assert.doesNotMatch(v2.html, /ลองถาม AI/);
 	const { Component } = await serverComponent(new URL('./knowledge/KnowledgeDetail.svelte', import.meta.url), {
 		...k, term, t: th, tick: async () => {}, StatusPill, ConfirmDialog: noop, WhoCard, TakeoverCard: noop,
 		orcaError: () => '', OrcaLibraryService: {}, getHttpStatusCode: noop, parseErrorContent: noop, KnowledgeRail: noop
@@ -1822,9 +1829,8 @@ test('"AI ใช้ได้" on library v2\'s pages is a neutral pill whose dot
 	assert.match((await list({ items: [article('a')], features: OFF, fileZone: zone })).html, todayPill);
 	assert.match((await list({ items: [article('a')], fileZone: zone })).html, todayPill, 'an older server too');
 	assert.match(show(Component, { ...props, features: OFF }), todayPill);
-	// The legend beside the list says it as the rows do.
-	assert.deepEqual([files.rails[0].dots, articles.rails[0].dots], [true, true]);
-	assert.equal((await list({ items: [article('a')], features: OFF, fileZone: zone })).rails[0].dots, false);
+	// W0: no legend beside the list any more (the rail stays on an item's own page).
+	assert.deepEqual([files.rails.length, articles.rails.length], [0, 0]);
 	const { Component: Rail } = await serverComponent(new URL('./knowledge/KnowledgeRail.svelte', import.meta.url), { ...k, t: th, term, localeHref: (value) => value, copyFeedback: () => ({ dispose: noop, copied: noop }), copyText: noop, showToast: noop, onDestroy: noop });
 	const legend = (dots) => show(Rail, { item: undefined, connected: true, ask: false, dots });
 	assert.match(legend(true), /<span class="pill"><i class="dt ok"><\/i>AI ใช้ได้<\/span>/);

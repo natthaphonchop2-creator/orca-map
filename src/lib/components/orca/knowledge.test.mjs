@@ -55,7 +55,8 @@ async function list(props) {
 	const { warnings, Component } = await serverComponent(new URL('./knowledge/KnowledgeList.svelte', import.meta.url), {
 		...k, term, t: th, localeHref: (value) => value, PageHeader, StatusPill,
 		ScopeChip: (_renderer, input) => scopes.push(input),
-		KnowledgeRail: (_renderer, input) => rails.push(input)
+		KnowledgeRail: (_renderer, input) => rails.push(input),
+		UsageCard: (renderer) => renderer.push('<usage-card></usage-card>')
 	});
 	assert.deepEqual(warnings, []);
 	const html = render(Component, {
@@ -64,11 +65,12 @@ async function list(props) {
 	return { html, scopes, rails };
 }
 
-test('the library home: title, one primary action, counts, two kinds (no แผนก tab) and four status chips', async () => {
+test('the library home: title, its add button (outlined: สร้าง is the one primary), counts, two kinds (no แผนก tab) and four status filters', async () => {
 	const { html, scopes, rails } = await list({ items: [item('a'), item('b', { status: 'draft' }), item('c', { status: 'archived' }), item('t', { kind: 'template' })] });
 	assert.match(html, /<h1[^>]*>คลังความรู้<\/h1>/);
 	assert.match(html, /ข้อมูลที่ AI ของทีมใช้ตอบคำถาม/);
-	assert.equal(html.match(/k-button primary/g)?.length, 1, 'one primary action');
+	assert.doesNotMatch(html, /k-button primary/, 'W0: never a second primary beside สร้าง');
+	assert.equal(html.match(/class="k-button kn-add/g)?.length, 1, 'one add button');
 	assert.match(html, /เพิ่มความรู้/);
 	assert.match(html, /AI ใช้ได้ <b[^>]*>1<\/b>/);
 	assert.match(html, /ฉบับร่าง <b[^>]*>1<\/b>/);
@@ -77,9 +79,9 @@ test('the library home: title, one primary action, counts, two kinds (no แผ�
 	assert.doesNotMatch(html, />แผนก</, 'departments are edited in ทีม');
 	for (const chip of ['ทั้งหมด', 'AI ใช้ได้', 'ฉบับร่าง', 'จัดเก็บแล้ว']) assert.match(html, new RegExp(`class="chip[^"]*"[^>]*>${chip}<`));
 	assert.equal(scopes.length, 0, 'one workspace: no scope chip');
-	assert.equal(rails.length, 1);
-	assert.equal(rails[0].item.id, 'a', 'try-it asks about a published article');
-	assert.equal(rails[0].workspace.id, 'sales', 'the side knows its workspace, for one with its own sign-in (Codex review 72)');
+	// W0 (visual review B2): no intro rail beside the list: no connect nudge, no "ลองถาม AI", no status legend.
+	assert.equal(rails.length, 0);
+	assert.doesNotMatch(html, /ลองถาม AI|สถานะหมายถึงอะไร|ยังไม่ได้เชื่อม AI ของคุณ|kn-grid[^"]*side/);
 	const several = await list({ choices: [hub('sales'), hub('acc')] });
 	assert.equal(several.scopes.length, 1, 'several workspaces: the scope chip');
 });
@@ -114,11 +116,12 @@ test('a failed load shows no zero counts and no "ลองถาม AI"', async 
 	assert.match(html, /role="alert"/);
 	assert.doesNotMatch(html, /class="kn-strip/, 'no "AI ใช้ได้ 0 · ฉบับร่าง 0" over an error');
 	assert.doesNotMatch(html, /class="c[^"]*">0</, 'no zero on the tabs');
-	assert.equal(rails[0].ask, false);
+	assert.equal(rails.length, 0);
+	assert.doesNotMatch(html, /ลองถาม AI/);
 	assert.doesNotMatch(html, /เริ่มจากคู่มือที่ทีมถามบ่อย/, 'no starters over an error');
 	const loaded = await list({ items: [item('a')] });
 	assert.match(loaded.html, /class="kn-strip/);
-	assert.equal(loaded.rails[0].ask, true);
+	assert.equal(loaded.rails.length, 0);
 });
 
 const WhoCard = (await serverComponent(new URL('./knowledge/WhoCard.svelte', import.meta.url), { ...k, t: th })).Component;
