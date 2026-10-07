@@ -198,6 +198,8 @@ export interface OrcaBootstrap {
 }
 export interface OrcaFeatures {
   libraryV2?: boolean;
+  /** Skills (W0): the page and its menu item show only when the server says so. No server sends it yet. */
+  skills?: boolean;
 }
 
 /**

@@ -382,7 +382,8 @@ test('เชื่อม AI ของฉัน names where each sign-in reaches,
 	const view = await readFile(new URL('./views/ConnectAIView.svelte', import.meta.url), 'utf8');
 	assert.match(view, /tone: aiConnection\.state === 'connected' && !aiConnection\.only\?\.length \? 'ok' : 'neutral'/);
 	const shell = await readFile(new URL('./AppShell.svelte', import.meta.url), 'utf8');
-	assert.match(shell, /const aiConnected = \$derived\(\(aiStatus \?\? aiConnection\)\?\.state === "connected" && !\(aiStatus \?\? aiConnection\)\?\.only\?\.length\);/);
+	// W0: the menu's AI ของฉัน is an ordinary item and claims no state at all, so it never says "connected" for a limited sign-in.
+	assert.doesNotMatch(shell, /aiConnection|aiConnected|workspace-pin-state/);
 	const library = await readFile(new URL('./KnowledgeLibrary.svelte', import.meta.url), 'utf8');
 	// The workspace itself: one with its own sign-in is not on the company's link (Codex review 72).
 	assert.match(library, /const connected = \$derived\(aiConnectionReaches\(aiConnection, hub\)\);/);

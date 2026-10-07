@@ -10,6 +10,7 @@
   import LibraryDepartments from "./LibraryDepartments.svelte";
   import MemberRoleEditor from "./MemberRoleEditor.svelte";
   import MemberInvitations from "./MemberInvitations.svelte";
+  import PageHeader from "./ui/PageHeader.svelte";
   import "./library.css";
   import { t, localeHref } from "$lib/orca/locale.svelte";
   import { connectedAppsHref } from "$lib/orca/connected-ai-apps";
@@ -185,22 +186,8 @@
   }}
 />
 
-<div class="k-intro">
-  <div class="k-heading-row">
-    <div class="team-heading">
-      <h1>
-        {t("ทีม", "Team")}
-      </h1>
-      <p class="k-subtitle">
-        {data.canManage
-          ? t(
-              "เชิญคนใหม่ด้วยลิงก์",
-              "Invite with a link.",
-            )
-          : t("คนที่ใช้ ORCA ของบริษัทนี้", "People who use this company's ORCA.")}
-      </p>
-    </div>
-    {#if data.canManage && section !== "departments"}<div class="team-heading-actions">
+{#snippet teamActions()}
+  <div class="team-heading-actions">
         <div class="team-menu">
           <button
             class="k-button team-more"
@@ -231,9 +218,15 @@
             inviting = true;
           }}><UserPlus size={16} />{t("เชิญสมาชิก", "Invite a member")}</button
         >
-      </div>{/if}
-  </div>
-</div>
+      </div>
+{/snippet}
+<PageHeader
+  title={t("ทีม", "Team")}
+  subtitle={data.canManage
+    ? t("เชิญคนใหม่ด้วยลิงก์", "Invite with a link.")
+    : t("คนที่ใช้ ORCA ของบริษัทนี้", "People who use this company's ORCA.")}
+  action={data.canManage && section !== "departments" ? teamActions : undefined}
+/>
 {#if !data.canManage}<div class="k-banner">
     <Info size={16} />{t(
       "คุณดูรายชื่อได้อย่างเดียว ถ้าจะเปลี่ยนบทบาทหรือแผนก ขอให้เจ้าของบริษัทหรือผู้ดูแลเปลี่ยนให้",

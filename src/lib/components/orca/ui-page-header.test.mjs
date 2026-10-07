@@ -63,3 +63,19 @@ test('the title is 24px (20px on a phone; one step down, owner 2026-10-07) and o
 	assert.ok(classes >= 3, `${rule[1].trim()} has ${classes} classes outside :where()`);
 	assert.match(css, /@media \(max-width: 720px\)\s*\{\s*\.orca-page-header[^{]*h1[^{]*\{\s*font-size:\s*20px/);
 });
+
+test('W0: inside a frame that shows the page H1, a PageHeader keeps only its action and status', async () => {
+	const pill = (renderer, props) => renderer.push(`<span data-pill="${props.tone}">${props.label}</span>`);
+	const nested = await serverComponent(new URL('./ui/PageHeader.svelte', import.meta.url), { StatusPill: pill, pageHeaderClaimed: () => true });
+	const action = (renderer) => renderer.push('<a class="k-button" href="/x">Invite</a>');
+	let html = render(nested.Component, { props: { title: 'Team', subtitle: 'Invite with a link.', action } }).body;
+	assert.doesNotMatch(html, /<h1|orca-page-subtitle|Team/);
+	assert.match(html, /<div class="orca-page-subhead[^"]*">[\s\S]*<a class="k-button" href="\/x">Invite<\/a>/);
+	html = render(nested.Component, { props: { title: 'Team', subtitle: 'Invite with a link.' } }).body;
+	assert.doesNotMatch(html, /orca-page-subhead|<h1/, 'nothing at all without an action');
+	html = render(nested.Component, { props: { title: 'Team', status: { label: 'Connected', tone: 'ok' } } }).body;
+	assert.match(html, /data-pill="ok">Connected/);
+	// Without a frame: the page's own H1, as before.
+	const plain = await serverComponent(new URL('./ui/PageHeader.svelte', import.meta.url), { StatusPill: pill, pageHeaderClaimed: () => false });
+	assert.equal(render(plain.Component, { props: { title: 'Team' } }).body.match(/<h1/g)?.length, 1);
+});

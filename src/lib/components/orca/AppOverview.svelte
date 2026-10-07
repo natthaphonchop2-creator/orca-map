@@ -1,5 +1,6 @@
 <script lang="ts">
 	import LifecycleActions from './LifecycleActions.svelte';
+	import PageHeader from './ui/PageHeader.svelte';
 	import { gatewayConnections, gatewayToolCount, gatewayMemberIDs } from '$lib/orca/gateway-sources';
 	import { filterGateways } from '$lib/orca/gateway-list';
 	import { onDestroy, onMount, tick } from 'svelte';
@@ -83,30 +84,21 @@
 </script>
 
 <div class="spaces">
-	<header class="spaces-head">
-		<div>
-			<h1>{t('พื้นที่ทำงาน AI', 'AI workspaces')}</h1>
-			<p class="k-subtitle">
-				{data.canManage
-					? t(
-							'ใครใช้ AI กับโปรแกรมไหนได้',
-							'Choose who can use AI with which programs, and what AI can do.'
-						)
-					: t(
-							'พื้นที่ทำงาน AI ที่คุณใช้ได้ เชื่อม AI ของฉันครั้งเดียวก็ใช้ได้ทุกพื้นที่',
-							'The AI workspaces you can use. Connect your AI once to use them all.'
-						)}
-			</p>
-		</div>
-		<div class="spaces-actions">
-			<a class="k-button" href={localeHref('/app?view=connect-ai')}
-				><Sparkles size={16} aria-hidden="true" />{t('เชื่อม AI ของฉัน', 'Connect my AI')}</a
-			>
-			{#if data.canManage}<a class="k-button primary" href={localeHref(createWorkspaceHref)}
-					><Plus size={16} aria-hidden="true" />{t('สร้างพื้นที่ทำงาน AI', 'Create AI workspace')}</a
-				>{/if}
-		</div>
-	</header>
+	{#snippet spacesActions()}
+		<a class="k-button" href={localeHref('/app?view=connect-ai')}
+			><Sparkles size={16} aria-hidden="true" />{t('เชื่อม AI ของฉัน', 'Connect my AI')}</a
+		>
+		{#if data.canManage}<a class="k-button primary" href={localeHref(createWorkspaceHref)}
+				><Plus size={16} aria-hidden="true" />{t('สร้างพื้นที่ทำงาน AI', 'Create AI workspace')}</a
+			>{/if}
+	{/snippet}
+	<PageHeader
+		title={t('พื้นที่ทำงาน AI', 'AI workspaces')}
+		subtitle={data.canManage
+			? t('ใครใช้ AI กับโปรแกรมไหนได้', 'Choose who can use AI with which programs, and what AI can do.')
+			: t('พื้นที่ทำงาน AI ที่คุณใช้ได้ เชื่อม AI ของฉันครั้งเดียวก็ใช้ได้ทุกพื้นที่', 'The AI workspaces you can use. Connect your AI once to use them all.')}
+		action={spacesActions}
+	/>
 
 	{#if notice}<div class="k-banner success" role="status">{notice}</div>{/if}
 

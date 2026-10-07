@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { ChevronLeft } from '@lucide/svelte';
 	import StatusPill, { type StatusTone } from './StatusPill.svelte';
+	import { pageHeaderClaimed } from './page-header-context';
 
 	// The page contract: an H1 of at most 4 words, one line under it, an
 	// optional status pill and at most one primary action.
@@ -22,8 +23,17 @@
 		action?: Snippet;
 		id?: string;
 	} = $props();
+	// Inside a frame that already shows the page's H1 (ตั้งค่า, ประวัติ, AI ของฉัน):
+	// only the action and status stay, on a row of their own.
+	const nested = pageHeaderClaimed();
 </script>
 
+{#if nested}
+	{#if action || status}<div class="orca-page-subhead">
+			{#if status}<StatusPill label={status.label} tone={status.tone ?? 'neutral'} dot />{/if}
+			{#if action}<div class="orca-page-action">{@render action()}</div>{/if}
+		</div>{/if}
+{:else}
 <header class="orca-page-header">
 	{#if back}<a class="orca-page-back" href={back.href}><ChevronLeft size={16} aria-hidden="true" />{back.label}</a>{/if}
 	{#if eyebrow}<div class="orca-page-eyebrow">{@render eyebrow()}</div>{/if}
@@ -38,6 +48,7 @@
 		{#if action}<div class="orca-page-action">{@render action()}</div>{/if}
 	</div>
 </header>
+{/if}
 
 <style>
 	/* orca-type-remap v1 */
@@ -98,6 +109,14 @@
 		color: var(--orca-muted);
 		font-size: 14px;
 		line-height: 1.6;
+	}
+	.orca-page-subhead {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 8px 12px;
+		margin: 0 0 16px;
 	}
 	.orca-page-action {
 		display: flex;

@@ -166,9 +166,9 @@ test("OAuth apps are the platform's; customers see their programs", () => {
   redirects("view=connected-apps", "/app?view=connect-ai#accounts", { role: employee });
 });
 
-test("secrets keeps its id and lights ตรวจสอบ; employees get their own AI apps", () => {
+test("secrets keeps its id and lights AI ของฉัน (W0: ทั้งบริษัท); employees get their own AI apps", () => {
   stays("view=secrets", "secrets");
-  assert.equal(activeNavigationView("secrets"), "oversight");
+  assert.equal(activeNavigationView("secrets"), "connect-ai");
   redirects("view=secrets", "/app?view=connect-ai", { role: employee });
 });
 
@@ -184,7 +184,8 @@ test("activity and settings history keep their workspace filter", () => {
   assert.equal(executions.route.params.get("hub"), "hub-one");
   const audit = stays("view=audit&hub=hub-one&lang=en", "audit");
   assert.equal(audit.route.params.get("hub"), "hub-one");
-  for (const view of ["approvals", "executions", "audit", "secrets"]) assert.equal(activeNavigationView(view), "oversight");
+  // W0: the three tabs light ประวัติ.
+  for (const view of ["approvals", "executions", "audit"]) assert.equal(activeNavigationView(view), "history");
 });
 
 test("help stays", () => {
@@ -393,4 +394,51 @@ test("no component links to a retired view", async () => {
     }
   }
   assert.deepEqual(found, []);
+});
+
+// ---------------------------------------------------------------------------
+// W0, the calm workspace
+// ---------------------------------------------------------------------------
+
+test("W0: ประวัติ opens its first tab for each role, keeping a workspace filter", () => {
+  redirects("view=history", "/app?view=approvals", { role: owner });
+  redirects("view=history", "/app?view=executions", { role: employee });
+  redirects("view=history&hub=hub-one&lang=en", "/app?view=executions&hub=hub-one&lang=en", { role: employee });
+  // Before the viewer is known it waits; nothing is guessed.
+  const waiting = appNavigation(new URLSearchParams("view=history"));
+  assert.equal(waiting.view, "history");
+  assert.equal(waiting.redirect, undefined);
+  assert.equal(activeNavigationView("history"), "history");
+});
+
+test("W0: ทีม and พื้นที่ทำงาน AI live under ตั้งค่า, at their own addresses", () => {
+  redirects("view=settings&section=team", "/app?view=members", { role: owner });
+  redirects("view=settings&section=team&tab=invitations", "/app?view=members&tab=invitations", { role: owner });
+  redirects("view=settings&section=workspaces", "/app?view=workspaces", { role: owner });
+  redirects("view=settings&section=workspaces", "/app?view=workspaces", { role: employee });
+  // ทีม stays the managers' (rule 7): an employee still goes Home.
+  redirects("view=settings&section=team", "/app", { role: employee });
+  for (const view of ["members", "workspaces", "hub", "new"]) assert.equal(activeNavigationView(view), "settings", view);
+  stays("view=members&tab=invitations", "members");
+  stays("view=workspaces", "workspaces", { role: employee });
+});
+
+test("W0: Skills opens only with the company's skills feature", () => {
+  for (const features of [undefined, {}, { skills: false }, { skills: "true" }, { libraryV2: true }])
+    for (const role of [owner, employee]) redirects("view=skills", "/app", { role: { ...role, features } });
+  stays("view=skills", "skills", { role: { ...owner, features: { skills: true } } });
+  stays("view=skills", "skills", { role: { ...employee, features: { skills: true } } });
+  assert.equal(activeNavigationView("skills"), "skills");
+  assert.ok(APP_VIEWS.includes("skills"));
+});
+
+test("W0: the onboarding is for Owners and Admins, and keeps only its page", () => {
+  stays("view=welcome", "welcome", { role: owner });
+  stays("view=welcome&page=2", "welcome", { role: owner });
+  redirects("view=welcome&page=3", "/app?view=welcome", { role: owner });
+  redirects("view=welcome&page=2&source=x", "/app?view=welcome&page=2", { role: owner });
+  redirects("view=welcome", "/app", { role: employee });
+  redirects("view=welcome&page=2", "/app", { role: employee });
+  assert.equal(activeNavigationView("welcome"), "dashboard");
+  assert.ok(APP_VIEWS.includes("welcome"));
 });

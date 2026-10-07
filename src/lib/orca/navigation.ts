@@ -72,11 +72,19 @@ export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 /** The tabs of an AI workspace, each edited in place (U5). */
 export const HUB_TABS = ['overview', 'programs', 'people', 'settings'] as const;
 
-/** The views a page can show today. */
+/** The views a page can show today (W0 adds Skills, behind its feature, and the first-run onboarding). */
 export const APP_VIEWS = [
 	'dashboard', 'servers', 'add-program', 'workspaces', 'new', 'hub', 'knowledge', 'members',
-	...OVERSIGHT_VIEWS, 'connect-ai', 'settings', 'help', 'platform'
+	...OVERSIGHT_VIEWS, 'connect-ai', 'settings', 'help', 'platform', 'skills', 'welcome'
 ] as const;
+
+/** ประวัติ (W0): ตรวจสอบ and คำขอของฉัน in one place; its tabs keep their own view ids. */
+export const HISTORY_VIEWS = ['approvals', 'executions', 'audit'] as const;
+/** ตั้งค่า's tabs after W0: ทีม and พื้นที่ทำงาน AI moved in, each keeping its own view id. */
+export const SETTINGS_TABS = ['company', 'team', 'workspaces', 'account', 'advanced'] as const;
+export type SettingsTab = (typeof SETTINGS_TABS)[number];
+/** The programs page with the catalog dialog open (W0: the old เพิ่มโปรแกรม step 1). */
+export const CATALOG_HREF = '/app?view=servers&catalog=1';
 
 /** View ids that no longer exist. Old links still land somewhere (appNavigation). */
 export const RETIRED_VIEWS = [
@@ -93,6 +101,8 @@ export type NavigationRole = {
 	canManage?: boolean;
 	platformOperator?: boolean;
 	canReviewPilotRequests?: boolean;
+	/** The company's features (bootstrap): Skills shows only with `skills`. */
+	features?: { skills?: boolean };
 };
 /** Workspaces the viewer can open; `userSourceID` means its own sign-in. */
 export type NavigationHub = { id: string; userSourceID?: string };
@@ -163,6 +173,14 @@ export function appNavigation(
 	if (view === 'settings') {
 		const section = p.get('section');
 		if (section === 'organization') p.set('section', 'company');
+		else if (section === 'team') {
+			// W0's names for the two pages that moved under ตั้งค่า; each keeps its own view.
+			go('members');
+			p.delete('section');
+		} else if (section === 'workspaces') {
+			go('workspaces');
+			only();
+		}
 		else if (section === 'preferences' || section === 'general') p.set('section', 'account');
 		else if (section === 'members') {
 			go('members');
@@ -230,7 +248,9 @@ export function appNavigation(
 		}
 	}
 
-	// 4. Programs: the list and one program stay; adding one is its own page.
+	// 4. Programs: the list and one program stay. W0: choosing a program is the
+	// catalog dialog on the list (&catalog=1); connecting one is the connect page
+	// (view=add-program&source=…), which ends on the program's own page.
 	if (view === 'servers') {
 		if (!p.get('connection') && p.get('add') === 'source') {
 			go('add-program');
@@ -243,10 +263,12 @@ export function appNavigation(
 		} else if (p.get('connection')) {
 			p.delete('add');
 			p.delete('source');
+			p.delete('catalog');
 			// The account tab folds into ภาพรวม.
 			if (p.get('tab') === 'account') p.set('tab', 'overview');
 		}
 	}
+	if (view === 'servers' && p.get('catalog') !== null && p.get('catalog') !== '1') p.delete('catalog');
 	if ((view === 'servers' || view === 'add-program') && manager === false) {
 		// Employees sign in to their own program accounts from เชื่อม AI ของฉัน.
 		go('connect-ai');
@@ -292,7 +314,13 @@ export function appNavigation(
 		if (!waiting && p.get('tab') && !(HUB_TABS as readonly string[]).includes(p.get('tab')!)) p.delete('tab');
 	}
 
-	// 6. ตรวจสอบ: the ids stay; activity keeps its workspace filter (`hub`).
+	// 6. ประวัติ (was ตรวจสอบ): the ids stay; activity keeps its workspace filter (`hub`).
+	// `view=history` opens its first tab: waiting approvals for Owners and Admins,
+	// an employee's own use (their requests are one tab away).
+	if (view === 'history' && role) {
+		go(manager ? 'approvals' : 'executions');
+		only('hub');
+	}
 	if (view === 'secrets' && manager === false) {
 		go('connect-ai');
 		only();
@@ -308,6 +336,22 @@ export function appNavigation(
 		const tab = p.get('tab');
 		if (tab && !(TEAM_TABS as readonly string[]).includes(tab)) p.delete('tab');
 		if (p.get('tab') === 'members') p.delete('tab');
+	}
+
+	// 7b. Skills shows only with the company's `skills` feature; without it the address goes Home.
+	if (view === 'skills' && role && role.features?.skills !== true) {
+		go('dashboard');
+		only();
+	}
+	// 7c. The first-run onboarding (W0) is for Owners and Admins.
+	if (view === 'welcome') {
+		if (manager === false) {
+			go('dashboard');
+			only();
+		} else {
+			only('page');
+			if (p.get('page') !== null && p.get('page') !== '2') p.delete('page');
+		}
 	}
 
 	// 8. Settings: บริษัท and ขั้นสูง are for Owners and Admins.
@@ -337,6 +381,7 @@ export function appNavigation(
 	}
 
 	if (hash === '#accounts' && view !== 'connect-ai') hash = '';
+	if (view !== 'servers') p.delete('catalog');
 	const connectionDetail = view === 'servers' && Boolean(p.get('connection'));
 	const before = canonicalSearch(params, options.hash && options.hash !== '#' ? options.hash : '');
 	const after = canonicalSearch(p, hash);
@@ -348,15 +393,17 @@ function canonicalSearch(params: URLSearchParams, hash: string) {
 	return `${search ? `?${search}` : ''}${hash}`;
 }
 
-/** The sidebar item for a view, so the highlight never jumps while an old address redirects. */
+/**
+ * The sidebar item for a view, so the highlight never jumps while an old
+ * address redirects. W0: ทีม and พื้นที่ทำงาน AI (with a workspace's pages) light
+ * ตั้งค่า; the three history tabs light ประวัติ; แอป AI ที่เชื่อม lights AI ของฉัน.
+ */
 export function activeNavigationView(view: string, section?: string | null): string {
-	if (view === 'dashboard' || view === 'playground' || PLACEHOLDER_VIEWS.has(view)) return 'dashboard';
+	if (view === 'dashboard' || view === 'welcome' || view === 'playground' || PLACEHOLDER_VIEWS.has(view)) return 'dashboard';
 	if (['servers', 'add-program', 'catalog', 'connected-users', 'connections', 'connected-apps'].includes(view)) return 'servers';
-	if (['overview', 'new', 'hub', 'workspaces'].includes(view)) return 'workspaces';
-	if ((OVERSIGHT_VIEWS as readonly string[]).includes(view)) return 'oversight';
-	if (view === 'members') return 'members';
-	if (view === 'connect-ai' || view === 'api-keys' || view === 'accounts') return 'connect-ai';
-	if (view === 'organization' || view === 'user-sources') return 'settings';
+	if (['overview', 'new', 'hub', 'workspaces', 'members', 'organization', 'user-sources'].includes(view)) return 'settings';
+	if ((HISTORY_VIEWS as readonly string[]).includes(view) || view === 'history') return 'history';
+	if (view === 'connect-ai' || view === 'secrets' || view === 'api-keys' || view === 'accounts') return 'connect-ai';
 	if (view === 'pilots') return 'platform:pilots';
 	if (view === 'platform') return `platform:${section && (PLATFORM_SECTIONS as readonly string[]).includes(section) ? section : 'overview'}`;
 	return view;

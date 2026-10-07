@@ -1,0 +1,314 @@
+/* orca-type-remap v1 */
+/*
+ * W0, the calm workspace (approved 2026-10-07; output/orca-w0). Loaded after
+ * orca-system.css, so these rules win at the same specificity.
+ * - Type: h1 24 (20 at ≤720 px), body 14, small 12.5.
+ * - Black, white and grey. Citron only on small points: the active item's dot.
+ * - No effects or animation on the menu or on buttons.
+ */
+
+/* ---------- Type ---------- */
+.orca-workspace.orca-app.orca-w0 {
+  font-size: 14px;
+}
+.orca-workspace.orca-app.orca-w0 h1 {
+  font-size: 24px;
+  line-height: 1.35;
+  font-weight: 600;
+}
+.orca-workspace.orca-app.orca-w0 .orca-page-header .orca-page-title h1 {
+  font-weight: 600;
+}
+.orca-workspace.orca-app.orca-w0 h2 {
+  font-size: 16px;
+}
+.orca-workspace.orca-app.orca-w0 h3 {
+  font-size: 14px;
+}
+.orca-workspace.orca-app.orca-w0 .k-subtitle,
+.orca-workspace.orca-app.orca-w0 .orca-page-subtitle {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--orca-muted);
+}
+.orca-workspace.orca-app.orca-w0 .k-small {
+  font-size: 12.5px;
+}
+@media (max-width: 720px) {
+  .orca-workspace.orca-app.orca-w0 h1 {
+    font-size: 20px;
+  }
+}
+.orca-workspace.orca-app.orca-w0 .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- No effects on the menu or buttons ---------- */
+.orca-workspace.orca-app.orca-w0 :is(.workspace-nav a, .workspace-mode a, .workspace-account > summary, .workspace-account-menu > a, .k-button, .workspace-icon-button, .workspace-jump, .workspace-company-switch > summary) {
+  transition: none;
+}
+
+/* ---------- Sidebar ---------- */
+.orca-workspace.orca-app.orca-w0 {
+  --k-sidebar-width: 232px;
+}
+.orca-workspace.orca-app.orca-w0.sidebar-collapsed {
+  --k-sidebar-width: 64px;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-sidebar-header {
+  margin: 0 4px 12px 8px;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-company {
+  margin: 0 0 14px;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-company > .workspace-company-name,
+.orca-workspace.orca-app.orca-w0 .workspace-company .workspace-company-switch > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--orca-line);
+  border-radius: var(--orca-radius);
+  background: var(--orca-surface);
+  color: var(--orca-ink);
+  font-size: 13px;
+  font-weight: 500;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-company .workspace-company-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-company .workspace-company-switch > summary .workspace-company-name {
+  flex: 1;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-company .workspace-company-switch > summary > svg {
+  flex: none;
+  color: var(--orca-subtle);
+}
+.orca-workspace.orca-app.orca-w0 .workspace-company .workspace-company-switch > summary:hover {
+  background: var(--orca-hover);
+}
+.orca-workspace.orca-app.orca-w0 .workspace-company .workspace-company-menu {
+  width: 100%;
+  min-width: 212px;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-nav-group {
+  gap: 1px;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-nav a,
+.orca-workspace.orca-app.orca-w0 .workspace-nav-soon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: var(--orca-radius);
+  color: var(--orca-nav);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-nav a svg,
+.orca-workspace.orca-app.orca-w0 .workspace-nav-soon svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--orca-subtle);
+}
+/* The active item: a grey fill, semibold, and a citron dot (the full citron fill is gone). */
+.orca-workspace.orca-app.orca-w0 .workspace-nav a.active {
+  background: var(--orca-secondary);
+  color: var(--orca-ink);
+  font-weight: 600;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-nav a.active svg {
+  color: var(--orca-ink);
+}
+.orca-workspace.orca-app.orca-w0 .workspace-nav a.active::after {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--orca-citron);
+  box-shadow: 0 0 0 1px var(--orca-dot-ring, rgba(21, 24, 35, 0.32));
+}
+.orca-workspace.orca-app.orca-w0 .workspace-nav a.active .workspace-nav-count {
+  display: none;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-nav-count {
+  min-width: 0;
+  height: auto;
+  margin-left: auto;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--orca-muted);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-nav-soon {
+  color: var(--orca-subtle);
+  cursor: default;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-nav-aside {
+  margin-left: auto;
+  color: var(--orca-subtle);
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.orca-workspace.orca-app.orca-w0 .compact :is(.workspace-nav-aside, .workspace-nav-count) {
+  display: none;
+}
+.orca-workspace.orca-app.orca-w0 .compact .workspace-nav a.active::after {
+  display: none;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-sidebar-bottom {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--orca-line);
+}
+.orca-workspace.orca-app.orca-w0 .workspace-sidebar-bottom .workspace-utility {
+  margin-top: 0;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-utility a {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-account {
+  margin-top: 4px;
+  padding-top: 0;
+  border-top: 0;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-avatar {
+  width: 28px;
+  height: 28px;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-account-copy small {
+  font-size: 12px;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-account-language {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 36px;
+  padding: 2px 8px;
+  color: var(--orca-muted);
+  font-size: 13px;
+}
+/* The platform switch: square-ish, grey; the chosen side ink. */
+.orca-workspace.orca-app.orca-w0 .workspace-mode {
+  margin: 0 0 14px;
+  border-radius: var(--orca-radius);
+}
+.orca-workspace.orca-app.orca-w0 .workspace-mode a {
+  border-radius: 6px;
+}
+
+/* ---------- Top bar ---------- */
+.orca-workspace.orca-app.orca-w0 {
+  --k-header: 56px;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-topbar {
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 24px;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-topbar-spacer {
+  flex: 1;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-mark {
+  display: none;
+  align-items: center;
+  --orca-brand-size: 26px;
+  color: var(--orca-ink);
+}
+.orca-workspace.orca-app.orca-w0 .workspace-jump {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(340px, 100%);
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--orca-line);
+  border-radius: var(--orca-radius);
+  background: var(--orca-surface-2);
+  color: var(--orca-subtle);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: text;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-jump svg {
+  flex: none;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-jump kbd {
+  margin-left: auto;
+  padding: 0 5px;
+  border: 1px solid var(--orca-line);
+  border-radius: 4px;
+  color: var(--orca-subtle);
+  font: 11.5px ui-monospace, SFMono-Regular, monospace;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-create {
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px 0 14px;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-main {
+  max-width: 1184px;
+  margin-inline: auto;
+}
+@media (max-width: 820px) {
+  .orca-workspace.orca-app.orca-w0 .workspace-topbar {
+    gap: 6px;
+    padding: 0 12px;
+  }
+  .orca-workspace.orca-app.orca-w0 .workspace-mark {
+    display: inline-flex;
+  }
+  .orca-workspace.orca-app.orca-w0 .workspace-jump {
+    display: none;
+  }
+  .orca-workspace.orca-app.orca-w0 .workspace-main {
+    padding: 20px 16px 28px;
+  }
+  .orca-workspace.orca-app.orca-w0 .workspace-drawer .workspace-company {
+    margin-inline: 2px;
+  }
+}
+
+/* ---------- Page tab bars inside frames: one look ---------- */
+.orca-workspace.orca-app.orca-w0 :is(.settings-tabs, .oversight-tabs) {
+  gap: 2px;
+}
+
+/* ---------- Dark ---------- */
+@media screen {
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app.orca-w0 {
+    --orca-dot-ring: transparent;
+  }
+  :root[data-orca-theme='dark'] .orca-workspace.orca-app.orca-w0 .workspace-nav a.active {
+    background: var(--orca-secondary);
+    color: var(--orca-ink);
+  }
+}
