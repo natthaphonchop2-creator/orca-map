@@ -89,8 +89,9 @@ test('W0 polish: states are text with a dot, the platform mark is plain words, a
 	assert.match(pillRule, /background: none;/);
 	assert.match(pillRule, /border: 0;/);
 	assert.doesNotMatch(pill.slice(pill.indexOf('<style>')), /border-radius: 999px|var\(--orca-\w+-bg\)/, 'never a filled pill');
-	const badge = await readFile(new URL('./platform/PlatformBadge.svelte', import.meta.url), 'utf8');
-	assert.doesNotMatch(badge, /999px|background|@lucide/, 'no pill eyebrow, no decorative icon');
+	// W0.1: no eyebrow label above a platform title at all (the top bar says แพลตฟอร์ม ORCA).
+	for (const file of ['./views/PlatformOverview.svelte', './PlatformCompanies.svelte', './PilotInbox.svelte', './GoogleSignInSettings.svelte', './OAuthApps.svelte', './platform/PlatformCatalog.svelte', './platform/BreakGlassAccounts.svelte', './platform/PlatformCompanyDetail.svelte'])
+		assert.doesNotMatch(await readFile(new URL(file, import.meta.url), 'utf8'), /\{#snippet eyebrow\(\)\}|PlatformBadge/, file);
 	// The numbered rail is gone altogether (visual review B1): no step component is left.
 	const { readdir } = await import('node:fs/promises');
 	assert.deepEqual((await readdir(new URL('./connect-ai/', import.meta.url))).filter((name) => /ConnectStep|ConsentDrawing|AIAppPicker/.test(name)), []);

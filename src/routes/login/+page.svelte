@@ -16,7 +16,7 @@
   import type { PageProps } from "./$types";
   import { googleSignInReason, googleStartHref, type GoogleSignInReason } from "$lib/orca/google-signin";
   import { AI_HANDOFF_FALLBACK, AI_HANDOFF_PAGE } from "$lib/orca/ai-handoff";
-  import { ArrowLeft, ArrowRight, BookOpen, Bot, Plug, ShieldCheck } from "@lucide/svelte";
+  import { ArrowLeft, ArrowRight, Bot } from "@lucide/svelte";
   import { onMount } from "svelte";
 
   let { data }: PageProps = $props();
@@ -96,9 +96,9 @@
         )}
       </p>
       <ul class="o-login-points">
-        <li><span class="o-login-icon"><Plug size={16} aria-hidden="true" /></span>{t("เชื่อมโปรแกรมที่บริษัทใช้อยู่ เช่น FlowAccount, PEAK, LINE", "Connect the programs you already use, like FlowAccount, PEAK and LINE")}</li>
-        <li><span class="o-login-icon"><BookOpen size={16} aria-hidden="true" /></span>{t("คลังความรู้ของบริษัท แยกตามแผนก", "Company knowledge, kept by department")}</li>
-        <li><span class="o-login-icon"><ShieldCheck size={16} aria-hidden="true" /></span>{t("สิทธิ์รายคน อนุมัติก่อนแก้ข้อมูล และบันทึกทุกการใช้งาน", "Access per person, approval before changes, and a record of everything AI does")}</li>
+        <li>{t("เชื่อมโปรแกรมที่บริษัทใช้อยู่ เช่น FlowAccount, PEAK, LINE", "Connect the programs you already use, like FlowAccount, PEAK and LINE")}</li>
+        <li>{t("คลังความรู้ของบริษัท แยกตามแผนก", "Company knowledge, kept by department")}</li>
+        <li>{t("สิทธิ์รายคน อนุมัติก่อนแก้ข้อมูล และบันทึกทุกการใช้งาน", "Access per person, approval before changes, and a record of everything AI does")}</li>
       </ul>
     </section>
     <section class="o-auth-form">

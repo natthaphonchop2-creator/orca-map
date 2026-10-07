@@ -104,23 +104,22 @@
 	list-style: none;
 }
 .orca.o-auth-page.o-login .o-login-points li {
+	/* W0.1: plain lines with a small citron dot, no boxed icon tiles (no decorative icons). */
 	display: flex;
-	align-items: center;
-	gap: 12px;
+	align-items: flex-start;
+	gap: 10px;
 	color: var(--login-text-2);
 	font-size: 13.5px;
 	line-height: 1.5;
 }
-.orca.o-auth-page.o-login .o-login-icon {
-	display: grid;
+.orca.o-auth-page.o-login .o-login-points li::before {
+	content: '';
 	flex: none;
-	place-items: center;
-	width: 32px;
-	height: 32px;
-	border: 1px solid var(--login-line);
-	border-radius: 9px;
-	background: var(--login-surface-2);
-	color: var(--login-citron);
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	margin-top: 7px; /* centred on the first line (13.5 px × 1.5) */
+	background: var(--login-citron);
 }
 
 /* ---------- Form card ---------- */

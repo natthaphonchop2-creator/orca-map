@@ -8,7 +8,6 @@
 	import { catalogSummary, googleClientSaved, platformCounts } from '$lib/services/orca-platform';
 	import { PlatformUsageService } from '$lib/services/orca-platform-usage';
 	import { usageNumber, type OrcaPlatformUsage } from '$lib/orca/platform-usage';
-	import PlatformBadge from '../platform/PlatformBadge.svelte';
 	import PlatformUsage from '../platform/PlatformUsage.svelte';
 	import PageHeader from '../ui/PageHeader.svelte';
 
@@ -168,9 +167,7 @@
 	]);
 </script>
 
-<PageHeader title={term('platformOverview', t)} subtitle={t('ตั้งค่าของทุกบริษัท และงานที่รอทีม ORCA', 'Settings for every company, and what waits for the ORCA team.')}>
-	{#snippet eyebrow()}<PlatformBadge />{/snippet}
-</PageHeader>
+<PageHeader title={term('platformOverview', t)} subtitle={t('ตั้งค่าของทุกบริษัท และงานที่รอทีม ORCA', 'Settings for every company, and what waits for the ORCA team.')} />
 
 <ul class="overview-tiles" aria-busy={loading}>
 	{#each tiles as tile (tile.label)}

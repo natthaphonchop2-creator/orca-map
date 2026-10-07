@@ -40,7 +40,7 @@ const files = {
 	oauth: new URL('./OAuthApps.svelte', import.meta.url),
 	catalog: new URL('./platform/PlatformCatalog.svelte', import.meta.url),
 	breakglass: new URL('./platform/BreakGlassAccounts.svelte', import.meta.url),
-	badge: new URL('./platform/PlatformBadge.svelte', import.meta.url),
+	detail: new URL('./platform/PlatformCompanyDetail.svelte', import.meta.url),
 	page: new URL('../../../routes/app/+page.svelte', import.meta.url)
 };
 
@@ -271,28 +271,26 @@ test('PlatformView mounts one page per section, the break-glass page only its ow
 });
 
 // ---------------------------------------------------------------------------
-// The page contract: every section has the badge, a short title and one line.
+// The page contract: every section has a short title and one line, and no eyebrow.
 // ---------------------------------------------------------------------------
 
-test('every section uses PageHeader with the platform badge, within the page contract', async () => {
-	for (const key of ['overview', 'companies', 'pilots', 'google', 'oauth', 'catalog', 'breakglass']) {
+test('every section uses PageHeader within the page contract, with no eyebrow label above the title (W0.1)', async () => {
+	for (const key of ['overview', 'companies', 'pilots', 'google', 'oauth', 'catalog', 'breakglass', 'detail']) {
 		const source = await readFile(files[key], 'utf8');
-		assert.match(source, /<PageHeader[\s\S]*?\{#snippet eyebrow\(\)\}<PlatformBadge( everyCompany)? \/>\{\/snippet\}/, key);
-		// "ใช้กับทุกบริษัทบน ORCA" only where the page's settings are shared by every company.
-		assert.equal(/<PlatformBadge everyCompany \/>/.test(source), ['google', 'oauth', 'catalog'].includes(key), `${key}: badge scope`);
+		// The top bar already says แพลตฟอร์ม ORCA; the owner's rule: no label above a title.
+		assert.doesNotMatch(source, /\{#snippet eyebrow\(\)\}|PlatformBadge/, `${key}: no eyebrow`);
+		if (key === 'detail') continue;
 		const subtitle = source.match(/<PageHeader[\s\S]*?subtitle=\{t\((['"])(.*?)\1/);
 		assert.ok(subtitle, key);
 		assert.ok(contract.subtitleWithinContract(subtitle[2]), `${key}: ${subtitle[2]}`);
 		assert.equal((source.match(/<PageHeader\b/g) ?? []).length, 1, `${key}: one header`);
 	}
 	for (const title of ['ภาพรวมแพลตฟอร์ม', 'บริษัทลูกค้า', 'คำขอทดลองใช้', 'เข้าสู่ระบบด้วย Google', 'แอป OAuth ของโปรแกรม', 'คลังโปรแกรม', 'บัญชีฉุกเฉิน']) assert.ok(contract.titleWithinContract(title), title);
-	const badge = await readFile(files.badge, 'utf8');
-	assert.match(badge, /everyCompany\s*\?\s*t\('ใช้กับทุกบริษัทบน ORCA ลูกค้าไม่เห็นหน้านี้'[\s\S]*?: t\('ลูกค้าไม่เห็นหน้านี้'/);
-	assert.doesNotMatch(badge, /#fff|#151823/i, 'labels on ink use --orca-on-ink');
+	await assert.rejects(readFile(new URL('./platform/PlatformBadge.svelte', import.meta.url), 'utf8'), 'the eyebrow component is gone');
 });
 
 test('the platform pages use tokens, not hard-coded label colours, and compile without warnings', async () => {
-	for (const key of ['overview', 'companies', 'pilots', 'google', 'oauth', 'catalog', 'breakglass', 'view', 'badge']) {
+	for (const key of ['overview', 'companies', 'pilots', 'google', 'oauth', 'catalog', 'breakglass', 'view', 'detail']) {
 		const source = await readFile(files[key], 'utf8');
 		assert.doesNotMatch(source, /#fff\b|#ffffff|#151823/i, key);
 		assert.doesNotMatch(source, /<select\b/, `${key}: key choices are tiles or segments, never a native select`);

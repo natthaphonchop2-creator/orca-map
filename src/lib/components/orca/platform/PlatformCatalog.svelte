@@ -24,7 +24,6 @@
 	import Sheet from '../ui/Sheet.svelte';
 	import StatusPill, { type StatusTone } from '../ui/StatusPill.svelte';
 	import { showToast } from '../ui/toast-store.svelte';
-	import PlatformBadge from './PlatformBadge.svelte';
 
 	// แพลตฟอร์ม ORCA › คลังโปรแกรม: the catalog every company picks programs
 	// from. Only the ORCA team adds to it (a program by its MCP link) and settles
@@ -147,7 +146,6 @@
 
 {#if operator}
 	<PageHeader title={term('programCatalog', t)} subtitle={t('โปรแกรมที่ทุกบริษัทเลือกเชื่อมได้', 'The programs every company can connect.')}>
-		{#snippet eyebrow()}<PlatformBadge everyCompany />{/snippet}
 		{#snippet action()}<button type="button" class="k-button primary catalog-add" onclick={openAdd}><Link2 size={16} aria-hidden="true" />{t('เพิ่มด้วยลิงก์ MCP', 'Add by MCP link')}</button>{/snippet}
 	</PageHeader>
 

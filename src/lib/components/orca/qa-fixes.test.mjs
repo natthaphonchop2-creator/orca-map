@@ -135,3 +135,17 @@ test('W0.1: the sign-in page says ORCA Workspace in plain small grey text, never
 	assert.doesNotMatch(rule, /border|background|border-radius|padding|height/, 'no pill: no border, fill, rounding or padding');
 	assert.doesNotMatch(login, /\.o-login-eyebrow span/, 'the dot rule is gone');
 });
+
+test('W0.1: the sign-in page lists its three points as plain lines with a small citron dot, never boxed icon tiles', async () => {
+	const page = await read('../../../routes/login/+page.svelte');
+	const points = page.slice(page.indexOf('<ul class="o-login-points">'), page.indexOf('</ul>', page.indexOf('<ul class="o-login-points">')));
+	assert.equal(points.match(/<li>/g)?.length, 3);
+	assert.doesNotMatch(points, /<svg|<[A-Z]\w* size=|o-login-icon/, 'no icon in the lines');
+	assert.doesNotMatch(page, /\b(?:Plug|BookOpen|ShieldCheck)\b/, 'the decorative icons are gone');
+	const login = (await read('./login.css')).replace(/\/\*[\s\S]*?\*\//g, '');
+	assert.doesNotMatch(login, /o-login-icon/, 'no tile rule left');
+	const dot = login.match(/\.orca\.o-auth-page\.o-login \.o-login-points li::before \{[^}]*\}/)?.[0];
+	assert.ok(dot, 'a dot before each line');
+	assert.match(dot, /width: 6px;[\s\S]*height: 6px;[\s\S]*border-radius: 50%;[\s\S]*background: var\(--login-citron\);/);
+	assert.doesNotMatch(dot, /border:/);
+});
