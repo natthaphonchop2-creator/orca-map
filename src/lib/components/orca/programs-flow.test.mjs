@@ -97,6 +97,8 @@ async function setup(context, { props = {}, service = {}, storage = memoryStorag
 	return { view, writes, navigations, toasts, storage, refreshes: () => refreshes };
 }
 
+// Owner decision 2026-10-07 ("บันทึกอัตโนมัติ"): once the account works, the classified read-only tools are saved
+// without a click, and the page then names what AI may read, with a way to change it.
 test('W0: an account that works saves the program read-only, with its name not taken twice, and goes back to the catalog', async (context) => {
 	const { view, navigations, writes, toasts, refreshes } = await setup(context);
 	await view.accountReady('flow');
@@ -106,12 +108,35 @@ test('W0: an account that works saves the program read-only, with its name not t
 	// The read-only start the owner chose, saved and reviewed as read-only: never a tool that changes data.
 	assert.deepEqual(writes, [{ input: { name: 'FlowAccount (2)', description: '', mcpID: 'flow', toolNames: ['list', 'get'], scopeNote: '', reviewedTools: true, reviewedReadOnly: true, enabled: true }, id: undefined }]);
 	assert.equal(refreshes(), 1);
-	assert.deepEqual(navigations, ['/app?view=servers&catalog=1'], 'back to the catalog, where the card now says เชื่อมแล้ว');
+	assert.deepEqual(navigations, ['/app?view=servers&catalog=1&added=saved-1'], 'back to the catalog, where the card now says เชื่อมแล้ว and a line names what AI may read');
 	assert.deepEqual(toasts, ['เชื่อม FlowAccount แล้ว']);
 	// A late answer for another program never moves the page or saves.
 	await view.accountReady('peak');
 	assert.equal(navigations.length, 1);
 	assert.equal(writes.length, 1);
+});
+
+test('W0 (owner: บันทึกอัตโนมัติ): a write or an unannotated tool is never auto-approved; only classified reads are', async (context) => {
+	for (const discovered of [
+		[definition('create', false)],
+		[definition('email')],
+		[definition('email'), definition('create', false)],
+		[{ name: 'odd', description: 'odd', inputSchema: {}, definition: { name: 'odd', annotations: { readOnlyHint: 'true' } } }],
+		[{ name: 'purge', description: 'purge', inputSchema: {}, definition: { name: 'purge', annotations: { readOnlyHint: true, destructiveHint: true } } }]
+	]) {
+		const run = await setup(context, { service: { discover: async () => discovered } });
+		await run.view.accountReady('flow');
+		assert.deepEqual(run.writes, [], discovered.map((item) => item.name).join());
+		assert.deepEqual(run.navigations, ['/app?view=add-program&source=flow&step=tools'], 'it asks first');
+	}
+	// Mixed: only the classified reads are saved, never the write or the unannotated tool beside them.
+	const mixed = await setup(context);
+	await mixed.view.accountReady('flow');
+	assert.deepEqual(mixed.writes[0].input.toolNames, ['list', 'get']);
+	assert.equal(mixed.writes[0].input.reviewedReadOnly, true);
+	// A selection that somehow holds a write is never auto-saved either.
+	const source = await readFile(new URL('./programs/AddProgramFlow.svelte', import.meta.url), 'utf8');
+	assert.match(source, /autoReviewSelection\(tools, selected\)\.length > 0/);
 });
 
 test('W0: with nothing read-only, the page asks what AI may do before saving; from the create form or onboarding it goes back there', async (context) => {
@@ -125,7 +150,7 @@ test('W0: with nothing read-only, the page asks what AI may do before saving; fr
 	assert.deepEqual(fromForm.navigations, ['/app?view=new&connection=saved-1']);
 	const fromWelcome = await setup(context, { props: { returnTo: 'welcome' } });
 	await fromWelcome.view.accountReady('flow');
-	assert.deepEqual(fromWelcome.navigations, ['/app?view=welcome&page=2']);
+	assert.deepEqual(fromWelcome.navigations, ['/app?view=welcome&page=2&added=saved-1']);
 });
 
 test('"อนุญาต N อย่างนี้" sends reviewedTools:true, reviewedReadOnly for reads and the optional note, then goes back to the catalog', async (context) => {
@@ -135,7 +160,7 @@ test('"อนุญาต N อย่างนี้" sends reviewedTools:true, 
 	await view.save();
 	assert.deepEqual(writes, [{ input: { name: 'FlowAccount (2)', description: '', mcpID: 'flow', toolNames: ['list', 'get'], scopeNote: '', reviewedTools: true, reviewedReadOnly: true, enabled: true }, id: undefined }]);
 	assert.equal(refreshes(), 1);
-	assert.equal(navigations.at(-1), '/app?view=servers&catalog=1');
+	assert.equal(navigations.at(-1), '/app?view=servers&catalog=1&added=saved-1');
 	assert.equal(storage.store.has('orca.addProgram.default'), false, 'the draft is cleared after saving');
 	assert.deepEqual([...storage.store.keys()], ['orca.addProgram.saved.default'], 'only which program was saved stays');
 	// Change tools make it a normal (not read-only) review; saving again changes the same program.
@@ -495,7 +520,7 @@ test('a company account connected in the connect step: what AI can do is read on
 	assert.equal(writes.length, 1);
 	assert.equal(writes[0].input.programAccountID, 'pac-1');
 	assert.equal(writes[0].input.reviewedReadOnly, true);
-	assert.deepEqual(navigations, ['/app?view=servers&catalog=1']);
+	assert.deepEqual(navigations, ['/app?view=servers&catalog=1&added=saved-1']);
 	// A late answer for another program never moves the page.
 	await view.companyAccountReady('peak', 'pac-2');
 	assert.equal(navigations.length, 1);
@@ -509,7 +534,7 @@ test('a company account connected in the connect step: what AI can do is read on
 	assert.equal(asked.at(-1)[1], 'pac-1');
 	assert.equal(page.writes.length, 1);
 	assert.equal(page.writes[0].input.programAccountID, 'pac-1');
-	assert.equal(page.navigations.at(-1), '/app?view=servers&catalog=1');
+	assert.equal(page.navigations.at(-1), '/app?view=servers&catalog=1&added=saved-1');
 });
 
 test('the address a company account signed in as reaches the summary before saving, from step 2 or the managers\' list after a reload (CA1b O15)', async (context) => {
@@ -698,4 +723,35 @@ test('a discovery that ends after the program changed never opens step 3 for the
 	flush();
 	assert.equal(view.state.sourceID, 'flow');
 	assert.equal(view.state.step, 'connect');
+});
+
+test('W0 (Codex review 1): a refused or failed auto-save is shown on the connect page with a retry, for each person\'s own account and for บัญชีกลาง', async (context) => {
+	for (const company of [false, true]) {
+		let fail = true;
+		const writes = [];
+		const run = await setup(context, {
+			service: {
+				save: async (input, id) => {
+					if (fail) throw new Error('บันทึกไม่สำเร็จ');
+					writes.push({ input, id });
+					return { ...input, id: id ?? 'saved-1', version: 1 };
+				}
+			}
+		});
+		if (company) await run.view.companyAccountReady('flow', 'pac-1');
+		else await run.view.accountReady('flow');
+		assert.equal(run.view.state.saveError, 'บันทึกไม่สำเร็จ', company ? 'company' : 'personal');
+		assert.deepEqual(run.navigations, [], 'it stays on the connect page');
+		assert.equal(run.view.state.step, 'connect');
+		// ลองอีกครั้ง: the same save, on the same account.
+		fail = false;
+		await run.view.save(true);
+		assert.equal(writes.length, 1);
+		assert.equal(writes[0].input.programAccountID, company ? 'pac-1' : undefined);
+		assert.deepEqual(writes[0].input.toolNames, ['list', 'get']);
+		assert.deepEqual(run.navigations, ['/app?view=servers&catalog=1&added=saved-1']);
+	}
+	const source = await readFile(new URL('./programs/AddProgramFlow.svelte', import.meta.url), 'utf8');
+	const connect = source.slice(source.indexOf("{:else if step === 'connect'}\n"), source.indexOf("{#key sourceID}"));
+	assert.match(connect, /\{#if saveError && !discovering && toolsFor === sourceID\}<div class="ap-error ap-save-error" role="alert">[\s\S]*?\{saveError\}[\s\S]*?onclick=\{\(\) => save\(true\)\}>\{t\('ลองอีกครั้ง', 'Try again'\)\}/);
 });

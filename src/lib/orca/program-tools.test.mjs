@@ -215,3 +215,31 @@ test('LINE v2: step 3 names every LINE tool in Thai with a Thai line, and in Eng
 	assert.equal(english[10].description, lineTools[10].description);
 	assert.equal(tools.eventToolLabel([{ id: 'conn-line', tools: lineTools }], 'conn-line', 'line_push_text'), 'ส่งข้อความถึงลูกค้า 1 คน', 'approvals and ตรวจสอบ name the send the same way');
 });
+
+test('W0 auto-save ("บันทึกอัตโนมัติ"): only tools classified read-only; never a write, an unannotated or unknown tool, or one held for approval', () => {
+	const { autoReviewSelection } = tools;
+	const read = tool('list', { readOnlyHint: true });
+	const read2 = tool('get', { readOnlyHint: true, destructiveHint: false });
+	const write = tool('create', { readOnlyHint: false });
+	const destructive = tool('purge', { readOnlyHint: true, destructiveHint: true });
+	const bare = { name: 'email', inputSchema: {}, definition: { name: 'email' } };
+	const emptyAnnotations = tool('notes', {});
+	const oddHint = tool('odd', { readOnlyHint: 'true' });
+	const held = { ...tool('push', { readOnlyHint: true }), definition: { name: 'push', annotations: { readOnlyHint: true }, _meta: { [tools.ALWAYS_APPROVED_META]: 'always' } } };
+	const all = [read, read2, write, destructive, bare, emptyAnnotations, oddHint, held];
+	assert.deepEqual(autoReviewSelection(all, ['list', 'get']), ['list', 'get']);
+	// Any non-read tool in the selection stops the auto-save outright: the page asks instead.
+	for (const other of ['create', 'purge', 'email', 'notes', 'odd', 'push', 'missing'])
+		assert.deepEqual(autoReviewSelection(all, ['list', other]), [], other);
+	assert.deepEqual(autoReviewSelection(all, []), [], 'nothing ticked: nothing saved');
+	// The start the page would auto-save is the read preset, which never holds a write or an unannotated tool.
+	const plain = [read, read2, write, destructive, bare, emptyAnnotations, oddHint];
+	assert.deepEqual(initialSelection(plain), ['list', 'get']);
+	assert.deepEqual(autoReviewSelection(plain, initialSelection(plain)), ['list', 'get']);
+	// A read held for approval every time (LINE-style mark) is in the read preset, so that program asks first.
+	assert.deepEqual(initialSelection(all), ['list', 'get', 'push']);
+	assert.deepEqual(autoReviewSelection(all, initialSelection(all)), []);
+	// A program with no read-only tools starts with nothing, so it asks first.
+	assert.deepEqual(initialSelection([write, bare, emptyAnnotations, oddHint, destructive]), []);
+	assert.deepEqual(autoReviewSelection([write, bare], initialSelection([write, bare])), []);
+});

@@ -189,9 +189,16 @@ export function programCancelHref(returnTo: string | null | undefined): string {
  * catalog, where its card now says เชื่อมแล้ว.
  */
 export function programReturnHref(returnTo: string | null | undefined, connectionID: string): string {
-	if (returnTo === 'new') return `/app?view=new&connection=${encodeURIComponent(connectionID)}`;
-	if (returnTo === 'welcome') return '/app?view=welcome&page=2';
-	return '/app?view=servers&catalog=1';
+	const id = encodeURIComponent(connectionID);
+	if (returnTo === 'new') return `/app?view=new&connection=${id}`;
+	// &added names the program just saved: the page says what AI was allowed, with a way to change it.
+	if (returnTo === 'welcome') return `/app?view=welcome&page=2&added=${id}`;
+	return `/app?view=servers&catalog=1&added=${id}`;
+}
+
+/** The program's สิ่งที่ AI ทำได้ tab, where what was auto-allowed is changed. */
+export function programToolsHref(connectionID: string): string {
+	return `/app?view=servers&connection=${encodeURIComponent(connectionID)}&tab=tools`;
 }
 
 /**

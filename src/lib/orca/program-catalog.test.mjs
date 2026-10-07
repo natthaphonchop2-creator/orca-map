@@ -97,8 +97,11 @@ test('the step and the program live in the address; step 4 needs the saved progr
 	assert.equal(programCancelHref(null), '/app?view=servers&catalog=1');
 	assert.equal(programCancelHref('welcome'), '/app?view=welcome&page=2');
 	assert.equal(programReturnHref('new', 'c 1'), '/app?view=new&connection=c%201');
-	assert.equal(programReturnHref('welcome', 'c1'), '/app?view=welcome&page=2');
-	assert.equal(programReturnHref(null, 'c1'), '/app?view=servers&catalog=1');
+	assert.equal(programReturnHref('welcome', 'c1'), '/app?view=welcome&page=2&added=c1');
+	assert.equal(programReturnHref(null, 'c 1'), '/app?view=servers&catalog=1&added=c%201');
+	// Those addresses are canonical for the router: &added stays where it is said.
+	for (const href of [programReturnHref(null, 'c1'), programReturnHref('welcome', 'c1')])
+		assert.equal(appNavigation(new URLSearchParams(href.split('?')[1]), { role: { canManage: true, platformOperator: false } }).redirect, undefined, href);
 	// Every connect address a step builds is already canonical for the page's router.
 	for (const href of [programStepHref(base, 'connect', { source: 's' }), programStepHref(base, 'tools', { source: 's' })]) {
 		const route = appNavigation(new URLSearchParams(href.split('?')[1]), { role: { canManage: true, platformOperator: false } });

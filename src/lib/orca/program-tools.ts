@@ -117,6 +117,22 @@ export function presetSelection(tools: readonly ProgramToolLike[], preset: Acces
 	return capSelection(preset === 'read' ? groups.read.map((tool) => tool.name) : [...groups.read, ...groups.change].map((tool) => tool.name));
 }
 
+/**
+ * W0 (owner: "บันทึกอัตโนมัติ"): the selection the connect page may save
+ * without a manager's click. Only tools the backend's own rule calls
+ * read-only (annotated readOnlyHint true and not destructive): never a write,
+ * never a tool whose annotations are missing or unknown, never one held for
+ * approval. Empty when there is nothing read-only, so the page asks first.
+ */
+export function autoReviewSelection(tools: readonly ProgramToolLike[], selected: readonly string[]): string[] {
+	const byName = new Map(tools.map((tool) => [tool.name, tool]));
+	const picked = selected.filter((name) => {
+		const tool = byName.get(name);
+		return !!tool && !toolChangesData(tool) && !toolUnspecified(tool) && !toolAlwaysApproved(tool);
+	});
+	return picked.length === selected.length && picked.length > 0 ? capSelection(picked) : [];
+}
+
 /** The first selection of a new program. */
 export function initialSelection(tools: readonly ProgramToolLike[]): string[] {
 	return initialPreset(tools) === 'read' ? presetSelection(tools, 'read') : [];

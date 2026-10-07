@@ -101,11 +101,13 @@
 		catalogOpen = page.url.searchParams.get('catalog') === '1';
 	});
 	const returnTo = $derived(page.url.searchParams.get('return') ?? '');
+	const added = $derived(page.url.searchParams.get('added') ?? '');
 	function closeCatalog() {
 		const url = new URL(page.url.href);
 		if (!url.searchParams.has('catalog')) return;
 		url.searchParams.delete('catalog');
 		url.searchParams.delete('return');
+		url.searchParams.delete('added');
 		void goto(url.pathname + url.search + url.hash, { replaceState: true, keepFocus: true, noScroll: true });
 	}
 	let requestOpen = $state(false);
@@ -222,6 +224,7 @@
 		{data}
 		bind:open={catalogOpen}
 		{returnTo}
+		{added}
 		onclose={closeCatalog}
 		onrequest={(query) => {
 			requested = query;

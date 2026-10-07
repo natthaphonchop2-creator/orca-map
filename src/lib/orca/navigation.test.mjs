@@ -458,3 +458,12 @@ test("W0: the onboarding is for Owners and Admins, and keeps only its page", () 
   assert.equal(activeNavigationView("welcome"), "dashboard");
   assert.ok(APP_VIEWS.includes("welcome"));
 });
+
+test("W0: &added (the program just saved) stays on the catalog and onboarding 2 only", () => {
+  stays("view=servers&catalog=1&added=c1", "servers");
+  stays("view=welcome&page=2&added=c1", "welcome");
+  redirects("view=servers&added=c1", "/app?view=servers");
+  redirects("view=welcome&added=c1", "/app?view=welcome");
+  redirects("view=knowledge&added=c1", "/app?view=knowledge");
+  redirects("view=servers&catalog=1&added=c1", "/app?view=connect-ai#accounts", { role: employee });
+});

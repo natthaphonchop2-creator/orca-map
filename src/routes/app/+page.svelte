@@ -267,7 +267,7 @@
 >
 
 {#if gate}<CompanyGate mode={gate} {companies} account={route.account} {stopped} current={route.place.kind === "company" ? route.place.id : ""} />
-{:else if onboarding && data}<Onboarding {data} page={navigation.params.get("page") === "2" ? 2 : 1} ondone={() => (onboardingFinished = true)} />
+{:else if onboarding && data}<Onboarding {data} page={navigation.params.get("page") === "2" ? 2 : 1} added={navigation.params.get("added") ?? ""} ondone={() => (onboardingFinished = true)} />
 {:else}
 <AppShell {data} {view} {section} {refreshing} {pendingApprovals} {companies} account={route.account} onrefresh={refreshFromTopBar}>
   {#if error}<div class="k-banner error" role="alert">

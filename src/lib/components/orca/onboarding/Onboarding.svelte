@@ -20,6 +20,7 @@
 	import { ProgramService } from '$lib/services/orca-programs';
 	import { onMount } from 'svelte';
 	import Brand from '../Brand.svelte';
+	import AutoAllowedNotice from '../programs/AutoAllowedNotice.svelte';
 	import CatalogModal from '../programs/CatalogModal.svelte';
 	import ProgramLogo from '../programs/ProgramLogo.svelte';
 	import ProgramRequestSheet from '../programs/ProgramRequestSheet.svelte';
@@ -31,7 +32,7 @@
 	// and the company top right, two small dots for the page. Screen 1: the
 	// work they look after; screen 2: connect the programs suggested for it.
 	// ข้าม and เข้าใช้ ORCA finish it; the answer stays in this browser.
-	let { data, page = 1, ondone }: { data: OrcaBootstrap; page?: 1 | 2; ondone?: () => void } = $props();
+	let { data, page = 1, added = '', ondone }: { data: OrcaBootstrap; page?: 1 | 2; added?: string; ondone?: () => void } = $props();
 
 	const storage = () => {
 		try {
@@ -52,6 +53,7 @@
 	let requested = $state('');
 
 	const operator = $derived(data.platformOperator === true);
+	const justAdded = $derived(added ? data.connections.find((item) => item.id === added) : undefined);
 	const suggested = $derived(pickSuggested(sources.map((source) => catalogSource(source)), roles));
 	const forRole = $derived(ONBOARDING_ROLES.find((role) => role.id === suggestionFor(roles)));
 
@@ -128,6 +130,7 @@
 					{/each}
 				</ul>
 			{/if}
+			{#if justAdded}<AutoAllowedNotice connection={justAdded} />{/if}
 			<div class="onb-below">
 				<button type="button" class="onb-all" onclick={() => (catalogOpen = true)}>{t('ดูโปรแกรมทั้งหมด', 'See every program')}</button>
 				<p class="onb-hint">{t('ใช้บัญชีของคุณเอง AI เห็นเท่าที่บัญชีนั้นเห็น', 'You use your own account: AI sees only what it can see.')}</p>

@@ -345,3 +345,18 @@ test('W0 logos: Canva is its vendor SVG; a program with no sharp mark (Lazada) s
 	const icon = await readFile(new URL('../../orca/CatalogIcon.svelte', import.meta.url), 'utf8');
 	assert.doesNotMatch(icon, /Plug|@lucide/);
 });
+
+test('W0 (Codex review 1): after an auto-save the catalog and the onboarding say what AI may read, with a link to change it', async () => {
+	const { warnings, Component } = await serverComponent(new URL('./programs/AutoAllowedNotice.svelte', import.meta.url), base);
+	assert.deepEqual(warnings, []);
+	const html = text(render(Component, { props: { connection: { id: 'c 1', name: 'FlowAccount', toolNames: ['a', 'b', 'c', 'd', 'e'], reviewedReadOnly: true } } }).body);
+	assert.match(html, /role="status"/);
+	assert.match(html, /เชื่อม FlowAccount แล้ว · AI ดูข้อมูลได้ 5 อย่าง/);
+	assert.match(html, /<a href="\/app\?view=servers&amp;connection=c%201&amp;tab=tools"[^>]*>เปลี่ยน<\/a>/);
+	const catalogSource = await readFile(new URL('./programs/CatalogModal.svelte', import.meta.url), 'utf8');
+	assert.match(catalogSource, /\{#if justAdded\}<AutoAllowedNotice connection=\{justAdded\} \/>\{\/if\}/);
+	const onboardingSource = await readFile(new URL('./onboarding/Onboarding.svelte', import.meta.url), 'utf8');
+	assert.match(onboardingSource, /\{#if justAdded\}<AutoAllowedNotice connection=\{justAdded\} \/>\{\/if\}/);
+	const center = await readFile(new URL('./ConnectionCenter.svelte', import.meta.url), 'utf8');
+	assert.match(center, /url\.searchParams\.delete\('added'\);/, 'closing the catalog drops it');
+});

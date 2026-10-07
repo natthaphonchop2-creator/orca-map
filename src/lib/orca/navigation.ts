@@ -285,6 +285,8 @@ export function appNavigation(
 		}
 	}
 	if (view === 'servers' && p.get('catalog') !== null && p.get('catalog') !== '1') p.delete('catalog');
+	// &added (W0: the program the connect page just saved) belongs to the catalog and the onboarding only.
+	if (!((view === 'servers' && p.get('catalog') === '1') || view === 'welcome')) p.delete('added');
 	if ((view === 'servers' || view === 'add-program') && manager === false) {
 		// Employees sign in to their own program accounts from เชื่อม AI ของฉัน.
 		go('connect-ai');
@@ -365,8 +367,9 @@ export function appNavigation(
 			go('dashboard');
 			only();
 		} else {
-			only('page');
+			only('page', 'added');
 			if (p.get('page') !== null && p.get('page') !== '2') p.delete('page');
+			if (p.get('page') !== '2') p.delete('added');
 		}
 	}
 

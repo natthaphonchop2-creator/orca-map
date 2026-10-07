@@ -23,6 +23,7 @@
 		type ProgramStep
 	} from '$lib/orca/program-catalog';
 	import {
+		autoReviewSelection,
 		initialPreset,
 		initialSelection,
 		presetFor,
@@ -262,7 +263,8 @@
 	}
 
 	/** The page saves at once when the start is the read-only default (W0); otherwise it asks. */
-	const savesAtOnce = () => mode === 'page' && preset === 'read' && selected.length > 0 && !saveProblem({ name, selected });
+	const savesAtOnce = () =>
+		mode === 'page' && preset === 'read' && autoReviewSelection(tools, selected).length > 0 && !saveProblem({ name, selected });
 	// The account works: see what AI can do, then save read-only (or ask, with nothing read-only).
 	async function accountReady(id: string) {
 		if (id !== sourceID) return;
@@ -511,6 +513,12 @@
 			</fieldset>
 		{/if}
 		{#if discoverError}<p class="ap-error" role="alert"><CircleAlert size={16} aria-hidden="true" />{discoverError}</p>{/if}
+		<!-- The save right after connecting (บันทึกอัตโนมัติ) was refused or failed: say so, with a retry (Codex W0 review 1). -->
+		{#if saveError && !discovering && toolsFor === sourceID}<div class="ap-error ap-save-error" role="alert">
+				<CircleAlert size={16} aria-hidden="true" />
+				<span>{saveError}</span>
+				<button type="button" class="k-button small" disabled={saving} onclick={() => save(true)}>{t('ลองอีกครั้ง', 'Try again')}</button>
+			</div>{/if}
 		{#key sourceID}
 			{#if accountMode === 'company' && companyAllowed}
 				<CompanyAccountConnect
@@ -691,6 +699,14 @@
 		background: var(--orca-deny-bg);
 		color: var(--orca-deny);
 		font-size: 13.5px;
+	}
+	.ap-save-error {
+		align-items: center;
+		flex-wrap: wrap;
+	}
+	.ap-save-error span {
+		flex: 1 1 200px;
+		min-width: 0;
 	}
 	.ap-back {
 		margin-top: 20px;

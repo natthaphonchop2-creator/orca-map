@@ -8,6 +8,7 @@
 	import { orcaError, type OrcaBootstrap, type OrcaCandidate } from '$lib/services/orca';
 	import { ProgramService } from '$lib/services/orca-programs';
 	import Modal from '../ui/Modal.svelte';
+	import AutoAllowedNotice from './AutoAllowedNotice.svelte';
 	import ProgramLogo from './ProgramLogo.svelte';
 
 	// เชื่อมโปรแกรม (W0): the catalog as a dialog, in place of the old step 1.
@@ -19,6 +20,7 @@
 		data,
 		open = $bindable(false),
 		returnTo = '',
+		added = '',
 		onrequest,
 		onclose
 	}: {
@@ -26,6 +28,8 @@
 		open?: boolean;
 		/** Where the connect page returns: "new" (the create form), "welcome" (onboarding), else here. */
 		returnTo?: string;
+		/** The program the connect page just saved (&added): what AI was allowed, with a way to change it. */
+		added?: string;
 		/** "ขอให้เพิ่ม": the request form, with what was searched. */
 		onrequest?: (query: string) => void;
 		onclose?: () => void;
@@ -38,6 +42,7 @@
 	let query = $state('');
 	let chip = $state<ProgramChip>('all');
 	const operator = $derived(data.platformOperator === true);
+	const justAdded = $derived(added ? data.connections.find((item) => item.id === added && !item.archivedAt && !item.deletedAt) : undefined);
 	const context = $derived({ connections: data.connections, operator });
 	const chips = $derived(availableChips(sources));
 	const listed = $derived(pickerPrograms(sources, { query, chip }, context));
@@ -84,6 +89,7 @@
 			</div>
 		{/if}
 	</div>
+	{#if justAdded}<AutoAllowedNotice connection={justAdded} />{/if}
 	{#if loading && !loaded}
 		<p class="cat-status" role="status">{t('กำลังโหลดโปรแกรม…', 'Loading programs…')}</p>
 	{:else if error}

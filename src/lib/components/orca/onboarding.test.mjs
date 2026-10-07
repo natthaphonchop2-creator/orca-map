@@ -144,7 +144,7 @@ test('screen 2: suggested programs with เชื่อม or ✓ เชื่�
 
 test('the app page shows it where the first run starts, outside the shell, and it can be skipped', async () => {
 	const page = await readFile(new URL('../../../routes/app/+page.svelte', import.meta.url), 'utf8');
-	assert.match(page, /\{:else if onboarding && data\}<Onboarding \{data\} page=\{navigation\.params\.get\("page"\) === "2" \? 2 : 1\} ondone=\{\(\) => \(onboardingFinished = true\)\} \/>\s*\{:else\}\s*<AppShell/);
+	assert.match(page, /\{:else if onboarding && data\}<Onboarding \{data\} page=\{navigation\.params\.get\("page"\) === "2" \? 2 : 1\} added=\{navigation\.params\.get\("added"\) \?\? ""\} ondone=\{\(\) => \(onboardingFinished = true\)\} \/>\s*\{:else\}\s*<AppShell/);
 	assert.match(page, /showsOnboarding\(\{\s*view,\s*canManage: data\.canManage,/);
 	assert.match(page, /onboardingDone\(localStorageOrNothing, onboardingKey\(currentCompany\(\), data\.currentUserID\)\)/);
 	const screenSource = await readFile(new URL('./onboarding/Onboarding.svelte', import.meta.url), 'utf8');
