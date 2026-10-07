@@ -24,6 +24,8 @@
   import TeamView from "$lib/components/orca/views/TeamView.svelte";
   import WorkspaceHubView from "$lib/components/orca/views/WorkspaceHubView.svelte";
   import WorkspaceNewView from "$lib/components/orca/views/WorkspaceNewView.svelte";
+  import Onboarding from "$lib/components/orca/onboarding/Onboarding.svelte";
+  import { onboardingDone, onboardingKey, showsOnboarding } from "$lib/orca/onboarding";
   import "$lib/components/orca/orca.css";
   import { initializeLocale, localeHref, t } from "$lib/orca/locale.svelte";
   import { appNavigation, type PlatformSection } from "$lib/orca/navigation";
@@ -100,6 +102,26 @@
     !!libraryKind && page.url.searchParams.get("create") === "1",
   );
   const hub = $derived(data?.hubs.find((item) => item.id === hubID));
+  // The first run (W0): an Owner or Admin of a company with no program yet sees
+  // the two onboarding screens on Home until they finish or skip them;
+  // view=welcome opens them on purpose. Remembered in this browser only.
+  let onboardingFinished = $state(false);
+  const onboarding = $derived(
+    !!data && !navigation.redirect && showsOnboarding({
+      view,
+      canManage: data.canManage,
+      platform: view === "platform",
+      connections: data.connections,
+      done: onboardingFinished || onboardingDone(localStorageOrNothing, onboardingKey(currentCompany(), data.currentUserID)),
+    }),
+  );
+  function localStorageOrNothing() {
+    try {
+      return window.localStorage;
+    } catch {
+      return undefined;
+    }
+  }
   async function refresh() {
     const request = ++refreshGeneration;
     refreshing = true;
@@ -241,6 +263,7 @@
 >
 
 {#if gate}<CompanyGate mode={gate} {companies} account={route.account} {stopped} current={route.place.kind === "company" ? route.place.id : ""} />
+{:else if onboarding && data}<Onboarding {data} page={navigation.params.get("page") === "2" ? 2 : 1} ondone={() => (onboardingFinished = true)} />
 {:else}
 <AppShell {data} {view} {section} {refreshing} {pendingApprovals} {companies} account={route.account} onrefresh={refreshFromTopBar}>
   {#if error}<div class="k-banner error" role="alert">
