@@ -652,3 +652,17 @@ test('OAuth apps: while a save runs, the guide and the credential fields wait, s
 		assert.match(source.slice(at, source.indexOf('/>', at)), /disabled=\{busy\}/, field);
 	}
 });
+
+test('W0.1: the platform overview has no icon tiles: plain 16px --subtle line icons, and an empty state of words only', async () => {
+	const overview = await readFile(files.overview, 'utf8');
+	const usage = await readFile(new URL('./platform/PlatformUsage.svelte', import.meta.url), 'utf8');
+	const rule = (source, name) => source.match(new RegExp(`\\.${name} \\{[^}]*\\}`))?.[0] ?? '';
+	for (const [source, name] of [[overview, 'platform-section-icon'], [overview, 'overview-todo-icon'], [usage, 'usage-mark']]) {
+		const css = rule(source, name);
+		assert.match(css, /color: var\(--orca-subtle\);/, name);
+		assert.doesNotMatch(css, /background|border-radius|width|height/, `${name}: no tile`);
+	}
+	assert.match(overview, /<section\.icon size=\{16\} strokeWidth=\{1\.75\} \/>/);
+	assert.match(usage, /<Building2 size=\{16\} strokeWidth=\{1\.75\} \/>/);
+	assert.match(usage, /<EmptyState message=\{t\('ยังไม่มีบริษัทบน ORCA', 'No companies on ORCA yet\.'\)\} \/>/, 'no icon: EmptyState would draw it on a tile');
+});

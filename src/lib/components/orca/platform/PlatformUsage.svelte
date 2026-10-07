@@ -79,7 +79,8 @@
 	{:else if loading}
 		<p class="usage-quiet" role="status">{t('กำลังโหลดการใช้งาน…', 'Loading usage…')}</p>
 	{:else if rows.length === 0}
-		<EmptyState icon={Building2} message={t('ยังไม่มีบริษัทบน ORCA', 'No companies on ORCA yet.')} />
+		<!-- W0.1: words only, no icon tile. -->
+		<EmptyState message={t('ยังไม่มีบริษัทบน ORCA', 'No companies on ORCA yet.')} />
 	{:else}
 		<h3 id="usage-companies-title" class="usage-subtitle">{t('การใช้งานรายบริษัท', 'Usage by company')}<small>{t('เรียงตามการใช้งานล่าสุด', 'Latest activity first')}</small></h3>
 		{#if usage && usage.toolCalls.last7Days === 0}
@@ -102,7 +103,7 @@
 						<tr class:idle={!row.lastCallDay}>
 							<th scope="row">
 								<span class="usage-company">
-									<span class="usage-mark" aria-hidden="true"><Building2 size={16} /></span>
+									<span class="usage-mark" aria-hidden="true"><Building2 size={16} strokeWidth={1.75} /></span>
 									<span><strong>{row.displayName}</strong>{#if row.id === 'default'}<small>{t('บริษัทของทีม ORCA', "The ORCA team's company")}</small>{/if}</span>
 								</span>
 							</th>
@@ -280,15 +281,11 @@
 		color: var(--orca-muted);
 		font-size: 12px;
 	}
+	/* W0.1: a plain 16px line icon in --subtle, never a tile. */
 	.usage-mark {
-		display: grid;
+		display: inline-flex;
 		flex: none;
-		place-items: center;
-		width: 32px;
-		height: 32px;
-		border-radius: 9px;
-		background: var(--orca-secondary);
-		color: var(--orca-text-2);
+		color: var(--orca-subtle);
 	}
 	.usage-last {
 		white-space: nowrap;
