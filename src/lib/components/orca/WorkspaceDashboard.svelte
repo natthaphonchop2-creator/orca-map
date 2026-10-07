@@ -30,7 +30,7 @@
 	import { OrcaService, type OrcaAuditEvent, type OrcaBootstrap, type OrcaConnection, type OrcaConnectionHealth, type OrcaProgramAccount } from '$lib/services/orca';
 	import { healthByConnection } from '$lib/orca/connection-health';
 	import { refreshAIConnection } from '$lib/services/orca-ai-apps';
-	import { SkillsService } from '$lib/services/orca-skills';
+	import { SkillsService, type OrcaSkill } from '$lib/services/orca-skills';
 	import { skillsEnabled } from '$lib/orca/workspace-nav';
 	import AIReconnectBanner from './home/AIReconnectBanner.svelte';
 	import HomeStatus from './home/HomeStatus.svelte';
@@ -64,6 +64,14 @@
 	let checks = $state<'loading' | 'done' | 'failed'>('loading');
 	/** Skills' tile, only with the company's skills feature (W0); the list is a stub until its backend ships. */
 	let skills = $state<{ count: number }>();
+	let skillItems = $state.raw<OrcaSkill[]>([]);
+	/** Skills ที่ใช้บ่อย: the three published ones used most. */
+	const topSkills = $derived(
+		skillItems
+			.filter((item) => item.status === 'published')
+			.sort((a, b) => (b.uses ?? 0) - (a.uses ?? 0))
+			.slice(0, 3)
+	);
 
 	const manager = $derived(data.canManage);
 	const me = $derived(data.members.find((member) => member.id === data.currentUserID));
@@ -195,7 +203,9 @@
 		if (skillsEnabled(untrack(() => data)))
 			void SkillsService.list()
 				.then((items) => {
-					if (alive) skills = { count: items.filter((item) => item.status === 'published').length };
+					if (!alive) return;
+					skills = { count: items.filter((item) => item.status === 'published').length };
+					skillItems = items;
 				})
 				.catch(() => {
 					if (alive) skills = { count: 0 };
@@ -236,6 +246,10 @@
 
 <PageHeader title={header.title} subtitle={header.subtitle} />
 
+<!-- W0.1: two columns from 1100 px (ต้องดูแล and ล่าสุด at the left; ภาพรวม and Skills ที่ใช้บ่อย at the right);
+     on a phone ต้องดูแล → ภาพรวม → ล่าสุด → Skills ที่ใช้บ่อย. The order is grid-template-areas, per breakpoint. -->
+<div class="home-layout" class:with-skills={skillsEnabled(data)}>
+
 {#if attentionCount > 0}
 	<section class="home-attention" aria-labelledby="home-attention-title">
 		<h2 id="home-attention-title">{t('ต้องดูแล', 'Needs attention')} <span class="home-count">{attentionCount}</span></h2>
@@ -268,9 +282,85 @@
 
 <HomeStatus {data} {events} {eventsError} onretry={loadActivity} {iconName} accounts={programAccounts} {ai} {aiApp} skills={skillsEnabled(data) ? (skills ?? { count: 0 }) : undefined} />
 
+{#if skillsEnabled(data)}
+	<section class="home-skills" aria-labelledby="home-skills-title">
+		<header class="home-skills-head">
+			<h2 id="home-skills-title">{t('Skills ที่ใช้บ่อย', 'Most used Skills')}</h2>
+			<a class="home-skills-all" href={localeHref('/app?view=skills')}>{t('ดูทั้งหมด', 'See all')}</a>
+		</header>
+		<div class="home-panel">
+			{#each topSkills as skill (skill.id)}
+				<a class="home-row home-skill" href={localeHref('/app?view=skills')}>
+					<div class="home-row-copy"><strong>{skill.name}</strong></div>
+					<small class="home-skill-uses">{t(`${skill.uses ?? 0} ครั้ง`, `${skill.uses ?? 0} times`)}</small>
+				</a>
+			{:else}
+				<p class="home-skill-none">{t('ยังไม่มี Skill', 'No Skills yet')}</p>
+			{/each}
+		</div>
+	</section>
+{/if}
+</div>
+
 <style>
+	.home-layout {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas: 'attention' 'overview' 'recent' 'skills';
+		align-items: start;
+		gap: 28px;
+	}
+	@media (min-width: 1100px) {
+		.home-layout {
+			grid-template-columns: minmax(0, 1fr) 360px;
+			grid-template-rows: auto auto 1fr;
+			grid-template-areas: 'attention overview' 'recent overview' 'recent skills';
+			column-gap: 24px;
+		}
+	}
 	.home-attention {
-		margin-bottom: 28px;
+		grid-area: attention;
+		min-width: 0;
+	}
+	.home-skills {
+		grid-area: skills;
+		min-width: 0;
+	}
+	.home-skills-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		margin-bottom: 10px;
+	}
+	.home-skills-head h2 {
+		margin: 0;
+		font-size: 16px;
+		font-weight: 600;
+	}
+	.home-skills-all {
+		color: var(--orca-muted);
+		font-size: 13px;
+		font-weight: 500;
+		text-decoration: none;
+	}
+	.home-skill {
+		color: var(--orca-ink);
+		text-decoration: none;
+	}
+	.home-skill:hover {
+		background: var(--orca-hover);
+		text-decoration: none;
+	}
+	.home-skill-uses {
+		flex: none;
+		color: var(--orca-muted);
+		font-size: 12.5px;
+	}
+	.home-skill-none {
+		margin: 0;
+		padding: 14px 16px;
+		color: var(--orca-muted);
+		font-size: 14px;
 	}
 	.home-attention h2 {
 		margin: 0 0 10px;

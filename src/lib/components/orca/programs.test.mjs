@@ -190,7 +190,8 @@ test('the programs list (W0: the approved card grid): logo, name, account type, 
 	// A company account that needs connecting again says so, in the same word as Home.
 	assert.match(centerSource, /\{#if reconnect\.has\(connection\.id\)\}<span class="programs-state warn"><i aria-hidden="true"><\/i>\{t\(RECONNECT_WORD\.th, RECONNECT_WORD\.en\)\}/);
 	assert.match(centerSource, /void OrcaService\.programAccounts\(\)/);
-	assert.match(centerSource, /grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/, 'three columns');
+	// W0.1: 280 px cards, as many as fit: 4 across at 1440 beside the rail.
+	assert.match(centerSource, /\.programs-grid \{\s*display: grid;\s*grid-template-columns: repeat\(auto-fill, minmax\(280px, 1fr\)\);/);
 	assert.match(centerSource.slice(centerSource.indexOf('@media (max-width: 720px)')), /\.programs-grid \{\s*grid-template-columns: minmax\(0, 1fr\);/, 'one on a phone');
 	assert.equal(calls[0].props.title, 'โปรแกรม');
 	assert.equal(typeof calls[0].props.action, 'function', 'เชื่อมโปรแกรม beside the title');

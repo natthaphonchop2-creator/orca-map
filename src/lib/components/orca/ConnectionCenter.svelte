@@ -286,9 +286,10 @@
 		font: inherit;
 		font-size: 13px;
 	}
+	/* W0.1: as many 280 px cards as fit: 4 across at 1440 with the rail, 3 when pinned, 1 on a phone. */
 	.programs-grid {
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 		gap: 12px;
 		margin: 0;
 		padding: 0;
@@ -499,11 +500,6 @@
 	}
 	@media (max-width: 1100px) {
 		.programs-start-grid {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-	}
-	@media (max-width: 1100px) {
-		.programs-grid {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 	}
