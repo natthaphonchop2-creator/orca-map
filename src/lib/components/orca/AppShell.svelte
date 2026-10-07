@@ -372,16 +372,11 @@
             href={localeHref(item.href)}
             onclick={closeDrawer}
             class:active={activeView === item.id}
-            class:workspace-nav-ai={item.id === "knowledge"}
             aria-current={activeView === item.id ? "page" : undefined}
             aria-label={item.count ? t(`${item.label} รออนุมัติ ${item.count} รายการ`, `${item.label}, ${item.count} waiting`) : item.label}
             title={item.label}
           >
-            {#if item.id === "knowledge"}
-              <span class="workspace-nav-ai-icon" aria-hidden="true"><item.icon size={16} strokeWidth={1.8} /></span>
-            {:else}
-              <item.icon size={18} strokeWidth={1.7} aria-hidden="true" />
-            {/if}
+            <item.icon size={18} strokeWidth={1.7} aria-hidden="true" />
             <span class="workspace-nav-label">{item.label}</span>
             {#if item.count}<span class="workspace-nav-count" aria-hidden="true">{item.count > 99 ? "99+" : item.count}</span>{/if}
           </a>
@@ -400,7 +395,7 @@
         aria-label={aiLine ? `${term("connectMyAI", t)} · ${aiLine}` : term("connectMyAI", t)}
         title={compact ? (aiLine ? `${term("connectMyAI", t)} · ${aiLine}` : term("connectMyAI", t)) : undefined}
       >
-        <span class="workspace-pin-icon" aria-hidden="true"><Sparkles size={17} strokeWidth={1.8} /></span>
+        <Sparkles size={18} strokeWidth={1.7} aria-hidden="true" />
         <span class="workspace-pin-copy">
           <strong>{term("connectMyAI", t)}</strong>
           <!-- Unknown (B1 not read, or not on this server): no state rather than a wrong one. -->
