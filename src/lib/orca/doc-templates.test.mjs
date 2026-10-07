@@ -232,3 +232,10 @@ test('a cut report counts rows from the server\'s totals (Codex code review 2)',
 	assert.equal(d.overflowRows(cut), 41, 'not just the 3 rows of the entry left');
 	assert.match(d.reportLine({ filled: [], cleared: [], keptTruncated: true }, false, th), /รายงานแสดงไม่ครบ/);
 });
+
+test('typeText never shows a raw type key to the reviewer', () => {
+	const th = (thai) => thai;
+	assert.equal(d.typeText('number', th), 'ตัวเลข');
+	assert.equal(d.typeText('integer', th), 'จำนวนเต็ม');
+	assert.equal(d.typeText('something-new', th), 'ชนิดอื่น');
+});

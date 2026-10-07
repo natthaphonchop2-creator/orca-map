@@ -310,7 +310,9 @@ export function typeText(type: string, t: Translate): string {
 	if (type === 'date') return t('วันที่', 'Date');
 	if (type === 'bool') return t('ใช่ / ไม่ใช่', 'Yes / no');
 	if (type === 'enum') return t('ตัวเลือก', 'Choice');
-	return type;
+	if (type === 'number') return t('ตัวเลข', 'Number');
+	// Never show a raw key such as "number" to the reviewer.
+	return t('ชนิดอื่น', 'Other type');
 }
 
 // ── Spec problems from the server ───────────────────────────────────
