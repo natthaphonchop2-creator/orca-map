@@ -116,6 +116,8 @@ export type CreateItem = {
 	/** "C แล้ว <key>": the letter's physical key (event.code `Key<key>`). */
 	key?: string;
 	manager?: boolean;
+	/** A manager row a member may also see when the bootstrap grants it (Skill: canCreateSkills). */
+	grant?: 'canCreateSkills';
 	flag?: keyof NonNullable<MenuFeatures>;
 	soon?: boolean;
 	/** The page it opens must exist in this build (เอกสาร arrives with kv2 phase 2a). */
@@ -130,10 +132,11 @@ export const CREATE_GROUPS: CreateItem[][] = [
 	[{ id: 'workspace', href: '/app?view=new', icon: 'workspaces', key: 'W', manager: true }],
 	[
 		{ id: 'program', href: '/app?view=servers&catalog=1', icon: 'mcp', key: 'P', manager: true },
-		{ id: 'workflow', href: '', icon: 'workflows', soon: true }
+		{ id: 'workflow', href: '', icon: 'workflows', soon: true, manager: true }
 	],
 	[
-		{ id: 'skill', href: '/app?view=skills', icon: 'skills', key: 'S', flag: 'skills' },
+		// Writing a Skill: managers; a member only with a manager's grant, which is not built yet (owner, W0.1).
+		{ id: 'skill', href: '/app?view=skills', icon: 'skills', key: 'S', flag: 'skills', manager: true, grant: 'canCreateSkills' },
 		{ id: 'agent', href: '', icon: 'agent', soon: true },
 		// Members add knowledge today too, so they keep the row (W0).
 		{ id: 'knowledge', href: '/app?view=knowledge&kind=knowledge&create=1', icon: 'knowledge', key: 'K' },
@@ -147,8 +150,9 @@ export const CREATE_GROUPS: CreateItem[][] = [
 ];
 
 /** The สร้าง menu for this viewer: `views` names the pages this build has. */
-export function createMenu(role: { canManage: boolean; features?: MenuFeatures; views: readonly string[] }): CreateItem[][] {
-	return CREATE_GROUPS.map((group) => group.filter((item) => visible(item, role) && (!item.view || role.views.includes(item.view)))).filter(
+export function createMenu(role: { canManage: boolean; canCreateSkills?: boolean; features?: MenuFeatures; views: readonly string[] }): CreateItem[][] {
+	const allowed = (item: CreateItem) => visible(item, role) || (!!item.grant && role[item.grant] === true && visible({ flag: item.flag }, role));
+	return CREATE_GROUPS.map((group) => group.filter((item) => allowed(item) && (!item.view || role.views.includes(item.view)))).filter(
 		(group) => group.length > 0
 	);
 }

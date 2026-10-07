@@ -9,7 +9,7 @@
   import { term } from "$lib/orca/glossary";
   import { createMenu, createShortcut, settingsEntries, workspaceSections, type JumpTarget, type NavIcon, type NavSectionID, type SettingsEntryID } from "$lib/orca/workspace-nav";
   import { createSequence, isJumpShortcut } from "$lib/orca/menu-keys";
-  import { createRail, type RailState } from "$lib/orca/rail";
+  import { createRail, railFocusTarget, type RailState } from "$lib/orca/rail";
   import {
     memberName,
     memberRole,
@@ -207,17 +207,34 @@
       return undefined;
     }
   };
-  let rail = $state<RailState>({ open: false, pinned: false });
-  const railControl = createRail({ storage, onchange: (state) => (rail = state) });
   let railElement: HTMLElement | undefined = $state();
+  let rail = $state<RailState>({ open: false, pinned: false });
+  // Before the panel collapses, focus leaves a control that hides on the
+  // 56 px rail (ตั้งค่า's caret and pages, the pin) for one that stays.
+  function keepFocusVisible() {
+    if (typeof document === "undefined") return;
+    railFocusTarget(document.activeElement as HTMLElement | null, railElement)?.focus();
+  }
+  const railControl = createRail({
+    storage,
+    onchange: (state) => {
+      const closing = rail.open && !state.open;
+      // The state first: moving focus fires focusin, which may open it again.
+      rail = state;
+      if (closing) keepFocusVisible();
+    },
+  });
   // Tooltips on the collapsed rail: the item's name beside it.
   let tip = $state<{ text: string; top: number }>();
-  function showTip(event: Event) {
+  function tipFor(element: Element | null | undefined) {
     if (rail.open) return;
-    const target = (event.target as Element | null)?.closest<HTMLElement>("[data-label]");
+    const target = element?.closest<HTMLElement>("[data-label]");
     if (!target || !railElement?.contains(target)) return;
     const box = target.getBoundingClientRect();
     tip = { text: target.dataset.label ?? "", top: box.top + box.height / 2 };
+  }
+  function showTip(event: Event) {
+    tipFor(event.target as Element | null);
   }
   function hideTip() {
     tip = undefined;
@@ -246,20 +263,37 @@
   function onRailKey(event: KeyboardEvent) {
     if (event.key === "Escape" && railControl.escape()) {
       event.preventDefault();
-      // The tooltip stays for a keyboard user (notes.md).
-      showTip(event);
+      // The tooltip stays for a keyboard user (notes.md), on the control focus is on now.
+      tipFor(document.activeElement);
     }
   }
 
   // ---------- The สร้าง menu and the shortcuts ----------
   const views = APP_VIEWS as readonly string[];
-  const createGroups = $derived(data && !platformMode ? createMenu({ canManage, features, views }) : []);
+  // Skills: managers, or a member a manager allowed (bootstrap canCreateSkills, which no server sends yet).
+  const createGroups = $derived(data && !platformMode ? createMenu({ canManage, canCreateSkills: data.canCreateSkills === true, features, views }) : []);
   const sequence = createSequence();
+  const menuOpen = () => creating || companyOpen || accountOpen;
+  // ⌘K from a row of an open menu: the row goes away with the menu, so the
+  // menu's own button is where focus returns when ไปที่… closes.
+  function leaveMenu() {
+    const trigger = (document.activeElement as Element | null)?.closest(".pm")?.querySelector<HTMLElement>(":scope > button");
+    creating = companyOpen = accountOpen = false;
+    trigger?.focus();
+  }
   function onShortcut(event: KeyboardEvent) {
     if (isJumpShortcut(event)) {
       event.preventDefault();
+      leaveMenu();
       closeDrawer();
       jumping = true;
+      return;
+    }
+    // Esc closes the topmost layer, one per press: a dialog (its own cancel),
+    // then a menu (PopMenu's own listener), then the rail opened by hover.
+    if (event.key === "Escape") {
+      if (event.defaultPrevented || jumping || drawer?.open || document.querySelector("dialog[open]") || menuOpen()) return;
+      if (railControl.escape()) event.preventDefault();
       return;
     }
     if (creating || companyOpen || accountOpen || jumping || drawer?.open || !createGroups.length) {

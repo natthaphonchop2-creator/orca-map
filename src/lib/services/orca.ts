@@ -170,6 +170,8 @@ export interface OrcaBootstrap {
   currentUserID: string;
   canManage: boolean;
   canManageRoles?: boolean;
+  /** A member a manager allowed to write Skills (owner decision, W0.1). Not built yet: no server sends it, so only managers see สร้าง › Skill. */
+  canCreateSkills?: boolean;
   canReviewPilotRequests?: boolean;
   /** Suspending, restoring and removing members. In the default company that changes the person's account, so only the platform operator may. */
   canChangeMemberStatus?: boolean;

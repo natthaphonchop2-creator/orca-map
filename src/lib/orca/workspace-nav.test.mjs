@@ -52,8 +52,19 @@ test('the สร้าง menu by role and flag: groups with hairlines, a group 
 	assert.ok(!menu({ canManage: true, features: { docTemplates: true }, views: [] }).join(' ').includes('template'));
 	assert.ok(!menu({ canManage: true, features: {}, views: ['documents'] }).join(' ').includes('template'));
 	// Members: only what they may use; no manager rows, no empty groups.
-	assert.deepEqual(menu({ canManage: false }), ['workflow (soon)', 'agent (soon) knowledge ai']);
-	assert.deepEqual(menu({ canManage: false, features: { skills: true, docTemplates: true }, views: ['documents'] }), ['workflow (soon)', 'skill agent (soon) knowledge ai']);
+	assert.deepEqual(menu({ canManage: false }), ['agent (soon) knowledge ai']);
+	assert.deepEqual(menu({ canManage: false, features: { skills: true, docTemplates: true }, views: ['documents'] }), ['agent (soon) knowledge ai']);
+	for (const role of [{ canManage: false }, { canManage: false, features: { skills: true, docTemplates: true }, views: ['documents'] }, { canManage: false, canCreateSkills: 'true', features: { skills: true } }, { canManage: false, canCreateSkills: true }]) {
+		const rows = createMenu({ views: [], ...role }).flat().map((item) => item.id);
+		for (const id of ['workspace', 'program', 'workflow', 'skill', 'template', 'invite', 'account']) assert.ok(!rows.includes(id), `a member never sees ${id}: ${JSON.stringify(role)}`);
+	}
+	// Skill: a member a manager allowed (bootstrap canCreateSkills, exactly true; not built yet), and only with the Skills feature.
+	assert.deepEqual(menu({ canManage: false, canCreateSkills: true, features: { skills: true } }), ['skill agent (soon) knowledge ai']);
+	assert.equal(createShortcut(createMenu({ canManage: false, canCreateSkills: true, features: { skills: true }, views: [] }), 'KeyS').id, 'skill');
+	assert.equal(createShortcut(createMenu({ canManage: false, features: { skills: true }, views: [] }), 'KeyS'), undefined, 'no C then S for a member without the grant');
+	// Workflow is the managers' (W0), even while it is coming soon.
+	assert.equal(CREATE_GROUPS.flat().find((item) => item.id === 'workflow').manager, true);
+	assert.equal(CREATE_GROUPS.flat().find((item) => item.id === 'skill').manager, true);
 	// Every live row leads to a page that exists today.
 	const hrefs = Object.fromEntries(CREATE_GROUPS.flat().map((item) => [item.id, item.href]));
 	assert.deepEqual(hrefs, {
@@ -200,4 +211,85 @@ test('the rail: the pin keeps it open, is remembered, and survives a broken stor
 	offline.togglePin();
 	assert.deepEqual(offline.state, { open: true, pinned: true });
 	offline.dispose();
+});
+
+test('the rail: keyboard focus inside keeps it open when the pointer leaves; it closes when focus leaves too', () => {
+	const { rail, run } = fakeRail();
+	rail.pointerEnter();
+	run(railModule.RAIL_OPEN_MS);
+	rail.focusIn(true);
+	rail.pointerLeave();
+	run(railModule.RAIL_CLOSE_MS);
+	assert.equal(rail.state.open, true, 'a keyboard user is still in it');
+	rail.focusOut();
+	assert.equal(rail.state.open, false);
+	// Focus leaves while the pointer is still over it: it stays open for the pointer.
+	rail.pointerEnter();
+	run(railModule.RAIL_OPEN_MS);
+	rail.focusIn(true);
+	rail.focusOut();
+	assert.equal(rail.state.open, true);
+	rail.pointerLeave();
+	run(railModule.RAIL_CLOSE_MS);
+	assert.equal(rail.state.open, false);
+	// A click's focus does not hold it open: leaving closes it (the shell moves that focus first).
+	rail.pointerEnter();
+	run(railModule.RAIL_OPEN_MS);
+	rail.focusIn(false);
+	rail.pointerLeave();
+	run(railModule.RAIL_CLOSE_MS);
+	assert.equal(rail.state.open, false);
+});
+
+test('the rail: unpinning with the pointer or keyboard focus on it keeps it open as a hover panel', () => {
+	let { rail, run } = fakeRail('1');
+	rail.focusIn(true);
+	rail.togglePin();
+	assert.deepEqual(rail.state, { open: true, pinned: false }, 'the pin button a keyboard user pressed stays on screen');
+	rail.focusOut();
+	assert.deepEqual(rail.state, { open: false, pinned: false });
+	({ rail, run } = fakeRail('1'));
+	rail.pointerEnter();
+	rail.togglePin();
+	assert.deepEqual(rail.state, { open: true, pinned: false });
+	rail.pointerLeave();
+	run(railModule.RAIL_CLOSE_MS);
+	assert.equal(rail.state.open, false);
+	({ rail } = fakeRail('1'));
+	rail.togglePin();
+	assert.deepEqual(rail.state, { open: false, pinned: false }, 'nobody on it: it closes');
+});
+
+test('before the rail collapses, focus on a control it hides moves to one it keeps', () => {
+	const node = (name, { matches = [], parent = null, children = {} } = {}) => {
+		const self = {
+			name,
+			parent,
+			previousElementSibling: null,
+			matches: (selector) => matches.includes(selector),
+			closest: (selector) => {
+				for (let at = self; at; at = at.parent) if (at.matches(selector)) return at;
+				return null;
+			},
+			querySelector: (selector) => children[selector] ?? null
+		};
+		return self;
+	};
+	const settingsLink = node('settings link');
+	const brand = node('brand');
+	const group = node('group', { matches: ['.w1-group'], children: { 'a.w1-item': settingsLink } });
+	const sub = node('sub', { matches: ['.w1-sub'] });
+	sub.previousElementSibling = group;
+	const subitem = node('ทีม', { parent: sub });
+	const caret = node('caret', { matches: ['.w1-caret'], parent: group });
+	const pin = node('pin', { matches: ['.w1-pin'] });
+	const home = node('หน้าหลัก');
+	const inside = new Set([subitem, caret, pin, home, settingsLink, brand]);
+	const railNode = { ...node('rail', { children: { '.w1-brand': brand } }), contains: (item) => inside.has(item) };
+	assert.equal(railModule.railFocusTarget(subitem, railNode), settingsLink, 'ตั้งค่า › ทีม → the ตั้งค่า icon');
+	assert.equal(railModule.railFocusTarget(caret, railNode), settingsLink, 'the caret → the ตั้งค่า icon');
+	assert.equal(railModule.railFocusTarget(pin, railNode), brand, 'the pin → the ORCA mark beside it');
+	assert.equal(railModule.railFocusTarget(home, railNode), null, 'an icon the rail keeps: stays');
+	assert.equal(railModule.railFocusTarget(node('main'), railNode), null, 'focus outside the rail: untouched');
+	assert.equal(railModule.railFocusTarget(null, railNode), null);
 });

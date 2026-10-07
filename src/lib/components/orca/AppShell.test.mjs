@@ -259,7 +259,12 @@ test('the สร้าง menu by role and flag: groups with hairlines, shortcut
 	assert.deepEqual(createRows(html), ['workspace', 'program', 'workflow', 'skill', 'agent', 'knowledge', 'ai', 'invite', 'account']);
 	// Members: only what they may use.
 	({ html } = await renderShell({ data, companies: [companies[1]], account: '7' }));
-	assert.deepEqual(createRows(html), ['workflow', 'agent', 'knowledge', 'ai']);
+	assert.deepEqual(createRows(html), ['agent', 'knowledge', 'ai']);
+	// No Workflow and no Skill for members (W0); Skill only with a manager's grant, which no server sends yet.
+	({ html } = await renderShell({ data: { ...data, features: { skills: true } }, companies: [companies[1]], account: '7' }));
+	assert.deepEqual(createRows(html), ['agent', 'knowledge', 'ai']);
+	({ html } = await renderShell({ data: { ...data, canCreateSkills: true, features: { skills: true } }, companies: [companies[1]], account: '7' }));
+	assert.deepEqual(createRows(html), ['skill', 'agent', 'knowledge', 'ai']);
 	const css = await readFile(new URL('./shell/CreateMenu.svelte', import.meta.url), 'utf8');
 	assert.match(css, /\.cm-hint \{[^}]*color: var\(--orca-subtle\);\s*font-size: 11\.5px;/, 'lighter hints (review-landing 7)');
 	assert.match(css, /\.cm-group \+ \.cm-group \{[^}]*border-top: 1px solid var\(--orca-line\);/);
@@ -289,10 +294,60 @@ test('the top-bar menus: anchored under their button, arrows over the rows, Esc 
 	const source = await readFile(new URL('./shell/PopMenu.svelte', import.meta.url), 'utf8');
 	assert.match(source, /aria-haspopup=\{kind === 'menu' \? 'menu' : 'dialog'\}\s*aria-expanded=\{open\}\s*aria-controls=\{id\}/);
 	assert.match(source, /if \(event\.key === 'Escape'\) \{\s*event\.preventDefault\(\);\s*event\.stopPropagation\(\);\s*close\(true\);/, 'Esc returns focus to the button');
-	assert.match(source, /if \(event\.key === 'Tab'\) \{\s*close\(\);/);
+	assert.match(source, /if \(event\.key === 'Tab'\) \{\s*\/\/[^\n]*\n\s*if \(!modal\) close\(\);\s*return;/, 'Tab closes a dropdown; the phone sheet keeps it inside');
 	assert.match(source, /const next = menuMove\(list\.map\(\(row\) => row\.getAttribute\('aria-disabled'\) === 'true'\), current, event\.key\);/, 'greyed rows are skipped');
 	assert.match(source, /if \(event\.detail === 0\) void focusRow\('first'\);/, 'Enter or Space lands on the first row');
 	assert.match(source, /\.pm-menu \{\s*position: absolute;\s*top: calc\(100% \+ 6px\);/, 'a menu, not a modal');
-	assert.match(source.slice(source.indexOf('@media (max-width: 720px)')), /\.pm-menu\.sheet \{\s*position: fixed;[\s\S]*?bottom: 0;/, 'a bottom sheet on a phone');
-	assert.doesNotMatch(source, /showModal/);
+	// The dropdown is never modal; only the phone sheet is.
+	const dropdown = source.slice(source.indexOf('{:else if open}'), source.indexOf('</div>\n\t{/if}'));
+	assert.match(dropdown, /class="pm-menu align-\{align\}"/);
+	assert.doesNotMatch(dropdown, /<dialog/);
+	assert.equal(source.match(/showModal\(\)/g)?.length, 1, 'one modal: the phone sheet');
+});
+
+test('the phone สร้าง sheet is a modal dialog: focus trapped, the page inert, focus back to the button (Codex W0.1 round 1)', async () => {
+	const source = await readFile(new URL('./shell/PopMenu.svelte', import.meta.url), 'utf8');
+	assert.match(source, /const query = window\.matchMedia\('\(max-width: 720px\)'\);/);
+	assert.match(source, /const modal = \$derived\(!!sheet && phone\);/);
+	assert.match(source, /\{#if open && modal\}[\s\S]*?<dialog\s+bind:this=\{sheetDialog\}\s+class="pm-sheet"\s+aria-labelledby="pm-sheet-title-\{uid\}"/);
+	// showModal() makes everything behind it inert; the dialog's Tab trap keeps focus inside.
+	assert.match(source, /element\.showModal\(\);\s*void focusRow\('first'\);/);
+	// Tab goes between the close button and the menu; it never leaves the sheet.
+	assert.match(source, /onkeydown=\{onSheetKey\}/);
+	assert.match(source, /function onSheetKey\(event: KeyboardEvent\) \{\s*if \(event\.key !== 'Tab'\) return;\s*event\.preventDefault\(\);\s*if \(document\.activeElement === closeButton\) void focusRow\('first'\);\s*else closeButton\?\.focus\(\);/);
+	// Esc (cancel), the scrim and the close button all return focus to the button, after the modal is gone.
+	assert.match(source, /oncancel=\{\(event\) => \{\s*event\.preventDefault\(\);\s*close\(true\);/);
+	assert.match(source, /if \(event\.target === sheetDialog\) close\(true\);/);
+	assert.match(source, /if \(sheetDialog\?\.open\) sheetDialog\.close\(\);\s*open = false;\s*if \(refocus\) trigger\?\.focus\(\);/);
+	assert.match(source, /\.pm-sheet \{\s*position: fixed;\s*inset: auto 0 0 0;/, 'at the bottom of the screen');
+	assert.match(source, /\.pm-sheet::backdrop \{\s*background: var\(--orca-scrim/);
+	assert.doesNotMatch(source, /pm-scrim/, 'no fake scrim button: the dialog\'s backdrop');
+});
+
+test('Esc closes the topmost layer from anywhere: a dialog, then a menu, then the rail opened by hover (Codex W0.1 round 1)', async () => {
+	const pop = await readFile(new URL('./shell/PopMenu.svelte', import.meta.url), 'utf8');
+	// An open menu listens on the document, so one opened with the pointer closes too, and focus goes back to its button.
+	assert.match(pop, /const escape = \(event: KeyboardEvent\) => \{\s*if \(event\.key !== 'Escape' \|\| event\.defaultPrevented\) return;\s*event\.preventDefault\(\);\s*close\(true\);/);
+	assert.match(pop, /document\.addEventListener\('keydown', escape\);/);
+	assert.match(pop, /document\.removeEventListener\('keydown', escape\);/);
+	const source = await readFile(shell, 'utf8');
+	const handler = source.slice(source.indexOf('function onShortcut('), source.indexOf('// ไปที่…: the pages'));
+	// The shell's document handler leaves dialogs and menus to themselves, then closes an unpinned rail.
+	assert.match(handler, /if \(event\.key === "Escape"\) \{\s*if \(event\.defaultPrevented \|\| jumping \|\| drawer\?\.open \|\| document\.querySelector\("dialog\[open\]"\) \|\| menuOpen\(\)\) return;\s*if \(railControl\.escape\(\)\) event\.preventDefault\(\);/);
+	assert.match(source, /const menuOpen = \(\) => creating \|\| companyOpen \|\| accountOpen;/);
+});
+
+test('the rail never hides the control focus is on: ตั้งค่า pages and the pin hand focus to an icon it keeps (Codex W0.1 round 1)', async () => {
+	const source = await readFile(shell, 'utf8');
+	assert.match(source, /onchange: \(state\) => \{\s*const closing = rail\.open && !state\.open;[\s\S]*?rail = state;\s*if \(closing\) keepFocusVisible\(\);/, 'on every collapse: Esc, leaving, unpinning');
+	assert.match(source, /railFocusTarget\(document\.activeElement as HTMLElement \| null, railElement\)\?\.focus\(\);/);
+	// After Esc the tooltip names the control focus is on now.
+	assert.match(source, /if \(event\.key === "Escape" && railControl\.escape\(\)\) \{\s*event\.preventDefault\(\);[^\n]*\n?\s*(?:\/\/[^\n]*\n\s*)?tipFor\(document\.activeElement\);/);
+});
+
+test('⌘K from a row of an open menu: the menu closes and ไปที่… returns focus to the menu\'s button (Codex W0.1 round 1)', async () => {
+	const source = await readFile(shell, 'utf8');
+	assert.match(source, /function leaveMenu\(\) \{\s*const trigger = \(document\.activeElement as Element \| null\)\?\.closest\("\.pm"\)\?\.querySelector<HTMLElement>\(":scope > button"\);\s*creating = companyOpen = accountOpen = false;\s*trigger\?\.focus\(\);/);
+	const handler = source.slice(source.indexOf('function onShortcut('), source.indexOf('// ไปที่…: the pages'));
+	assert.match(handler, /if \(isJumpShortcut\(event\)\) \{\s*event\.preventDefault\(\);\s*leaveMenu\(\);\s*closeDrawer\(\);\s*jumping = true;/, 'the button is focused before ไปที่… remembers where to return');
 });
