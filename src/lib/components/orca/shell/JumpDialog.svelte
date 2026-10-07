@@ -68,6 +68,9 @@
 		}
 	});
 	function closed() {
+		// A close event that arrives after the dialog was opened again (Esc, then ⌘K at once):
+		// it belongs to the earlier closing, so the dialog open now stays open.
+		if (dialog?.open) return;
 		open = false;
 		const back = restore;
 		restore = undefined;

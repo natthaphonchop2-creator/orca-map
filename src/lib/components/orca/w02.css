@@ -106,10 +106,12 @@
 }
 
 /* ---------- Phone: tap targets of at least 40 px ---------- */
-/* Buttons, rows, fields, and every tab bar, segment and filter chip (Codex W0.2 round 1, MINOR 3). */
+/* Buttons, rows, fields, and every tab bar, segment and filter chip (Codex W0.2 round 1, MINOR 3).
+   !important: it must beat a component's own `min-height: … !important` on its buttons
+   (คลังความรู้'s เพิ่มความรู้, the editor's actions; Codex W0.2 round 2, NOTE). */
 @media (pointer: coarse) {
   .orca-workspace.orca-app.orca-w0 :is(.k-button, .w1-item, .w1-menu-row, .cm-row, .k-field input:not([type='checkbox']):not([type='radio']), .k-field select) {
-    min-height: 40px;
+    min-height: 40px !important;
   }
   .orca-workspace.orca-app.orca-w0 :is(
       .orca-page-tabs a, .team-tabs button, .approvals-tabs button, .audit-tabs a, .detail-tabs a, .settings-tabs a, .oversight-tabs a,

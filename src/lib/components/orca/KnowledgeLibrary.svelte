@@ -6,7 +6,7 @@
 	import { aiConnectionAppFor, aiConnectionReaches } from '$lib/orca/ai-connection';
 	import { aiConnection } from '$lib/orca/ai-connection.svelte';
 	import { currentCompany } from '$lib/orca/company';
-	import { forgetWorkspace, refusedStatus, rememberLibrary } from '$lib/orca/jump-cache.svelte';
+	import { forgetWorkspace, refusedStatus, rememberLibrary, workspaceToken } from '$lib/orca/jump-cache.svelte';
 	import { term } from '$lib/orca/glossary';
 	import {
 		accessRequestMessage,
@@ -203,10 +203,20 @@
 
 	// ค้นหา… lists the titles this page loaded (W0.2): kept in step with the list, cleared when it goes.
 	// (The write is untracked: the cache is read while it is replaced, which must not run this again.)
+	// Written with the token of the load the list came from: a refusal since then (here or in
+	// ค้นหา…'s own load) keeps these titles out (Codex W0.2 round 2, MAJOR).
+	let cacheToken = { hubID: '', token: 0 };
+	/** The library, asked for with the workspace's ค้นหา… token taken as the ask starts. */
+	async function loadLibrary(id: string) {
+		const token = workspaceToken(id);
+		const result = await OrcaLibraryService.load(id);
+		if (cacheToken.hubID !== id || token > cacheToken.token) cacheToken = { hubID: id, token };
+		return result;
+	}
 	$effect(() => {
 		const id = hub?.id ?? '';
 		const list = items;
-		if (id && loadedHub === id) untrack(() => rememberLibrary(id, list));
+		if (id && loadedHub === id) untrack(() => rememberLibrary(id, list, cacheToken.hubID === id ? cacheToken.token : -1));
 	});
 	// ค้นหา…'s link to one item (&item=): each navigation is its own request (A, B, then A
 	// again opens A; Codex W0.2 round 1, MAJOR 2), handled once the library is loaded.
@@ -243,7 +253,7 @@
 		const seen = freshness;
 		if (!quiet) error = '';
 		try {
-			const result = await OrcaLibraryService.load(id);
+			const result = await loadLibrary(id);
 			if (request !== requestNumber || disposed) return;
 			// A fresher answer came meanwhile (a save, an upload…): this list is older; ask again.
 			if (seen !== freshness) {
@@ -306,7 +316,7 @@
 		const request = ++requestNumber;
 		const seen = freshness;
 		try {
-			const result = await OrcaLibraryService.load(id);
+			const result = await loadLibrary(id);
 			if (request !== requestNumber || hub?.id !== id) return 'unknown';
 			// A fresher list came meanwhile (a delete, a save…): this one is older; check again (Codex S7 eighth confirmation #2).
 			if (seen !== freshness) return await recheck();
@@ -441,7 +451,7 @@
 		const request = ++readingRequest;
 		const seen = freshness;
 		try {
-			const result = await OrcaLibraryService.load(id);
+			const result = await loadLibrary(id);
 			if (disposed || request !== readingRequest || hub?.id !== id) return;
 			// Older than the list now: dropped, and the asking goes on from the list (Codex S7 seventh confirmation #3).
 			if (seen !== freshness) {

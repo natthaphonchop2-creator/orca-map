@@ -101,10 +101,10 @@ test('a refused workspace (401, 403, 404, 423) is cleared; another failure is si
 		assert.deepEqual(cache.jumpCache.templates, [], `${status}: its templates go too`);
 		assert.equal(cache.jumpCache.loading, false);
 	}
-	// A refused template list clears only the templates.
+	// A refused template list is a refused workspace too: all its titles go (Codex W0.2 round 2).
 	cache.resetJumpCache();
 	await warm({ hubIDs: ['sales'], templates: true, loadTemplates: async () => { throw refusal(403); } }).run;
-	assert.equal(cache.jumpCache.knowledge.length, 1);
+	assert.equal(cache.jumpCache.knowledge.length, 0);
 	assert.equal(cache.jumpCache.templates.length, 0);
 	// A network failure: nothing thrown, retried on the next opening, and no more after that.
 	cache.resetJumpCache();
@@ -152,4 +152,43 @@ test('an answer that comes after the viewer lost the workspace is dropped; a new
 	const next = warm({ hubIDs: ['team', 'hr'] });
 	await next.run;
 	assert.deepEqual(next.calls.library, ['team', 'hr']);
+});
+
+// Codex W0.2 round 2, MAJOR: a success admitted before a refusal answers after it. The
+// refusal moves the workspace's generation on, and every write checks it, whichever load
+// was refused and whichever answered late.
+test('a refusal, then a late success of the other load: nothing comes back (library refused first, or templates refused first)', async () => {
+	for (const refused of ['library', 'templates']) {
+		cache.resetJumpCache();
+		cache.keepWorkspaces(['sales']);
+		const library = deferred();
+		const templates = deferred();
+		const { run } = warm({ hubIDs: ['sales'], templates: true, loadLibrary: () => library.promise, loadTemplates: () => templates.promise, usable: () => true });
+		const [first, late] = refused === 'library' ? [library, templates] : [templates, library];
+		first.reject(refusal(403));
+		await new Promise((resolve) => setImmediate(resolve));
+		late.resolve(refused === 'library' ? [{ id: 't', title: 'แม่แบบ ฝ่ายขาย' }] : { items: [article('a', 'นโยบาย ฝ่ายขาย')] });
+		await run;
+		assert.deepEqual(cache.jumpCache.knowledge, [], `${refused} refused first: no knowledge comes back`);
+		assert.deepEqual(cache.jumpCache.templates, [], `${refused} refused first: no templates come back`);
+		assert.deepEqual(search('ฝ่ายขาย'), ['workspace: ฝ่ายขาย'], 'only the bootstrap place, which the bootstrap still lists');
+	}
+});
+
+test('the pages write with the token of the load they began: a refusal meanwhile keeps their answer out; a new load writes again', () => {
+	cache.resetJumpCache();
+	const token = cache.workspaceToken('sales');
+	cache.forgetWorkspace('sales'); // the search's own load was refused meanwhile
+	assert.equal(cache.rememberLibrary('sales', [article('a', 'นโยบาย')], token), false, 'the page’s older answer is not written');
+	assert.equal(cache.rememberTemplates('sales', [{ id: 't', title: 'แม่แบบ' }], token), false);
+	assert.deepEqual([cache.jumpCache.knowledge, cache.jumpCache.templates], [[], []]);
+	// A load that begins after the refusal (the page asked again and was let in) writes.
+	assert.equal(cache.rememberLibrary('sales', [article('b', 'นโยบายใหม่')], cache.workspaceToken('sales')), true);
+	assert.deepEqual(cache.jumpCache.knowledge.map((item) => item.id), ['b']);
+	// Losing the workspace moves its generation on as well.
+	cache.keepWorkspaces(['sales']);
+	const before = cache.workspaceToken('sales');
+	cache.keepWorkspaces([]);
+	assert.ok(cache.workspaceToken('sales') > before);
+	assert.equal(cache.rememberLibrary('sales', [article('c', 'x')], before), false);
 });

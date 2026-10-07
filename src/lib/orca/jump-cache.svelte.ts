@@ -25,14 +25,35 @@ function titles(hubID: string, items: readonly { id?: unknown; title?: unknown; 
 		.map((item) => ({ id: item.id as string, title: (item.title as string).trim(), hubID, kind: typeof item.kind === 'string' ? item.kind : undefined }));
 }
 
-/** The library of one workspace, as it was just loaded: it replaces what was known of that workspace. */
-export function rememberLibrary(hubID: string, items: Parameters<typeof titles>[1]) {
-	jumpCache.knowledge = [...jumpCache.knowledge.filter((item) => item.hubID !== hubID), ...titles(hubID, items)];
+// Each workspace's generation: a refusal of any of its loads, or the viewer losing it,
+// moves it on. A load takes the token when it starts, and its answer is written only
+// while the token still holds, so a success admitted before a refusal can never put
+// back what the refusal took away (Codex W0.2 round 2, MAJOR).
+const generations = new Map<string, number>();
+/** The workspace's generation now: take it when a load starts, pass it with the answer. */
+export function workspaceToken(hubID: string): number {
+	return generations.get(hubID) ?? 0;
+}
+function invalidate(hubID: string) {
+	generations.set(hubID, workspaceToken(hubID) + 1);
 }
 
-/** The document templates of one workspace, as just loaded. */
-export function rememberTemplates(hubID: string, items: Parameters<typeof titles>[1]) {
+/**
+ * The library of one workspace, as a load just answered: it replaces what was known of
+ * that workspace, unless the workspace was refused or lost since the load began (its
+ * token). Without a token the write is for the answer of now.
+ */
+export function rememberLibrary(hubID: string, items: Parameters<typeof titles>[1], token = workspaceToken(hubID)): boolean {
+	if (token !== workspaceToken(hubID)) return false;
+	jumpCache.knowledge = [...jumpCache.knowledge.filter((item) => item.hubID !== hubID), ...titles(hubID, items)];
+	return true;
+}
+
+/** The document templates of one workspace, as a load just answered; the same token rule. */
+export function rememberTemplates(hubID: string, items: Parameters<typeof titles>[1], token = workspaceToken(hubID)): boolean {
+	if (token !== workspaceToken(hubID)) return false;
 	jumpCache.templates = [...jumpCache.templates.filter((item) => item.hubID !== hubID), ...titles(hubID, items)];
+	return true;
 }
 
 /** The platform's customer companies, as its overview or บริษัทลูกค้า just listed them (operators only). */
@@ -43,14 +64,13 @@ export function rememberCompanies(items: readonly { id?: unknown; displayName?: 
 		.map((item) => ({ id: item.id as string, displayName: (item.displayName as string).trim() }));
 }
 
-/** A workspace's load was refused (or it is gone): its titles go. */
+/**
+ * A load of the workspace was refused (its library or its templates), or it is gone:
+ * all its titles go, and every answer still on its way for it is refused too.
+ */
 export function forgetWorkspace(hubID: string) {
+	invalidate(hubID);
 	jumpCache.knowledge = jumpCache.knowledge.filter((item) => item.hubID !== hubID);
-	jumpCache.templates = jumpCache.templates.filter((item) => item.hubID !== hubID);
-}
-
-/** A workspace's template list was refused: only its templates go. */
-export function forgetTemplates(hubID: string) {
 	jumpCache.templates = jumpCache.templates.filter((item) => item.hubID !== hubID);
 }
 
@@ -72,6 +92,7 @@ let generation = 0;
  */
 export function keepWorkspaces(usable: readonly string[]) {
 	const keep = new Set(usable);
+	for (const hubID of usableKey.split(' ')) if (hubID && !keep.has(hubID)) invalidate(hubID);
 	if (jumpCache.knowledge.some((item) => !keep.has(item.hubID))) jumpCache.knowledge = jumpCache.knowledge.filter((item) => keep.has(item.hubID));
 	if (jumpCache.templates.some((item) => !keep.has(item.hubID))) jumpCache.templates = jumpCache.templates.filter((item) => keep.has(item.hubID));
 	const key = [...keep].sort().join(' ');
@@ -114,33 +135,35 @@ export async function warmJumpCache(input: {
 	jumpCache.loading = true;
 	const round = generation;
 	let failed = false;
-	// A refused library clears the workspace; a refused template list only its templates.
-	const fail = (hubID: string, cause: unknown, templates = false) => {
-		if (round !== generation) return;
-		if (!refusedStatus(input.status(cause))) failed = true;
-		else if (templates) forgetTemplates(hubID);
-		else forgetWorkspace(hubID);
+	// Any refusal (401, 403, 404, 423) of either load clears the workspace and moves its
+	// generation on, so the other load's late success is not written.
+	const fail = (hubID: string, cause: unknown) => {
+		if (refusedStatus(input.status(cause))) forgetWorkspace(hubID);
+		else if (round === generation) failed = true;
 	};
 	const live = (hubID: string) => round === generation && (input.usable?.(hubID) ?? true);
 	await Promise.all(
-		hubs.flatMap((hubID) => [
-			input.loadLibrary(hubID).then(
-				(answer) => {
-					if (live(hubID)) rememberLibrary(hubID, answer?.items);
-				},
-				(cause) => fail(hubID, cause)
-			),
-			...(input.templates
-				? [
-						input.loadTemplates(hubID).then(
-							(list) => {
-								if (live(hubID)) rememberTemplates(hubID, list);
-							},
-							(cause) => fail(hubID, cause, true)
-						)
-					]
-				: [])
-		])
+		hubs.flatMap((hubID) => {
+			const token = workspaceToken(hubID);
+			return [
+				input.loadLibrary(hubID).then(
+					(answer) => {
+						if (live(hubID)) rememberLibrary(hubID, answer?.items, token);
+					},
+					(cause) => fail(hubID, cause)
+				),
+				...(input.templates
+					? [
+							input.loadTemplates(hubID).then(
+								(list) => {
+									if (live(hubID)) rememberTemplates(hubID, list, token);
+								},
+								(cause) => fail(hubID, cause)
+							)
+						]
+					: [])
+			];
+		})
 	);
 	if (round !== generation) return;
 	jumpCache.loading = false;
@@ -157,4 +180,5 @@ export function resetJumpCache() {
 	attempts = 0;
 	usableKey = '';
 	generation += 1;
+	generations.clear();
 }

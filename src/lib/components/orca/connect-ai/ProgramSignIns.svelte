@@ -250,7 +250,6 @@
 	}
 	.ca-go {
 		flex: none;
-		min-height: 32px !important;
 		padding: 0 12px !important;
 		font-weight: 600 !important;
 	}

@@ -12,7 +12,7 @@
 	} from '$lib/orca/doc-templates';
 	import { saveBlob } from '$lib/download';
 	import { term } from '$lib/orca/glossary';
-	import { forgetTemplates, refusedStatus, rememberTemplates } from '$lib/orca/jump-cache.svelte';
+	import { forgetWorkspace, refusedStatus, rememberTemplates, workspaceToken } from '$lib/orca/jump-cache.svelte';
 	import { BookOpen, Download, FileSpreadsheet, Files, Upload, Zap } from '@lucide/svelte';
 	import { getHttpStatusCode } from '$lib/errors';
 	import { ORCA_SUPPORT_LINE_ID } from '$lib/orca/support';
@@ -52,6 +52,8 @@
 
 	async function load(id: string) {
 		const number = ++request;
+		// ค้นหา…'s token for this workspace as the ask starts: a refusal meanwhile keeps the answer out.
+		const token = workspaceToken(id);
 		error = '';
 		try {
 			const [list, files, managed] = await Promise.all([
@@ -61,15 +63,15 @@
 			]);
 			if (number !== request) return;
 			templates = list;
-			untrack(() => rememberTemplates(id, list));
+			untrack(() => rememberTemplates(id, list, token));
 			mine = liveDocuments(files, Date.now());
 			everyone = liveDocuments(managed, Date.now());
 			loaded = id;
 		} catch (cause) {
 			if (number !== request) return;
 			error = orcaError(cause);
-			// Refused: ค้นหา… drops this workspace's templates.
-			if (refusedStatus(getHttpStatusCode(cause))) untrack(() => forgetTemplates(id));
+			// Refused: ค้นหา… drops this workspace's titles, and any answer still on its way for it.
+			if (refusedStatus(getHttpStatusCode(cause))) untrack(() => forgetWorkspace(id));
 		}
 	}
 	$effect(() => {

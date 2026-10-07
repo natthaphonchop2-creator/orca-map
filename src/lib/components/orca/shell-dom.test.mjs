@@ -281,3 +281,25 @@ test('on a touch screen the tab bars and segments are at least 40 px tall (ท�
 		await browser.close();
 	}
 });
+
+// Codex W0.2 round 2, NOTE: a page button with its own `min-height: … !important`
+// (คลังความรู้'s เพิ่มความรู้) still keeps 40 px on a touch screen; 32 px with a mouse.
+test('on a touch screen คลังความรู้\'s add button is at least 40 px; with a mouse it is 32 px', { skip }, async () => {
+	const { chromium } = createRequire(import.meta.url)(PLAYWRIGHT);
+	const browser = await chromium.launch();
+	try {
+		const hubs = [{ id: 'sales', name: 'Sales desk', status: 'active', memberIDs: ['7'], effectiveMemberIDs: ['7'], unitIDs: [], toolNames: [], connectionID: '', dailyLimit: 0, version: 1, createdAt: '', updatedAt: '', connectURL: '', usedToday: 0, description: '' }];
+		const answer = async (p) => (p === '/orca/hubs/sales/library' ? [200, { items: [], departments: [], members: [] }] : undefined);
+		const height = async (options, viewport) => {
+			const { context, page } = await open(browser, viewport, { boot: { ...bootstrap, hubs }, answer, target: '/app?view=knowledge', ...options });
+			await page.waitForSelector('.kn-add');
+			const value = await page.$eval('.kn-add', (node) => node.getBoundingClientRect().height);
+			await context.close();
+			return value;
+		};
+		assert.ok((await height({ hasTouch: true, isMobile: true }, { width: 390, height: 844 })) >= 40, 'touch: 40 px or more');
+		assert.equal(Math.round(await height({}, { width: 1440, height: 900 })), 32, 'mouse: the 32 px control');
+	} finally {
+		await browser.close();
+	}
+});

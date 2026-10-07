@@ -192,7 +192,6 @@
 	}
 	.fz-pick {
 		margin: 8px 0 4px;
-		min-height: 32px !important;
 		padding: 0 12px !important;
 		font-weight: 600 !important;
 	}
