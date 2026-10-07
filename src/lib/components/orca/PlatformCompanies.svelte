@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
-  import { Building2, Check, Copy, ExternalLink, Files, Link2, MailPlus, Plus, Send, TriangleAlert, X } from "@lucide/svelte";
+  import { Building2, Check, Copy, ExternalLink, FileText, Files, Link2, MailPlus, Plus, Send, TriangleAlert, X } from "@lucide/svelte";
   import { parseErrorContent } from "$lib/errors";
   import { invitationLink, lineShareURL } from "$lib/orca/invitations";
   import { localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
@@ -49,6 +49,12 @@
   let flagBusy = $state(false);
   let flagError = $state("");
   const flagsKnown = $derived(items.some((company) => typeof company.libraryV2 === "boolean"));
+  // เทมเพลตเอกสาร (kv2 phase 2a, decision O9): the same switch, beside it. The
+  // server takes it with library v2 off but the templates work only with both,
+  // so turning it on waits for library v2; turning it off never does. The
+  // company list sends `docTemplates` only while it is on.
+  let docTarget = $state<OrcaPlatformCompany>();
+  const docTemplatesWaiting = (company: OrcaPlatformCompany) => company.docTemplates !== true && company.libraryV2 !== true;
 
   const statusText = (status: OwnerStatus, owners: number) =>
     ({
@@ -218,6 +224,30 @@
     }
   }
 
+  async function setDocTemplates() {
+    const company = docTarget;
+    if (!company || flagBusy) return;
+    const enabled = company.docTemplates !== true;
+    // Never on while library v2 is off: the switch says so and is disabled.
+    if (enabled && company.libraryV2 !== true) return;
+    flagBusy = true;
+    flagError = "";
+    try {
+      const result = await OrcaService.setCompanyDocTemplates(company.id, enabled);
+      items = items.map((item) => (item.id === company.id ? { ...item, docTemplates: result.docTemplates } : item));
+      docTarget = undefined;
+      showToast(
+        result.docTemplates
+          ? t(`เปิดเทมเพลตเอกสารให้ ${company.displayName} แล้ว ผู้ดูแลเห็นเมนูเมื่อโหลดหน้าใหม่`, `Document templates are on for ${company.displayName}. Its managers see them after a reload.`)
+          : t(`ปิดเทมเพลตเอกสารของ ${company.displayName} แล้ว`, `Document templates are off for ${company.displayName}.`),
+      );
+    } catch (cause) {
+      flagError = explain(cause);
+    } finally {
+      flagBusy = false;
+    }
+  }
+
   async function copy(text: string, what: "link" | "message") {
     try {
       await navigator.clipboard.writeText(text);
@@ -255,7 +285,7 @@
           <th scope="col">{t("บริษัท", "Company")}</th>
           <th scope="col">{t("คนที่ใช้งานได้", "People")}</th>
           <th scope="col">{t("เจ้าของ", "Owner")}</th>
-          {#if flagsKnown}<th scope="col">{t("คลังความรู้ v2", "Knowledge v2")}</th>{/if}
+          {#if flagsKnown}<th scope="col">{t("คลังความรู้ v2", "Knowledge v2")}</th><th scope="col">{t("เทมเพลตเอกสาร", "Document templates")}</th>{/if}
           <th scope="col" class="companies-actions-col"><span class="companies-sr">{t("การจัดการ", "Actions")}</span></th>
         </tr>
       </thead>
@@ -305,6 +335,26 @@
                   }}><span class="flag-track" aria-hidden="true"><span class="flag-thumb"></span></span>{company.libraryV2 ? t("เปิดอยู่", "On") : t("ปิดอยู่", "Off")}</button
                 >
               </td>
+              <td class="company-flag">
+                <span class="company-seats-label">{t("เทมเพลตเอกสาร:", "Document templates:")}</span>
+                <button
+                  type="button"
+                  class="flag-switch"
+                  class:on={company.docTemplates === true}
+                  role="switch"
+                  aria-checked={company.docTemplates === true}
+                  aria-label={t(`เทมเพลตเอกสารของ ${company.displayName}`, `Document templates for ${company.displayName}`)}
+                  aria-describedby={company.libraryV2 !== true ? `doc-needs-${company.id}` : undefined}
+                  disabled={flagBusy || docTemplatesWaiting(company)}
+                  onclick={() => {
+                    flagError = "";
+                    docTarget = company;
+                  }}><span class="flag-track" aria-hidden="true"><span class="flag-thumb"></span></span>{company.docTemplates ? t("เปิดอยู่", "On") : t("ปิดอยู่", "Off")}</button
+                >
+                {#if company.libraryV2 !== true}<small class="flag-needs" id="doc-needs-{company.id}"
+                    >{company.docTemplates ? t("ใช้ได้เมื่อเปิดคลังความรู้ v2", "Works once Knowledge v2 is on") : t("เปิดคลังความรู้ v2 ก่อน", "Turn on Knowledge v2 first")}</small
+                  >{/if}
+              </td>
             {/if}
             <td class="companies-actions-col">
               {#if canInviteOwner(company)}<button type="button" class="k-button small" onclick={() => show("invite", company)}
@@ -351,6 +401,30 @@
   busy={flagBusy}
   oncancel={() => (flagTarget = undefined)}
   onconfirm={setLibraryV2}
+>
+  {#if flagError}<p class="dialog-error" role="alert">{flagError}</p>{/if}
+</ConfirmDialog>
+
+<ConfirmDialog
+  open={!!docTarget}
+  icon={FileText}
+  title={docTarget?.docTemplates
+    ? t(`ปิดเทมเพลตเอกสารของ ${docTarget.displayName}?`, `Turn off document templates for ${docTarget?.displayName}?`)
+    : t(`เปิดเทมเพลตเอกสารให้ ${docTarget?.displayName ?? ""}?`, `Turn on document templates for ${docTarget?.displayName ?? ""}?`)}
+  message={docTarget?.docTemplates
+    ? t(
+        "เมนูเทมเพลตเอกสารจะหายไปจากบริษัทนี้ และ AI จะกรอกฟอร์มของบริษัทไม่ได้ เทมเพลตและไฟล์ที่สร้างไว้ไม่ถูกลบ เปิดอีกครั้งเมื่อไรก็ใช้ต่อได้ ORCA บันทึกไว้ทั้งในประวัติของบริษัทนี้และของแพลตฟอร์ม",
+        "The document templates menu goes away for this company and AI can't fill its forms. Templates and the files made are not deleted, and turning it on again brings them back. ORCA records it in this company's history and the platform's.",
+      )
+    : t(
+        "ผู้ดูแลของบริษัทนี้จะอัปโหลดฟอร์มของบริษัทเป็นเทมเพลต ให้ AI กรอกและสร้างไฟล์ได้ แอป AI อาจต้องรีเฟรชการเชื่อม 1 ครั้งจึงเห็นเครื่องมือใหม่ ORCA บันทึกไว้ทั้งในประวัติของบริษัทนี้และของแพลตฟอร์ม",
+        "This company's managers can upload its forms as templates for AI to fill and make files from. AI apps may need one connector refresh to see the new tools. ORCA records it in this company's history and the platform's.",
+      )}
+  confirmLabel={flagBusy ? t("กำลังบันทึก…", "Saving…") : docTarget?.docTemplates ? t("ปิดเทมเพลตเอกสาร", "Turn off") : t("เปิดเทมเพลตเอกสาร", "Turn on")}
+  cancelLabel={t("ไม่เปลี่ยน", "Keep it")}
+  busy={flagBusy}
+  oncancel={() => (docTarget = undefined)}
+  onconfirm={setDocTemplates}
 >
   {#if flagError}<p class="dialog-error" role="alert">{flagError}</p>{/if}
 </ConfirmDialog>
@@ -486,6 +560,7 @@
   .owner-invitation small { display: inline; }
   .owner-invitation :global(.k-button) { min-height: 28px; padding: 0 8px; }
   .company-flag { white-space: nowrap; }
+  .flag-needs { display: block; margin-top: 2px; color: var(--orca-muted); font-size: 12px; font-weight: 400; white-space: normal; }
   .flag-switch { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 0; border: 0; background: transparent; color: var(--orca-text-2); font-size: 13px; font-weight: 600; cursor: pointer; }
   .flag-switch:disabled { cursor: not-allowed; opacity: 0.6; }
   .flag-switch:focus-visible { outline: 2px solid var(--orca-focus); outline-offset: 2px; border-radius: var(--orca-radius-sm); }

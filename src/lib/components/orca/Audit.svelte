@@ -164,6 +164,8 @@
     "library.takeover": t("รับช่วงดูแลรายการในคลังความรู้", "Knowledge item taken over"),
     "library.v2": t("ทีม ORCA เปิดหรือปิดคลังความรู้แบบไฟล์", "The ORCA team switched file Knowledge"),
     "platform.company.library_v2": t("เปิดหรือปิดคลังความรู้แบบไฟล์ของบริษัทลูกค้า", "File Knowledge switched for a customer company"),
+    "library.doc_templates": t("ทีม ORCA เปิดหรือปิดเทมเพลตเอกสาร", "The ORCA team switched document templates"),
+    "platform.company.doc_templates": t("เปิดหรือปิดเทมเพลตเอกสารของบริษัทลูกค้า", "Document templates switched for a customer company"),
     "department.members": t("แก้ไขสมาชิกของแผนก", "Department members updated"),
     "template.preview": t("ดูตัวอย่างคำสั่งสำเร็จรูป", "Ready-made prompt previewed"),
     "invitation.create": t("สร้างคำเชิญ", "Invitation created"),
@@ -278,6 +280,10 @@
       return event.version === 1 ? t("ทีม ORCA เปิดคลังความรู้แบบไฟล์", "The ORCA team turned on file Knowledge") : t("ทีม ORCA ปิดคลังความรู้แบบไฟล์", "The ORCA team turned off file Knowledge");
     if (event.action === "platform.company.library_v2")
       return event.version === 1 ? t("เปิดคลังความรู้แบบไฟล์ให้บริษัทลูกค้า", "File Knowledge turned on for a customer company") : t("ปิดคลังความรู้แบบไฟล์ของบริษัทลูกค้า", "File Knowledge turned off for a customer company");
+    if (event.action === "library.doc_templates")
+      return event.version === 1 ? t("ทีม ORCA เปิดเทมเพลตเอกสาร", "The ORCA team turned on document templates") : t("ทีม ORCA ปิดเทมเพลตเอกสาร", "The ORCA team turned off document templates");
+    if (event.action === "platform.company.doc_templates")
+      return event.version === 1 ? t("เปิดเทมเพลตเอกสารให้บริษัทลูกค้า", "Document templates turned on for a customer company") : t("ปิดเทมเพลตเอกสารของบริษัทลูกค้า", "Document templates turned off for a customer company");
     return "";
   }
   function eventLabel(event: OrcaAuditEvent & { repeated?: number }) {
@@ -330,7 +336,7 @@
     const platform = platformAuditRelated(event, t, data.organization?.displayName);
     if (platform) return { label: platform };
     // The company's own details: name the company, never a code or "—".
-    if ((event.action ?? "").startsWith("organization.") || event.action === "library.v2")
+    if ((event.action ?? "").startsWith("organization.") || event.action === "library.v2" || event.action === "library.doc_templates")
       return { label: data.organization?.displayName || t("ข้อมูลบริษัท", "Company details") };
     const id = event.resourceID;
     if (id) {

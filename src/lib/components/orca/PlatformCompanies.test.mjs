@@ -19,13 +19,15 @@ const helpers = {
 };
 const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1]).replace(/^\s*import[^;]+;/gm, "");
 const require = createRequire(import.meta.url);
-const code = compileModule(
+// The harness compiles from a script, so a test can also run a mutant of it.
+const harnessCode = (script) => compileModule(
   `export function harness(dependencies) {
   const { OrcaService, onMount, tick, parseErrorContent, invitationLink, lineShareURL, t, canInviteOwner, canRevokeOwnerInvitation, emailDomain, ownerStatus, platformRefusal, resendEmail, signInWarnings, displayDate, orcaError, externalBrowserLink, showToast, window, navigator } = dependencies;
   ${script}
   return {
-    load, loadGoogle, show, openCompany, inviteOwner, revoke, copy, explain, setLibraryV2,
-    setName(value) { name = value; }, setEmail(value) { email = value; }, setRevoking(value) { revoking = value; }, setFlagTarget(value) { flagTarget = value; },
+    load, loadGoogle, show, openCompany, inviteOwner, revoke, copy, explain, setLibraryV2, setDocTemplates, docTemplatesWaiting,
+    setName(value) { name = value; }, setEmail(value) { email = value; }, setRevoking(value) { revoking = value; }, setFlagTarget(value) { flagTarget = value; }, setDocTarget(value) { docTarget = value; },
+    get docTarget() { return docTarget; },
     get flagTarget() { return flagTarget; }, get flagBusy() { return flagBusy; }, get flagError() { return flagError; }, get flagsKnown() { return flagsKnown; },
     get items() { return items; }, get loaded() { return loaded; }, get listError() { return listError; }, get step() { return step; },
     get target() { return target; }, get justOpened() { return justOpened; }, get formError() { return formError; }, get issued() { return issued; },
@@ -36,18 +38,19 @@ const code = compileModule(
 }`,
   { filename: "platform-companies-test.svelte.js", generate: "client" },
 ).js.code.replaceAll("svelte/internal/client", pathToFileURL(require.resolve("svelte/internal/client")).href);
-const { harness } = await import("data:text/javascript;base64," + Buffer.from(code).toString("base64"));
+const load = async (source) => (await import("data:text/javascript;base64," + Buffer.from(harnessCode(source)).toString("base64"))).harness;
+const harness = await load(script);
 
 const B = "org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const company = (id, extra = {}) => ({ id, displayName: id === "default" ? "ORCA" : "Hotel A", createdAt: "2026-09-28T01:00:00Z", seats: 0, owners: 0, ownerInvitations: [], ...extra });
 // A refusal as the API client throws it: the status and the server's message.
 const refusal = (status, message) => Object.assign(new Error(message), { status });
 
-function mount(service) {
-  const calls = { open: [], invite: [], revoke: [], copied: [], flag: [], toasts: [] };
+function mount(service, make = harness) {
+  const calls = { open: [], invite: [], revoke: [], copied: [], flag: [], docs: [], toasts: [] };
   let view;
   const stop = effect_root(() => {
-    view = harness({
+    view = make({
       ...helpers,
       OrcaService: {
         platformCompanies: async () => service.list(),
@@ -55,6 +58,7 @@ function mount(service) {
         inviteCompanyOwner: async (...args) => { calls.invite.push(args); return service.invite(...args); },
         revokeCompanyOwnerInvitation: async (...args) => { calls.revoke.push(args); return service.revoke(...args); },
         setCompanyLibraryV2: async (...args) => { calls.flag.push(args); return service.flag(...args); },
+        setCompanyDocTemplates: async (...args) => { calls.docs.push(args); return service.docs(...args); },
         googleSignIn: async () => { if (service.google === undefined) throw new Error("unavailable"); return { enabled: service.google }; },
       },
       onMount: () => {},
@@ -281,7 +285,7 @@ test("the operator turns คลังความรู้ v2 on or off for one 
     assert.equal(older.view.flagsKnown, false);
   } finally { older.stop(); }
   // The switch says its state and its company, and the dialog asks first.
-  assert.match(component, /\{#if flagsKnown\}<th scope="col">\{t\("คลังความรู้ v2", "Knowledge v2"\)\}<\/th>\{\/if\}/);
+  assert.match(component, /\{#if flagsKnown\}<th scope="col">\{t\("คลังความรู้ v2", "Knowledge v2"\)\}<\/th><th scope="col">\{t\("เทมเพลตเอกสาร", "Document templates"\)\}<\/th>\{\/if\}/);
   assert.match(component, /role="switch"\s+aria-checked=\{company\.libraryV2 === true\}\s+aria-label=\{t\(`คลังความรู้ v2 ของ \$\{company\.displayName\}`/);
   assert.match(component, /<ConfirmDialog\s+open=\{!!flagTarget\}/);
   assert.match(component, /ORCA บันทึกไว้ทั้งในประวัติของบริษัทนี้และของแพลตฟอร์ม/);
@@ -296,4 +300,110 @@ test("a suspended or closed company's row offers no owner link", () => {
   // The row's only invite button stands behind that rule.
   assert.equal(component.match(/show\("invite", company\)/g)?.length, 1);
   assert.match(component, /\{#if canInviteOwner\(company\)\}<button type="button" class="k-button small" onclick=\{\(\) => show\("invite", company\)\}/);
+});
+
+test("the operator turns เทมเพลตเอกสาร on or off for one company, after a confirmation, beside คลังความรู้ v2", async () => {
+  const { view, calls, stop } = mount({
+    list: async () => [company(B, { libraryV2: true }), company("default", { owners: 1, libraryV2: true, docTemplates: true })],
+    docs: async (id, enabled) => {
+      if (id === "default") throw refusal(403, "only the platform operator can manage customer companies");
+      return { companyID: id, docTemplates: enabled };
+    },
+  });
+  try {
+    await view.load();
+    assert.equal(view.items[0].docTemplates, undefined, "the list sends the flag only while it is on");
+    await view.setDocTemplates();
+    assert.deepEqual(calls.docs, [], "nothing is sent before the operator picks a company");
+    view.setDocTarget(view.items[0]);
+    await view.setDocTemplates();
+    assert.deepEqual(calls.docs, [[B, true]], "off goes on");
+    assert.deepEqual(calls.flag, [], "never the library switch");
+    assert.equal(view.items[0].docTemplates, true, "the row follows the server's answer");
+    assert.equal(view.docTarget, undefined, "the dialog closes");
+    assert.equal(view.flagBusy, false);
+    assert.match(calls.toasts[0], /^เปิดเทมเพลตเอกสารให้ Hotel A แล้ว ผู้ดูแลเห็นเมนูเมื่อโหลดหน้าใหม่$/);
+    view.setDocTarget(view.items[0]);
+    await view.setDocTemplates();
+    assert.deepEqual(calls.docs[1], [B, false], "on goes off");
+    assert.equal(view.items[0].docTemplates, false);
+    assert.match(calls.toasts[1], /^ปิดเทมเพลตเอกสารของ Hotel A แล้ว$/);
+    // A refusal stays in the dialog, in words the operator can act on; the row is unchanged.
+    view.setDocTarget(view.items[1]);
+    await view.setDocTemplates();
+    assert.equal(view.docTarget?.id, "default");
+    assert.match(view.flagError, /^generic: only the platform operator/);
+    assert.equal(view.items[1].docTemplates, true);
+    assert.equal(calls.toasts.length, 2);
+  } finally { stop(); }
+  // The switch, its column beside คลังความรู้ v2, and the dialog that asks first.
+  assert.match(component, /\{#if flagsKnown\}<th scope="col">\{t\("คลังความรู้ v2", "Knowledge v2"\)\}<\/th><th scope="col">\{t\("เทมเพลตเอกสาร", "Document templates"\)\}<\/th>\{\/if\}/);
+  assert.match(component, /role="switch"\s+aria-checked=\{company\.docTemplates === true\}\s+aria-label=\{t\(`เทมเพลตเอกสารของ \$\{company\.displayName\}`/);
+  const dialog = component.slice(component.indexOf("<ConfirmDialog\n  open={!!docTarget}"), component.indexOf("</ConfirmDialog>", component.indexOf("open={!!docTarget}")));
+  assert.ok(dialog.length > 0, "its own confirmation");
+  assert.match(dialog, /ORCA บันทึกไว้ทั้งในประวัติของบริษัทนี้และของแพลตฟอร์ม/);
+  assert.match(dialog, /เทมเพลตและไฟล์ที่สร้างไว้ไม่ถูกลบ/, "turning it off deletes nothing (the server keeps the rows)");
+  assert.match(dialog, /cancelLabel=\{t\("ไม่เปลี่ยน", "Keep it"\)\}/);
+  assert.match(dialog, /onconfirm=\{setDocTemplates\}/);
+  assert.match(dialog, /\{#if flagError\}<p class="dialog-error" role="alert">\{flagError\}<\/p>\{\/if\}/);
+});
+
+test("เทมเพลตเอกสาร waits for คลังความรู้ v2: disabled with the reason while it is off; turning it off never waits", async () => {
+  const { view, calls, stop } = mount({
+    list: async () => [company(B, { libraryV2: false }), company("default", { owners: 1, libraryV2: false, docTemplates: true })],
+    docs: async (id, enabled) => ({ companyID: id, docTemplates: enabled }),
+  });
+  try {
+    await view.load();
+    assert.equal(view.docTemplatesWaiting(view.items[0]), true, "off, with library v2 off: waits");
+    assert.equal(view.docTemplatesWaiting(view.items[1]), false, "on, with library v2 off: it can still be turned off");
+    assert.equal(view.docTemplatesWaiting({ ...view.items[0], libraryV2: true }), false, "library v2 on: free");
+    // Even if the dialog were reached, nothing is sent to turn it on.
+    view.setDocTarget(view.items[0]);
+    await view.setDocTemplates();
+    assert.deepEqual(calls.docs, [], "never on while library v2 is off");
+    assert.equal(view.items[0].docTemplates, undefined);
+    view.setDocTarget(view.items[1]);
+    await view.setDocTemplates();
+    assert.deepEqual(calls.docs, [[`default`, false]], "off goes through");
+  } finally { stop(); }
+  // The markup: disabled while it waits, with the reason named and described.
+  assert.match(component, /disabled=\{flagBusy \|\| docTemplatesWaiting\(company\)\}/);
+  assert.match(component, /aria-describedby=\{company\.libraryV2 !== true \? `doc-needs-\$\{company\.id\}` : undefined\}/);
+  assert.match(component, /\{#if company\.libraryV2 !== true\}<small class="flag-needs" id="doc-needs-\{company\.id\}"\s*>\{company\.docTemplates \? t\("ใช้ได้เมื่อเปิดคลังความรู้ v2", "Works once Knowledge v2 is on"\) : t\("เปิดคลังความรู้ v2 ก่อน", "Turn on Knowledge v2 first"\)\}/);
+});
+
+test("mutation: without the library v2 guard the compiled harness would send the switch, so the test above holds it", async () => {
+  const guard = "if (enabled && company.libraryV2 !== true) return;";
+  assert.ok(script.includes(guard), "the guard is in the shipped script");
+  const mutant = await load(script.replace(guard, ""));
+  const { view, calls, stop } = mount({
+    list: async () => [company(B, { libraryV2: false })],
+    docs: async (id, enabled) => ({ companyID: id, docTemplates: enabled }),
+  }, mutant);
+  try {
+    await view.load();
+    view.setDocTarget(view.items[0]);
+    await view.setDocTemplates();
+    assert.deepEqual(calls.docs, [[B, true]], "the mutant compiles and turns it on with library v2 off");
+  } finally { stop(); }
+  // And the waiting rule itself: a mutant that never waits fails the rule.
+  const rule = "company.docTemplates !== true && company.libraryV2 !== true";
+  assert.ok(script.includes(rule));
+  const loose = await load(script.replace(rule, "false"));
+  const second = mount({ list: async () => [company(B, { libraryV2: false })] }, loose);
+  try {
+    await second.view.load();
+    assert.equal(second.view.docTemplatesWaiting(second.view.items[0]), false, "the mutant would leave the switch enabled");
+  } finally { second.stop(); }
+});
+
+test("the histories name the เทมเพลตเอกสาร switch and which way it went", async () => {
+  const audit = await readFile(new URL("./Audit.svelte", import.meta.url), "utf8");
+  assert.match(audit, /"library\.doc_templates": t\("ทีม ORCA เปิดหรือปิดเทมเพลตเอกสาร"/);
+  assert.match(audit, /"platform\.company\.doc_templates": t\("เปิดหรือปิดเทมเพลตเอกสารของบริษัทลูกค้า"/);
+  assert.match(audit, /event\.action === "library\.doc_templates"\)\s*return event\.version === 1 \? t\("ทีม ORCA เปิดเทมเพลตเอกสาร"[^)]*\) : t\("ทีม ORCA ปิดเทมเพลตเอกสาร"/);
+  assert.match(audit, /event\.action === "platform\.company\.doc_templates"\)\s*return event\.version === 1 \? t\("เปิดเทมเพลตเอกสารให้บริษัทลูกค้า"[^)]*\) : t\("ปิดเทมเพลตเอกสารของบริษัทลูกค้า"/);
+  // In the company's own history it names the company, as the library switch does.
+  assert.match(audit, /event\.action === "library\.v2" \|\| event\.action === "library\.doc_templates"\)\s*return \{ label: data\.organization\?\.displayName/);
 });

@@ -343,6 +343,8 @@ export interface OrcaPlatformCompany {
   ownerInvitations: OrcaPlatformOwnerInvitation[];
   /** Knowledge library v2 (file uploads) is on for the company; only the operator sets it. An older server sends none. */
   libraryV2?: boolean;
+  /** Document templates (kv2 phase 2a) are on for the company; only the operator sets them, and they work only with libraryV2. Sent only while on. */
+  docTemplates?: boolean;
   /** "active", "suspended" or "closed" (platform console C6); an older server sends none. */
   status?: string;
   /** The row's version, which a suspension, a restore or a rename sends back. */
@@ -792,6 +794,9 @@ export const OrcaService = {
   /** Turns knowledge library v2 on or off for a company (the operator only; audited in both logs). */
   setCompanyLibraryV2: (companyID: string, enabled: boolean) =>
     doPut(`/orca/platform/companies/${part(companyID)}/library-v2`, { enabled }, options) as Promise<{ companyID: string; libraryV2: boolean }>,
+  /** Turns document templates on or off for a company (the operator only; audited in both logs). They work only with library v2 on too. */
+  setCompanyDocTemplates: (companyID: string, enabled: boolean) =>
+    doPut(`/orca/platform/companies/${part(companyID)}/doc-templates`, { enabled }, options) as Promise<{ companyID: string; docTemplates: boolean }>,
   approveRequest: (id: string) => doPost(orcaPath(`/approvals/${part(id)}/approve`), {}, options) as Promise<OrcaApproval>,
   rejectRequest: (id: string, note: string) =>
     doPost(orcaPath(`/approvals/${part(id)}/reject`), { note }, options) as Promise<OrcaApproval>,
