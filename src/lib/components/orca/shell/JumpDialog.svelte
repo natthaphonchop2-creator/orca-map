@@ -56,6 +56,7 @@
 </Modal>
 
 <style>
+	/* orca-type-remap v1 */
 	.jump-search {
 		position: relative;
 		display: block;

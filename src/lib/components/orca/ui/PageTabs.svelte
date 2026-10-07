@@ -28,6 +28,7 @@
 </nav>
 
 <style>
+	/* orca-type-remap v1 */
 	.orca-page-tabs {
 		display: flex;
 		gap: 2px;

@@ -83,6 +83,7 @@
 </dialog>
 
 <style>
+	/* orca-type-remap v1 */
 	.orca-modal {
 		width: min(560px, calc(100vw - 48px));
 		max-width: none;

@@ -269,6 +269,7 @@
 <HomeStatus {data} {events} {eventsError} onretry={loadActivity} {iconName} accounts={programAccounts} {ai} {aiApp} skills={skillsEnabled(data) ? (skills ?? { count: 0 }) : undefined} />
 
 <style>
+	/* orca-type-remap v1 */
 	.home-attention {
 		margin-bottom: 28px;
 	}

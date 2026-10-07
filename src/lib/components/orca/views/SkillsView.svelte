@@ -95,6 +95,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.sk-status {
 		color: var(--orca-muted);
 		font-size: 14px;

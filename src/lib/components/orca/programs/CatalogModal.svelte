@@ -126,6 +126,7 @@
 </Modal>
 
 <style>
+	/* orca-type-remap v1 */
 	.cat-tools {
 		position: sticky;
 		top: -10px;

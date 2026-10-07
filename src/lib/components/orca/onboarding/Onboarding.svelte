@@ -154,6 +154,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.onb-page {
 		min-height: 100dvh;
 		background: var(--orca-bg);

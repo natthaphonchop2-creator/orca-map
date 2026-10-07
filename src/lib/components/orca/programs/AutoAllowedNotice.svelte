@@ -21,6 +21,7 @@
 </p>
 
 <style>
+	/* orca-type-remap v1 */
 	.auto-allowed {
 		display: flex;
 		flex-wrap: wrap;
