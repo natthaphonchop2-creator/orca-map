@@ -82,9 +82,10 @@
 			<input type="search" bind:value={query} placeholder={t('ค้นหาโปรแกรม', 'Search programs')} autocomplete="off" />
 		</label>
 		{#if chips.length > 1}
-			<div class="cat-tabs" role="tablist" aria-label={t('หมวดโปรแกรม', 'Program categories')}>
+			<!-- Filter buttons (aria-pressed), drawn as underlined tabs: not an ARIA tablist (Codex W0 review 1). -->
+			<div class="cat-tabs" role="group" aria-label={t('หมวดโปรแกรม', 'Program categories')}>
 				{#each PROGRAM_CHIPS.filter((item) => chips.includes(item.id)) as item (item.id)}
-					<button type="button" role="tab" class:on={chip === item.id} aria-selected={chip === item.id} onclick={() => (chip = item.id)}>{t(item.th, item.en)}</button>
+					<button type="button" class:on={chip === item.id} aria-pressed={chip === item.id} onclick={() => (chip = item.id)}>{t(item.th, item.en)}</button>
 				{/each}
 			</div>
 		{/if}
@@ -107,7 +108,7 @@
 					<span class="cat-copy">
 						{#if card.state === 'connected'}<a class="cat-name" href={programHref(card.connectionID!)}>{programDisplayName(source)}</a>
 						{:else}<span class="cat-name">{programDisplayName(source)}</span>{/if}
-						<small>{t(line[0], line[1])}</small>
+						<small title={t(line[0], line[1])}>{t(line[0], line[1])}</small>
 					</span>
 					{#if card.state === 'connected'}<span class="cat-state"><Check size={14} strokeWidth={2.25} aria-hidden="true" />{t('เชื่อมแล้ว', 'Connected')}</span>
 					{:else if card.state === 'soon'}<span class="cat-later">{t('เร็วๆ นี้', 'Coming soon')}</span>
@@ -229,9 +230,12 @@
 		text-underline-offset: 3px;
 	}
 	.cat-copy small {
+		overflow: hidden;
 		color: var(--orca-muted);
 		font-size: 12.5px;
 		line-height: 1.5;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.cat-card .k-button {
 		flex: none;

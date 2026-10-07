@@ -93,7 +93,7 @@
 			<span class:on={page === 1}></span><span class:on={page === 2}></span>
 		</div>
 		{#if page === 1}
-			<h1 id="onb-roles">{t('คุณดูแลงานด้านไหน', 'What work do you look after?')}</h1>
+			<h1 id="onb-roles">{t('คุณดูแลงานด้านไหน', 'Your area of work')}</h1>
 			<p class="onb-sub">{t('เลือกได้หลายข้อ เพื่อแนะนำโปรแกรมให้ตรงงาน', 'Choose any. We suggest programs for that work.')}</p>
 			<div class="onb-chips" role="group" aria-labelledby="onb-roles">
 				{#each ONBOARDING_ROLES as role (role.id)}
@@ -122,7 +122,7 @@
 						{@const line = programLine(source)}
 						<li class="onb-app">
 							<ProgramLogo name={source.name} size={40} muted={card.state === 'soon'} />
-							<span class="onb-app-copy"><strong>{programDisplayName(source)}</strong><small>{t(line[0], line[1])}</small></span>
+							<span class="onb-app-copy"><strong>{programDisplayName(source)}</strong><small title={t(line[0], line[1])}>{t(line[0], line[1])}</small></span>
 							{#if card.state === 'connected'}<span class="onb-state"><Check size={14} strokeWidth={2.25} aria-hidden="true" />{t('เชื่อมแล้ว', 'Connected')}</span>
 							{:else if card.state === 'soon'}<span class="onb-later">{t('เร็วๆ นี้', 'Coming soon')}</span>
 							{:else}<a class="k-button small" href={connectHref(source.id)} aria-label={t(`เชื่อม ${programDisplayName(source)}`, `Connect ${programDisplayName(source)}`)}>{t('เชื่อม', 'Connect')}</a>{/if}
@@ -305,9 +305,12 @@
 		line-height: 1.45;
 	}
 	.onb-app-copy small {
+		overflow: hidden;
 		color: var(--orca-muted);
 		font-size: 12.5px;
 		line-height: 1.5;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.onb-app .k-button {
 		flex: none;

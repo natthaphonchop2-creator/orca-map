@@ -375,3 +375,16 @@ test('W0 (Codex review 1): after an auto-save the catalog and the onboarding say
 	const center = await readFile(new URL('./ConnectionCenter.svelte', import.meta.url), 'utf8');
 	assert.match(center, /url\.searchParams\.delete\('added'\);/, 'closing the catalog drops it');
 });
+
+test('Codex W0 review 1: the catalog categories are pressed filter buttons, not a half-built tablist; descriptions are one line with a title', async () => {
+	const source = await readFile(new URL('./programs/CatalogModal.svelte', import.meta.url), 'utf8');
+	assert.doesNotMatch(source, /role="tab|aria-selected/);
+	assert.match(source, /<div class="cat-tabs" role="group"[\s\S]*?aria-pressed=\{chip === item\.id\}/);
+	assert.match(source, /<small title=\{t\(line\[0\], line\[1\]\)\}>/);
+	assert.match(source.slice(source.indexOf('.cat-copy small {')), /^\.cat-copy small \{[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/);
+	const onboarding = await readFile(new URL('./onboarding/Onboarding.svelte', import.meta.url), 'utf8');
+	assert.match(onboarding, /<small title=\{t\(line\[0\], line\[1\]\)\}>/);
+	assert.match(onboarding, /t\('คุณดูแลงานด้านไหน', 'Your area of work'\)/, 'an English H1 of at most 4 words');
+	// The footer's MCP-link entry stays the ORCA team's: it opens the platform's catalog, which customers cannot reach.
+	assert.match(source, /\{#if operator\}<a class="cat-link" href=\{localeHref\(addByLinkHref\(\)\)\}>/);
+});

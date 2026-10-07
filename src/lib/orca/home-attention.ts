@@ -16,6 +16,8 @@ export type AttentionRow = {
 	id: string;
 	title: string;
 	meta?: string;
+	/** The full text behind a shortened meta line (shown as its title). */
+	detail?: string;
 	logo?: string;
 	action: { label: string; href?: string; copy?: string };
 };
@@ -67,10 +69,13 @@ export function managerAttention(input: ManagerAttentionInput, t: Translate): At
 		});
 	for (const connection of programsToReconnect(live, input.accounts)) {
 		const reason = pausedReasonCopy(connectionAccount(connection, input.accounts ?? [])?.pausedReason);
+		const pausedReason = connectionAccount(connection, input.accounts ?? [])?.pausedReason;
 		rows.push({
 			id: `reconnect:${connection.id}`,
 			title: t(`${connection.name} ${RECONNECT_WORD.th}`, `${connection.name}: ${RECONNECT_WORD.en.toLowerCase()}`),
-			meta: reason ? t(reason.th, reason.en) : t('บัญชีกลางของโปรแกรมนี้ใช้ไม่ได้ AI จึงใช้โปรแกรมนี้ไม่ได้', "Its company account stopped working, so AI can't use it"),
+			// One short line on Home; the provider's whole story is the title and the program's page.
+			meta: pausedReason === 'grant_revoked' ? t('สิทธิ์หมดอายุหรือถูกยกเลิก', 'Access expired or was revoked') : t('บัญชีกลางใช้ไม่ได้ ผู้ดูแลต้องเชื่อมใหม่', 'Its company account stopped working'),
+			detail: reason ? t(reason.th, reason.en) : undefined,
 			logo: input.iconName(connection),
 			action: { label: t('เชื่อมใหม่', 'Reconnect'), href: `/app?view=servers&connection=${encodeURIComponent(connection.id)}` }
 		});

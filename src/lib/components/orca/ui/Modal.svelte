@@ -94,7 +94,8 @@
 		border-radius: var(--orca-radius-xl, 16px);
 		background: var(--orca-dialog, var(--orca-surface));
 		color: var(--orca-ink);
-		box-shadow: var(--orca-dialog-shadow);
+		/* A hairline edge, no shadow (W0). */
+		box-shadow: none;
 	}
 	.orca-modal.wide {
 		width: min(780px, calc(100vw - 48px));

@@ -13,7 +13,7 @@
 		back,
 		eyebrow,
 		action,
-		id = 'orca-page-title',
+		id = '',
 		frame = false
 	}: {
 		title: string;
@@ -22,6 +22,7 @@
 		back?: { href: string; label: string };
 		eyebrow?: Snippet;
 		action?: Snippet;
+		/** The heading's id; by default orca-page-title for the page's H1, and a unique one inside a frame. */
 		id?: string;
 		/** The frame's own header (ตั้งค่า, ประวัติ, AI ของฉัน): always the page's H1. */
 		frame?: boolean;
@@ -30,11 +31,14 @@
 	// only the action and status stay, on a row of their own.
 	const claimed = pageHeaderClaimed();
 	const nested = $derived(!frame && claimed);
+	// One id per page: the frame's H1 keeps orca-page-title, a part inside it gets its own (Codex W0 review 1).
+	const uid = $props.id();
+	const headingID = $derived(id || (nested ? `orca-page-section-${uid}` : 'orca-page-title'));
 </script>
 
 {#if nested}
 	<!-- The frame's H1 names the page; this part keeps its name for screen readers (and any aria-labelledby). -->
-	<h2 {id} class="orca-page-hidden">{title}</h2>
+	<h2 id={headingID} class="orca-page-hidden">{title}</h2>
 	{#if action || status}<div class="orca-page-subhead">
 			{#if status}<StatusPill label={status.label} tone={status.tone ?? 'neutral'} dot />{/if}
 			{#if action}<div class="orca-page-action">{@render action()}</div>{/if}
@@ -46,7 +50,7 @@
 	<div class="orca-page-row">
 		<div class="orca-page-heading">
 			<div class="orca-page-title">
-				<h1 {id}>{title}</h1>
+				<h1 id={headingID}>{title}</h1>
 				{#if status}<StatusPill label={status.label} tone={status.tone ?? 'neutral'} dot />{/if}
 			</div>
 			{#if subtitle}<p class="orca-page-subtitle">{subtitle}</p>{/if}

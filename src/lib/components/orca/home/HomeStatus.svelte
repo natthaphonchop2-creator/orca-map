@@ -21,7 +21,6 @@
 		accounts,
 		ai = 'unknown',
 		aiApp = '',
-		knowledge,
 		skills
 	}: {
 		data: OrcaBootstrap;
@@ -36,8 +35,6 @@
 		ai?: AIState;
 		/** The app named on the tile (homeAIApp): "" when none is, or several differ. */
 		aiApp?: string;
-		/** คลังความรู้'s count and latest change, once read. */
-		knowledge?: { count: number; updatedAt: string };
 		/** Skills' tile, only with the company's skills feature. */
 		skills?: { count: number };
 	} = $props();
@@ -103,8 +100,9 @@
 	{/if}
 	<a class="home-tile" href={localeHref('/app?view=knowledge')}>
 		<span class="home-tile-label">{term('knowledge', t)}<ChevronRight size={14} aria-hidden="true" /></span>
-		<span class="home-tile-value">{knowledge ? knowledge.count.toLocaleString() : '—'}<small>{t('เรื่อง', 'items')}</small></span>
-		<span class="home-tile-foot">{#if knowledge?.updatedAt}<span class="home-meta">{t('แก้ล่าสุด', 'Last changed')} {displayDate(knowledge.updatedAt)}</span>{/if}</span>
+		<!-- No count: one library per workspace, and a partial sum would mislead (Codex W0 review 1). -->
+		<span class="home-tile-value text">{t('ดูคลังความรู้', 'Open the library')}</span>
+		<span class="home-tile-foot"><span class="home-meta">{t('สิ่งที่ AI ใช้ตอบ', 'What AI answers from')}</span></span>
 	</a>
 </section>
 
@@ -132,7 +130,7 @@
 							<!-- An employee's history is only their own: no person. -->
 							<small>{[manager ? whoName(event.userID) : '', hubName(event.hubID)].filter(Boolean).join(' · ')}</small>
 						</span>
-						{#if failed}<span class="home-state deny">{failed}</span>
+						{#if failed}<span class="home-state deny"><span class="home-dot" aria-hidden="true"></span>{failed}</span>
 						{:else}<time datetime={event.createdAt}>{when(event.createdAt)}</time>{/if}
 					</li>
 				{/each}
@@ -226,17 +224,22 @@
 	.home-state.ok {
 		color: var(--orca-ink);
 	}
-	.home-state.warn {
-		color: var(--orca-warn);
-	}
+	/* Status colour only as a small dot; the words stay in ink (W0). */
+	.home-state.warn,
 	.home-state.deny {
-		color: var(--orca-deny);
+		color: var(--orca-ink);
 	}
 	.home-dot {
 		width: 7px;
 		height: 7px;
 		border-radius: 50%;
-		background: currentColor;
+		background: var(--orca-muted);
+	}
+	.warn .home-dot {
+		background: var(--orca-warn);
+	}
+	.deny .home-dot {
+		background: var(--orca-deny);
 	}
 	.home-meta {
 		color: var(--orca-muted);

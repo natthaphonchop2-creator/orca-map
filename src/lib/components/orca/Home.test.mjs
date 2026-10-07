@@ -94,7 +94,9 @@ test('ต้องดูแล for managers: approvals, company accounts to reco
 	assert.equal(by.approvals.action.href, '/app?view=approvals');
 	// The same word as the โปรแกรม tile.
 	assert.equal(by['reconnect:conn-shared'].title, 'Google Drive ต้องเชื่อมใหม่');
-	assert.match(by['reconnect:conn-shared'].meta, /หมดอายุหรือถูกยกเลิก/);
+	// One short line on Home; the provider's whole reason is its title.
+	assert.equal(by['reconnect:conn-shared'].meta, 'สิทธิ์หมดอายุหรือถูกยกเลิก');
+	assert.match(by['reconnect:conn-shared'].detail, /^สิทธิ์ที่ Google หรือ Microsoft ให้บัญชีนี้หมดอายุหรือถูกยกเลิก/);
 	assert.equal(by['reconnect:conn-shared'].action.href, '/app?view=servers&connection=conn-shared');
 	assert.equal(by.setup.title, 'โปรแกรมรอเลือกสิ่งที่ AI ทำได้ 1 โปรแกรม');
 	assert.equal(by.review.title, 'โปรแกรมที่ต้องตรวจใหม่ 1 โปรแกรม');
@@ -250,13 +252,15 @@ test('the overview tiles and ล่าสุด follow the role: เชื่อ
 		{ id: 'u2', displayName: 'มาลี สมมุติ', email: 'm@example.com', role: 'member' }
 	];
 	const accounts = [{ id: 'acct-1', status: 'needs_reconnect' }];
-	let html = render(HomeStatus, { props: { data: company({ members, connections: [titled, shared], hubs: [workspace] }), events, accounts, ai: 'connected', aiApp: 'Claude', knowledge: { count: 18, updatedAt: '2026-10-05' } } }).body;
+	let html = render(HomeStatus, { props: { data: company({ members, connections: [titled, shared], hubs: [workspace] }), events, accounts, ai: 'connected', aiApp: 'Claude' } }).body;
 	let plain = text(html);
 	assert.match(plain, /โปรแกรม 2 เชื่อมแล้ว/);
 	// The tile's footer uses the same word as the ต้องดูแล row.
 	assert.match(html, /<span class="home-state warn[^"]*"><span class="home-dot[^"]*" aria-hidden="true"><\/span>ต้องเชื่อมใหม่ 1<\/span>/);
 	assert.match(plain, /AI ของฉัน Claude เชื่อมแล้ว/);
-	assert.match(plain, /คลังความรู้ 18 เรื่อง แก้ล่าสุด 2026-10-05/);
+	// Codex W0 review 1: no partial count; the tile opens the library.
+	assert.match(plain, /คลังความรู้ ดูคลังความรู้ สิ่งที่ AI ใช้ตอบ/);
+	assert.doesNotMatch(plain, /\d+ เรื่อง/);
 	assert.doesNotMatch(plain, /Skills/, 'no Skills tile without the feature');
 	assert.match(html, /class="home-tiles[^"]*\bthree\b/);
 	// ล่าสุด: the program's own title, who and where; a call that went through shows its time.
@@ -264,7 +268,8 @@ test('the overview tiles and ล่าสุด follow the role: เชื่อ
 	// "admitted" was received, never "waiting for approval"; only a failed call gets a word.
 	assert.match(plain, /สร้างใบเสนอราคา มาลี สมมุติ · ผู้ช่วยบัญชี 2026-09-28T02:00:00Z/);
 	assert.doesNotMatch(plain, /รออนุมัติ|รับคำขอแล้ว|(?<!ไม่)สำเร็จ/);
-	assert.match(html, /<span class="home-state deny[^"]*">ไม่สำเร็จ<\/span>/);
+	// Status colour only as a dot; the word stays in ink (Codex W0 review 1).
+	assert.match(html, /<span class="home-state deny[^"]*"><span class="home-dot[^"]*" aria-hidden="true"><\/span>ไม่สำเร็จ<\/span>/);
 	assert.doesNotMatch(plain, /List invoices|Create quotation/);
 	assert.match(html, /href="\/app\?view=executions"[^>]*>ดูประวัติ/);
 	assert.match(html, /href="\/app\?view=servers"/);
@@ -281,7 +286,7 @@ test('the overview tiles and ล่าสุด follow the role: เชื่อ
 	assert.match(plain, /AI ของฉัน ยังไม่ได้เชื่อม/);
 	assert.doesNotMatch(html, /view=servers/, 'employees reach programs through AI ของฉัน');
 	assert.match(html, /href="\/app\?view=connect-ai#accounts"/);
-	assert.match(plain, /คลังความรู้ — เรื่อง/, 'no count before it is read');
+	assert.match(plain, /คลังความรู้ ดูคลังความรู้/);
 });
 
 test('ต้องดูแล says when a check failed, with a retry, instead of a false "nothing to do" (Codex release review 67)', async () => {
@@ -349,4 +354,13 @@ test('the in-app browser notice: LINE opens outside, Facebook explains the menu,
 	assert.match(text(html), /Instagram เปิดหน้านี้ในเบราว์เซอร์ของแอป/);
 	html = render(Notice, { props: { userAgent: 'Mozilla/5.0 (Macintosh) Chrome/126.0 Safari/537.36', href } }).body;
 	assert.equal(text(html).trim(), '');
+});
+
+test('Codex W0 review 1: Home reads no library for a partial count, and status colours stay in dots', async () => {
+	const dashboard = await readFile(new URL('./WorkspaceDashboard.svelte', import.meta.url), 'utf8');
+	assert.doesNotMatch(dashboard, /OrcaLibraryService|loadKnowledge/);
+	assert.match(dashboard, /<small title=\{row\.detail\}>\{row\.meta\}<\/small>/);
+	const status = await readFile(new URL('./home/HomeStatus.svelte', import.meta.url), 'utf8');
+	const css = status.slice(status.indexOf('<style>'));
+	assert.match(css, /\.home-state\.warn,\s*\.home-state\.deny \{\s*color: var\(--orca-ink\);/);
 });

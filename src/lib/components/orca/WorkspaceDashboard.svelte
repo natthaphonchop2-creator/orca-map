@@ -29,7 +29,6 @@
 	import { personalAccountReader, personalSetup, personalSources } from '$lib/orca/personal-connections';
 	import { OrcaService, type OrcaAuditEvent, type OrcaBootstrap, type OrcaConnection, type OrcaConnectionHealth, type OrcaProgramAccount } from '$lib/services/orca';
 	import { healthByConnection } from '$lib/orca/connection-health';
-	import { OrcaLibraryService } from '$lib/services/orca-library';
 	import { refreshAIConnection } from '$lib/services/orca-ai-apps';
 	import { SkillsService } from '$lib/services/orca-skills';
 	import { skillsEnabled } from '$lib/orca/workspace-nav';
@@ -63,8 +62,6 @@
 	let programAccounts = $state.raw<OrcaProgramAccount[]>();
 	/** The unused-app and changed-program reads (managers). */
 	let checks = $state<'loading' | 'done' | 'failed'>('loading');
-	/** คลังความรู้'s tile: the items of the viewer's workspaces, once read. */
-	let knowledge = $state<{ count: number; updatedAt: string }>();
 	/** Skills' tile, only with the company's skills feature (W0); the list is a stub until its backend ships. */
 	let skills = $state<{ count: number }>();
 
@@ -185,21 +182,6 @@
 			/* Optional: without the list no program is said to need reconnecting. */
 		}
 	}
-	// คลังความรู้'s tile: the same library reads as the knowledge page, for the viewer's workspaces.
-	async function loadKnowledge() {
-		const hubs = usableWorkspaces(data).slice(0, 10);
-		if (!hubs.length) {
-			if (alive) knowledge = { count: 0, updatedAt: '' };
-			return;
-		}
-		const results = await Promise.allSettled(hubs.map((hub) => OrcaLibraryService.load(hub.id)));
-		if (!alive || results.some((result) => result.status === 'rejected')) return;
-		const items = new Map<string, string>();
-		for (const result of results)
-			if (result.status === 'fulfilled')
-				for (const item of result.value.items) if (item.status === 'published') items.set(item.id, item.updatedAt);
-		knowledge = { count: items.size, updatedAt: [...items.values()].sort().at(-1) ?? '' };
-	}
 	// An employee's own sign-in to each program (as on AI ของฉัน › บัญชีโปรแกรมของคุณ).
 	const reader = personalAccountReader(
 		async (sourceID, signal) => personalSetup(await OrcaService.sourceSetup(sourceID, signal), sourceID),
@@ -220,7 +202,6 @@
 				});
 		void loadActivity();
 		void loadAIApps();
-		void loadKnowledge();
 		lastRecheck = Date.now();
 		const onReturn = () => void recheck();
 		document.addEventListener('visibilitychange', onReturn);
@@ -270,7 +251,7 @@
 			{#each rows as row (row.id)}
 				<div class="home-row">
 					{#if row.logo}<CatalogIcon name={row.logo} size={32} />{/if}
-					<div class="home-row-copy"><strong>{row.title}</strong>{#if row.meta}<small>{row.meta}</small>{/if}</div>
+					<div class="home-row-copy"><strong>{row.title}</strong>{#if row.meta}<small title={row.detail}>{row.meta}</small>{/if}</div>
 					{#if row.action.href}<a class="k-button small" href={localeHref(row.action.href)}>{row.action.label}</a>
 					{:else}<button type="button" class="k-button small" onclick={() => copyRow(row)}>{copied === row.id ? t('คัดลอกแล้ว', 'Copied') : row.action.label}</button>{/if}
 				</div>
@@ -285,7 +266,7 @@
 	</section>
 {/if}
 
-<HomeStatus {data} {events} {eventsError} onretry={loadActivity} {iconName} accounts={programAccounts} {ai} {aiApp} {knowledge} skills={skillsEnabled(data) ? (skills ?? { count: 0 }) : undefined} />
+<HomeStatus {data} {events} {eventsError} onretry={loadActivity} {iconName} accounts={programAccounts} {ai} {aiApp} skills={skillsEnabled(data) ? (skills ?? { count: 0 }) : undefined} />
 
 <style>
 	.home-attention {

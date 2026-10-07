@@ -285,19 +285,15 @@
       ><button class="k-link-button" onclick={() => changeSection("invitations")}>{t("ดูคำเชิญ", "View invitations")}</button>
     </div>{/if}
   <div class="team-toolbar">
-    <div class="team-filter" role="group" aria-label={t("ตัวกรองสมาชิก", "Member filters")}>
-      <button class:active={memberStatus === "active"} aria-pressed={memberStatus === "active"} onclick={() => (memberStatus = "active")}
-        >{t("ทั้งหมด", "All")}<span>{activeMembers.length}</span></button
-      >{#if data.canManage && (withoutAccess.length || memberStatus === "noaccess")}<button
-          class:active={memberStatus === "noaccess"}
-          aria-pressed={memberStatus === "noaccess"}
-          onclick={() => (memberStatus = "noaccess")}>{t("ยังไม่เข้าถึงข้อมูล", "No data access")}<span>{withoutAccess.length}</span></button
-        >{/if}{#if suspendedMembers.length || memberStatus === "suspended"}<button
-          class:active={memberStatus === "suspended"}
-          aria-pressed={memberStatus === "suspended"}
-          onclick={() => (memberStatus = "suspended")}>{t("ถูกระงับ", "Suspended")}<span>{suspendedMembers.length}</span></button
-        >{/if}
-    </div>
+    <!-- W0: one dropdown, not a third row of chips under the settings tabs and the team tabs. -->
+    <label class="team-filter">
+      <span class="team-hidden">{t("ตัวกรองสมาชิก", "Member filters")}</span>
+      <select bind:value={memberStatus}>
+        <option value="active">{t("ทั้งหมด", "All")} {activeMembers.length}</option>
+        {#if data.canManage && (withoutAccess.length || memberStatus === "noaccess")}<option value="noaccess">{t("ยังไม่เข้าถึงข้อมูล", "No data access")} {withoutAccess.length}</option>{/if}
+        {#if suspendedMembers.length || memberStatus === "suspended"}<option value="suspended">{t("ถูกระงับ", "Suspended")} {suspendedMembers.length}</option>{/if}
+      </select>
+    </label>
     {#if data.members.length > 8 || query}<input
         class="team-search"
         type="search"
@@ -598,37 +594,23 @@
     gap: 10px 16px;
     margin: 0 0 12px;
   }
-  .team-filter {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .team-filter button {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 32px;
-    padding: 0 12px;
-    border: 1px solid var(--orca-line-strong);
-    border-radius: 999px;
-    background: var(--orca-surface);
-    color: var(--orca-nav);
+  .team-filter select {
+    min-height: 36px;
+    padding: 0 30px 0 12px;
+    border: 1px solid var(--orca-field-line, var(--orca-line-strong));
+    border-radius: var(--orca-radius);
+    background-color: var(--orca-field, var(--orca-surface));
+    color: var(--orca-ink);
     font: inherit;
     font-size: 13px;
-    cursor: pointer;
   }
-  .team-filter button span {
-    color: var(--orca-muted);
-    font-variant-numeric: tabular-nums;
-  }
-  .team-filter button.active {
-    border-color: var(--orca-ink);
-    background: var(--orca-ink);
-    color: var(--orca-on-ink, #fff);
-  }
-  .team-filter button.active span {
-    color: inherit;
-    opacity: 0.8;
+  .team-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
   .team-search {
     width: min(280px, 100%);
@@ -680,20 +662,18 @@
     font-size: 11.5px;
     font-weight: 500;
   }
+  /* W0: a role is plain text, semibold for owners and admins; never a filled pill. */
   .role-badge {
-    display: inline-block;
-    padding: 2px 10px;
-    border-radius: 999px;
-    background: var(--orca-secondary);
-    color: var(--orca-nav);
-    font-size: 12px;
+    display: inline;
+    color: var(--orca-text-2);
+    font-size: 13px;
     font-weight: 500;
     white-space: nowrap;
   }
   .role-badge.role-owner,
   .role-badge.role-admin {
-    background: var(--orca-ink);
-    color: var(--orca-on-ink, #fff);
+    color: var(--orca-ink);
+    font-weight: 600;
   }
   .role-locked {
     display: block;

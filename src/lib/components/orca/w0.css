@@ -306,6 +306,17 @@
   color: var(--orca-on-ink, #fff) !important;
 }
 
+/* On the page itself สร้าง is the only primary (ia §1): any other primary in the
+   page reads as an outline button. Dialogs and sheets keep their own primary. */
+.orca-workspace.orca-app.orca-w0 .workspace-main .k-button.primary:not(dialog *) {
+  border-color: var(--orca-line-strong);
+  background: var(--orca-surface);
+  color: var(--orca-ink) !important;
+}
+.orca-workspace.orca-app.orca-w0 .workspace-main .k-button.primary:not(dialog *):hover {
+  background: var(--orca-hover);
+}
+
 /* ---------- Page tab bars inside frames: one look ---------- */
 .orca-workspace.orca-app.orca-w0 :is(.settings-tabs, .oversight-tabs) {
   gap: 2px;

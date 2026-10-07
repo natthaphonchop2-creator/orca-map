@@ -190,7 +190,7 @@
         </div>
       </div>
       {#if data.canManage}<button
-          class="k-button primary org-save"
+          class="k-button org-save"
           type="submit"
           disabled={orgBusy || logoBusy || !displayName.trim()}
           >{orgBusy
@@ -331,6 +331,7 @@
     object-fit: contain;
   }
   .organization-logo-field {
+    position: relative;
     flex: 1 1 220px;
     min-width: 0;
     max-width: 360px;
@@ -346,6 +347,8 @@
   /* The real input stays in the page (keyboard and screen readers use it); the label is its button. */
   .organization-logo-input {
     position: absolute;
+    top: 0;
+    left: 0;
     width: 1px;
     height: 1px;
     overflow: hidden;

@@ -109,7 +109,7 @@ test('each member shows whether they can reach company data, and how to fix it',
  assert.match(result.html,/Main workspace/);
  assert.doesNotMatch(result.html,/Old workspace|Paused workspace/);
  assert.match(result.html,/No data access yet/);assert.match(result.html,/Add to a workspace/);
- assert.match(result.html,/No data access<span[^>]*>2<\/span>/,'the filter counts members without a workspace');
+ assert.match(result.html,/<option value="noaccess"[^>]*>No data access 2<\/option>/,'the filter counts members without a workspace (W0: one dropdown)');
  assert.match(result.html,/<a role="menuitem" href="\/app\?view=secrets&amp;holder=employee"[^>]*>See connected AI apps<\/a>/,'each row links to that person\'s connected AI apps');
 });
 test('a view-only member sees the list without management menus',()=>{
