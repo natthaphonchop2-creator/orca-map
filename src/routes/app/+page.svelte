@@ -22,6 +22,8 @@
   import ConnectAIView from "$lib/components/orca/views/ConnectAIView.svelte";
   import OversightView from "$lib/components/orca/views/OversightView.svelte";
   import MyAIFrame from "$lib/components/orca/views/MyAIFrame.svelte";
+  import SkillsView from "$lib/components/orca/views/SkillsView.svelte";
+  import { skillsEnabled } from "$lib/orca/workspace-nav";
   import PlatformView from "$lib/components/orca/views/PlatformView.svelte";
   import TeamView from "$lib/components/orca/views/TeamView.svelte";
   import WorkspaceHubView from "$lib/components/orca/views/WorkspaceHubView.svelte";
@@ -370,6 +372,7 @@
     />{/key}
   {:else if view === "workspaces"}<SettingsFrame {data} current="workspaces"><AppOverview data={managementData!} onchanged={refresh} /></SettingsFrame>
   {:else if view === "help"}<HelpView {data} />
+  {:else if view === "skills" && skillsEnabled(data)}<SkillsView data={currentData!} />
   {:else}{#key data}<WorkspaceDashboard data={currentData!} {pendingApprovals} />{/key}
   {/if}
   <footer class="k-footer">

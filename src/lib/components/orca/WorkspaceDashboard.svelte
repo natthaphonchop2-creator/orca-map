@@ -31,6 +31,8 @@
 	import { healthByConnection } from '$lib/orca/connection-health';
 	import { OrcaLibraryService } from '$lib/services/orca-library';
 	import { refreshAIConnection } from '$lib/services/orca-ai-apps';
+	import { SkillsService } from '$lib/services/orca-skills';
+	import { skillsEnabled } from '$lib/orca/workspace-nav';
 	import AIReconnectBanner from './home/AIReconnectBanner.svelte';
 	import HomeStatus from './home/HomeStatus.svelte';
 	import PageHeader from './ui/PageHeader.svelte';
@@ -63,6 +65,8 @@
 	let checks = $state<'loading' | 'done' | 'failed'>('loading');
 	/** คลังความรู้'s tile: the items of the viewer's workspaces, once read. */
 	let knowledge = $state<{ count: number; updatedAt: string }>();
+	/** Skills' tile, only with the company's skills feature (W0); the list is a stub until its backend ships. */
+	let skills = $state<{ count: number }>();
 
 	const manager = $derived(data.canManage);
 	const me = $derived(data.members.find((member) => member.id === data.currentUserID));
@@ -206,6 +210,14 @@
 	);
 
 	onMount(() => {
+		if (skillsEnabled(untrack(() => data)))
+			void SkillsService.list()
+				.then((items) => {
+					if (alive) skills = { count: items.filter((item) => item.status === 'published').length };
+				})
+				.catch(() => {
+					if (alive) skills = { count: 0 };
+				});
 		void loadActivity();
 		void loadAIApps();
 		void loadKnowledge();
@@ -273,7 +285,7 @@
 	</section>
 {/if}
 
-<HomeStatus {data} {events} {eventsError} onretry={loadActivity} {iconName} accounts={programAccounts} {ai} {aiApp} {knowledge} />
+<HomeStatus {data} {events} {eventsError} onretry={loadActivity} {iconName} accounts={programAccounts} {ai} {aiApp} {knowledge} skills={skillsEnabled(data) ? (skills ?? { count: 0 }) : undefined} />
 
 <style>
 	.home-attention {
