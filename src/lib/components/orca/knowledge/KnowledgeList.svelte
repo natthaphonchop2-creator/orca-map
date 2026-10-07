@@ -113,6 +113,7 @@
 	const idle = $derived(features.files && hub.status !== 'active');
 	const paused = $derived(filesOff || idle);
 	const fileTab = $derived(features.files || items.some((item) => item.kind === 'file'));
+	const tabCount = $derived(2 + (fileTab ? 1 : 0) + (documentsHref ? 1 : 0));
 	const rows = $derived(filterLibrary(items, kind, filter, query));
 	const shown = $derived(expanded ? rows : rows.slice(0, LIBRARY_PAGE));
 	const hidden = $derived(rows.length - shown.length);
@@ -178,7 +179,6 @@
 		</PageHeader>
 		<div class="kn-ctx">
 			{#if choices.length > 1}<ScopeChip {hub} {choices} onchoose={onchoose} />{/if}
-			{#if documentsHref}<a class="kn-docs" href={documentsHref}>{t('เทมเพลตเอกสาร', 'Document templates')}</a>{/if}
 			{#if counted}
 				<p class="kn-strip">
 					<span><i class="dt" class:ok={!paused} class:plain={paused} aria-hidden="true"></i>{paused ? t('เผยแพร่แล้ว', 'Published') : t('AI ใช้ได้', 'AI can use')} <b>{counts.published}</b></span>
@@ -200,7 +200,7 @@
 	<div class="kn-grid">
 		<div class="kn-main">
 			<div class="kn-bar">
-				<div class="seg" class:three={fileTab} role="group" aria-label={t('ประเภท', 'Type')}>
+				<div class="seg" class:three={tabCount >= 3} style:--seg-n={tabCount} role="group" aria-label={t('ประเภท', 'Type')}>
 					<button type="button" aria-pressed={kind === 'knowledge'} class:on={kind === 'knowledge'} onclick={() => (kind = 'knowledge')}>
 						<BookOpen size={16} aria-hidden="true" />{fileTab ? t('บทความ', 'Articles') : t('ความรู้', 'Knowledge')}{#if counted}<span class="c">{knowledgeCount}</span>{/if}
 					</button>
@@ -212,6 +212,8 @@
 					<button type="button" aria-pressed={kind === 'template'} class:on={kind === 'template'} onclick={() => (kind = 'template')}>
 						<Zap size={16} aria-hidden="true" />{term('readyPrompt', t)}{#if counted}<span class="c">{templateCount}</span>{/if}
 					</button>
+					<!-- เอกสาร (document templates, kv2 phase 2a): a tab of คลังความรู้ on its own page, only with the company's flag on. -->
+					{#if documentsHref}<a href={documentsHref}><FileSpreadsheet size={16} aria-hidden="true" />{t('เอกสาร', 'Documents')}</a>{/if}
 				</div>
 				<label class="search">
 					<Search size={16} aria-hidden="true" />
@@ -350,13 +352,6 @@
 		gap: 12px 16px;
 		margin-top: 16px;
 	}
-	.kn-docs {
-		color: var(--orca-ink);
-		font-size: 13.5px;
-		font-weight: 600;
-		text-decoration: underline;
-		text-underline-offset: 3px;
-	}
 	.kn-strip {
 		display: flex;
 		align-items: center;
@@ -460,7 +455,8 @@
 		border-radius: 10px;
 		background: var(--orca-secondary);
 	}
-	.seg button {
+	.seg button,
+	.seg a {
 		display: inline-flex;
 		align-items: center;
 		gap: 8px;
@@ -475,7 +471,11 @@
 		white-space: nowrap;
 		cursor: pointer;
 	}
-	.seg button:hover:not(.on) {
+	.seg a {
+		text-decoration: none;
+	}
+	.seg button:hover:not(.on),
+	.seg a:hover {
 		color: var(--orca-ink);
 	}
 	.seg button.on {
@@ -878,18 +878,19 @@
 			grid-template-columns: 1fr 1fr;
 		}
 		.seg.three {
-			grid-template-columns: repeat(3, auto);
+			grid-template-columns: repeat(var(--seg-n, 3), auto);
 		}
-		.seg button {
+		.seg button,
+		.seg a {
 			justify-content: center;
 			padding: 7px 8px;
 		}
-		.seg.three button {
+		.seg.three :is(button, a) {
 			gap: 6px;
 			padding: 7px 4px;
 			font-size: 13px;
 		}
-		.seg.three button :global(svg) {
+		.seg.three :is(button, a) :global(svg) {
 			display: none;
 		}
 		.search {

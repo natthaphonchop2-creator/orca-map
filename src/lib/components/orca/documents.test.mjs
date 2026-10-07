@@ -29,14 +29,17 @@ test('each new screen compiles without warnings, uses tokens only, and keeps the
 		assert.doesNotMatch(source, /#[0-9a-f]{3,8}\b/i, `${file} uses tokens only`);
 		assert.doesNotMatch(source, /<select|\{@html|กรุณา|แม่แบบ|StatusPill/, file);
 	}
-	// Citron marks a point only: the "still to decide" dot.
-	const review = await readFile(new URL('./documents/DocTemplateReview.svelte', import.meta.url), 'utf8');
-	assert.equal(review.match(/--orca-citron(?![\w-])/g)?.length, 1);
+	// W0: สร้าง is the page's one ink primary; in-page buttons are outline, and no citron.
+	for (const file of FILES.slice(0, 2)) {
+		const source = await readFile(new URL(`./${file}`, import.meta.url), 'utf8');
+		assert.doesNotMatch(source, /--orca-citron|k-button primary|class:primary/, file);
+	}
 });
 
 async function view(data, props = {}) {
+	const { glossary } = await importTypeScript(new URL('../../orca/glossary.ts', import.meta.url));
 	const { warnings, Component } = await serverComponent(new URL('./documents/DocumentsView.svelte', import.meta.url), {
-		...d, ORCA_SUPPORT_LINE_ID: '@147njpwd', libraryScope: k.libraryScope, formatBytes: k.formatBytes, t: th, localeHref: (value) => value, PageHeader, untrack: (fn) => fn(), goto: noop,
+		...d, term: (key, t) => t(...glossary[key]), ORCA_SUPPORT_LINE_ID: '@147njpwd', libraryScope: k.libraryScope, formatBytes: k.formatBytes, t: th, localeHref: (value) => value, PageHeader, untrack: (fn) => fn(), goto: noop,
 		currentCompany: () => 'default', displayDate: (v) => v, memberName: (m) => m.displayName, orcaError: () => '', OrcaDocTemplateService: {}, showToast: noop,
 		DocTemplateReview: (renderer, input) => renderer.push(`<review data-template="${input.templateID}"></review>`)
 	});
@@ -49,12 +52,16 @@ test('the page needs both company switches, then opens the viewer\'s workspace',
 	assert.match(await view({ features: { docTemplates: true } }), /เทมเพลตเอกสารยังไม่เปิดให้บริษัทนี้/);
 	assert.match(await view({ hubs: [] , canManage: false }), /เปิดคลังความรู้เพื่อเลือกพื้นที่ทำงาน AI ก่อน/);
 	const manager = await view({});
-	assert.match(manager, /ฟอร์มของบริษัทที่ AI กรอกให้ ใน ฝ่ายต้อนรับ/);
-	assert.match(manager, />เพิ่มเทมเพลตเอกสาร</);
-	assert.match(manager, /accept="\.xlsx"/);
-	assert.equal(manager.match(/k-button primary/g)?.length, 1, 'one primary action');
+	// W0: เอกสาร is a tab of คลังความรู้: its header, its type tabs with เอกสาร current.
+	assert.match(manager, /<h1[^>]*>คลังความรู้<\/h1>/);
+	assert.match(manager, /ฟอร์มของบริษัทที่ AI กรอกให้ และไฟล์ที่ได้/);
+	for (const kind of ['knowledge', 'file', 'template']) assert.match(manager, new RegExp(`href="/app\\?view=knowledge&amp;hub=front&amp;kind=${kind}"`));
+	assert.match(manager, /class="on[^"]*" href="\/app\?view=documents&amp;hub=front" aria-current="page"/);
+	assert.doesNotMatch(manager, /orca-page-back/, 'a tab, not a page to go back from');
+	assert.match(manager, /<label class="k-button dc-upload[^"]*"[^>]*><input type="file" accept="\.xlsx"[^>]*\/>(?:<[^>]*>)*เพิ่มเทมเพลต<\/label>/);
+	assert.doesNotMatch(manager, /k-button primary/, 'สร้าง is the one primary');
 	const member = await view({ canManage: false });
-	assert.doesNotMatch(member, /เพิ่มเทมเพลตเอกสาร/, 'a member adds no templates');
+	assert.doesNotMatch(member, /เพิ่มเทมเพลต/, 'a member adds no templates');
 });
 
 test('the review opens for a manager only', async () => {
@@ -71,8 +78,9 @@ test('the knowledge list links to เอกสาร only while the company has 
 	});
 	assert.deepEqual(warnings, []);
 	const props = { hub: hub('front'), choices: [], items: [], departments: [], members: [], currentUserID: 'me', onchoose: noop, oncreate: noop, onopen: noop, onreload: noop };
-	assert.match(render(Component, { props: { ...props, documentsHref: '/app?view=documents&hub=front' } }).body, /href="\/app\?view=documents&amp;hub=front"[^>]*>เทมเพลตเอกสาร</);
-	assert.doesNotMatch(render(Component, { props }).body, /เทมเพลตเอกสาร/);
+	// W0: a fourth type tab, เอกสาร, beside the library's own.
+	assert.match(render(Component, { props: { ...props, documentsHref: '/app?view=documents&hub=front' } }).body, /<div class="seg[^"]*"[^>]*>[\s\S]*<a href="\/app\?view=documents&amp;hub=front"[^>]*>(?:<!---->)?เอกสาร<\/a>/);
+	assert.doesNotMatch(render(Component, { props }).body, /view=documents|>เอกสาร</);
 });
 
 // Codex code review 1, finding 9: the review confirms what it sent, and

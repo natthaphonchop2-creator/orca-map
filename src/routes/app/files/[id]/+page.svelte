@@ -104,7 +104,7 @@
         {/if}
       {:else if view.kind === "stopped"}
         <h1 class="file-title">{t("เปิดเอกสารนี้ไม่ได้", "This document can't be opened")}</h1>
-        <p>{stoppedMessage(view.status, t)}</p>
+        <p class="file-stop">{stoppedMessage(view.status, t)}</p>
         <a class="o-button outline" href={localeHref("/app")}>{t("เปิด ORCA", "Open ORCA")}</a>
       {:else if view.kind === "retry"}
         <h1 class="file-title">{t("เปิดเอกสารไม่สำเร็จ", "The document did not open")}</h1>
@@ -130,6 +130,7 @@
   .file-note { margin: 14px 0 0; color: var(--orca-muted); font-size: 13px; line-height: 1.6; }
   a.o-button, button.o-button { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
   .file-alert { margin: 12px 0 0; }
+  .file-stop { margin: 0 0 18px; color: var(--orca-muted); line-height: 1.6; }
   .file-report { margin-top: 18px; font-size: 13px; }
   .file-report summary { cursor: pointer; font-weight: 600; }
   .file-report table { width: 100%; margin-top: 10px; border-collapse: collapse; }

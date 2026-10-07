@@ -247,7 +247,7 @@
 	<PageHeader
 		title={template?.title || t('เทมเพลตเอกสาร', 'Document template')}
 		subtitle={version ? `${version.originalName} · ${versionStateText(version.state, t)}` : ''}
-		back={{ href: localeHref(`/app?view=documents&hub=${encodeURIComponent(hub.id)}`), label: t('เทมเพลตเอกสาร', 'Document templates') }}
+		back={{ href: localeHref(`/app?view=documents&hub=${encodeURIComponent(hub.id)}`), label: t('เอกสาร', 'Documents') }}
 	/>
 
 	{#if loadError}
@@ -260,7 +260,7 @@
 		<div class="dt-panel">
 			<p class="dt-strong">{t('ใช้ไฟล์นี้เป็นเทมเพลตไม่ได้', 'This file can’t be a template')}</p>
 			<p>{refusalText(version.refusalReason, t)}</p>
-			<label class="k-button primary">
+			<label class="k-button">
 				<input type="file" accept=".xlsx" class="dt-file" onchange={replace} disabled={!!busy} />{busy === 'replace' ? t('กำลังอัปโหลด…', 'Uploading…') : t('อัปโหลดไฟล์ที่แก้แล้ว', 'Upload the fixed file')}
 			</label>
 		</div>
@@ -404,7 +404,7 @@
 			{/if}
 			{#if actionError}<p class="dt-alert" role="alert">{actionError}</p>{/if}
 			<div class="dt-buttons">
-				<button type="button" class="k-button" class:primary={gate.block === 'unconfirmed' || gate.block === 'edited'} disabled={!!busy || (!edited && !!version.specSha256)} onclick={confirm}>
+				<button type="button" class="k-button" disabled={!!busy || (!edited && !!version.specSha256)} onclick={confirm}>
 					{busy === 'confirm' ? t('กำลังยืนยัน…', 'Confirming…') : t('ยืนยันการตั้งค่า', 'Confirm setup')}
 				</button>
 				<button type="button" class="k-button" disabled={!!busy || !version.specSha256 || edited} onclick={testFill}>
@@ -433,7 +433,7 @@
 				{/if}
 				{#if gate.block !== 'none'}<p class="dt-count point">{gateText(gate, t)}</p>{/if}
 				<div class="dt-buttons">
-					<button type="button" class="k-button primary" disabled={!!busy || gate.block !== 'none'} onclick={publish}>
+					<button type="button" class="k-button" disabled={!!busy || gate.block !== 'none'} onclick={publish}>
 						{busy === 'publish' ? t('กำลังเผยแพร่…', 'Publishing…') : t('เผยแพร่', 'Publish')}
 					</button>
 				</div>
@@ -583,8 +583,7 @@
 		height: 8px;
 		margin-right: 8px;
 		border-radius: 50%;
-		background: var(--orca-citron);
-		box-shadow: 0 0 0 1px var(--orca-citron-line);
+		background: var(--orca-ink);
 		content: '';
 	}
 	.dt-cells {

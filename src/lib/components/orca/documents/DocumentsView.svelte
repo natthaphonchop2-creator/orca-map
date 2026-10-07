@@ -11,6 +11,8 @@
 		workingVersion
 	} from '$lib/orca/doc-templates';
 	import { saveBlob } from '$lib/download';
+	import { term } from '$lib/orca/glossary';
+	import { BookOpen, Download, FileSpreadsheet, Files, Upload, Zap } from '@lucide/svelte';
 	import { getHttpStatusCode } from '$lib/errors';
 	import { ORCA_SUPPORT_LINE_ID } from '$lib/orca/support';
 	import { formatBytes, libraryScope } from '$lib/orca/knowledge';
@@ -70,6 +72,11 @@
 		if (id && on) untrack(() => void load(id));
 	});
 
+	// The other tabs of คลังความรู้, on its own page (the entry link's kind).
+	const knowledgeHref = (kind: 'knowledge' | 'file' | 'template') =>
+		localeHref(`/app?view=knowledge&hub=${encodeURIComponent(hub?.id ?? '')}&kind=${kind}`);
+	// W0: status is ink text with a dot, never a pill.
+	const stateDot = (state: string) => (state === 'published' ? 'ok' : state === 'refused' ? 'bad' : state === 'confirmed' ? 'plain' : 'ring');
 	const hrefFor = (template?: string) =>
 		localeHref(`/app?view=documents&hub=${encodeURIComponent(hub?.id ?? '')}${template ? `&template=${encodeURIComponent(template)}` : ''}`);
 
@@ -136,34 +143,38 @@
 </script>
 
 {#if !on}
-	<PageHeader title={t('เอกสาร', 'Documents')} />
+	<PageHeader title={term('knowledge', t)} subtitle={t('ข้อมูลที่ AI ของทีมใช้ตอบคำถาม', 'What your team’s AI answers from')} />
 	<p class="dc-panel">{t(`เทมเพลตเอกสารยังไม่เปิดให้บริษัทนี้ ติดต่อทีม ORCA ทาง LINE ${ORCA_SUPPORT_LINE_ID}`, `Document templates are not on for this company. Contact the ORCA team on LINE ${ORCA_SUPPORT_LINE_ID}.`)}</p>
 {:else if !hub}
-	<PageHeader title={t('เอกสาร', 'Documents')} />
+	<PageHeader title={term('knowledge', t)} subtitle={t('ข้อมูลที่ AI ของทีมใช้ตอบคำถาม', 'What your team’s AI answers from')} />
 	<p class="dc-panel">{t('เปิดคลังความรู้เพื่อเลือกพื้นที่ทำงาน AI ก่อน', 'Open Knowledge to choose an AI workspace first.')} <a href={localeHref('/app?view=knowledge')}>{t('เปิดคลังความรู้', 'Open Knowledge')}</a></p>
 {:else if templateID && data.canManage}
 	{#key templateID}
 		<DocTemplateReview {data} {hub} {templateID} onback={() => void goto(hrefFor())} onchanged={() => void load(hub!.id)} />
 	{/key}
 {:else}
+	<!-- W0: เอกสาร is a tab of คลังความรู้: the same header and type tabs, its own page. -->
 	<div class="dc">
-		<PageHeader
-			title={t('เอกสาร', 'Documents')}
-			subtitle={t(`ฟอร์มของบริษัทที่ AI กรอกให้ ใน ${hub.name}`, `Company forms AI fills, in ${hub.name}`)}
-			back={{ href: localeHref(`/app?view=knowledge&hub=${encodeURIComponent(hub.id)}`), label: t('คลังความรู้', 'Knowledge') }}
-		>
+		<PageHeader title={term('knowledge', t)} subtitle={t('ฟอร์มของบริษัทที่ AI กรอกให้ และไฟล์ที่ได้', 'Company forms AI fills, and the files it made')}>
 			{#snippet action()}
 				{#if data.canManage && tab === 'templates'}
-					<label class="k-button primary dc-upload" aria-disabled={uploading}>
-						<input type="file" accept=".xlsx" onchange={upload} disabled={uploading} />{uploading ? t('กำลังอัปโหลด…', 'Uploading…') : t('เพิ่มเทมเพลตเอกสาร', 'Add a document template')}
+					<label class="k-button dc-upload" aria-disabled={uploading}>
+						<input type="file" accept=".xlsx" onchange={upload} disabled={uploading} /><Upload size={16} strokeWidth={2.3} aria-hidden="true" />{uploading ? t('กำลังอัปโหลด…', 'Uploading…') : t('เพิ่มเทมเพลต', 'Add a template')}
 					</label>
 				{/if}
 			{/snippet}
 		</PageHeader>
 
-		<div class="dc-seg" role="group" aria-label={t('ประเภท', 'Type')}>
-			<button type="button" aria-pressed={tab === 'templates'} class:on={tab === 'templates'} onclick={() => (tab = 'templates')}>{t('เทมเพลตเอกสาร', 'Templates')}</button>
-			<button type="button" aria-pressed={tab === 'files'} class:on={tab === 'files'} onclick={() => (tab = 'files')}>{t('เอกสารที่สร้าง', 'Made files')}</button>
+		<nav class="dc-kinds" aria-label={t('ประเภท', 'Type')}>
+			<a href={knowledgeHref('knowledge')}><BookOpen size={16} aria-hidden="true" />{t('บทความ', 'Articles')}</a>
+			<a href={knowledgeHref('file')}><Files size={16} aria-hidden="true" />{t('ไฟล์', 'Files')}</a>
+			<a href={knowledgeHref('template')}><Zap size={16} aria-hidden="true" />{term('readyPrompt', t)}</a>
+			<a class="on" href={hrefFor()} aria-current="page"><FileSpreadsheet size={16} aria-hidden="true" />{t('เอกสาร', 'Documents')}</a>
+		</nav>
+
+		<div class="dc-tabs" role="group" aria-label={t('เอกสาร', 'Documents')}>
+			<button type="button" aria-pressed={tab === 'templates'} class:on={tab === 'templates'} onclick={() => (tab = 'templates')}>{t('เทมเพลต', 'Templates')}</button>
+			<button type="button" aria-pressed={tab === 'files'} class:on={tab === 'files'} onclick={() => (tab = 'files')}>{t('ไฟล์ที่สร้าง', 'Made files')}</button>
 		</div>
 
 		{#if uploadError}<p class="dc-alert" role="alert">{uploadError}</p>{/if}
@@ -181,7 +192,7 @@
 								{#if data.canManage}<a class="dc-title" href={hrefFor(template.id)}>{template.title}</a>{:else}<span class="dc-title">{template.title}</span>{/if}
 								<span class="dc-sub">{template.whenToUse || (version ? version.originalName : '')}</span>
 							</div>
-							<span class="dc-state">{version ? versionStateText(version.state, t) : ''}</span>
+							{#if version}<span class="dc-state"><i class="dot {stateDot(version.state)}" aria-hidden="true"></i>{versionStateText(version.state, t)}</span>{/if}
 						</li>
 					{/each}
 				</ul>
@@ -205,7 +216,7 @@
 									{#if doc.report}<span class="dc-sub">{reportLine(doc.report, !!doc.reportTruncated, t)}</span>{/if}
 								</div>
 								<span class="dc-actions">
-									<button type="button" class="k-button small" disabled={!!fetching} onclick={() => save(doc, false)}>{t('ดาวน์โหลด', 'Download')}</button>
+									<button type="button" class="k-button small" disabled={!!fetching} onclick={() => save(doc, false)}><Download size={15} aria-hidden="true" />{t('ดาวน์โหลด', 'Download')}</button>
 									<button type="button" class="k-button quiet small" onclick={() => (removing = doc)}>{t('ลบ', 'Delete')}</button>
 								</span>
 							</li>
@@ -258,30 +269,64 @@
 	.dc {
 		display: grid;
 		gap: 16px;
-		max-width: 980px;
 	}
-	.dc-seg {
+	/* The type tabs, as คลังความรู้'s own. */
+	.dc-kinds {
 		display: inline-flex;
 		justify-self: start;
+		gap: 2px;
 		padding: 3px;
-		border: 1px solid var(--orca-line);
-		border-radius: var(--orca-radius);
-		background: var(--orca-surface-2);
+		border-radius: 10px;
+		background: var(--orca-secondary);
 	}
-	.dc-seg button {
+	.dc-kinds a {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
 		min-height: 36px;
-		padding: 0 14px;
+		padding: 7px 14px;
+		border-radius: 8px;
+		color: var(--orca-muted);
+		font-size: 13.5px;
+		font-weight: 500;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+	.dc-kinds a:hover:not(.on) {
+		color: var(--orca-ink);
+	}
+	.dc-kinds a.on {
+		background: var(--orca-surface);
+		color: var(--orca-ink);
+		font-weight: 600;
+		box-shadow:
+			0 1px 2px color-mix(in srgb, var(--orca-ink) 8%, transparent),
+			0 0 0 1px var(--orca-line);
+	}
+	/* W0: a chosen tab is underlined in ink, never a black fill. */
+	.dc-tabs {
+		display: flex;
+		gap: 4px;
+		border-bottom: 1px solid var(--orca-line-soft);
+	}
+	.dc-tabs button {
+		min-height: 34px;
+		padding: 0 8px;
 		border: 0;
-		border-radius: calc(var(--orca-radius) - 2px);
+		border-bottom: 2px solid transparent;
+		margin-bottom: -1px;
 		background: transparent;
 		color: var(--orca-muted);
 		font: inherit;
-		font-size: 13.5px;
+		font-size: 13px;
+		font-weight: 500;
 		cursor: pointer;
 	}
-	.dc-seg button.on {
-		background: var(--orca-surface);
-		box-shadow: 0 0 0 1px var(--orca-line);
+	.dc-tabs button:hover:not(.on) {
+		color: var(--orca-ink);
+	}
+	.dc-tabs button.on {
+		border-bottom-color: var(--orca-ink);
 		color: var(--orca-ink);
 		font-weight: 600;
 	}
@@ -325,6 +370,9 @@
 		font-weight: 600;
 	}
 	a.dc-title {
+		text-decoration: none;
+	}
+	a.dc-title:hover {
 		text-decoration: underline;
 		text-underline-offset: 3px;
 	}
@@ -337,7 +385,30 @@
 		line-height: 1.55;
 	}
 	.dc-state {
+		display: inline-flex;
 		flex: none;
+		align-items: center;
+		gap: 7px;
+		color: var(--orca-ink);
+		font-weight: 500;
+	}
+	.dot {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--orca-subtle);
+	}
+	.dot.ok {
+		background: var(--orca-ok);
+	}
+	.dot.bad {
+		background: var(--orca-deny);
+	}
+	.dot.ring {
+		width: 8px;
+		height: 8px;
+		border: 1.5px solid var(--orca-subtle);
+		background: transparent;
 	}
 	.dc-actions {
 		display: inline-flex;
@@ -370,6 +441,9 @@
 	}
 	.dc-upload {
 		position: relative;
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
 		cursor: pointer;
 	}
 	.dc-upload input {
@@ -389,11 +463,19 @@
 			flex: 1;
 			justify-content: center;
 		}
-		.dc-seg {
+		.dc-kinds {
+			display: grid;
+			grid-template-columns: repeat(4, auto);
 			justify-self: stretch;
 		}
-		.dc-seg button {
-			flex: 1;
+		.dc-kinds a {
+			justify-content: center;
+			gap: 6px;
+			padding: 7px 4px;
+			font-size: 13px;
+		}
+		.dc-kinds a :global(svg) {
+			display: none;
 		}
 	}
 </style>
