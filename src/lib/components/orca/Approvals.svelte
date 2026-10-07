@@ -353,14 +353,12 @@
 <style>
 	/* orca-type-remap v1 */
   .approvals-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-  .approvals-tabs { display: inline-flex; gap: 8px; }
-  .approvals-tabs button { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border: 1px solid var(--orca-line-strong); border-radius: 999px; background: var(--orca-surface); color: var(--orca-text-2); font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; }
-  .approvals-tabs button:hover { background: var(--orca-hover); color: var(--orca-ink); }
-  .approvals-tabs button.chosen { border-color: var(--orca-ink); background: var(--orca-ink); color: var(--orca-on-ink); font-weight: 600; }
-  .approvals-tabs button span { display: inline-grid; place-items: center; min-width: 22px; height: 20px; padding: 0 7px; border-radius: 999px; background: var(--orca-secondary); color: var(--orca-text-2); font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .approvals-tabs button.chosen span { background: color-mix(in srgb, var(--orca-on-ink) 18%, transparent); color: var(--orca-on-ink); }
-  /* On the light chosen chip of the dark theme a tinted fill turns grey: ring the count instead. */
-  :global(:root[data-orca-theme='dark']) .approvals-tabs button.chosen span { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--orca-on-ink) 30%, transparent); }
+  /* W0.1: plain text, never a black chip: the chosen one in ink and bold, its count plain beside it. */
+  .approvals-tabs { display: inline-flex; gap: 4px; }
+  .approvals-tabs button { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; border: 0; border-radius: var(--orca-radius); background: transparent; color: var(--orca-muted); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+  .approvals-tabs button:hover { color: var(--orca-ink); }
+  .approvals-tabs button.chosen { color: var(--orca-ink); font-weight: 600; }
+  .approvals-tabs button span { color: var(--orca-subtle); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
   .approvals-bar .approvals-refresh { width: 38px; min-height: 38px; padding: 0; flex: none; justify-content: center; color: var(--orca-text-2) !important; }
   .approvals-error { margin-bottom: 16px; }
   .approvals-loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 48px 20px; border: 1px solid var(--orca-line); border-radius: var(--orca-radius-lg); background: var(--orca-surface); color: var(--orca-muted); font-size: 13.5px; }

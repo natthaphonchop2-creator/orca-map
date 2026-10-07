@@ -184,13 +184,19 @@ test('the programs list (W0: the approved card grid): logo, name, account type, 
 	assert.match(raw, /<a href="\/app\?view=servers&amp;connection=c-read"/, 'the card opens the program');
 	// Above the grid: search and one dropdown filter, never black chips.
 	assert.match(raw, /<input type="search"/);
-	assert.match(raw, /<select[\s\S]*?<option value="all"[^>]*>ทั้งหมด 4<\/option>[\s\S]*?<option value="review"[^>]*>ต้องจัดการ 1<\/option>[\s\S]*?<option value="paused"[^>]*>หยุดชั่วคราว 1<\/option>/);
+	assert.match(raw, /<select[\s\S]*?<option value="all"[^>]*>ทั้งหมด 4<\/option>[\s\S]*?<option value="ready"[^>]*>เชื่อมแล้ว 2<\/option>[\s\S]*?<option value="review"[^>]*>ต้องจัดการ 1<\/option>[\s\S]*?<option value="paused"[^>]*>หยุดชั่วคราว 1<\/option>/);
 	assert.doesNotMatch(raw, /programs-filters|programs-table|orca-pill/);
+	// W0.1: the filter says เชื่อมแล้ว for the cards that say it; a company account waiting to sign in again is not counted.
+	const centerFilter = await readFile(new URL('./ConnectionCenter.svelte', import.meta.url), 'utf8');
+	assert.match(centerFilter, /const connected = \(id: string\) => statuses\.get\(id\) === 'ready' && !reconnect\.has\(id\);/);
+	assert.match(centerFilter, /\{ id: 'ready', label: t\('เชื่อมแล้ว', 'Connected'\) \}/);
+	assert.doesNotMatch(centerFilter, /label: t\('ใช้ได้'/, 'admins never read ใช้ได้');
 	const centerSource = await readFile(new URL('./ConnectionCenter.svelte', import.meta.url), 'utf8');
 	// A company account that needs connecting again says so, in the same word as Home.
 	assert.match(centerSource, /\{#if reconnect\.has\(connection\.id\)\}<span class="programs-state warn"><i aria-hidden="true"><\/i>\{t\(RECONNECT_WORD\.th, RECONNECT_WORD\.en\)\}/);
 	assert.match(centerSource, /void OrcaService\.programAccounts\(\)/);
-	assert.match(centerSource, /grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/, 'three columns');
+	// W0.1: 280 px cards, as many as fit: 4 across at 1440 beside the rail.
+	assert.match(centerSource, /\.programs-grid \{\s*display: grid;\s*grid-template-columns: repeat\(auto-fill, minmax\(280px, 1fr\)\);/);
 	assert.match(centerSource.slice(centerSource.indexOf('@media (max-width: 720px)')), /\.programs-grid \{\s*grid-template-columns: minmax\(0, 1fr\);/, 'one on a phone');
 	assert.equal(calls[0].props.title, 'โปรแกรม');
 	assert.equal(typeof calls[0].props.action, 'function', 'เชื่อมโปรแกรม beside the title');
@@ -243,7 +249,8 @@ test('W0: the catalog dialog: search, the category tabs, เชื่อม or �
 	assert.match(source, /\{:else if card\.state === 'soon'\}<span class="cat-later">\{t\('เร็วๆ นี้', 'Coming soon'\)\}<\/span>/);
 	assert.match(source, /\{:else\}<a class="k-button small" href=\{connectHref\(source\)\}/);
 	assert.match(source, /`\/app\?view=add-program&source=\$\{encodeURIComponent\(source\.id\)\}&step=connect\$\{back\}`/);
-	assert.match(source, /const back = \$derived\(returnTo === 'new' \|\| returnTo === 'welcome' \? `&return=\$\{returnTo\}` : ''\);/);
+	// The way back, and W0.1's สร้าง › บัญชีกลาง start (&as=company), ride with the connect link.
+	assert.match(source, /const back = \$derived\(`\$\{returnTo === 'new' \|\| returnTo === 'welcome' \? `&return=\$\{returnTo\}` : ''\}\$\{startCompany \? '&as=company' : ''\}`\);/);
 	assert.match(source, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/, 'two columns');
 	assert.match(source.slice(source.indexOf('@media (max-width: 720px)')), /\.cat-grid \{\s*grid-template-columns: minmax\(0, 1fr\);/, 'one on a phone');
 });

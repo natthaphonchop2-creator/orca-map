@@ -69,6 +69,7 @@
 		address = '/app?view=add-program',
 		navigate,
 		initialSourceID = '',
+		startCompany = false,
 		onchanged,
 		oncompleted,
 		onbusychange
@@ -86,6 +87,8 @@
 		address?: string;
 		navigate?: (href: string) => Promise<void> | void;
 		initialSourceID?: string;
+		/** สร้าง › บัญชีกลาง (&as=company): start on บัญชีกลาง where the program allows it. */
+		startCompany?: boolean;
 		onchanged: () => Promise<void>;
 		oncompleted?: (connection: OrcaConnection) => Promise<void> | void;
 		onbusychange?: (busy: boolean) => void;
@@ -98,7 +101,7 @@
 	const sourceID = $derived(mode === 'page' ? pageSource : sheetSource);
 	const companyAccount = $derived(mode === 'page' ? pageAccount : sheetAccount);
 	// Step 2's choice: each person's own account, or บัญชีกลาง.
-	let accountMode = $state<'personal' | 'company'>(untrack(() => (pageAccount ? 'company' : 'personal')));
+	let accountMode = $state<'personal' | 'company'>(untrack(() => (pageAccount || startCompany ? 'company' : 'personal')));
 	let policy = $state.raw<OrcaCompanyAccountPolicy>();
 	let policyFor = $state('');
 	const companyAllowed = $derived(policyFor === sourceID && policyStep(policy) !== 'personal-only' && policyStep(policy) !== 'unknown');
@@ -311,6 +314,13 @@
 					if (!alive || sourceID !== id) return;
 					policy = found;
 					policyFor = id;
+					// สร้าง › บัญชีกลาง on a program that allows each person's own account
+					// only: the step shows that account, so the choice follows it, and a
+					// failed save's ลองอีกครั้ง saves on it (Codex W0.1 round 2, NOTE 1).
+					if (accountMode === 'company' && policyStep(found) === 'personal-only') {
+						accountMode = 'personal';
+						accountChanged();
+					}
 				});
 		});
 	});

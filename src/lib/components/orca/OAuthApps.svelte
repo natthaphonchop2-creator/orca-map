@@ -8,7 +8,6 @@
   import { oauthApps, type CustomOAuthApp, type ManagedOAuthApp, type OAuthAppProvider } from "$lib/orca/oauth-apps";
   import { oauthProviderSetup, type OAuthProviderSetup } from "$lib/orca/oauth-provider-setup";
   import { OrcaService, type OrcaBootstrap, type OrcaCandidate, type OrcaSourceSetup } from "$lib/services/orca";
-  import PlatformBadge from "./platform/PlatformBadge.svelte";
   import SourceSetup from "./SourceSetup.svelte";
   import ConfirmDialog from "./ui/ConfirmDialog.svelte";
   import PageHeader from "./ui/PageHeader.svelte";
@@ -246,7 +245,6 @@
 </script>
 
 <PageHeader title={term("programOAuthApps", t)} subtitle={t("ให้พนักงานเชื่อมบัญชีโปรแกรมของตัวเอง", "Let people connect their own program accounts.")}>
-  {#snippet eyebrow()}<PlatformBadge everyCompany />{/snippet}
   {#snippet action()}{#if data.canManage}<button type="button" class="k-button" disabled={loading} onclick={refresh}><RefreshCw size={16} class={loading ? "k-spin" : ""} aria-hidden="true" />{t("โหลดใหม่", "Refresh")}</button>{/if}{/snippet}
 </PageHeader>
 

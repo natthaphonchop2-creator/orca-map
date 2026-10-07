@@ -333,14 +333,15 @@
 		caret-color: var(--orca-ink);
 		box-shadow: 0 0 0 1000px var(--orca-field) inset;
 	}
-	/* Primary: the citron button. !important beats orca.css's white .o-button label. */
+	/* Primary: W0's light primary, a white fill with ink text (citron stays on small points).
+	   !important beats orca.css's white .o-button label. */
 	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-button {
 		border-radius: 10px;
-		background: var(--orca-citron);
-		color: var(--orca-on-citron) !important;
+		background: var(--orca-ink);
+		color: var(--orca-bg) !important;
 	}
 	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-button:hover {
-		background: var(--orca-citron-hover);
+		background: #ffffff;
 	}
 	/* Secondary: an outline on the dark card (orca.css keeps Tailwind's .outline ring off it). */
 	:root[data-orca-theme='dark'] .orca.o-auth-page:not(.o-login) .o-button.outline {

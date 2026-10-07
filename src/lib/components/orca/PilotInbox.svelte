@@ -6,7 +6,6 @@
 	import { PILOT_STATUSES } from '$lib/services/orca-platform';
 	import { Building2, Check, Inbox, Info, Mail, RefreshCw, UserRound, Users } from '@lucide/svelte';
 	import { onMount } from 'svelte';
-	import PlatformBadge from './platform/PlatformBadge.svelte';
 	import EmptyState from './ui/EmptyState.svelte';
 	import PageHeader from './ui/PageHeader.svelte';
 	import StatusPill, { type StatusTone } from './ui/StatusPill.svelte';
@@ -76,7 +75,6 @@
 	title={term('pilotRequests', t)}
 	subtitle={t('คำขอทดลองใช้จากหน้าเว็บไซต์', 'Trial requests from the website.')}
 >
-	{#snippet eyebrow()}<PlatformBadge />{/snippet}
 	{#snippet action()}<button type="button" class="k-button" disabled={loading || Boolean(saving)} onclick={load}
 			><RefreshCw size={16} class={loading ? 'k-spin' : ''} aria-hidden="true" />{t('โหลดใหม่', 'Refresh')}</button
 		>{/snippet}

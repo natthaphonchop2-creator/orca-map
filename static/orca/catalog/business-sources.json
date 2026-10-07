@@ -72,6 +72,15 @@
       "bytes": 2129
     },
     {
+      "name": "mcp-mark",
+      "sourceURL": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/favicon.svg",
+      "sourceSha256": "f6f33e24e95846f9ae2582ab72c4eae7beec5ec52c13d767d9f342bf639dd3e6",
+      "note": "Model Context Protocol mark, downloaded 2026-10-07 with the owner's permission; background tile removed, strokes in currentColor so it works as a line icon (โปรแกรม nav, สร้าง › เชื่อมโปรแกรม). Inlined in src/lib/components/orca/shell/McpMark.svelte",
+      "path": "/orca/brand/mcp-mark.svg",
+      "sha256": "8ba02ef42acb8f885610063e449f119ee783c89e225929ee8feeea9ad527d670",
+      "bytes": 1029
+    },
+    {
       "name": "canva",
       "sourceURL": "https://raw.githubusercontent.com/simple-icons/simple-icons/13.21.0/icons/canva.svg",
       "note": "Simple Icons 13.21.0 (CC0), filled with Canva's brand colour #00C4CC; replaces canva.ico, which blurs on Retina (W0)",

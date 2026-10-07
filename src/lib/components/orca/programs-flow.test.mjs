@@ -878,3 +878,41 @@ test('independent W0 review (NOTE 1): the account choice is locked while a save 
 	const rebase = source.slice(source.indexOf('async function rebase('), source.indexOf('function pick('));
 	assert.match(rebase, /accountMode = latestAccount \? 'company' : 'personal';\s*accountChanged\(\);/);
 });
+
+test('W0.1: สร้าง › บัญชีกลาง starts the connect step on the company account', async (context) => {
+	const run = await setup(context, { props: { startCompany: true } });
+	assert.equal(run.view.state.accountMode, 'company');
+	const plain = await setup(context);
+	assert.equal(plain.view.state.accountMode, 'personal');
+	const view = await readFile(new URL('./views/AddProgramView.svelte', import.meta.url), 'utf8');
+	assert.match(view, /startCompany=\{params\.get\('as'\) === 'company'\}/);
+});
+
+test('Codex W0.1 round 2 (NOTE 1): สร้าง › บัญชีกลาง on a program that allows only each person\'s own account switches to it, so ลองอีกครั้ง saves', async (context) => {
+	const settle = async () => { for (let i = 0; i < 6; i++) { await Promise.resolve(); flush(); } };
+	const writes = [];
+	let fail = true;
+	const save = async (input, id) => {
+		writes.push({ input, id });
+		if (fail) throw new Error('บันทึกไม่สำเร็จ');
+		return { ...input, id: id ?? 'saved-1', version: 1 };
+	};
+	const run = await setup(context, { props: { startCompany: true }, service: { policy: async () => ({ mode: 'personal_only', revision: 1 }), save } });
+	await settle();
+	assert.equal(run.view.state.companyAllowed, false);
+	assert.equal(run.view.state.accountMode, 'personal', 'the policy says no: each person\'s own account');
+	await run.view.accountReady('flow');
+	assert.equal(writes.length, 1);
+	assert.equal(run.view.state.saveError, 'บันทึกไม่สำเร็จ');
+	fail = false;
+	await run.view.retry();
+	assert.equal(writes.length, 2, 'ลองอีกครั้ง saves');
+	assert.equal(writes[1].input.programAccountID ?? '', '', 'on each person\'s own account');
+	assert.equal(run.view.state.saveError, '');
+	// A program that allows บัญชีกลาง keeps it; an unknown policy changes nothing either.
+	for (const policy of [async () => ({ mode: 'allowed', revision: 1 }), async () => ({ mode: 'warn', revision: 2 }), async () => { throw new Error('down'); }]) {
+		const kept = await setup(context, { props: { startCompany: true }, service: { policy } });
+		await settle();
+		assert.equal(kept.view.state.accountMode, 'company');
+	}
+});

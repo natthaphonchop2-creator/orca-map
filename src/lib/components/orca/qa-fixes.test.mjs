@@ -20,8 +20,9 @@ test('sticky save bars keep keyboard focus in view, and the phone drawer closes 
 	assert.match(css, /html:has\(\.orca-workspace\.orca-app \.workspace-drawer\[open\]\) \{\s*overflow: hidden;/);
 	const shell = await read('./AppShell.svelte');
 	assert.match(shell, /onclick=\{\(event\) => \{\s*if \(event\.target === drawer\) closeDrawer\(\);/);
-	// W0: the company sits under the logo in the sidebar and in the phone drawer alike.
-	assert.match(shell, /\{#if data && !compact\}[\s\S]*?<div class="workspace-company">/);
+	// W0.1: the company is the top bar's (a phone too); the drawer holds the rail's contents.
+	assert.match(shell, /<PopMenu id="orca-company-menu"/);
+	assert.match(shell, /<dialog\s+class="workspace-drawer w1-drawer"[\s\S]*?\{@render railBody\(true\)\}/);
 });
 
 test('an "#accounts" link reaches the program sign-ins once they render', async () => {
@@ -97,4 +98,68 @@ test('an outlined o-button draws no outline but its focus ring, in one rule for 
 	for (const page of ['../../../routes/login/+page.svelte', '../../../routes/login/ai/+page.svelte', '../../../routes/invite/[token]/+page.svelte', './CompanyGate.svelte']) {
 		assert.match(await read(page), /import "(?:\$lib\/components\/orca|\.)\/orca\.css";/, `${page} loads orca.css`);
 	}
+});
+
+test('W0.1: the sign-in, invite, CompanyGate and file pages use the light primary in dark, not a citron fill', async () => {
+	const forms = (await read('./forms.css')).replace(/\/\*[\s\S]*?\*\//g, '');
+	const dark = forms.match(/:root\[data-orca-theme='dark'\] \.orca\.o-auth-page:not\(\.o-login\) \.o-button \{[^}]*\}/)?.[0];
+	assert.ok(dark, 'forms.css has a dark primary');
+	assert.match(dark, /background: var\(--orca-ink\);/);
+	assert.match(dark, /color: var\(--orca-bg\) !important;/);
+	assert.doesNotMatch(dark, /citron/);
+	assert.match(forms, /:root\[data-orca-theme='dark'\] \.orca\.o-auth-page:not\(\.o-login\) \.o-button:hover \{\s*background: #ffffff;\s*\}/);
+	const login = (await read('./login.css')).replace(/\/\*[\s\S]*?\*\//g, '');
+	const primary = login.match(/\.orca\.o-auth-page\.o-login \.o-button \{[^}]*\}/)?.[0];
+	assert.ok(primary, 'login.css has a primary');
+	assert.match(primary, /background: var\(--login-text\);/);
+	assert.match(primary, /color: var\(--login-bg\) !important;/);
+	assert.doesNotMatch(primary, /citron/);
+	assert.match(login, /\.orca\.o-auth-page\.o-login \.o-button:hover \{\s*background: #ffffff;\s*\}/);
+	// No citron fill is left on any o-button in either file.
+	for (const css of [forms, login]) {
+		for (const rule of css.match(/[^{}]*\.o-button[^{}]*\{[^}]*\}/g) ?? []) {
+			assert.doesNotMatch(rule, /background: var\(--(?:orca|login)-citron/, rule.trim().split('{')[0]);
+		}
+	}
+});
+
+test('W0.1: the sign-in page says ORCA Workspace in plain small grey text, never a pill with a dot', async () => {
+	const page = await read('../../../routes/login/+page.svelte');
+	assert.match(page, /<p class="o-login-eyebrow">ORCA Workspace<\/p>/);
+	assert.doesNotMatch(page, /o-login-eyebrow"><span/, 'no citron dot');
+	const login = (await read('./login.css')).replace(/\/\*[\s\S]*?\*\//g, '');
+	const rule = login.match(/\.orca\.o-auth-page\.o-login \.o-login-eyebrow \{[^}]*\}/)?.[0];
+	assert.ok(rule, 'login.css styles the line');
+	assert.match(rule, /color: var\(--login-muted\);/);
+	assert.match(rule, /font-size: 12\.5px;/);
+	assert.doesNotMatch(rule, /border|background|border-radius|padding|height/, 'no pill: no border, fill, rounding or padding');
+	assert.doesNotMatch(login, /\.o-login-eyebrow span/, 'the dot rule is gone');
+});
+
+test('W0.1: the sign-in page lists its three points as plain lines with a small citron dot, never boxed icon tiles', async () => {
+	const page = await read('../../../routes/login/+page.svelte');
+	const points = page.slice(page.indexOf('<ul class="o-login-points">'), page.indexOf('</ul>', page.indexOf('<ul class="o-login-points">')));
+	assert.equal(points.match(/<li>/g)?.length, 3);
+	assert.doesNotMatch(points, /<svg|<[A-Z]\w* size=|o-login-icon/, 'no icon in the lines');
+	assert.doesNotMatch(page, /\b(?:Plug|BookOpen|ShieldCheck)\b/, 'the decorative icons are gone');
+	const login = (await read('./login.css')).replace(/\/\*[\s\S]*?\*\//g, '');
+	assert.doesNotMatch(login, /o-login-icon/, 'no tile rule left');
+	const dot = login.match(/\.orca\.o-auth-page\.o-login \.o-login-points li::before \{[^}]*\}/)?.[0];
+	assert.ok(dot, 'a dot before each line');
+	assert.match(dot, /width: 6px;[\s\S]*height: 6px;[\s\S]*border-radius: 50%;[\s\S]*background: var\(--login-citron\);/);
+	assert.doesNotMatch(dot, /border:/);
+});
+
+test('W0.1: รออนุมัติ / ตัดสินแล้ว above the approvals list are plain text, never a black filled chip', async () => {
+	const source = await read('./Approvals.svelte');
+	assert.match(source, /<div class="approvals-tabs" role="group"[^>]*>\s*<button type="button" class:chosen=\{tab === "pending"\} aria-pressed=\{tab === "pending"\}/, 'still a pressed toggle for each status');
+	const css = source.slice(source.indexOf('<style>')).replace(/\/\*[\s\S]*?\*\//g, '');
+	const rules = [...css.matchAll(/\.approvals-tabs[^{]*\{[^}]*\}/g)].map((match) => match[0]);
+	assert.ok(rules.length >= 4, 'the tab rules');
+	for (const rule of rules) {
+		assert.doesNotMatch(rule, /background: var\(--orca-(?:ink|secondary|surface)\)|999px|border: 1px|box-shadow/, rule.split('{')[0].trim());
+	}
+	assert.match(css, /\.approvals-tabs button\.chosen \{ color: var\(--orca-ink\); font-weight: 600; \}/);
+	assert.match(css, /\.approvals-tabs button span \{ color: var\(--orca-subtle\);/, 'the count is plain text');
+	assert.doesNotMatch(css, /approvals-tabs button\.chosen span/, 'no chip around the count either');
 });

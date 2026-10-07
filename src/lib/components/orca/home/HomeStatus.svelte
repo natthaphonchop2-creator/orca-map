@@ -74,7 +74,9 @@
 	}
 </script>
 
-<section class="home-tiles" class:three={!skills} aria-label={t('ภาพรวม', 'Overview')}>
+<!-- W0.1: ภาพรวม is the right column on a wide screen (home-layout's grid areas), a stacked panel. -->
+<section class="home-tiles" class:three={!skills} aria-labelledby="home-overview-title">
+	<h2 id="home-overview-title" class="home-overview-title">{t('ภาพรวม', 'Overview')}</h2>
 	<a class="home-tile" href={localeHref(manager ? '/app?view=servers' : '/app?view=connect-ai#accounts')}>
 		<!-- Employees have no โปรแกรม page: their tile is named for what it opens, AI ของฉัน › บัญชีโปรแกรมของคุณ. -->
 		<span class="home-tile-label">{manager ? term('programs', t) : t('บัญชีโปรแกรมของคุณ', 'Your program accounts')}<ChevronRight size={14} aria-hidden="true" /></span>
@@ -142,32 +144,45 @@
 
 <style>
 	/* orca-type-remap v1 */
+	/* ภาพรวม: one panel of rows (label and value at the left, the logos or state at the right). */
 	.home-tiles {
-		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
-		gap: 12px;
-		margin-bottom: 28px;
-	}
-	.home-tiles.three {
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-	}
-	.home-tile {
+		grid-area: overview;
 		display: flex;
 		flex-direction: column;
-		gap: 10px;
 		min-width: 0;
-		padding: 16px;
+	}
+	.home-overview-title {
+		margin: 0 0 10px;
+		font-size: 16px;
+		font-weight: 600;
+	}
+	.home-tile {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-areas: 'label foot' 'value foot';
+		align-items: center;
+		gap: 2px 12px;
+		min-width: 0;
+		padding: 14px 16px;
 		border: 1px solid var(--orca-line);
-		border-radius: var(--orca-radius-lg);
+		border-bottom-width: 0;
 		background: var(--orca-surface);
 		color: var(--orca-ink);
 		text-decoration: none;
 	}
+	.home-tile:first-of-type {
+		border-radius: var(--orca-radius-lg) var(--orca-radius-lg) 0 0;
+	}
+	.home-tile:last-of-type {
+		border-bottom-width: 1px;
+		border-radius: 0 0 var(--orca-radius-lg) var(--orca-radius-lg);
+	}
 	.home-tile:hover {
-		border-color: var(--orca-line-strong);
+		background: var(--orca-hover);
 		text-decoration: none;
 	}
 	.home-tile-label {
+		grid-area: label;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
@@ -177,10 +192,12 @@
 		font-weight: 500;
 	}
 	.home-tile-label :global(svg) {
-		color: var(--orca-subtle);
+		display: none;
 	}
 	.home-tile-value {
-		font-size: 22px;
+		grid-area: value;
+		min-width: 0;
+		font-size: 20px;
 		font-weight: 600;
 		line-height: 1.2;
 		font-variant-numeric: tabular-nums;
@@ -198,13 +215,12 @@
 		font-weight: 500;
 	}
 	.home-tile-foot {
+		grid-area: foot;
 		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: 6px 8px;
-		min-height: 24px;
-		margin-top: auto;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 6px;
+		min-width: 0;
 	}
 	.home-logos {
 		display: flex;
@@ -246,6 +262,10 @@
 	.home-meta {
 		color: var(--orca-muted);
 		font-size: 12.5px;
+	}
+	.home-recent {
+		grid-area: recent;
+		min-width: 0;
 	}
 	.home-recent-head {
 		display: flex;
@@ -319,22 +339,12 @@
 		font-variant-numeric: tabular-nums;
 		white-space: nowrap;
 	}
-	@media (max-width: 1080px) {
-		.home-tiles,
-		.home-tiles.three {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-		/* Three tiles on two columns: the last one takes the row. */
-		.home-tiles.three .home-tile:last-child {
-			grid-column: 1 / -1;
-		}
-	}
 	@media (max-width: 720px) {
 		.home-tile {
-			padding: 14px;
+			padding: 12px 14px;
 		}
 		.home-tile-value {
-			font-size: 20px;
+			font-size: 18px;
 		}
 		/* A phone shows at most four logos per tile. */
 		.home-logos :global(.orca-catalog-icon:nth-child(n + 5)) {

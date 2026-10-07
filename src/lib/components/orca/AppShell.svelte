@@ -1,12 +1,15 @@
 <script lang="ts">
+  import { goto } from "$app/navigation";
   import { companyHref, companySwitch, currentCompany, DEFAULT_COMPANY, rememberCompany, type OrcaCompanyChoice } from "$lib/orca/company";
   import { companyStatus, companyStatusNote } from "$lib/orca/platform-console";
   import { localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
   import { writesInFlight } from "$lib/services/writes";
-  import { activeNavigationView, platformHref, showsPlatformSwitch, type PlatformSection } from "$lib/orca/navigation";
+  import { activeNavigationView, APP_VIEWS, platformHref, showsPlatformSwitch, type PlatformSection } from "$lib/orca/navigation";
   import { hubAsksApproval } from "$lib/orca/approvals";
   import { term } from "$lib/orca/glossary";
-  import { skillsEnabled, workspaceNavigation, type JumpTarget, type NavigationID } from "$lib/orca/workspace-nav";
+  import { createMenu, createShortcut, settingsEntries, workspaceSections, type JumpTarget, type NavIcon, type NavSectionID, type SettingsEntryID } from "$lib/orca/workspace-nav";
+  import { createSequence, isJumpShortcut } from "$lib/orca/menu-keys";
+  import { createRail, railFocusTarget, type RailState } from "$lib/orca/rail";
   import {
     memberName,
     memberRole,
@@ -15,23 +18,26 @@
   import Brand from "./Brand.svelte";
   import LocaleSwitch from "./LocaleSwitch.svelte";
   import ThemeSwitch from "./ThemeSwitch.svelte";
-  import CreateDialog from "./shell/CreateDialog.svelte";
+  import CreateMenu from "./shell/CreateMenu.svelte";
   import JumpDialog from "./shell/JumpDialog.svelte";
+  import McpMark from "./shell/McpMark.svelte";
+  import PopMenu from "./shell/PopMenu.svelte";
   import Toast from "./ui/Toast.svelte";
   import "./app-workspace.css";
   import "./orca-system.css";
   import "./w0.css";
+  import "./w01.css";
   import {
-    Book,
-    Bot,
+    BookOpenText,
+    BotMessageSquare,
+    Boxes,
     Building2,
     ChartNoAxesColumn,
     Check,
     ChevronDown,
-    ChevronsLeft,
-    ChevronsRight,
     ChevronsUpDown,
-    CircleHelp,
+    CircleQuestionMark,
+    CircleUserRound,
     Globe,
     Grid2x2Plus,
     History,
@@ -41,19 +47,24 @@
     LogIn,
     LogOut,
     Menu,
+    Pin,
+    PinOff,
     RefreshCw,
     Search,
-    Settings2,
+    Settings,
     Shield,
-    UserRound,
+    Users,
+    WandSparkles,
     Workflow,
     X,
-    Zap,
   } from "@lucide/svelte";
-  import { onMount, type Snippet } from "svelte";
+  import { onMount, untrack, type Snippet } from "svelte";
 
-  // The W0 shell (calm workspace, approved 2026-10-07): one flat menu, the
-  // company under the logo, ไปที่… ⌘K and the one สร้าง ▾ in the top bar.
+  // The W0.1 shell (approved 2026-10-07, output/orca-w01): a full-width top bar
+  // (the company at the left; ＋ สร้าง ▾ and the account at the right) over a
+  // 56 px icon rail that opens as a 272 px panel on hover or keyboard focus, and
+  // can be pinned. A phone keeps the drawer. Sections: หน้าหลัก · AI · ข้อมูล ·
+  // จัดการ, then ช่วยเหลือ and the ORCA mark.
   let {
     data,
     view,
@@ -67,11 +78,11 @@
   }: {
     data?: OrcaBootstrap;
     view: string;
-    /** The platform section, when view is "platform". */
+    /** The address's section (settings) or the platform section. */
     section?: string | null;
     refreshing: boolean;
     pendingApprovals?: number;
-    /** The person's companies; the switcher shows when there are several. */
+    /** The person's companies; the switcher lists them. */
     companies?: OrcaCompanyChoice[];
     account?: string;
     onrefresh: () => void;
@@ -86,7 +97,7 @@
     const decision = companySwitch(id, writesInFlight());
     if (decision === "stay") {
       event.preventDefault();
-      closeAccounts();
+      companyOpen = false;
       return;
     }
     if (decision === "wait") {
@@ -97,29 +108,14 @@
     switchWaiting = false;
     rememberCompany(account, id);
   }
-  const preferenceKey = "orca.workspace.sidebar.collapsed";
-  function readSidebarPreference() {
-    try {
-      return (
-        typeof window !== "undefined" &&
-        window.localStorage.getItem(preferenceKey) === "1"
-      );
-    } catch {
-      return false;
-    }
-  }
-  let collapsed = $state(readSidebarPreference());
   let drawer: HTMLDialogElement | undefined = $state();
-  let shell: HTMLDivElement | undefined = $state();
   let creating = $state(false);
+  let companyOpen = $state(false);
+  let accountOpen = $state(false);
   let jumping = $state(false);
-  const currentUser = $derived(
-    data?.members.find((item) => item.id === data?.currentUserID),
-  );
+  const currentUser = $derived(data?.members.find((item) => item.id === data?.currentUserID));
   const organization = $derived(data?.organization.displayName || "ORCA");
-  const accountName = $derived(
-    currentUser ? memberName(currentUser) : t("บัญชีของคุณ", "Your account"),
-  );
+  const accountName = $derived(currentUser ? memberName(currentUser) : t("บัญชีของคุณ", "Your account"));
   const canManage = $derived(!!data?.canManage);
   // The platform's pages need the default company's operator flag (the
   // platform area always loads that company); the switch to them shows in
@@ -127,23 +123,28 @@
   const operator = $derived(data?.platformOperator === true);
   const platformSwitch = $derived(showsPlatformSwitch(data));
   const platformMode = $derived(view === "platform" && operator);
-  const skills = $derived(skillsEnabled(data));
   // LINE's writes wait for a manager even in a workspace that runs at once (design §14l).
   const requestsApproval = $derived(!!data?.hubs.some((hub) => hubAsksApproval(hub, data?.connections ?? [])));
-  type NavigationItem = { id: string; label: string; href: string; icon: typeof House; count?: number; soon?: boolean };
-  const platformItem = (id: PlatformSection, key: Parameters<typeof term>[0], icon: typeof House): NavigationItem => ({ id: `platform:${id}`, label: term(key, t), href: platformHref(id), icon });
-  const companyItem: Record<NavigationID, { key: Parameters<typeof term>[0]; icon: typeof House }> = {
-    dashboard: { key: "home", icon: House },
-    skills: { key: "skills", icon: Zap },
-    workflows: { key: "workflows", icon: Workflow },
-    servers: { key: "programs", icon: Grid2x2Plus },
-    "connect-ai": { key: "myAI", icon: Bot },
-    knowledge: { key: "knowledge", icon: Book },
-    history: { key: "history", icon: History },
+  const features = $derived(data?.features);
+
+  // ---------- The rail ----------
+  type RailItem = { id: string; label: string; href: string; icon: NavIcon | "platform"; platformIcon?: typeof House; soon?: boolean; count?: number };
+  type RailSection = { id: NavSectionID | "platform"; label: string; items: RailItem[] };
+  const sectionLabels: Record<NavSectionID, () => string> = { start: () => "", ai: () => term("navAI", t), data: () => term("navData", t), manage: () => term("navManage", t) };
+  const itemLabels: Record<string, () => string> = {
+    dashboard: () => term("home", t),
+    "connect-ai": () => term("myAI", t),
+    skills: () => term("skills", t),
+    workflows: () => term("workflows", t),
+    servers: () => term("programs", t),
+    knowledge: () => term("knowledge", t),
+    history: () => term("history", t),
+    settings: () => term("settings", t),
   };
-  const navigationItems = $derived<NavigationItem[]>(
+  const platformItem = (id: PlatformSection, key: Parameters<typeof term>[0], icon: typeof House): RailItem => ({ id: `platform:${id}`, label: term(key, t), href: platformHref(id), icon: "platform", platformIcon: icon });
+  const sections = $derived<RailSection[]>(
     platformMode
-      ? [
+      ? [{ id: "platform", label: "", items: [
           platformItem("overview", "platformOverview", ChartNoAxesColumn),
           platformItem("companies", "customerCompanies", Building2),
           ...(data?.canReviewPilotRequests ? [platformItem("pilots", "pilotRequests", Inbox)] : []),
@@ -151,33 +152,182 @@
           platformItem("oauth-apps", "programOAuthApps", KeyRound),
           platformItem("catalog", "programCatalog", Grid2x2Plus),
           platformItem("breakglass", "breakGlass", Shield),
-        ]
-      : workspaceNavigation({ canManage, skills, requestsApproval }).map((item) => ({
-          id: item.id,
-          label: term(companyItem[item.id].key, t),
-          href: item.href,
-          icon: companyItem[item.id].icon,
-          soon: item.soon,
-          // Owners and Admins: approvals waiting for them.
-          count: item.id === "history" && canManage ? pendingApprovals : undefined,
+        ] }]
+      : workspaceSections({ canManage, features, requestsApproval }).map((navSection) => ({
+          id: navSection.id,
+          label: sectionLabels[navSection.id](),
+          items: navSection.items.map((entry) => ({
+            id: entry.id,
+            label: itemLabels[entry.id](),
+            href: entry.href,
+            icon: entry.icon,
+            soon: entry.soon,
+            // Owners and Admins: approvals waiting for them.
+            count: entry.count && canManage ? pendingApprovals : undefined,
+          })),
         })),
   );
-  // หน้าหลัก: where the logo goes (owner, 2026-10-05).
-  const homeHref = $derived(localeHref(navigationItems[0]?.href ?? "/app"));
-  const utilityNavigation = $derived([
-    { id: "settings", label: term("settings", t), href: "/app?view=settings", icon: Settings2 },
-    { id: "help", label: term("help", t), href: "/app?view=help", icon: CircleHelp },
-  ]);
+  const settingsLabels: Record<SettingsEntryID, () => string> = { team: () => term("team", t), workspaces: () => term("workspaces", t), company: () => term("company", t), account: () => term("myAccount", t) };
+  const settingsList = $derived(platformMode ? [] : settingsEntries({ canManage }).map((entry) => ({ ...entry, label: settingsLabels[entry.id]() })));
   const activeView = $derived(activeNavigationView(view, section));
+  // Which ตั้งค่า sub-item the page is.
+  const activeSetting = $derived<SettingsEntryID | "">(
+    view === "members" ? "team"
+      : ["workspaces", "hub", "new"].includes(view) ? "workspaces"
+      : view === "settings" && section === "company" ? "company"
+      : view === "settings" && section === "account" ? "account"
+      : "",
+  );
+  // ตั้งค่า ▾ starts open on a settings page, and opens when one is reached.
+  let settingsOpen = $state(untrack(() => activeView === "settings"));
+  $effect(() => {
+    if (activeView === "settings") settingsOpen = true;
+  });
+  const homeHref = $derived(localeHref(platformMode ? platformHref("overview") : "/app"));
+  const icons: Record<NavIcon, typeof House> = {
+    home: House,
+    "my-ai": BotMessageSquare,
+    skills: WandSparkles,
+    workflows: Workflow,
+    programs: House,
+    knowledge: BookOpenText,
+    history: History,
+    settings: Settings,
+    team: Users,
+    workspaces: Boxes,
+    company: Building2,
+    account: CircleUserRound,
+    help: CircleQuestionMark,
+  };
+
+  const storage = () => {
+    try {
+      return typeof window === "undefined" ? undefined : window.localStorage;
+    } catch {
+      return undefined;
+    }
+  };
+  let railElement: HTMLElement | undefined = $state();
+  let rail = $state<RailState>({ open: false, pinned: false });
+  // Before the panel collapses, focus leaves a control that hides on the
+  // 56 px rail (ตั้งค่า's caret and pages, the pin) for one that stays.
+  function keepFocusVisible() {
+    if (typeof document === "undefined") return;
+    railFocusTarget(document.activeElement as HTMLElement | null, railElement)?.focus();
+  }
+  const railControl = createRail({
+    storage,
+    onchange: (state) => {
+      const closing = rail.open && !state.open;
+      // The state first: moving focus fires focusin, which may open it again.
+      rail = state;
+      if (closing) keepFocusVisible();
+    },
+  });
+  // Tooltips on the collapsed rail: the item's name beside it.
+  let tip = $state<{ text: string; top: number }>();
+  function tipFor(element: Element | null | undefined) {
+    if (rail.open) return;
+    const target = element?.closest<HTMLElement>("[data-label]");
+    if (!target || !railElement?.contains(target)) return;
+    const box = target.getBoundingClientRect();
+    tip = { text: target.dataset.label ?? "", top: box.top + box.height / 2 };
+  }
+  function showTip(event: Event) {
+    tipFor(event.target as Element | null);
+  }
+  function hideTip() {
+    tip = undefined;
+  }
+  $effect(() => {
+    if (rail.open) tip = undefined;
+  });
+  function onRailFocusIn(event: FocusEvent) {
+    const target = event.target as Element | null;
+    let visible = false;
+    try {
+      visible = !!target?.matches(":focus-visible");
+    } catch {
+      visible = false;
+    }
+    railControl.focusIn(visible);
+    if (!visible) return;
+    showTip(event);
+  }
+  function onRailFocusOut(event: FocusEvent) {
+    const next = event.relatedTarget as Node | null;
+    if (next && railElement?.contains(next)) return;
+    hideTip();
+    railControl.focusOut();
+  }
+  function onRailKey(event: KeyboardEvent) {
+    // A dialog or a menu above the rail closes first, one layer per press (Codex W0.1 round 2, NOTE 2):
+    // a menu opened with the pointer can leave focus in the rail.
+    if (event.key === "Escape" && !layerAboveRail() && railControl.escape()) {
+      event.preventDefault();
+      // The tooltip stays for a keyboard user (notes.md), on the control focus is on now.
+      tipFor(document.activeElement);
+    }
+  }
+
+  // ---------- The สร้าง menu and the shortcuts ----------
+  const views = APP_VIEWS as readonly string[];
+  // Skills: managers, or a member a manager allowed (bootstrap canCreateSkills, which no server sends yet).
+  const createGroups = $derived(data && !platformMode ? createMenu({ canManage, canCreateSkills: data.canCreateSkills === true, features, views }) : []);
+  const sequence = createSequence();
+  const menuOpen = () => creating || companyOpen || accountOpen;
+  // Esc's layers above the rail: a dialog (ไปที่…, the phone drawer, any other), then a menu.
+  function layerAboveRail() {
+    return jumping || !!drawer?.open || !!document.querySelector("dialog[open]") || menuOpen();
+  }
+  // ⌘K from a row of an open menu: the row goes away with the menu, so the
+  // menu's own button is where focus returns when ไปที่… closes. The phone
+  // sheet is a modal dialog: it closes first, or the button behind it is still
+  // inert and cannot take focus (Codex W0.1 round 2, NOTE 3).
+  function leaveMenu() {
+    const menu = (document.activeElement as Element | null)?.closest(".pm");
+    const trigger = menu?.querySelector<HTMLElement>(":scope > button");
+    menu?.querySelector<HTMLDialogElement>("dialog[open]")?.close();
+    creating = companyOpen = accountOpen = false;
+    trigger?.focus();
+  }
+  function onShortcut(event: KeyboardEvent) {
+    if (isJumpShortcut(event)) {
+      event.preventDefault();
+      leaveMenu();
+      closeDrawer();
+      jumping = true;
+      return;
+    }
+    // Esc closes the topmost layer, one per press: a dialog (its own cancel),
+    // then a menu (PopMenu's own listener), then the rail opened by hover.
+    if (event.key === "Escape") {
+      if (event.defaultPrevented || layerAboveRail()) return;
+      if (railControl.escape()) event.preventDefault();
+      return;
+    }
+    if (creating || companyOpen || accountOpen || jumping || drawer?.open || !createGroups.length) {
+      sequence.reset();
+      return;
+    }
+    const read = sequence.read(event);
+    if (read.action !== "pick") return;
+    const item = createShortcut(createGroups, read.code);
+    if (!item) return;
+    event.preventDefault();
+    void goto(localeHref(item.href));
+  }
+
   // ไปที่…: the pages in the menu, ตั้งค่า's tabs, and the programs and workspaces this viewer can open.
   const jumpTargets = $derived.by<JumpTarget[]>(() => {
     const pages = t("หน้า", "Page");
-    const targets: JumpTarget[] = [...navigationItems, ...utilityNavigation]
-      .filter((item) => !("soon" in item && item.soon))
+    const targets: JumpTarget[] = sections
+      .flatMap((railSection) => railSection.items)
+      .filter((item) => !item.soon)
       .map((item) => ({ id: `page:${item.id}`, label: item.label, href: item.href, group: pages }));
+    targets.push({ id: "page:help", label: term("help", t), href: "/app?view=help", group: pages });
     if (platformMode) return targets;
-    if (canManage) targets.push({ id: "page:team", label: term("team", t), href: "/app?view=members", group: pages });
-    targets.push({ id: "page:workspaces", label: term("workspaces", t), href: "/app?view=workspaces", group: pages });
+    for (const entry of settingsList) targets.push({ id: `page:${entry.id}`, label: entry.label, href: entry.href, group: pages });
     if (canManage)
       for (const connection of data?.connections ?? [])
         if (!connection.archivedAt && !connection.deletedAt)
@@ -187,82 +337,28 @@
         targets.push({ id: `hub:${hub.id}`, label: hub.name, href: `/app?view=hub&hub=${encodeURIComponent(hub.id)}`, group: term("workspaces", t) });
     return targets;
   });
-  const accountInitial = $derived(
-    (accountName.trim()[0] || "O").toLocaleUpperCase(),
+  const accountInitial = $derived((accountName.trim()[0] || "O").toLocaleUpperCase());
+  // One company: it is still listed, with its check, so the menu says where you are.
+  const companyChoices = $derived<Pick<OrcaCompanyChoice, "id" | "displayName" | "status">[]>(
+    companies.length ? companies : data ? [{ id: company, displayName: organization }] : [],
   );
+  const companyInitial = $derived(((platformMode ? "ORCA" : organization).trim()[0] || "O").toLocaleUpperCase());
   // The platform always opens the default company; from another company that is a new page.
   const platformReload = $derived(company !== DEFAULT_COMPANY);
-  const menus = ".workspace-account[open], .workspace-company-switch[open]";
-  function closeAccounts() {
-    shell
-      ?.querySelectorAll<HTMLDetailsElement>(menus)
-      .forEach((account) => {
-        account.open = false;
-      });
-  }
   function closeDrawer() {
     drawer?.close();
-    closeAccounts();
-  }
-  function toggleSidebar() {
-    closeAccounts();
-    collapsed = !collapsed;
-    try {
-      window.localStorage.setItem(preferenceKey, collapsed ? "1" : "0");
-    } catch {
-      // The rail still works when browser storage is unavailable.
-    }
-  }
-  function onAccountKeydown(event: KeyboardEvent) {
-    if (event.key !== "Escape" || !(event.target instanceof Element)) return;
-    const account = event.target.closest<HTMLDetailsElement>(menus);
-    if (!account || !shell?.contains(account)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    account.open = false;
-    account.querySelector("summary")?.focus();
-  }
-  // ⌘K / Ctrl+K opens ไปที่….
-  function onShortcut(event: KeyboardEvent) {
-    if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "k") {
-      event.preventDefault();
-      closeDrawer();
-      jumping = true;
-    }
   }
   onMount(() => {
     const desktop = window.matchMedia("(min-width: 821px)");
     const onResize = () => {
       if (desktop.matches) closeDrawer();
     };
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === preferenceKey) {
-        closeAccounts();
-        collapsed = event.newValue === "1";
-      }
-    };
-    const onOutsideAccount = (event: Event) => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      shell
-        ?.querySelectorAll<HTMLDetailsElement>(menus)
-        .forEach((account) => {
-          if (!account.contains(target)) account.open = false;
-        });
-    };
     desktop.addEventListener("change", onResize);
-    window.addEventListener("storage", onStorage);
-    document.addEventListener("pointerdown", onOutsideAccount);
-    document.addEventListener("focusin", onOutsideAccount);
-    document.addEventListener("keydown", onAccountKeydown);
     document.addEventListener("keydown", onShortcut);
     return () => {
       desktop.removeEventListener("change", onResize);
-      window.removeEventListener("storage", onStorage);
-      document.removeEventListener("pointerdown", onOutsideAccount);
-      document.removeEventListener("focusin", onOutsideAccount);
-      document.removeEventListener("keydown", onAccountKeydown);
       document.removeEventListener("keydown", onShortcut);
+      railControl.dispose();
     };
   });
   $effect(() => {
@@ -271,19 +367,97 @@
   });
 </script>
 
-{#snippet companyLinks()}
-  {#each companies as choice (choice.id)}
+{#snippet itemIcon(item: RailItem)}
+  {#if item.icon === "platform" && item.platformIcon}<item.platformIcon size={20} strokeWidth={1.75} aria-hidden="true" />
+  {:else if item.icon === "programs"}<McpMark size={20} />
+  {:else if item.icon !== "platform"}{@const Icon = icons[item.icon]}<Icon size={20} strokeWidth={1.75} aria-hidden="true" />{/if}
+{/snippet}
+
+{#snippet railBody(mobile: boolean)}
+  <div class="w1-rail-scroll">
+    <button type="button" class="w1-item w1-jump" data-label={`${term("jumpTo", t)} ⌘K`} aria-keyshortcuts="Meta+K Control+K" onclick={() => { closeDrawer(); jumping = true; }}
+      ><Search size={20} strokeWidth={1.75} aria-hidden="true" /><span class="w1-label">{term("jumpTo", t)}</span><kbd>⌘K</kbd></button
+    >
+    <nav class="w1-nav" aria-label={platformMode ? term("platform", t) : t("เมนูหลัก", "Main navigation")}>
+      {#each sections as railSection (railSection.id)}
+        {#if railSection.label}<div class="w1-sec" role="presentation"><span>{railSection.label}</span></div>{/if}
+        {#each railSection.items as item (item.id)}
+          {#if item.soon}
+            <!-- Workflows: shown, greyed, not a link until it ships. -->
+            <span class="w1-item w1-soon" aria-disabled="true" data-label={`${item.label} · ${term("soon", t)}`}
+              >{@render itemIcon(item)}<span class="w1-label">{item.label}</span><small class="w1-aside">{term("soon", t)}</small></span
+            >
+          {:else if item.id === "settings"}
+            <div class="w1-group" class:open={settingsOpen}>
+              <a class="w1-item" class:active={activeView === "settings"} href={localeHref(item.href)} onclick={closeDrawer}
+                aria-current={activeView === "settings" && !activeSetting ? "page" : undefined} data-label={item.label}
+                >{@render itemIcon(item)}<span class="w1-label">{item.label}</span></a
+              >
+              <button type="button" class="w1-caret" aria-expanded={settingsOpen} aria-controls={mobile ? "w1-settings-drawer" : "w1-settings"}
+                aria-label={t(`${item.label}: แสดงรายการย่อย`, `${item.label}: show its pages`)} onclick={() => (settingsOpen = !settingsOpen)}
+                ><ChevronDown size={16} aria-hidden="true" /></button
+              >
+            </div>
+            {#if settingsOpen}
+              <div class="w1-sub" id={mobile ? "w1-settings-drawer" : "w1-settings"}>
+                {#each settingsList as entry (entry.id)}
+                  {@const Icon = icons[entry.icon]}
+                  <a class="w1-item w1-subitem" class:active={activeSetting === entry.id} href={localeHref(entry.href)} onclick={closeDrawer}
+                    aria-current={activeSetting === entry.id ? "page" : undefined} data-label={entry.label}
+                    ><Icon size={18} strokeWidth={1.75} aria-hidden="true" /><span class="w1-label">{entry.label}</span></a
+                  >
+                {/each}
+              </div>
+            {/if}
+          {:else}
+            <a
+              class="w1-item"
+              class:active={activeView === item.id}
+              href={localeHref(item.href)}
+              onclick={closeDrawer}
+              aria-current={activeView === item.id ? "page" : undefined}
+              aria-label={item.count ? t(`${item.label} รออนุมัติ ${item.count} รายการ`, `${item.label}, ${item.count} waiting`) : undefined}
+              data-label={item.label}
+              >{@render itemIcon(item)}<span class="w1-label">{item.label}</span>{#if item.count}<span class="w1-count" aria-hidden="true">{item.count > 99 ? "99+" : item.count}</span>{/if}</a
+            >
+          {/if}
+        {/each}
+      {/each}
+    </nav>
+  </div>
+  <div class="w1-rail-foot">
+    <a class="w1-item" href={localeHref("/app?view=help")} onclick={closeDrawer} class:active={activeView === "help"} aria-current={activeView === "help" ? "page" : undefined} data-label={term("help", t)}
+      ><CircleQuestionMark size={20} strokeWidth={1.75} aria-hidden="true" /><span class="w1-label">{term("help", t)}</span></a
+    >
+    <div class="w1-brand-row">
+      <!-- The official ORCA mark (Brand.svelte): the mark alone on the rail, the logo when open. -->
+      <a class="w1-brand" href={homeHref} onclick={closeDrawer} aria-label={t("ORCA หน้าหลัก", "ORCA home")}>
+        <span class="w1-brand-mark"><Brand compact /></span><span class="w1-brand-full"><Brand /></span>
+      </a>
+      {#if !mobile}
+        <button type="button" class="w1-pin" aria-pressed={rail.pinned} aria-label={rail.pinned ? term("unpinMenu", t) : term("pinMenu", t)}
+          title={rail.pinned ? term("unpinMenu", t) : term("pinMenu", t)} onclick={() => railControl.togglePin()}
+          >{#if rail.pinned}<PinOff size={16} aria-hidden="true" />{:else}<Pin size={16} aria-hidden="true" />{/if}</button
+        >
+      {/if}
+    </div>
+  </div>
+{/snippet}
+
+{#snippet companyLinks(close: () => void)}
+  {#each companyChoices as choice (choice.id)}
     <!-- A new page: nothing from this company carries over to the next. -->
     <a
+      class="w1-menu-row"
+      role="menuitem"
+      tabindex="-1"
       href={localeHref(companyHref(choice.id))}
       data-sveltekit-reload
       aria-current={choice.id === company && !platformMode ? "true" : undefined}
-      onclick={(event) => switchCompany(event, choice.id)}
+      onclick={(event) => { switchCompany(event, choice.id); if (!event.defaultPrevented) close(); }}
     >
-      <Building2 size={16} strokeWidth={1.7} aria-hidden="true" /><span
-        >{choice.displayName}{#if companyStatus(choice.status) !== "active"}<small class="workspace-company-stopped"
-            >{companyStatusNote(companyStatus(choice.status), t)}</small
-          >{/if}</span
+      <span class="w1-initial" aria-hidden="true">{(choice.displayName.trim()[0] || "O").toLocaleUpperCase()}</span><span class="w1-menu-text"
+        >{choice.displayName}{#if companyStatus(choice.status) !== "active"}<small class="workspace-company-stopped">{companyStatusNote(companyStatus(choice.status), t)}</small>{/if}</span
       >
       {#if choice.id === company && !platformMode}<Check size={15} aria-hidden="true" />{/if}
     </a>
@@ -291,249 +465,105 @@
   {#if switchWaiting}<p class="workspace-company-wait" role="status">{t("กำลังบันทึกอยู่ รอสักครู่แล้วลองอีกครั้ง", "Still saving. Try again in a moment.")}</p>{/if}
 {/snippet}
 
-{#snippet sidebar(compact: boolean = false, mobile: boolean = false)}
-  <div class="workspace-sidebar-header">
-    <!-- The logo goes home (owner, 2026-10-05): the workspace's หน้าหลัก, or the platform overview. -->
-    <a
-      class="workspace-brand"
-      href={homeHref}
-      onclick={closeDrawer}
-      aria-label={t("ORCA หน้าหลัก", "ORCA home")}
-      title={compact ? t("หน้าหลัก", "Home") : undefined}
-    >
-      <Brand {compact} />
-    </a>
-    {#if !mobile}
-      <button
-        class="workspace-collapse workspace-icon-button"
-        onclick={toggleSidebar}
-        aria-expanded={!collapsed}
-        aria-controls="workspace-desktop-navigation"
-        aria-label={collapsed
-          ? t("ขยายเมนูด้านข้าง", "Expand sidebar")
-          : t("ย่อเมนูด้านข้าง", "Collapse sidebar")}
-        title={collapsed
-          ? t("ขยายเมนูด้านข้าง", "Expand sidebar")
-          : t("ย่อเมนูด้านข้าง", "Collapse sidebar")}
-      >
-        {#if collapsed}<ChevronsRight size={17} />{:else}<ChevronsLeft
-            size={17}
-          />{/if}
-      </button>
-    {/if}
-  </div>
-
-  {#if data && !compact}
-    <!-- The company open now, under the logo, and its switch (W0). -->
-    <div class="workspace-company">
-      {#if platformMode}
-        <span class="workspace-company-name" title={term("platform", t)}>{term("platform", t)}</span>
-      {:else if switchable}
-        <details class="workspace-company-switch">
-          <summary aria-label={t(`บริษัท ${organization} เปลี่ยนบริษัท`, `Company: ${organization}. Switch company`)}>
-            <span class="workspace-company-name" title={organization}>{organization}</span>
-            <ChevronsUpDown size={14} aria-hidden="true" />
-          </summary>
-          <div class="workspace-company-menu">
-            <small>{t("เปลี่ยนบริษัท", "Switch company")}</small>
-            {@render companyLinks()}
-          </div>
-        </details>
-      {:else}
-        <span class="workspace-company-name" title={organization}>{organization}</span>
-      {/if}
-    </div>
-  {/if}
-
-  {#if platformSwitch}
-    <!-- The ORCA team works in two places: the company open now and the platform. -->
-    <nav class="workspace-mode" aria-label={t("เลือกพื้นที่", "Choose an area")}>
-      <a
-        href={localeHref("/app")}
-        class:chosen={!platformMode}
-        aria-current={!platformMode ? "page" : undefined}
-        title={compact ? term("companyMode", t) : undefined}
-        onclick={closeDrawer}
-        ><Building2 size={15} aria-hidden="true" /><span class="workspace-mode-label">{term("companyMode", t)}</span></a
-      >
-      {#if platformReload}<a
-          href={localeHref(platformHref("overview"))}
-          data-sveltekit-reload
-          class:chosen={platformMode}
-          aria-current={platformMode ? "page" : undefined}
-          title={compact ? term("platform", t) : undefined}
-          ><Globe size={15} aria-hidden="true" /><span class="workspace-mode-label">{term("platform", t)}</span></a
-        >{:else}<a
-          href={localeHref(platformHref("overview"))}
-          class:chosen={platformMode}
-          aria-current={platformMode ? "page" : undefined}
-          title={compact ? term("platform", t) : undefined}
-          onclick={closeDrawer}
-          ><Globe size={15} aria-hidden="true" /><span class="workspace-mode-label">{term("platform", t)}</span></a
-        >{/if}
-    </nav>
-  {/if}
-
-  <div
-    class="workspace-sidebar-scroll"
-    id={mobile ? undefined : "workspace-desktop-navigation"}
-  >
-    <nav class="workspace-nav" aria-label={platformMode ? term("platform", t) : t("เมนูหลัก", "Main navigation")}>
-      <div class="workspace-nav-group">
-        {#each navigationItems as item (item.id)}
-          {#if item.soon}
-            <!-- Workflows: shown, greyed, not a link until it ships. -->
-            <span class="workspace-nav-soon" aria-disabled="true" title={compact ? `${item.label} · ${term("soon", t)}` : undefined}>
-              <item.icon size={18} strokeWidth={1.7} aria-hidden="true" />
-              <span class="workspace-nav-label">{item.label}</span>
-              <small class="workspace-nav-aside">{term("soon", t)}</small>
-            </span>
-          {:else}
-            <a
-              href={localeHref(item.href)}
-              onclick={closeDrawer}
-              class:active={activeView === item.id}
-              aria-current={activeView === item.id ? "page" : undefined}
-              aria-label={item.count ? t(`${item.label} รออนุมัติ ${item.count} รายการ`, `${item.label}, ${item.count} waiting`) : item.label}
-              title={item.label}
-            >
-              <item.icon size={18} strokeWidth={1.7} aria-hidden="true" />
-              <span class="workspace-nav-label">{item.label}</span>
-              {#if item.count}<span class="workspace-nav-count" aria-hidden="true">{item.count > 99 ? "99+" : item.count}</span>{/if}
-            </a>
-          {/if}
-        {/each}
-      </div>
-    </nav>
-  </div>
-  <div class="workspace-sidebar-bottom">
-    <nav
-      class="workspace-nav workspace-utility"
-      aria-label={t("การตั้งค่าและความช่วยเหลือ", "Settings and help")}
-    >
-      {#each utilityNavigation as item (item.id)}
-        <a
-          href={localeHref(item.href)}
-          onclick={closeDrawer}
-          class:active={activeView === item.id}
-          aria-current={activeView === item.id ? "page" : undefined}
-          aria-label={item.label}
-          title={compact ? item.label : undefined}
-        >
-          <item.icon size={17} strokeWidth={1.7} aria-hidden="true" />
-          <span class="workspace-nav-label">{item.label}</span>
-        </a>
-      {/each}
-    </nav>
-    <details class="workspace-account">
-      <summary
-        aria-label={t(`บัญชี ${accountName}`, `Account: ${accountName}`)}
-        title={compact ? accountName : undefined}
-      >
-        <span class="workspace-avatar" aria-hidden="true">{accountInitial}</span>
-        <span class="workspace-account-copy"
-          ><strong>{accountName}</strong><small
-            >{platformMode
-              ? term("orcaTeam", t)
-              : currentUser
-                ? memberRole(currentUser.role)
-                : t("กำลังโหลด…", "Loading…")}</small
-          ></span
-        >
-        <ChevronDown
-          size={15}
-          class="workspace-account-chevron"
-          aria-hidden="true"
-        />
-      </summary>
-      <div class="workspace-account-menu">
-        <strong>{accountName}</strong>
-        {#if currentUser?.email}<span>{currentUser.email}</span>{/if}
-        <small>{organization}</small>
-        {#if switchable}<small class="workspace-account-heading">{t("เปลี่ยนบริษัท", "Switch company")}</small>{@render companyLinks()}{/if}
-        <a
-          href={localeHref("/app?view=settings&section=account")}
-          onclick={closeDrawer}
-          ><UserRound size={17} aria-hidden="true" />{term("myAccount", t)}</a
-        >
-        <ThemeSwitch compact label />
-        <div class="workspace-account-language"><span>{t("ภาษา", "Language")}</span><LocaleSwitch /></div>
-        <a href="/oauth2/sign_out?rd=/"
-          ><LogOut size={17} aria-hidden="true" />{term("signOut", t)}</a
-        >
-      </div>
-    </details>
-  </div>
-{/snippet}
-
 <div
-  class="orca orca-app orca-workspace orca-w0"
-  class:sidebar-collapsed={collapsed}
+  class="orca orca-app orca-workspace orca-w0 orca-w01"
+  class:rail-open={rail.open}
+  class:rail-pinned={rail.pinned}
   lang={orcaLocale.value}
-  bind:this={shell}
 >
-  <a href="#orca-main" class="k-skip"
-    >{t("ข้ามไปยังเนื้อหา", "Skip to content")}</a
-  >
+  <a href="#orca-main" class="k-skip">{t("ข้ามไปยังเนื้อหา", "Skip to content")}</a>
+  <header class="w1-top">
+    <button class="w1-icon-button w1-menu" onclick={() => drawer?.showModal()} aria-label={t("เปิดเมนู", "Open menu")} aria-haspopup="dialog"><Menu size={22} /></button>
+    {#if data}
+      <!-- The company at the top left (W0.1): no plan label for customers. -->
+      <PopMenu id="orca-company-menu" label={t("เปลี่ยนบริษัท", "Switch company")} buttonClass="w1-company" kind="menu" align="left" bind:open={companyOpen}
+        buttonLabel={platformMode ? term("platform", t) : t(`บริษัท ${organization} เปลี่ยนบริษัท`, `Company: ${organization}. Switch company`)}>
+        {#snippet button()}<span class="w1-initial" aria-hidden="true">{companyInitial}</span><span class="w1-company-name" title={platformMode ? term("platform", t) : organization}
+            >{platformMode ? term("platform", t) : organization}</span
+          ><ChevronsUpDown size={14} aria-hidden="true" />{/snippet}
+        {#snippet children(close)}
+          <p class="w1-menu-label">{t("บริษัทของคุณ", "Your companies")}</p>
+          {@render companyLinks(close)}
+          {#if platformSwitch}
+            <!-- The ORCA team works in two places: the company open now and the platform. -->
+            <div class="w1-menu-sep" role="separator"></div>
+            {#if platformMode}
+              <a class="w1-menu-row" role="menuitem" tabindex="-1" href={localeHref("/app")} onclick={close}><Building2 size={16} aria-hidden="true" /><span class="w1-menu-text">{term("companyMode", t)}</span></a>
+            {:else if platformReload}
+              <a class="w1-menu-row" role="menuitem" tabindex="-1" href={localeHref(platformHref("overview"))} data-sveltekit-reload><Globe size={16} aria-hidden="true" /><span class="w1-menu-text">{term("platform", t)}</span></a>
+            {:else}
+              <a class="w1-menu-row" role="menuitem" tabindex="-1" href={localeHref(platformHref("overview"))} onclick={close}><Globe size={16} aria-hidden="true" /><span class="w1-menu-text">{term("platform", t)}</span></a>
+            {/if}
+          {/if}
+        {/snippet}
+      </PopMenu>
+    {/if}
+    <span class="w1-top-spacer"></span>
+    <button class="w1-icon-button w1-refresh" disabled={refreshing} onclick={onrefresh} aria-label={t("อัปเดตข้อมูล", "Refresh data")} title={t("อัปเดตข้อมูล", "Refresh data")}
+      ><RefreshCw size={17} class={refreshing ? "k-spin" : ""} /></button
+    >
+    {#if data && !platformMode && createGroups.length}
+      <!-- The one primary button on every page. The platform's pages have none. -->
+      <CreateMenu groups={createGroups} bind:open={creating} />
+    {/if}
+    <PopMenu id="orca-account-menu" label={t("บัญชี", "Account")} buttonClass="w1-avatar-button" kind="panel" align="right" bind:open={accountOpen}
+      buttonLabel={t(`บัญชี ${accountName}`, `Account: ${accountName}`)}>
+      {#snippet button()}<span class="w1-avatar" aria-hidden="true">{accountInitial}</span>{/snippet}
+      {#snippet children(close)}
+        <div class="w1-who">
+          <span class="w1-avatar" aria-hidden="true">{accountInitial}</span>
+          <span><strong>{accountName}</strong>{#if currentUser?.email}<small>{currentUser.email}</small>{/if}<small
+              >{platformMode ? term("orcaTeam", t) : currentUser ? memberRole(currentUser.role) : t("กำลังโหลด…", "Loading…")}</small
+            ></span
+          >
+        </div>
+        <div class="w1-menu-sep" role="separator"></div>
+        <a class="w1-menu-row" href={localeHref("/app?view=settings&section=account")} onclick={close}><CircleUserRound size={16} aria-hidden="true" /><span class="w1-menu-text">{term("myAccount", t)}</span></a>
+        <div class="w1-menu-control"><ThemeSwitch compact label /></div>
+        <div class="w1-menu-control workspace-account-language"><span>{t("ภาษา", "Language")}</span><LocaleSwitch /></div>
+        <div class="w1-menu-sep" role="separator"></div>
+        <a class="w1-menu-row" href="/oauth2/sign_out?rd=/"><LogOut size={16} aria-hidden="true" /><span class="w1-menu-text">{term("signOut", t)}</span></a>
+      {/snippet}
+    </PopMenu>
+  </header>
+
+  <!-- The listeners only open and close the panel; every item inside is its own link or button. -->
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <aside
-    class="workspace-sidebar"
-    class:compact={collapsed}
+    class="w1-rail"
+    class:open={rail.open}
+    class:pinned={rail.pinned}
+    bind:this={railElement}
     aria-label={t("เมนู ORCA", "ORCA menu")}
+    onpointerenter={() => railControl.pointerEnter()}
+    onpointerleave={() => { hideTip(); railControl.pointerLeave(); }}
+    onpointerover={showTip}
+    onfocusin={onRailFocusIn}
+    onfocusout={onRailFocusOut}
+    onkeydown={onRailKey}
   >
-    {@render sidebar(collapsed)}
+    {@render railBody(false)}
   </aside>
-  <!-- A tap on the dimmed page beside the drawer closes it (a phone has no Escape key). -->
+  {#if tip && !rail.open}<div class="w1-tip" role="tooltip" style:top="{tip.top}px">{tip.text}</div>{/if}
+
+  <!-- A phone: the same contents as a drawer; a tap on the dimmed page beside it closes it. -->
   <dialog
-    class="workspace-drawer"
+    class="workspace-drawer w1-drawer"
     bind:this={drawer}
-    onclose={closeAccounts}
     onclick={(event) => {
       if (event.target === drawer) closeDrawer();
     }}
     aria-label={t("เมนู ORCA", "ORCA menu")}
   >
-    <button
-      class="workspace-close"
-      onclick={closeDrawer}
-      aria-label={t("ปิดเมนู", "Close menu")}><X size={22} /></button
-    >
-    {@render sidebar(false, true)}
+    <button class="workspace-close" onclick={closeDrawer} aria-label={t("ปิดเมนู", "Close menu")}><X size={22} /></button>
+    {@render railBody(true)}
   </dialog>
-  <div class="workspace-stage">
-    <header class="workspace-topbar">
-      <button
-        class="workspace-menu workspace-icon-button"
-        onclick={() => drawer?.showModal()}
-        aria-label={t("เปิดเมนู", "Open menu")}
-        aria-haspopup="dialog"><Menu size={22} /></button
-      >
-      <a class="workspace-mark" href={homeHref} aria-label={t("ORCA หน้าหลัก", "ORCA home")}><Brand compact /></a>
-      <button type="button" class="workspace-jump" onclick={() => (jumping = true)} aria-haspopup="dialog" aria-keyshortcuts="Meta+K Control+K">
-        <Search size={16} aria-hidden="true" /><span>{term("jumpTo", t)}</span><kbd>⌘K</kbd>
-      </button>
-      <span class="workspace-topbar-spacer"></span>
-      <div class="workspace-header-actions">
-        <button
-          class="workspace-icon-button"
-          disabled={refreshing}
-          onclick={onrefresh}
-          aria-label={t("อัปเดตข้อมูล", "Refresh data")}
-          title={t("อัปเดตข้อมูล", "Refresh data")}
-          ><RefreshCw size={17} class={refreshing ? "k-spin" : ""} /></button
-        >
-        {#if data && !platformMode}
-          <!-- The one primary button on every page (W0). The platform's pages have none. -->
-          <button type="button" class="k-button primary workspace-create" onclick={() => (creating = true)} aria-haspopup="dialog"
-            >{term("create", t)}<ChevronDown size={15} aria-hidden="true" /></button
-          >
-        {/if}
-      </div>
-    </header>
+
+  <div class="w1-stage">
     <main class="workspace-main" id="orca-main" tabindex="-1">
       {@render children()}
     </main>
   </div>
-  {#if data && !platformMode}<CreateDialog bind:open={creating} {canManage} {skills} />{/if}
   <JumpDialog bind:open={jumping} targets={jumpTargets} />
   <Toast />
 </div>

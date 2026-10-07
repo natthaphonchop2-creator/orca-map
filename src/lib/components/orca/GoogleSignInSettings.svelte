@@ -6,7 +6,6 @@
   import { t } from "$lib/orca/locale.svelte";
   import { OrcaService, displayDate, orcaError, type OrcaBootstrap, type OrcaGoogleSignIn } from "$lib/services/orca";
   import { backendOrigin, googleClientIDFormat, googleClientSaved, googleRedirectTargets } from "$lib/services/orca-platform";
-  import PlatformBadge from "./platform/PlatformBadge.svelte";
   import ConfirmDialog from "./ui/ConfirmDialog.svelte";
   import PageHeader from "./ui/PageHeader.svelte";
   import StatusPill from "./ui/StatusPill.svelte";
@@ -192,9 +191,7 @@
 </script>
 
 <div class="google-page">
-  <PageHeader title={term("googleSignIn", t)} subtitle={t("ตั้งค่าครั้งเดียว ใช้กับทุกบริษัท", "Set up once for every company.")}>
-    {#snippet eyebrow()}<PlatformBadge everyCompany />{/snippet}
-  </PageHeader>
+  <PageHeader title={term("googleSignIn", t)} subtitle={t("ตั้งค่าครั้งเดียว ใช้กับทุกบริษัท", "Set up once for every company.")} />
 
   {#if error}<div class="google-callout deny" role="alert"><Info size={17} aria-hidden="true" /><span>{error}</span>{#if !setting}<button type="button" class="k-link-button" onclick={load}>{t("ลองอีกครั้ง", "Try again")}</button>{/if}</div>{/if}
   {#if notice}<p class="google-callout ok" role="status"><Check size={17} aria-hidden="true" /><span>{notice}</span></p>{/if}

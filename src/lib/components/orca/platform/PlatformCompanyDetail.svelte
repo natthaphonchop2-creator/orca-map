@@ -27,7 +27,6 @@
   } from "$lib/services/orca";
   import { displayDay, usageNumber as n } from "$lib/orca/platform-usage";
   import { parseErrorContent } from "$lib/errors";
-  import PlatformBadge from "./PlatformBadge.svelte";
   import ConfirmDialog from "../ui/ConfirmDialog.svelte";
   import PageHeader from "../ui/PageHeader.svelte";
   import { showToast } from "../ui/toast-store.svelte";
@@ -211,10 +210,7 @@
 <PageHeader
   title={company?.displayName ?? t("บริษัทลูกค้า", "Customer company")}
   subtitle={t("ORCA เห็นข้อมูลนี้ และบันทึกว่าดูแล้ว", "ORCA sees this, and records that it looked.")}
-  back={{ href: localeHref(platformHref("companies")), label: t("บริษัทลูกค้า", "Customer companies") }}
->
-  {#snippet eyebrow()}<PlatformBadge />{/snippet}
-</PageHeader>
+  back={{ href: localeHref(platformHref("companies")), label: t("บริษัทลูกค้า", "Customer companies") }} />
 
 {#if companyError}<p class="detail-error" role="alert">{companyError}</p>{/if}
 {#if company && status !== "active"}<p class="detail-stopped" role="status">{companyStatusNote(status, t)}{company.contractEnd ? ` · ${contractNote(company.contractState, company.contractEnd, t, orcaLocale.value)}` : ""}</p>{/if}

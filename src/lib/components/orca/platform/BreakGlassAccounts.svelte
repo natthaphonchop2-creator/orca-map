@@ -10,7 +10,6 @@
 	import Sheet from '../ui/Sheet.svelte';
 	import StatusPill, { type StatusTone } from '../ui/StatusPill.svelte';
 	import { showToast } from '../ui/toast-store.svelte';
-	import PlatformBadge from './PlatformBadge.svelte';
 
 	// แพลตฟอร์ม ORCA › บัญชีฉุกเฉิน: email-and-password accounts of the ORCA
 	// team's own company, for when Google sign-in can't be used. Only the ORCA
@@ -120,7 +119,6 @@
 
 {#if allowed}
 	<PageHeader title={term('breakGlass', t)} subtitle={t('ใช้เมื่อเข้าสู่ระบบด้วย Google ไม่ได้', "For when Google sign-in can't be used.")}>
-		{#snippet eyebrow()}<PlatformBadge />{/snippet}
 		{#snippet action()}{#if available}<button type="button" class="k-button primary breakglass-create" onclick={() => start()}><Plus size={16} aria-hidden="true" />{t('สร้างบัญชีรหัสผ่าน', 'Create a password account')}</button>{/if}{/snippet}
 	</PageHeader>
 

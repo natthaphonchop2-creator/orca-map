@@ -366,3 +366,34 @@ test('Codex W0 review 1: Home reads no library for a partial count, and status c
 	const css = status.slice(status.indexOf('<style>'));
 	assert.match(css, /\.home-state\.warn,\s*\.home-state\.deny \{\s*color: var\(--orca-ink\);/);
 });
+
+test('W0.1 home layout: two columns from 1100 px, and on a phone ต้องดูแล → ภาพรวม → ล่าสุด → Skills, by grid-template-areas', async () => {
+	const dashboard = await readFile(new URL('./WorkspaceDashboard.svelte', import.meta.url), 'utf8');
+	const css = dashboard.slice(dashboard.indexOf('<style>'));
+	assert.match(css, /\.home-layout \{\s*display: grid;\s*grid-template-columns: minmax\(0, 1fr\);\s*grid-template-areas: 'attention' 'overview' 'recent' 'skills';/, 'the phone order');
+	assert.match(css, /@media \(min-width: 1100px\) \{\s*\.home-layout \{\s*grid-template-columns: minmax\(0, 1fr\) 360px;[\s\S]*?grid-template-areas: 'attention overview' 'recent overview' 'recent skills';/, 'left ต้องดูแล and ล่าสุด, right ภาพรวม and Skills');
+	// Nothing to look at: ภาพรวม starts at the top, with no empty ต้องดูแล row above it.
+	assert.match(dashboard, /class:no-attention=\{attentionCount === 0\}/);
+	assert.match(css, /\.home-layout\.no-attention \{\s*grid-template-areas: 'overview' 'recent' 'skills';/);
+	assert.match(css, /@media \(min-width: 1100px\) \{[\s\S]*?\.home-layout\.no-attention \{\s*grid-template-rows: auto 1fr;\s*grid-template-areas: 'recent overview' 'recent skills';/);
+	assert.match(css, /\.home-attention \{\s*grid-area: attention;/);
+	assert.match(css, /\.home-skills \{\s*grid-area: skills;/);
+	const status = await readFile(new URL('./home/HomeStatus.svelte', import.meta.url), 'utf8');
+	assert.match(status, /\.home-tiles \{\s*grid-area: overview;/);
+	assert.match(status, /\.home-recent \{\s*grid-area: recent;/);
+	// Skills ที่ใช้บ่อย only with the Skills feature.
+	assert.match(dashboard, /\{#if skillsEnabled\(data\)\}\s*<section class="home-skills"/);
+	const personal = await importTypeScript(new URL('../../orca/personal-connections.ts', import.meta.url));
+	const PageHeader = await component('./ui/PageHeader.svelte', children);
+	const Dashboard = await component('./WorkspaceDashboard.svelte', {
+		...children, ...personal, PageHeader, currentCompany: () => 'default', aiConnection: { state: 'unknown' },
+		connectAccess: connectAI.connectAccess, onlyWorkspacesText: aiConnection.onlyWorkspacesText,
+		skillsEnabled: (data) => data?.features?.skills === true
+	});
+	const page = (data) => render(Dashboard, { props: { data } }).body;
+	assert.doesNotMatch(page(company()), /Skills ที่ใช้บ่อย/);
+	assert.match(page(company({ features: { skills: true } })), /Skills ที่ใช้บ่อย[\s\S]*?ยังไม่มี Skill/);
+	// The DOM order is the phone's too.
+	const html = page(company({ features: { skills: true } }));
+	assert.ok(html.indexOf('home-attention') < html.indexOf('home-skills'));
+});

@@ -10,7 +10,6 @@
   import { usageNumber } from "$lib/orca/platform-usage";
   import { OrcaService, displayDate, orcaError, type OrcaOwnerInvitationLink, type OrcaPlatformCompany } from "$lib/services/orca";
   import { externalBrowserLink } from "$lib/services/orca-platform";
-  import PlatformBadge from "./platform/PlatformBadge.svelte";
   import ConfirmDialog from "./ui/ConfirmDialog.svelte";
   import { showToast } from "./ui/toast-store.svelte";
   import PageHeader from "./ui/PageHeader.svelte";
@@ -233,7 +232,6 @@
   title={t("บริษัทลูกค้า", "Customer companies")}
   subtitle={t("คุณไม่ได้เป็นสมาชิกของบริษัทเหล่านี้", "You are not a member of these companies.")}
 >
-  {#snippet eyebrow()}<PlatformBadge />{/snippet}
   {#snippet action()}<button type="button" class="k-button primary companies-open" onclick={() => show("open")}><Plus size={16} aria-hidden="true" />{t("เปิดบริษัทใหม่", "Open a company")}</button>{/snippet}
 </PageHeader>
 

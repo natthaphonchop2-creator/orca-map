@@ -76,28 +76,13 @@
 	color: var(--login-text);
 }
 .orca.o-auth-page.o-login .o-login-eyebrow {
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
-	align-self: flex-start;
-	height: 28px;
-	padding: 0 12px;
-	border: 1px solid var(--login-line-2);
-	border-radius: 999px;
-	background: rgba(255, 255, 255, 0.03);
-	color: var(--login-text-2);
+	/* W0.1: plain small grey text, never a pill (the owner's no-pill rule). */
+	color: var(--login-muted);
 	font-size: 12.5px;
 	font-weight: 500;
 }
-.orca.o-auth-page.o-login .o-login-eyebrow span {
-	width: 6px;
-	height: 6px;
-	border-radius: 50%;
-	background: var(--login-citron);
-	box-shadow: 0 0 0 3px rgba(215, 244, 113, 0.16);
-}
 .orca.o-auth-page.o-login .o-auth-story h1 {
-	margin-top: 22px;
+	margin-top: 14px;
 	font-size: clamp(24px, 3.4vw, 38px);
 	font-weight: 600;
 	line-height: 1.25;
@@ -119,23 +104,22 @@
 	list-style: none;
 }
 .orca.o-auth-page.o-login .o-login-points li {
+	/* W0.1: plain lines with a small citron dot, no boxed icon tiles (no decorative icons). */
 	display: flex;
-	align-items: center;
-	gap: 12px;
+	align-items: flex-start;
+	gap: 10px;
 	color: var(--login-text-2);
 	font-size: 13.5px;
 	line-height: 1.5;
 }
-.orca.o-auth-page.o-login .o-login-icon {
-	display: grid;
+.orca.o-auth-page.o-login .o-login-points li::before {
+	content: '';
 	flex: none;
-	place-items: center;
-	width: 32px;
-	height: 32px;
-	border: 1px solid var(--login-line);
-	border-radius: 9px;
-	background: var(--login-surface-2);
-	color: var(--login-citron);
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	margin-top: 7px; /* centred on the first line (13.5 px × 1.5) */
+	background: var(--login-citron);
 }
 
 /* ---------- Form card ---------- */
@@ -190,17 +174,17 @@
 .orca.o-auth-page.o-login .o-password-label button:hover {
 	color: var(--login-text);
 }
-/* Primary: the website's citron button. */
+/* Primary: W0's light primary, a white fill with ink text (citron stays on small points). */
 .orca.o-auth-page.o-login .o-button {
 	min-height: 44px;
 	border: 0;
 	border-radius: 10px;
-	background: var(--login-citron);
-	color: var(--login-on-citron) !important;
+	background: var(--login-text);
+	color: var(--login-bg) !important;
 	font-weight: 600;
 }
 .orca.o-auth-page.o-login .o-button:hover {
-	background: var(--login-citron-hover);
+	background: #ffffff;
 }
 /* Secondary (another provider): outline on the dark card. */
 .orca.o-auth-page.o-login .o-button.outline {
