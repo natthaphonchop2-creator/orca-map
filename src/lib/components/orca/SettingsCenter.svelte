@@ -6,7 +6,6 @@
   import {
     advancedFallback,
     settingsSection,
-    settingsSections,
     type SignInSources,
   } from "$lib/orca/settings-sections";
   import { memberName, memberRole, type OrcaBootstrap } from "$lib/services/orca";
@@ -16,11 +15,12 @@
   import OrganizationSettings from "./OrganizationSettings.svelte";
   import ThemeSetting from "./ThemeSetting.svelte";
   import UserSources from "./UserSources.svelte";
-  import PageHeader from "./ui/PageHeader.svelte";
+  import SettingsFrame from "./views/SettingsFrame.svelte";
 
   // ตั้งค่า: บริษัท (company name and logo), บัญชีของฉัน (theme; the language
-  // is in the top bar only) and ขั้นสูง (the company's own SSO, only once it
-  // has a sign-in source). Platform settings are in the platform area.
+  // is in the account menu) and ขั้นสูง (the company's own SSO, only once it
+  // has a sign-in source), under SettingsFrame's tabs with ทีม and พื้นที่ทำงาน AI
+  // (W0). Platform settings are in the platform area.
   let {
     data,
     activeData,
@@ -49,8 +49,6 @@
   const requested = $derived(page.url.searchParams.get("section"));
   const canManage = $derived(data.canManage === true);
   const section = $derived(settingsSection(requested, canManage, sources));
-  const labels = $derived({ company: term("company", t), account: term("myAccount", t), advanced: term("advanced", t) });
-  const tabs = $derived(settingsSections(canManage, sources));
   const currentUser = $derived(data.members.find((member) => member.id === data.currentUserID));
   $effect(() => {
     const fallback = advancedFallback(requested, canManage, sources);
@@ -58,22 +56,7 @@
   });
 </script>
 
-<PageHeader
-  title={term("settings", t)}
-  subtitle={canManage
-    ? t("ข้อมูลบริษัทและบัญชีของคุณ", "Company details and your account.")
-    : t("การตั้งค่าบัญชีของคุณ", "Your account settings.")}
-/>
-{#if tabs.length > 1}<nav
-    class="settings-tabs"
-    aria-label={t("หมวดการตั้งค่า", "Settings sections")}
-  >
-    {#each tabs as tab (tab)}<a
-        href={localeHref(`/app?view=settings&section=${tab}`)}
-        class:chosen={section === tab}
-        aria-current={section === tab ? "page" : undefined}>{labels[tab]}</a
-      >{/each}
-  </nav>{/if}
+<SettingsFrame {data} current={section} {sources}>
 {#if section === "company" && canManage}
   <OrganizationSettings data={activeData ?? data} {onchanged} embedded />
 {:else if section === "advanced" && canManage}
@@ -85,7 +68,7 @@
         <p>
           {#if currentUser}{[memberName(currentUser), currentUser.email, memberRole(currentUser.role)].filter(Boolean).join(" · ")}{/if}
         </p>
-        <p>{t("เปลี่ยนภาษาได้ที่มุมขวาบน · ชื่อและอีเมลมาจากบัญชี Google ของคุณ", "Change the language at the top right. Your name and email come from your Google account.")}</p>
+        <p>{t("เปลี่ยนภาษาได้ที่เมนูบัญชี · ชื่อและอีเมลมาจากบัญชี Google ของคุณ", "Change the language in the account menu. Your name and email come from your Google account.")}</p>
       </div>
     </div>
     <ThemeSetting />
@@ -97,38 +80,10 @@
     "Read the common questions",
   )}<ArrowRight size={16} /></a
 >
+</SettingsFrame>
 
 <style>
 	/* orca-type-remap v1 */
-  .settings-tabs {
-    display: flex;
-    gap: 24px;
-    margin: 0 0 24px;
-    overflow-x: auto;
-    box-shadow: inset 0 -1px 0 var(--orca-line);
-    scrollbar-width: none;
-  }
-  .settings-tabs a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-    padding: 0 2px;
-    border-bottom: 2px solid transparent;
-    color: var(--orca-muted);
-    font-size: 14px;
-    font-weight: 500;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-  .settings-tabs a:hover {
-    color: var(--orca-ink);
-    text-decoration: none;
-  }
-  .settings-tabs a.chosen {
-    border-bottom-color: var(--orca-tab-indicator, var(--orca-ink));
-    color: var(--orca-ink);
-    font-weight: 600;
-  }
   .settings-panel {
     margin-bottom: 16px;
     border: 1px solid var(--orca-line);

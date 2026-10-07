@@ -628,12 +628,12 @@
 		min-height: 50px;
 		padding: 0 22px;
 		border: 1px solid transparent;
-		background: var(--orca-citron);
-		color: var(--orca-on-citron);
+		background: var(--orca-ink);
+		color: var(--orca-on-ink);
 		font-size: 14px;
 	}
 	.ws-create:hover:not(:disabled) {
-		background: var(--orca-citron-hover);
+		background: var(--orca-ink);
 	}
 	.ws-draft:disabled,
 	.ws-create:disabled {

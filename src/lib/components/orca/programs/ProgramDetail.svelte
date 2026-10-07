@@ -383,7 +383,7 @@
 	.pd-title h1 {
 		margin: 0;
 		font-size: 24px;
-		font-weight: 700;
+		font-weight: 600;
 		line-height: 1.3;
 		overflow-wrap: anywhere;
 	}

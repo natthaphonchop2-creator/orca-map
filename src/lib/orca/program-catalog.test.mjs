@@ -7,7 +7,7 @@ const { catalogSource } = await importTypeScript(new URL('./catalog.ts', import.
 const { appNavigation } = await importTypeScript(new URL('./navigation.ts', import.meta.url));
 const {
 	PROGRAM_CHIPS, programCategory, programCard, programDisplayName, programLine, recommendedPrograms, pickerPrograms, availableChips,
-	programStep, programStepHref, programCancelHref, programConnectedHref, programEventOutcome, finishAction, teamSizeFor, programStatus, uniqueProgramName,
+	programStep, programStepHref, programCancelHref, programReturnHref, programConnectedHref, programEventOutcome, finishAction, teamSizeFor, programStatus, uniqueProgramName,
 	draftKey, readDraft, writeDraft, clearDraft, DRAFT_TTL_MS
 } = catalog;
 
@@ -93,13 +93,25 @@ test('the step and the program live in the address; step 4 needs the saved progr
 	assert.equal(programStepHref(`${base}&source=a&step=connect&account=pac-1`, 'connect', { source: 'b' }), '/app?view=add-program&lang=th&org=org-1&return=new&source=b&step=connect');
 	assert.equal(programStepHref(`${base}&source=a&step=connect&account=pac-1`, 'choose'), '/app?view=add-program&lang=th&org=org-1&return=new&step=choose');
 	assert.equal(programCancelHref('new'), '/app?view=new');
-	assert.equal(programCancelHref(null), '/app?view=servers');
-	// Every address a step builds is already canonical for the page's router.
-	for (const href of [programStepHref(base, 'connect', { source: 's' }), programStepHref(base, 'done', { source: 's', connection: 'c' })]) {
+	// W0: back to the catalog dialog, or to the onboarding's second screen.
+	assert.equal(programCancelHref(null), '/app?view=servers&catalog=1');
+	assert.equal(programCancelHref('welcome'), '/app?view=welcome&page=2');
+	assert.equal(programReturnHref('new', 'c 1'), '/app?view=new&connection=c%201');
+	assert.equal(programReturnHref('welcome', 'c1'), '/app?view=welcome&page=2&added=c1');
+	assert.equal(programReturnHref(null, 'c 1'), '/app?view=servers&catalog=1&added=c%201');
+	// Those addresses are canonical for the router: &added stays where it is said.
+	for (const href of [programReturnHref(null, 'c1'), programReturnHref('welcome', 'c1')])
+		assert.equal(appNavigation(new URLSearchParams(href.split('?')[1]), { role: { canManage: true, platformOperator: false } }).redirect, undefined, href);
+	// Every connect address a step builds is already canonical for the page's router.
+	for (const href of [programStepHref(base, 'connect', { source: 's' }), programStepHref(base, 'tools', { source: 's' })]) {
 		const route = appNavigation(new URLSearchParams(href.split('?')[1]), { role: { canManage: true, platformOperator: false } });
 		assert.equal(route.view, 'add-program');
 		assert.equal(route.redirect, undefined, href);
 	}
+	// W0: step 1 is the catalog dialog and step 4 the program's own page; their old addresses go there.
+	const route = (href) => appNavigation(new URLSearchParams(href.split('?')[1]), { role: { canManage: true, platformOperator: false } }).redirect;
+	assert.equal(route(programStepHref(base, 'choose')), '/app?view=servers&lang=th&org=org-1&return=new&catalog=1');
+	assert.equal(route(programStepHref(base, 'done', { source: 's', connection: 'c' })), '/app?view=servers&lang=th&org=org-1&connection=c');
 });
 
 test('step 4: back to the create form, everyone when there is no workspace, otherwise a workspace', () => {

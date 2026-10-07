@@ -88,8 +88,9 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
 	}
+	/* W0: connected is said in ink with a check, never a green block. */
 	.ca-result.connected {
-		border-color: var(--orca-ok-line);
+		border-color: var(--orca-line);
 	}
 	.ca-state {
 		display: flex;
@@ -98,7 +99,7 @@
 		padding: 18px;
 	}
 	.connected .ca-state {
-		background: var(--orca-ok-bg);
+		background: var(--orca-surface);
 	}
 	.ca-state b {
 		display: block;
@@ -108,8 +109,8 @@
 		line-height: 1.45;
 	}
 	.ca-when {
-		color: var(--orca-ok);
-		font-weight: 600;
+		color: var(--orca-muted);
+		font-weight: 500;
 	}
 	.ca-state small {
 		display: block;
@@ -144,7 +145,7 @@
 		width: 26px;
 		height: 26px;
 		border-radius: 50%;
-		background: var(--orca-ok);
+		background: var(--orca-ink);
 		color: var(--orca-on-ink);
 	}
 	.ca-dot {

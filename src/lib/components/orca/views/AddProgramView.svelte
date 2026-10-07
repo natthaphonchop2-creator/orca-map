@@ -5,8 +5,9 @@
 	import type { OrcaBootstrap } from '$lib/services/orca';
 	import AddProgramFlow from '../programs/AddProgramFlow.svelte';
 
-	// view=add-program (&source=…&step=choose|connect|tools|done&account=…&connection=…&return=new):
-	// the four-step เพิ่มโปรแกรม page. The page only mounts it for managers.
+	// view=add-program (&source=…&step=connect|tools&account=…&return=new|welcome): the
+	// connect page (W0). Choosing a program is the catalog dialog on โปรแกรม, and the
+	// old step 4 is the program's page (navigation redirects both). Managers only.
 	let {
 		data,
 		sourceID = '',

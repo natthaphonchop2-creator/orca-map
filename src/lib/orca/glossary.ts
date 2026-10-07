@@ -22,13 +22,21 @@ export const glossary = {
 	orcaTeam: ['ทีม ORCA', 'The ORCA team'],
 	// Company menu (Owner and Admin)
 	home: ['หน้าหลัก', 'Home'],
-	programs: ['โปรแกรมที่เชื่อม', 'Programs'],
+	programs: ['โปรแกรม', 'Programs'],
 	workspaces: ['พื้นที่ทำงาน AI', 'AI workspaces'],
 	knowledge: ['คลังความรู้', 'Knowledge'],
 	team: ['ทีม', 'Team'],
 	oversight: ['ตรวจสอบ', 'Oversight'],
 	myRequests: ['คำขอของฉัน', 'My requests'],
 	connectMyAI: ['เชื่อม AI ของฉัน', 'Connect my AI'],
+	// W0's menu (calm workspace, 2026-10-07): Skills and Workflows stay in English (owner).
+	skills: ['Skills', 'Skills'],
+	workflows: ['Workflows', 'Workflows'],
+	myAI: ['AI ของฉัน', 'My AI'],
+	history: ['ประวัติ', 'History'],
+	create: ['สร้าง', 'Create'],
+	soon: ['เร็วๆ นี้', 'Coming soon'],
+	jumpTo: ['ไปที่…', 'Go to…'],
 	addProgram: ['เชื่อมโปรแกรม', 'Connect a program'],
 	newWorkspace: ['สร้างพื้นที่ทำงาน AI', 'New AI workspace'],
 	settings: ['ตั้งค่า', 'Settings'],
@@ -42,6 +50,12 @@ export const glossary = {
 	waitingApproval: ['รออนุมัติ', 'Waiting'],
 	usageHistory: ['ประวัติการใช้งาน', 'Activity'],
 	settingsHistory: ['ประวัติการตั้งค่า', 'Settings history'],
+	// ประวัติ's tabs (W0)
+	usageTab: ['การใช้งาน', 'Usage'],
+	settingsTab: ['การตั้งค่า', 'Settings changes'],
+	// AI ของฉัน's tabs (W0, Owners and Admins)
+	mine: ['ของฉัน', 'Mine'],
+	wholeCompany: ['ทั้งบริษัท', 'Whole company'],
 	// Team tabs
 	members: ['สมาชิก', 'Members'],
 	invitations: ['คำเชิญ', 'Invitations'],

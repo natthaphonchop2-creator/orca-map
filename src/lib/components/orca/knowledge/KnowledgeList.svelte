@@ -22,7 +22,6 @@
 	import { term } from '$lib/orca/glossary';
 	import {
 		LIBRARY_PAGE,
-		askItem,
 		audienceChip,
 		factLine,
 		fileRowState,
@@ -41,7 +40,7 @@
 	import type { LibraryDepartment, LibraryItem, LibraryKind, LibraryUsage } from '$lib/services/orca-library';
 	import PageHeader from '../ui/PageHeader.svelte';
 	import StatusPill from '../ui/StatusPill.svelte';
-	import KnowledgeRail from './KnowledgeRail.svelte';
+	import UsageCard from './UsageCard.svelte';
 	import ScopeChip from './ScopeChip.svelte';
 
 	// คลังความรู้, the library's home (proposal §3.6 screen 1): the workspace,
@@ -121,7 +120,6 @@
 	// Counts only once the library answered: a failed load shows no zeros.
 	const counted = $derived(loaded && !(error && !items.length));
 	// Without library v2 the AI searches articles only: the card asks about one.
-	const ask = $derived(askItem(items, undefined, kind === 'file' && !features.files ? 'knowledge' : kind));
 	const workspaceMemberIDs = $derived(members.map((member) => member.id));
 	const filters = $derived<{ id: LibraryFilter; label: string }[]>([
 		{ id: 'all', label: t('ทั้งหมด', 'All') },
@@ -172,7 +170,7 @@
 		<PageHeader title={term('knowledge', t)} subtitle={t('ข้อมูลที่ AI ของทีมใช้ตอบคำถาม', 'What your team’s AI answers from')}>
 			{#snippet action()}
 				{#if kind !== 'file' || files}
-					<button type="button" class="k-button primary kn-add" onclick={() => oncreate(kind)} disabled={!loaded || (!!error && !items.length)}>
+					<button type="button" class="k-button kn-add" onclick={() => oncreate(kind)} disabled={!loaded || (!!error && !items.length)}>
 						{#if kind === 'file'}<Upload size={16} strokeWidth={2.3} aria-hidden="true" />{:else}<Plus size={16} strokeWidth={2.3} aria-hidden="true" />{/if}{addLabel}
 					</button>
 				{/if}
@@ -326,7 +324,8 @@
 			{/if}
 		</div>
 
-		<KnowledgeRail item={ask} ask={counted && !idle} {connected} {app} workspace={hub} files={kind === 'file'} paused={filesOff ? 'files' : idle ? 'workspace' : undefined} usage={kind === 'file' ? usage : undefined} dots={files} />
+		<!-- W0: no intro rail beside the list; only the file quota stays, as a fact under the list. -->
+		{#if kind === 'file' && usage}<div class="kn-usage"><UsageCard {usage} /></div>{/if}
 	</div>
 </div>
 
@@ -434,9 +433,13 @@
 		text-decoration: underline;
 		text-underline-offset: 3px;
 	}
+	.kn-usage {
+		margin-top: 20px;
+		max-width: 360px;
+	}
 	.kn-grid {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) 272px;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 24px;
 		align-items: start;
 	}
@@ -537,22 +540,23 @@
 		display: inline-flex;
 		align-items: center;
 		min-height: 32px;
-		padding: 0 13px;
-		border: 1px solid var(--orca-line);
-		border-radius: 999px;
-		background: var(--orca-surface);
-		color: var(--orca-text-2);
+		padding: 0 8px;
+		border: 0;
+		border-bottom: 2px solid transparent;
+		border-radius: 0;
+		background: transparent;
+		color: var(--orca-muted);
 		font-size: 13px;
 		font-weight: 500;
 		cursor: pointer;
 	}
 	.chip:hover:not(.on) {
-		border-color: var(--orca-line-strong);
+		color: var(--orca-ink);
 	}
+	/* W0: a chosen filter is underlined in ink, never a black fill. */
 	.chip.on {
-		border-color: var(--orca-ink);
-		background: var(--orca-ink);
-		color: var(--orca-on-ink);
+		border-bottom-color: var(--orca-ink);
+		color: var(--orca-ink);
 		font-weight: 600;
 	}
 	.kl {

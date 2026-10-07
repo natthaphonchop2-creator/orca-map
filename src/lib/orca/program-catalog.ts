@@ -176,9 +176,29 @@ export function programStepHref(
 	return url.pathname + url.search;
 }
 
-/** Where "ยกเลิก" goes: back to the create form when the person came from it, else the programs list. */
+/** Where "ยกเลิก" goes: back to the create form or the onboarding when the person came from it, else the catalog (W0). */
 export function programCancelHref(returnTo: string | null | undefined): string {
-	return returnTo === 'new' ? '/app?view=new' : '/app?view=servers';
+	if (returnTo === 'new') return '/app?view=new';
+	if (returnTo === 'welcome') return '/app?view=welcome&page=2';
+	return '/app?view=servers&catalog=1';
+}
+
+/**
+ * W0: where the connect page goes once the program is saved. Back to the
+ * create form with it, back to the onboarding's second screen, or back to the
+ * catalog, where its card now says เชื่อมแล้ว.
+ */
+export function programReturnHref(returnTo: string | null | undefined, connectionID: string): string {
+	const id = encodeURIComponent(connectionID);
+	if (returnTo === 'new') return `/app?view=new&connection=${id}`;
+	// &added names the program just saved: the page says what AI was allowed, with a way to change it.
+	if (returnTo === 'welcome') return `/app?view=welcome&page=2&added=${id}`;
+	return `/app?view=servers&catalog=1&added=${id}`;
+}
+
+/** The program's สิ่งที่ AI ทำได้ tab, where what was auto-allowed is changed. */
+export function programToolsHref(connectionID: string): string {
+	return `/app?view=servers&connection=${encodeURIComponent(connectionID)}&tab=tools`;
 }
 
 /**
@@ -268,7 +288,8 @@ export function programStatus(
 /** One label per status, the same on every page. */
 export function programStatusCopy(status: ProgramStatus): { th: string; en: string; tone: 'ok' | 'warn' | 'neutral' } {
 	return {
-		ready: { th: 'พร้อมใช้', en: 'Ready', tone: 'ok' as const },
+		// W0: admins see the connection state in one word everywhere (programs, catalog, onboarding).
+		ready: { th: 'เชื่อมแล้ว', en: 'Connected', tone: 'ok' as const },
 		setup: { th: 'รอเลือกสิ่งที่ AI ทำได้', en: 'Choose what AI can do', tone: 'warn' as const },
 		review: { th: 'ต้องตรวจใหม่', en: 'Needs review', tone: 'warn' as const },
 		paused: { th: 'หยุดชั่วคราว', en: 'Paused', tone: 'neutral' as const },

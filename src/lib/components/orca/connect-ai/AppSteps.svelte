@@ -10,7 +10,13 @@
 	// Step 3: what to do inside the chosen app. Claude and ChatGPT get three
 	// short steps (ก ข ค) in their own menu names; developer tools get their
 	// command, one-click install or config, as before.
-	let { app, endpoint, connector, companyName = '' }: { app: AIApp; endpoint: string; connector: string; companyName?: string } = $props();
+	let {
+		app,
+		endpoint,
+		connector,
+		companyName = '',
+		compact = false
+	}: { app: AIApp; endpoint: string; connector: string; companyName?: string; compact?: boolean } = $props();
 	const name = $derived(appName(app, t));
 	const setup = $derived(devSetup(app, endpoint, true));
 	const after = $derived(devAfterStep(app, true, t));
@@ -41,17 +47,24 @@
 	{#if app === 'chatgpt'}
 		<p class="ca-need"><Info size={16} aria-hidden="true" />{t('ต้องเปิด Developer mode ก่อน ใช้ได้กับ ChatGPT Plus, Pro หรือ Business', 'Developer mode must be on first. It is available on ChatGPT Plus, Pro and Business.')}</p>
 	{/if}
+	{#if compact}
+		<!-- The sheet (W0): one line on where to paste it. -->
+		<p class="ca-where">{app === 'claude'
+				? t(`ใน Claude ไปที่ Settings → Connectors → Add custom connector ตั้งชื่อ ${connector} แล้ววางลิงก์`, `In Claude, go to Settings → Connectors → Add custom connector, name it ${connector} and paste the link.`)
+				: t(`ใน ChatGPT เปิด Developer mode แล้วไปที่ Apps & Connectors → Create ตั้งชื่อ ${connector} วางลิงก์ แล้วเลือก OAuth`, `In ChatGPT, turn on Developer mode, then Apps & Connectors → Create: name it ${connector}, paste the link and choose OAuth.`)}</p>
+	{:else}
 	<ol class="ca-mini">
 		{#if app === 'claude'}
 			<li><span class="ca-letter" aria-hidden="true">{letters[0]}</span><div>{t('เปิด Claude แล้วไปที่', 'Open Claude and go to')} {@render key('Settings')}{@render arrow()}{@render key('Connectors')}</div></li>
 			<li><span class="ca-letter" aria-hidden="true">{letters[1]}</span><div>{t('กด', 'Choose')} {@render key('Add custom connector')} {t('แล้วพิมพ์ชื่อ', 'and type the name')} <b>{connector}</b></div></li>
-			<li><span class="ca-letter" aria-hidden="true">{letters[2]}</span><div>{t('วางลิงก์จากขั้นที่ 2 กด', 'Paste the link from step 2, choose')} {@render key('Add')} {t('แล้วกด', 'then')} {@render key('Connect')}</div></li>
+			<li><span class="ca-letter" aria-hidden="true">{letters[2]}</span><div>{t('วางลิงก์ ORCA ของบริษัท กด', 'Paste your company’s ORCA link, choose')} {@render key('Add')} {t('แล้วกด', 'then')} {@render key('Connect')}</div></li>
 		{:else}
 			<li><span class="ca-letter" aria-hidden="true">{letters[0]}</span><div>{t('เปิด ChatGPT ไปที่', 'Open ChatGPT, go to')} {@render key('Settings')}{@render arrow()}{@render key('Apps & Connectors')}{@render arrow()}{@render key('Advanced settings')} {t('แล้วเปิด', 'and turn on')} {@render key('Developer mode')}</div></li>
 			<li><span class="ca-letter" aria-hidden="true">{letters[1]}</span><div>{t('กลับมาที่', 'Back in')} {@render key('Apps & Connectors')} {t('กด', 'choose')} {@render key('Create')} {t('แล้วพิมพ์ชื่อ', 'and type the name')} <b>{connector}</b></div></li>
-			<li><span class="ca-letter" aria-hidden="true">{letters[2]}</span><div>{t('วางลิงก์จากขั้นที่ 2 เลือก', 'Paste the link from step 2, choose')} {@render key('OAuth')} {t('แล้วกด', 'then')} {@render key('Create')}</div></li>
+			<li><span class="ca-letter" aria-hidden="true">{letters[2]}</span><div>{t('วางลิงก์ ORCA ของบริษัท เลือก', 'Paste your company’s ORCA link, choose')} {@render key('OAuth')} {t('แล้วกด', 'then')} {@render key('Create')}</div></li>
 		{/if}
 	</ol>
+	{/if}
 	<div class="ca-act">
 		<a class="k-button" href={CONNECTOR_PAGES[app]} target="_blank" rel="noopener noreferrer">
 			{app === 'claude' ? t('เปิดหน้า Connectors ของ Claude', "Open Claude's Connectors") : t('เปิด ChatGPT', 'Open ChatGPT')}<ExternalLink size={16} aria-hidden="true" />
@@ -79,7 +92,7 @@
 		{/if}
 		{#if after}<p class="ca-after">{after}</p>{/if}
 		{#if app === 'other'}
-			<p class="ca-after">{t('เพิ่มลิงก์จากขั้นที่ 2 ในแอปที่รองรับ MCP และการเข้าสู่ระบบแบบ OAuth หรือให้ AI ในแอปนั้นช่วยตั้งค่าด้วยข้อความนี้', 'Add the link from step 2 to an app that supports MCP with OAuth sign-in, or let that app’s AI set it up with this text.')}</p>
+			<p class="ca-after">{t('เพิ่มลิงก์ ORCA ของบริษัทในแอปที่รองรับ MCP และการเข้าสู่ระบบแบบ OAuth หรือให้ AI ในแอปนั้นช่วยตั้งค่าด้วยข้อความนี้', 'Add your company’s ORCA link to an app that supports MCP with OAuth sign-in, or let that app’s AI set it up with this text.')}</p>
 			<dl class="ca-facts"><dt>{t('การรับส่งข้อมูล', 'Transport')}</dt><dd>Streamable HTTP</dd><dt>{t('การยืนยันตัวตน', 'Authorization')}</dt><dd>OAuth</dd></dl>
 			{#if instructions}
 				<button type="button" class="k-button" onclick={() => copy(instructions, 'instructions')}>
@@ -127,6 +140,12 @@
 		flex: none;
 		margin-top: 2px;
 		color: var(--orca-warn);
+	}
+	.ca-where {
+		margin: 0 0 12px;
+		color: var(--orca-text-2);
+		font-size: 14px;
+		line-height: 1.6;
 	}
 	.ca-mini {
 		margin: 0;

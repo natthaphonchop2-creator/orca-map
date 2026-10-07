@@ -311,8 +311,8 @@
 	}
 	.kd-title h1 {
 		margin: 0;
-		font-size: 22px;
-		font-weight: 700;
+		font-size: 24px;
+		font-weight: 600;
 		line-height: 1.35;
 		overflow-wrap: anywhere;
 	}
@@ -508,6 +508,12 @@
 		}
 		.kd-card {
 			padding: 18px 16px;
+		}
+	}
+	/* W0: every page's H1 is 24, and 20 on a phone. */
+	@media (max-width: 720px) {
+		.kd-title h1 {
+			font-size: 20px;
 		}
 	}
 </style>

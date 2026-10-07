@@ -1,60 +1,47 @@
 <script lang="ts">
 	import { onDestroy, onMount, untrack } from 'svelte';
-	import { CircleCheck, CircleHelp, Plus } from '@lucide/svelte';
 	import { currentCompany } from '$lib/orca/company';
 	import { onlyWorkspacesText } from '$lib/orca/ai-connection';
 	import { aiConnection } from '$lib/orca/ai-connection.svelte';
+	import CatalogIcon from '$lib/orca/CatalogIcon.svelte';
 	import { connectAccess } from '$lib/orca/connect-ai';
 	import { sourceAccountState, sourcePresentationNames } from '$lib/orca/connection-presentation';
 	import { term } from '$lib/orca/glossary';
+	import { aiAttention, employeeAttention, managerAttention, type AttentionRow } from '$lib/orca/home-attention';
 	import {
 		AUDIT_WINDOW,
 		accessRequestText,
 		aiLapse,
-		aiLapsed,
 		accountStateFrom,
-		activeMembers,
-		askablePrograms,
 		askedAI,
-		attentionCounts,
-		employeeChecklist,
 		firstName,
-		homeBadge,
 		homeAIApp,
 		homeAIState,
-		homeFlagKey,
-		homeMode,
 		isToolCall,
-		ownerChecklist,
-		readHomeFlag,
 		staleAIApps,
 		usableWorkspaces,
 		workspacesLink,
-		writeHomeFlag,
 		type AccountState,
 		type Done,
-		type HomeFlag,
 		type ProgramAccount
 	} from '$lib/orca/home-setup';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
-	import { TEAM_INVITE_HREF } from '$lib/orca/navigation';
 	import { personalAccountReader, personalSetup, personalSources } from '$lib/orca/personal-connections';
-	import { OrcaService, type OrcaAuditEvent, type OrcaBootstrap, type OrcaConnection, type OrcaConnectionHealth } from '$lib/services/orca';
+	import { OrcaService, type OrcaAuditEvent, type OrcaBootstrap, type OrcaConnection, type OrcaConnectionHealth, type OrcaProgramAccount } from '$lib/services/orca';
 	import { healthByConnection } from '$lib/orca/connection-health';
-	import { programStatus } from '$lib/orca/program-catalog';
-	import { OrcaLibraryService } from '$lib/services/orca-library';
 	import { refreshAIConnection } from '$lib/services/orca-ai-apps';
+	import { SkillsService } from '$lib/services/orca-skills';
+	import { skillsEnabled } from '$lib/orca/workspace-nav';
 	import AIReconnectBanner from './home/AIReconnectBanner.svelte';
-	import EmployeeSetup from './home/EmployeeSetup.svelte';
 	import HomeStatus from './home/HomeStatus.svelte';
-	import OwnerSetup from './home/OwnerSetup.svelte';
 	import PageHeader from './ui/PageHeader.svelte';
-	import SupportContact from './ui/SupportContact.svelte';
+	import { copyFeedback, copyText } from './ui/copy';
 
-	// หน้าหลัก. While setup is unfinished: one setup panel (proposal §4, the
-	// approved home-first-run mockup). Afterwards: "ตั้งค่าเสร็จแล้ว", which the
-	// viewer can hide, and the company at a glance.
-	let { data }: { data: OrcaBootstrap } = $props();
+	// หน้าหลัก (W0, the calm workspace): a greeting with today's use, ต้องดูแล
+	// only when something needs someone, four overview tiles and the latest six
+	// items. The first-run checklist is gone: what it asked for shows as rows
+	// here, and a new company's owner first sees the onboarding (+page).
+	let { data, pendingApprovals = 0 }: { data: OrcaBootstrap; pendingApprovals?: number } = $props();
 	let alive = true;
 
 	// ---- What the page reads beyond the bootstrap ----
@@ -63,45 +50,34 @@
 	/** The history filled the audit window: an older call of mine may be missing from it. */
 	let eventsTruncated = $state(false);
 	let eventsError = $state(false);
-	/** B1 answered (or failed): the pin's store then says connected, none or unknown. */
+	/** B1 answered (or failed): the shared store then says connected, none or unknown. */
 	let aiChecked = $state(false);
 	let sourceNames = $state<Record<string, string>>({});
-	let invitesSent = $state(false);
-	let knowledgePublished = $state(false);
 	let accountStates = $state<Record<string, AccountState>>({});
-	/** Managers: AI apps unused for 30 days (ตรวจสอบ); 0 until read, or when it cannot be. */
+	/** Managers: AI apps unused for 30 days; 0 until read, or when it cannot be. */
 	let staleApps = $state(0);
-	/** A tool that changed at the provider: Home says ต้องตรวจใหม่ like the program list (managers). */
+	/** A tool that changed at the provider: ต้องตรวจใหม่, as on the program list (managers). */
 	let health = $state.raw<Map<string, OrcaConnectionHealth>>();
-	/** Both reads above answered: only then can Home say nothing needs attention (Codex release review 67). */
+	/** The company accounts (บัญชีกลาง), for ต้องเชื่อมใหม่ (managers); undefined until read. */
+	let programAccounts = $state.raw<OrcaProgramAccount[]>();
+	/** The unused-app and changed-program reads (managers). */
 	let checks = $state<'loading' | 'done' | 'failed'>('loading');
+	/** Skills' tile, only with the company's skills feature (W0); the list is a stub until its backend ships. */
+	let skills = $state<{ count: number }>();
 
-	// ---- Per-viewer memory (browser storage, a convenience only) ----
-	const storage = () => (typeof window === 'undefined' ? undefined : window.localStorage);
-	const flagKey = (flag: HomeFlag) => homeFlagKey(flag, currentCompany(), data.currentUserID);
-	let flags = $state<Record<HomeFlag, boolean>>({ 'setup-dismissed': false, 'skip-invite': false, 'skip-knowledge': false });
-	function setFlag(flag: HomeFlag) {
-		flags[flag] = true;
-		writeHomeFlag(storage, flagKey(flag));
-	}
-
-	// ---- The checklist ----
 	const manager = $derived(data.canManage);
 	const me = $derived(data.members.find((member) => member.id === data.currentUserID));
 	/** The workspaces of mine the company's link reaches, and the ones with their own sign-in. */
 	const access = $derived(connectAccess(data));
 	const company = $derived(data.organization.displayName || 'ORCA');
 	const iconName = (connection: OrcaConnection) => sourceNames[connection.mcpID] || connection.name;
-	// The same store the pinned "เชื่อม AI ของฉัน" button reads (B1). After my
-	// own disconnect on this page, an earlier question no longer counts (Codex
-	// release review 70).
+	// The same store as AI ของฉัน (B1). After my own disconnect, an earlier question no longer counts.
 	const ai = $derived(homeAIState(aiConnection, aiChecked, access));
-	// The app shown to reach my workspaces, never the company link's for ones with their own sign-in (Codex reviews 72 and 73).
+	// The app the tile names, never one limited to another workspace (Codex reviews 72 and 73).
 	const aiApp = $derived(homeAIApp(aiConnection, ai, access));
-	// Connected only through workspaces' own links: where it reaches, never company-wide (B3 follow-up).
 	const aiOnly = $derived(ai === 'limited' ? onlyWorkspacesText(aiConnection.only ?? [], t) : '');
 	const asked = $derived<Done>(eventsError || !events ? undefined : askedAI(events, data.currentUserID, eventsTruncated));
-	const owner = $derived(ownerChecklist(data, ai, asked));
+	const aiRow = $derived(aiAttention(ai, aiChecked, asked));
 	const sources = $derived(manager ? [] : personalSources(data));
 	const accounts = $derived<ProgramAccount[]>(
 		sources.map((source) => ({
@@ -111,37 +87,40 @@
 			state: accountStates[source.sourceID] ?? (source.canReadSetup ? 'checking' : 'waiting')
 		}))
 	);
-	const employee = $derived(employeeChecklist(ai, accounts.map((account) => account.state), asked));
-	const list = $derived(manager ? owner : employee);
 	const noWorkspace = $derived(!manager && usableWorkspaces(data).length === 0);
-	const loaded = $derived((events !== undefined || eventsError) && aiChecked && accounts.every((account) => account.state !== 'checking'));
-	// Setup was done and only my AI sign-in expired or was disconnected: stay in status mode, with a banner.
-	const lapsed = $derived(aiLapsed(list, ai));
-	const mode = $derived(homeMode(list, noWorkspace, loaded, lapsed));
-	const invite = $derived({ done: invitesSent || activeMembers(data.members).length > 1, skipped: flags['skip-invite'] });
-	const knowledge = $derived({ done: knowledgePublished, skipped: flags['skip-knowledge'] });
-	// Plus a program that changed at the provider since its last review (HomeStatus's "ต้องตรวจใหม่").
-	const changedPrograms = $derived(
-		data.connections.filter((connection) => programStatus(connection) === 'ready' && programStatus(connection, health?.get(connection.id)) === 'review').length
-	);
-	const attention = $derived(attentionCounts(data).total + staleApps + changedPrograms);
 	const requestText = $derived(
 		accessRequestText(
 			{ name: me?.displayName ?? '', email: me?.email ?? '', company, link: typeof window === 'undefined' ? '' : workspacesLink(window.location.origin, currentCompany()) },
 			t
 		)
 	);
-	const welcome = $derived(firstName(me?.displayName) ? t(`ยินดีต้อนรับ ${firstName(me?.displayName)}`, `Welcome, ${firstName(me?.displayName)}`) : t('ยินดีต้อนรับ', 'Welcome'));
+	const rows = $derived<AttentionRow[]>(
+		manager
+			? managerAttention({ data, pendingApprovals, accounts: programAccounts, health, staleApps, iconName }, t)
+			: employeeAttention({ accounts, noWorkspace, requestText }, t)
+	);
+	const attentionCount = $derived(rows.length + (aiRow ? 1 : 0) + (manager && checks === 'failed' ? 1 : 0));
+	const today = $derived(data.hubs.reduce((sum, hub) => sum + Math.max(0, hub.usedToday || 0), 0));
+	const name = $derived(firstName(me?.displayName));
 	const header = $derived({
-		title: mode === 'setup' ? welcome : term('home', t),
-		subtitle:
-			mode === 'setup'
-				? manager
-					? t('4 ขั้นตอน ประมาณ 10 นาที', '4 steps, about 10 minutes')
-					: t('3 ขั้นตอน ประมาณ 7 นาที', '3 steps, about 7 minutes')
-				: company,
-		status: homeBadge(mode, manager, attention, t, lapsed)
+		title: name ? t(`สวัสดี คุณ${name}`, `Hello, ${name}`) : term('home', t),
+		subtitle: manager
+			? t(`วันนี้ AI ใช้ข้อมูลบริษัท ${today.toLocaleString()} ครั้ง`, `AI used company data ${today.toLocaleString()} times today`)
+			: t(`วันนี้ AI ใช้ข้อมูลในพื้นที่ทำงานของคุณ ${today.toLocaleString()} ครั้ง`, `AI used your workspaces' data ${today.toLocaleString()} times today`)
 	});
+
+	// ---- Copying the access request (employees with no workspace) ----
+	let copied = $state('');
+	const feedback = copyFeedback((on) => {
+		if (!on) copied = '';
+	});
+	async function copyRow(row: AttentionRow) {
+		if (!row.action.copy) return;
+		if (await copyText(row.action.copy, typeof navigator === 'undefined' ? undefined : navigator.clipboard, typeof document === 'undefined' ? undefined : document)) {
+			copied = row.id;
+			feedback.copied();
+		}
+	}
 
 	// ---- Loading ----
 	async function loadActivity() {
@@ -156,12 +135,11 @@
 			if (alive) eventsError = true;
 		}
 	}
-	// Back on Home from Claude or ChatGPT with setup still open: check again, so
-	// the first question or a new sign-in ticks its step by itself, as the page
-	// promises. What is shown stays until the new answer (Codex release review 63).
+	// Back on Home from Claude or ChatGPT while AI is not connected yet: check
+	// again, so the row goes by itself. What is shown stays until the new answer.
 	let lastRecheck = 0;
 	async function recheck() {
-		if (!alive || mode !== 'setup' || document.visibilityState === 'hidden') return;
+		if (!alive || !aiRow || document.visibilityState === 'hidden') return;
 		if (Date.now() - lastRecheck < 10_000) return;
 		lastRecheck = Date.now();
 		try {
@@ -171,19 +149,17 @@
 			events = result.filter(isToolCall).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 			eventsError = false;
 		} catch {
-			/* Keeps what it has; the retry on the card still works. */
+			/* Keeps what it has; the retry on the list still works. */
 		}
 		await refreshAIConnection();
 	}
 	async function loadAIApps() {
-		// A fresh read for Home; an older server without B1 leaves it unknown, and
-		// connecting AI is then proven by the first question.
+		// A fresh read for Home; an older server without B1 leaves it unknown.
 		await refreshAIConnection();
 		if (alive) aiChecked = true;
 	}
-	// "มี N แอป AI ที่ไม่ได้ใช้เกิน 30 วัน" → ตรวจสอบ, filtered (proposal §3.6), and
-	// the programs that changed at the provider. A failed read shows no alert
-	// rather than a wrong one, and holds back "nothing needs attention".
+	// The unused AI apps and the programs that changed at the provider. A failed
+	// read shows no alert rather than a wrong one, and says so with a retry.
 	let checksLoad = 0;
 	async function loadChecks() {
 		const current = ++checksLoad;
@@ -198,22 +174,15 @@
 		]);
 		if (alive && current === checksLoad) checks = results.every((result) => result.status === 'fulfilled') ? 'done' : 'failed';
 	}
-	async function loadOptional() {
+	async function loadProgramAccounts() {
 		try {
-			const items = await OrcaService.invitations();
-			if (alive) invitesSent = items.length > 0;
+			const items = await OrcaService.programAccounts();
+			if (alive) programAccounts = items;
 		} catch {
-			/* Optional: a failed read leaves the invite step open. */
+			/* Optional: without the list no program is said to need reconnecting. */
 		}
-		void loadChecks();
-		const hubs = usableWorkspaces(data).slice(0, 3);
-		const libraries = await Promise.allSettled(hubs.map((hub) => OrcaLibraryService.load(hub.id)));
-		if (alive)
-			knowledgePublished = libraries.some(
-				(result) => result.status === 'fulfilled' && result.value.items.some((item) => item.kind === 'knowledge' && item.status === 'published')
-			);
 	}
-	// An employee's own sign-in to each program (as on เชื่อม AI ของฉัน › บัญชีโปรแกรมของคุณ).
+	// An employee's own sign-in to each program (as on AI ของฉัน › บัญชีโปรแกรมของคุณ).
 	const reader = personalAccountReader(
 		async (sourceID, signal) => personalSetup(await OrcaService.sourceSetup(sourceID, signal), sourceID),
 		(event) => {
@@ -223,7 +192,14 @@
 	);
 
 	onMount(() => {
-		for (const flag of Object.keys(flags) as HomeFlag[]) flags[flag] = readHomeFlag(storage, flagKey(flag));
+		if (skillsEnabled(untrack(() => data)))
+			void SkillsService.list()
+				.then((items) => {
+					if (alive) skills = { count: items.filter((item) => item.status === 'published').length };
+				})
+				.catch(() => {
+					if (alive) skills = { count: 0 };
+				});
 		void loadActivity();
 		void loadAIApps();
 		lastRecheck = Date.now();
@@ -235,7 +211,8 @@
 			window.removeEventListener('focus', onReturn);
 		};
 		if (untrack(() => data.canManage)) {
-			void loadOptional();
+			void loadChecks();
+			void loadProgramAccounts();
 			// The catalog's names pick the right logos; managers only.
 			void OrcaService.candidates()
 				.then((items) => {
@@ -253,142 +230,102 @@
 		alive = false;
 		stopRechecks();
 		reader.dispose();
+		feedback.dispose();
 	});
 </script>
 
-<PageHeader title={header.title} subtitle={header.subtitle} status={header.status}>
-	{#snippet action()}
-		{#if mode === 'status' && manager}
-			<a class="k-button" href={localeHref('/app?view=add-program')}>{term('addProgram', t)}</a>
-			<a class="k-button primary" href={localeHref('/app?view=new')}><Plus size={16} aria-hidden="true" />{term('newWorkspace', t)}</a>
-		{/if}
-	{/snippet}
-</PageHeader>
+<PageHeader title={header.title} subtitle={header.subtitle} />
 
-{#if mode === 'setup'}
-	<div id="setup" class="home-anchor">
-		{#if manager}
-			<OwnerSetup
-				{data}
-				list={owner}
-				{ai}
-				{aiApp}
-				{aiOnly}
-				historyFailed={eventsError}
-				onretry={loadActivity}
-				{invite}
-				{knowledge}
-				onskip={setFlag}
-				{iconName}
-			/>
-		{:else}
-			<EmployeeSetup
-				list={employee}
-				{ai}
-				{aiApp}
-				{aiOnly}
-				{accounts}
-				programs={askablePrograms(data)}
-				{noWorkspace}
-				{requestText}
-				historyFailed={eventsError}
-				onretry={loadActivity}
-				{iconName}
-			/>
-		{/if}
-	</div>
-	<p class="home-helpline">
-		<CircleHelp size={17} aria-hidden="true" />
-		<!-- A manager in a company on ORCA reaches the ORCA team directly ($lib/orca/support), not through the trial-request form. -->
-		{#if manager}{t('ติดตรงไหน', 'Stuck?')} <SupportContact />
-		{:else}{t('ติดตรงไหน', 'Stuck?')} <a href={localeHref('/app?view=help')}>{t('ดูคำถามที่พบบ่อย', 'Read the common questions')}</a>{/if}
-	</p>
-{:else if mode === 'loading'}
-	<p class="home-loading" role="status" aria-live="polite">{t('กำลังตรวจสถานะการตั้งค่า…', 'Checking your setup…')}</p>
-{:else}
-	{#if lapsed}<AIReconnectBanner lapse={aiLapse(aiConnection, ai)} only={aiOnly} own={access.ownSignIn} />{/if}
-	{#if list.complete && !flags['setup-dismissed']}
-		<section class="home-done" aria-labelledby="home-done-title">
-			<span class="home-done-icon" aria-hidden="true"><CircleCheck size={20} /></span>
-			<div class="home-done-copy">
-				<h2 id="home-done-title">{t('ตั้งค่าเสร็จแล้ว', 'Setup is done')}</h2>
-				<p>
-					{manager ? t('ทีมของคุณถามข้อมูลบริษัทผ่าน AI ได้แล้ว', 'Your team can ask AI about company data') : t('คุณถามข้อมูลบริษัทผ่าน AI ได้แล้ว', 'You can ask AI about company data')}
-					{#if manager && !invite.done && !invite.skipped}· <a href={localeHref(TEAM_INVITE_HREF)}>{t('ชวนทีม', 'Invite your team')}</a>{/if}
-					{#if manager && !knowledge.done && !knowledge.skipped}· <a href={localeHref('/app?view=knowledge&kind=knowledge&create=1')}>{t('เพิ่มความรู้แรก', 'Add your first knowledge')}</a>{/if}
-				</p>
-			</div>
-			<button type="button" class="k-button quiet small" onclick={() => setFlag('setup-dismissed')} aria-label={t('ซ่อน ตั้งค่าเสร็จแล้ว', 'Hide "Setup is done"')}>{t('ซ่อน', 'Hide')}</button>
-		</section>
-	{/if}
-	<HomeStatus {data} {events} {eventsError} onretry={loadActivity} {iconName} {staleApps} {health} {checks} onretrychecks={() => void loadChecks()} />
+{#if attentionCount > 0}
+	<section class="home-attention" aria-labelledby="home-attention-title">
+		<h2 id="home-attention-title">{t('ต้องดูแล', 'Needs attention')} <span class="home-count">{attentionCount}</span></h2>
+		<div class="home-panel">
+			{#if aiRow === 'never'}
+				<div class="home-row">
+					<div class="home-row-copy"><strong>{t('ยังไม่ได้เชื่อม AI', 'AI is not connected yet')}</strong><small>{t('ใช้ ORCA ใน ChatGPT หรือ Claude', 'Use ORCA in ChatGPT or Claude')}</small></div>
+					<a class="k-button small" href={localeHref('/app?view=connect-ai')}>{t('เชื่อม AI', 'Connect AI')}</a>
+				</div>
+			{:else if aiRow === 'lapsed'}
+				<AIReconnectBanner lapse={aiLapse(aiConnection, ai)} only={aiOnly} own={access.ownSignIn} />
+			{/if}
+			{#each rows as row (row.id)}
+				<div class="home-row">
+					{#if row.logo}<CatalogIcon name={row.logo} size={32} />{/if}
+					<div class="home-row-copy"><strong>{row.title}</strong>{#if row.meta}<small title={row.detail}>{row.meta}</small>{/if}</div>
+					{#if row.action.href}<a class="k-button small" href={localeHref(row.action.href)}>{row.action.label}</a>
+					{:else}<button type="button" class="k-button small" onclick={() => copyRow(row)}>{copied === row.id ? t('คัดลอกแล้ว', 'Copied') : row.action.label}</button>{/if}
+				</div>
+			{/each}
+			{#if manager && checks === 'failed'}
+				<div class="home-row" role="alert">
+					<div class="home-row-copy"><strong>{t('ตรวจแอป AI ที่ไม่ได้ใช้และโปรแกรมที่เปลี่ยนไปไม่สำเร็จ', "Couldn't check for unused AI apps and changed programs.")}</strong></div>
+					<button type="button" class="k-button small" onclick={() => void loadChecks()}>{t('ลองอีกครั้ง', 'Try again')}</button>
+				</div>
+			{/if}
+		</div>
+	</section>
 {/if}
 
+<HomeStatus {data} {events} {eventsError} onretry={loadActivity} {iconName} accounts={programAccounts} {ai} {aiApp} skills={skillsEnabled(data) ? (skills ?? { count: 0 }) : undefined} />
+
 <style>
-	/* orca-type-remap v1 */
-	.home-anchor {
-		scroll-margin-top: 80px;
+	.home-attention {
+		margin-bottom: 28px;
 	}
-	.home-helpline {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 8px;
-		margin: 18px 4px 0;
-		color: var(--orca-muted);
-		font-size: 13.5px;
-	}
-	.home-helpline a {
-		color: var(--orca-ink);
+	.home-attention h2 {
+		margin: 0 0 10px;
+		font-size: 16px;
 		font-weight: 600;
-		text-decoration: underline;
-		text-decoration-color: var(--orca-line-strong);
-		text-underline-offset: 3px;
 	}
-	.home-loading {
-		margin: 0;
-		padding: 28px 20px;
+	.home-count {
+		color: var(--orca-muted);
+		font-weight: 500;
+		font-variant-numeric: tabular-nums;
+	}
+	.home-panel {
 		border: 1px solid var(--orca-line);
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
-		color: var(--orca-muted);
-		font-size: 13.5px;
 	}
-	.home-done {
+	.home-panel > :global(* + *) {
+		border-top: 1px solid var(--orca-line);
+	}
+	.home-row {
 		display: flex;
 		align-items: center;
-		gap: 14px;
-		margin-bottom: 20px;
-		padding: 16px 20px;
-		border: 1px solid var(--orca-ok-line);
-		border-radius: var(--orca-radius-lg);
-		background: var(--orca-ok-bg);
+		gap: 12px;
+		padding: 12px 16px;
 	}
-	.home-done-icon {
-		display: grid;
-		flex: none;
-		place-items: center;
-		color: var(--orca-ok);
-	}
-	.home-done-copy {
+	.home-row-copy {
+		display: flex;
 		flex: 1;
+		flex-direction: column;
 		min-width: 0;
 	}
-	.home-done .home-done-copy h2 {
-		margin: 0;
-		color: var(--orca-ink);
+	.home-row-copy strong {
 		font-size: 14px;
-		font-weight: 700;
+		font-weight: 500;
+		line-height: 1.45;
 	}
-	.home-done .home-done-copy p {
-		margin: 2px 0 0;
-		color: var(--orca-text-2);
-		font-size: 13.5px;
+	.home-row-copy small {
+		color: var(--orca-muted);
+		font-size: 12.5px;
+		line-height: 1.5;
 	}
-	.home-done a {
-		color: var(--orca-ink);
-		font-weight: 600;
-		text-decoration: underline;
-		text-underline-offset: 3px;
+	.home-row .k-button {
+		flex: none;
+	}
+	/* A phone: the button drops below its text. */
+	@media (max-width: 720px) {
+		.home-row {
+			flex-wrap: wrap;
+			padding: 12px 14px;
+		}
+		.home-row-copy {
+			flex-basis: calc(100% - 48px);
+		}
+		.home-row .k-button {
+			margin-left: auto;
+		}
 	}
 </style>

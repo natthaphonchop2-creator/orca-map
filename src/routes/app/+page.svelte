@@ -15,16 +15,22 @@
   import ConnectionCenter from "$lib/components/orca/ConnectionCenter.svelte";
   import ConnectionSettings from "$lib/components/orca/ConnectionSettings.svelte";
   import SettingsCenter from "$lib/components/orca/SettingsCenter.svelte";
+  import SettingsFrame from "$lib/components/orca/views/SettingsFrame.svelte";
   import KnowledgeLibrary from "$lib/components/orca/KnowledgeLibrary.svelte";
   import DocumentsView from "$lib/components/orca/documents/DocumentsView.svelte";
   import AddProgramView from "$lib/components/orca/views/AddProgramView.svelte";
   import HelpView from "$lib/components/orca/views/HelpView.svelte";
   import ConnectAIView from "$lib/components/orca/views/ConnectAIView.svelte";
   import OversightView from "$lib/components/orca/views/OversightView.svelte";
+  import MyAIFrame from "$lib/components/orca/views/MyAIFrame.svelte";
+  import SkillsView from "$lib/components/orca/views/SkillsView.svelte";
+  import { skillsEnabled } from "$lib/orca/workspace-nav";
   import PlatformView from "$lib/components/orca/views/PlatformView.svelte";
   import TeamView from "$lib/components/orca/views/TeamView.svelte";
   import WorkspaceHubView from "$lib/components/orca/views/WorkspaceHubView.svelte";
   import WorkspaceNewView from "$lib/components/orca/views/WorkspaceNewView.svelte";
+  import Onboarding from "$lib/components/orca/onboarding/Onboarding.svelte";
+  import { onboardingDone, onboardingKey, showsOnboarding } from "$lib/orca/onboarding";
   import "$lib/components/orca/orca.css";
   import { initializeLocale, localeHref, t } from "$lib/orca/locale.svelte";
   import { appNavigation, type PlatformSection } from "$lib/orca/navigation";
@@ -101,6 +107,26 @@
     !!libraryKind && page.url.searchParams.get("create") === "1",
   );
   const hub = $derived(data?.hubs.find((item) => item.id === hubID));
+  // The first run (W0): an Owner or Admin of a company with no program yet sees
+  // the two onboarding screens on Home until they finish or skip them;
+  // view=welcome opens them on purpose. Remembered in this browser only.
+  let onboardingFinished = $state(false);
+  const onboarding = $derived(
+    !!data && !navigation.redirect && showsOnboarding({
+      view,
+      canManage: data.canManage,
+      platform: view === "platform",
+      connections: data.connections,
+      done: onboardingFinished || onboardingDone(localStorageOrNothing, onboardingKey(currentCompany(), data.currentUserID)),
+    }),
+  );
+  function localStorageOrNothing() {
+    try {
+      return window.localStorage;
+    } catch {
+      return undefined;
+    }
+  }
   async function refresh() {
     const request = ++refreshGeneration;
     refreshing = true;
@@ -242,6 +268,7 @@
 >
 
 {#if gate}<CompanyGate mode={gate} {companies} account={route.account} {stopped} current={route.place.kind === "company" ? route.place.id : ""} />
+{:else if onboarding && data}<Onboarding {data} page={navigation.params.get("page") === "2" ? 2 : 1} added={navigation.params.get("added") ?? ""} ondone={() => (onboardingFinished = true)} />
 {:else}
 <AppShell {data} {view} {section} {refreshing} {pendingApprovals} {companies} account={route.account} onrefresh={refreshFromTopBar}>
   {#if error}<div class="k-banner error" role="alert">
@@ -263,7 +290,7 @@
   {:else if navigation.redirect}<div class="k-loading" role="status" aria-live="polite">
       <LoaderCircle size={25} class="k-spin" />{t("กำลังเปิดหน้า…", "Opening…")}
     </div>
-  {:else if view === "dashboard"}{#key data}<WorkspaceDashboard data={currentData!} />{/key}
+  {:else if view === "dashboard"}{#key data}<WorkspaceDashboard data={currentData!} {pendingApprovals} />{/key}
   {:else if view === "new"}
     {#if !data.canManage}<div class="k-empty">
         <Folder size={34} />
@@ -326,8 +353,9 @@
       <ConnectionCenter data={managementData!} onchanged={refresh} />
     {/if}
   {:else if view === "connect-ai"}<ConnectAIView data={currentData!} onchanged={refresh} />
-  {:else if view === "members"}<TeamView {data} onchanged={refresh} />
-  {:else if view === "approvals" || view === "executions" || view === "audit" || view === "secrets"}<OversightView
+  {:else if view === "members"}<SettingsFrame {data} current="team"><TeamView {data} onchanged={refresh} /></SettingsFrame>
+  {:else if view === "secrets" && data.canManage}<MyAIFrame data={currentData!} />
+  {:else if view === "approvals" || view === "executions" || view === "audit"}<OversightView
       {data}
       activeData={currentData!}
       {view}
@@ -344,9 +372,10 @@
       companyTab={navigation.params.get("tab") ?? ""}
       onchanged={refresh}
     />{/key}
-  {:else if view === "workspaces"}<AppOverview data={managementData!} onchanged={refresh} />
+  {:else if view === "workspaces"}<SettingsFrame {data} current="workspaces"><AppOverview data={managementData!} onchanged={refresh} /></SettingsFrame>
   {:else if view === "help"}<HelpView {data} />
-  {:else}{#key data}<WorkspaceDashboard data={currentData!} />{/key}
+  {:else if view === "skills" && skillsEnabled(data)}<SkillsView data={currentData!} />
+  {:else}{#key data}<WorkspaceDashboard data={currentData!} {pendingApprovals} />{/key}
   {/if}
   <footer class="k-footer">
     <span

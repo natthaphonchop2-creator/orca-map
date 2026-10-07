@@ -82,7 +82,7 @@ test('only the support module holds the channels, and every "ติดต่อ�
 	for (const [file, uses] of [
 		['components/orca/views/ConnectAIView.svelte', /<SupportContact midSentence \/>/],
 		['components/orca/views/HelpView.svelte', /supportLinks\(t\)/],
-		['components/orca/WorkspaceDashboard.svelte', /\{#if manager\}\{t\('ติดตรงไหน', 'Stuck\?'\)\} <SupportContact \/>/],
+		// W0: Home no longer has its "ติดตรงไหน" line; Help's "ยังติดอยู่" holds the contacts.
 		['services/orca.ts', /import \{ ORCA_SUPPORT_LINE_ID \} from "\$lib\/orca\/support";/]
 	]) {
 		assert.match(await readFile(new URL(file, source), 'utf8'), uses, file);

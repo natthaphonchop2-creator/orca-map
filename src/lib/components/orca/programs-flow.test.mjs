@@ -19,7 +19,7 @@ const script = stripTypeScriptTypes(component.match(/<script lang="ts">([\s\S]*?
 	.replace(/^\s*import[\s\S]*?from\s+'[^']+';/gm, '')
 	.replace('$props()', '$state(testProps)');
 const names = [
-	'catalogSource', 'currentCompany', 'localeHref', 't', 'orcaError', 'programSaveError', 'programSaveConflict', 'ProgramService', 'OrcaService', 'policyStep', 'onDestroy', 'onMount', 'untrack',
+	'catalogSource', 'currentCompany', 'localeHref', 't', 'orcaError', 'showToast', 'programSaveError', 'programSaveConflict', 'ProgramService', 'OrcaService', 'policyStep', 'onDestroy', 'onMount', 'untrack',
 	...Object.keys(catalogHelpers), ...Object.keys(tools)
 ];
 const require = createRequire(import.meta.url);
@@ -28,7 +28,7 @@ const compiled = compileModule(
 		const { ${[...new Set(names)].join(', ')} } = deps;
 		${script}
 		return {
-			discover, accountReady, companyAccountReady, save, pick, change, loadCatalog,
+			discover, accountReady, companyAccountReady, save, retry, accountChanged, pick, change, loadCatalog,
 			setConnections(list) { data.connections = list; },
 			set(input) {
 				if (input.selected !== undefined) selected = input.selected;
@@ -56,6 +56,7 @@ function memoryStorage() {
 async function setup(context, { props = {}, service = {}, storage = memoryStorage() } = {}) {
 	const writes = [];
 	const navigations = [];
+	const toasts = [];
 	let refreshes = 0;
 	const mounts = [];
 	const destroys = [];
@@ -73,7 +74,7 @@ async function setup(context, { props = {}, service = {}, storage = memoryStorag
 			{
 				...catalogHelpers, ...tools, catalogSource, policyStep, untrack,
 				OrcaService: { programAccountPolicy: service.policy ?? (async () => undefined), programAccounts: service.accounts ?? (async () => []) },
-				currentCompany: () => 'default', localeHref: (href) => href, t: (th) => th, orcaError: (cause) => cause.message,
+				currentCompany: () => 'default', localeHref: (href) => href, t: (th) => th, orcaError: (cause) => cause.message, showToast: (message) => toasts.push(message),
 				programSaveError: (cause) => tools.programSaveMessage(cause.message, (th) => th) ?? cause.message,
 				programSaveConflict: (cause) => cause?.status === 409,
 				onMount: (fn) => mounts.push(fn), onDestroy: (fn) => destroys.push(fn),
@@ -93,30 +94,73 @@ async function setup(context, { props = {}, service = {}, storage = memoryStorag
 		stop();
 		delete globalThis.window;
 	});
-	return { view, writes, navigations, storage, refreshes: () => refreshes };
+	return { view, writes, navigations, toasts, storage, refreshes: () => refreshes };
 }
 
-test('an account that works leads to step 3 with a read-only start and the program name prefilled, not taken twice', async (context) => {
-	const { view, navigations } = await setup(context);
+// Owner decision 2026-10-07 ("บันทึกอัตโนมัติ"): once the account works, the classified read-only tools are saved
+// without a click, and the page then names what AI may read, with a way to change it.
+test('W0: an account that works saves the program read-only, with its name not taken twice, and goes back to the catalog', async (context) => {
+	const { view, navigations, writes, toasts, refreshes } = await setup(context);
 	await view.accountReady('flow');
-	assert.deepEqual(navigations, ['/app?view=add-program&source=flow&step=tools']);
 	assert.equal(view.state.toolsFor, 'flow');
 	assert.equal(view.state.preset, 'read');
 	assert.deepEqual(view.state.selected, ['list', 'get']);
-	assert.equal(view.state.name, 'FlowAccount (2)', 'another program already uses the name');
-	// A late answer for another program never moves the page.
+	// The read-only start the owner chose, saved and reviewed as read-only: never a tool that changes data.
+	assert.deepEqual(writes, [{ input: { name: 'FlowAccount (2)', description: '', mcpID: 'flow', toolNames: ['list', 'get'], scopeNote: '', reviewedTools: true, reviewedReadOnly: true, enabled: true }, id: undefined }]);
+	assert.equal(refreshes(), 1);
+	assert.deepEqual(navigations, ['/app?view=servers&catalog=1&added=saved-1'], 'back to the catalog, where the card now says เชื่อมแล้ว and a line names what AI may read');
+	assert.deepEqual(toasts, ['เชื่อม FlowAccount แล้ว']);
+	// A late answer for another program never moves the page or saves.
 	await view.accountReady('peak');
 	assert.equal(navigations.length, 1);
+	assert.equal(writes.length, 1);
 });
 
-test('"อนุญาต N อย่างนี้" sends reviewedTools:true, reviewedReadOnly for reads and the optional note, then opens step 4', async (context) => {
+test('W0 (owner: บันทึกอัตโนมัติ): a write or an unannotated tool is never auto-approved; only classified reads are', async (context) => {
+	for (const discovered of [
+		[definition('create', false)],
+		[definition('email')],
+		[definition('email'), definition('create', false)],
+		[{ name: 'odd', description: 'odd', inputSchema: {}, definition: { name: 'odd', annotations: { readOnlyHint: 'true' } } }],
+		[{ name: 'purge', description: 'purge', inputSchema: {}, definition: { name: 'purge', annotations: { readOnlyHint: true, destructiveHint: true } } }]
+	]) {
+		const run = await setup(context, { service: { discover: async () => discovered } });
+		await run.view.accountReady('flow');
+		assert.deepEqual(run.writes, [], discovered.map((item) => item.name).join());
+		assert.deepEqual(run.navigations, ['/app?view=add-program&source=flow&step=tools'], 'it asks first');
+	}
+	// Mixed: only the classified reads are saved, never the write or the unannotated tool beside them.
+	const mixed = await setup(context);
+	await mixed.view.accountReady('flow');
+	assert.deepEqual(mixed.writes[0].input.toolNames, ['list', 'get']);
+	assert.equal(mixed.writes[0].input.reviewedReadOnly, true);
+	// A selection that somehow holds a write is never auto-saved either.
+	const source = await readFile(new URL('./programs/AddProgramFlow.svelte', import.meta.url), 'utf8');
+	assert.match(source, /autoReviewSelection\(tools, selected\)\.length > 0/);
+});
+
+test('W0: with nothing read-only, the page asks what AI may do before saving; from the create form or onboarding it goes back there', async (context) => {
+	const changing = [definition('create', false), definition('send', false)];
+	const asks = await setup(context, { service: { discover: async () => changing } });
+	await asks.view.accountReady('flow');
+	assert.deepEqual(asks.writes, [], 'nothing that changes data is saved unasked');
+	assert.deepEqual(asks.navigations, ['/app?view=add-program&source=flow&step=tools']);
+	const fromForm = await setup(context, { props: { returnTo: 'new' } });
+	await fromForm.view.accountReady('flow');
+	assert.deepEqual(fromForm.navigations, ['/app?view=new&connection=saved-1']);
+	const fromWelcome = await setup(context, { props: { returnTo: 'welcome' } });
+	await fromWelcome.view.accountReady('flow');
+	assert.deepEqual(fromWelcome.navigations, ['/app?view=welcome&page=2&added=saved-1']);
+});
+
+test('"อนุญาต N อย่างนี้" sends reviewedTools:true, reviewedReadOnly for reads and the optional note, then goes back to the catalog', async (context) => {
 	const { view, writes, navigations, refreshes, storage } = await setup(context, { props: { step: 'tools' } });
 	await view.discover('flow');
 	flush();
 	await view.save();
 	assert.deepEqual(writes, [{ input: { name: 'FlowAccount (2)', description: '', mcpID: 'flow', toolNames: ['list', 'get'], scopeNote: '', reviewedTools: true, reviewedReadOnly: true, enabled: true }, id: undefined }]);
 	assert.equal(refreshes(), 1);
-	assert.equal(navigations.at(-1), '/app?view=add-program&source=flow&step=done&connection=saved-1');
+	assert.equal(navigations.at(-1), '/app?view=servers&catalog=1&added=saved-1');
 	assert.equal(storage.store.has('orca.addProgram.default'), false, 'the draft is cleared after saving');
 	assert.deepEqual([...storage.store.keys()], ['orca.addProgram.saved.default'], 'only which program was saved stays');
 	// Change tools make it a normal (not read-only) review; saving again changes the same program.
@@ -466,16 +510,21 @@ test('บัญชีกลาง at step 2: offered unless the program allows p
 	assert.equal(reload.view.state.accountMode, 'company', 'a reload with the account in the address keeps the choice');
 });
 
-test('a company account connected at step 2: step 3 reads what AI can do on it, and the save names it', async (context) => {
+test('a company account connected in the connect step: what AI can do is read on it, and the save names it', async (context) => {
 	const asked = [];
 	const { view, writes, navigations } = await setup(context, { service: { discover: async (id, account) => { asked.push([id, account]); return offered; } } });
 	await view.companyAccountReady('flow', 'pac-1');
 	assert.deepEqual(asked, [['flow', 'pac-1']]);
-	assert.deepEqual(navigations, ['/app?view=add-program&source=flow&step=tools&account=pac-1']);
 	assert.equal(view.state.toolsAccount, 'pac-1');
+	// W0: saved read-only on the company account at once, then back to the catalog.
+	assert.equal(writes.length, 1);
+	assert.equal(writes[0].input.programAccountID, 'pac-1');
+	assert.equal(writes[0].input.reviewedReadOnly, true);
+	assert.deepEqual(navigations, ['/app?view=servers&catalog=1&added=saved-1']);
 	// A late answer for another program never moves the page.
 	await view.companyAccountReady('peak', 'pac-2');
 	assert.equal(navigations.length, 1);
+	assert.equal(writes.length, 1);
 
 	// Step 3 as the address opens it: the account from the address.
 	const page = await setup(context, { props: { step: 'tools', programAccountID: 'pac-1', address: '/app?view=add-program&source=flow&step=tools&account=pac-1' }, service: { discover: async (id, account) => { asked.push([id, account]); return offered; } } });
@@ -485,8 +534,7 @@ test('a company account connected at step 2: step 3 reads what AI can do on it, 
 	assert.equal(asked.at(-1)[1], 'pac-1');
 	assert.equal(page.writes.length, 1);
 	assert.equal(page.writes[0].input.programAccountID, 'pac-1');
-	assert.equal(page.navigations.at(-1), '/app?view=add-program&source=flow&step=done&account=pac-1&connection=saved-1');
-	assert.deepEqual(writes, []);
+	assert.equal(page.navigations.at(-1), '/app?view=servers&catalog=1&added=saved-1');
 });
 
 test('the address a company account signed in as reaches the summary before saving, from step 2 or the managers\' list after a reload (CA1b O15)', async (context) => {
@@ -675,4 +723,158 @@ test('a discovery that ends after the program changed never opens step 3 for the
 	flush();
 	assert.equal(view.state.sourceID, 'flow');
 	assert.equal(view.state.step, 'connect');
+});
+
+test('W0 (Codex review 1): a refused or failed auto-save is shown on the connect page with a retry, for each person\'s own account and for บัญชีกลาง', async (context) => {
+	for (const company of [false, true]) {
+		let fail = true;
+		const writes = [];
+		const run = await setup(context, {
+			service: {
+				save: async (input, id) => {
+					if (fail) throw new Error('บันทึกไม่สำเร็จ');
+					writes.push({ input, id });
+					return { ...input, id: id ?? 'saved-1', version: 1 };
+				}
+			}
+		});
+		if (company) {
+			run.view.setMode('company');
+			await run.view.companyAccountReady('flow', 'pac-1');
+		} else await run.view.accountReady('flow');
+		assert.equal(run.view.state.saveError, 'บันทึกไม่สำเร็จ', company ? 'company' : 'personal');
+		assert.deepEqual(run.navigations, [], 'it stays on the connect page');
+		assert.equal(run.view.state.step, 'connect');
+		// ลองอีกครั้ง: the same save, on the same account.
+		fail = false;
+		await run.view.retry();
+		assert.equal(writes.length, 1);
+		assert.equal(writes[0].input.programAccountID, company ? 'pac-1' : undefined);
+		assert.deepEqual(writes[0].input.toolNames, ['list', 'get']);
+		assert.deepEqual(run.navigations, ['/app?view=servers&catalog=1&added=saved-1']);
+	}
+	const source = await readFile(new URL('./programs/AddProgramFlow.svelte', import.meta.url), 'utf8');
+	const connect = source.slice(source.indexOf("{:else if step === 'connect'}\n"), source.indexOf("{#key sourceID}"));
+	assert.match(connect, /\{#if saveError && !discovering && toolsFor === sourceID\}<div class="ap-error ap-save-error" role="alert">[\s\S]*?\{saveError\}[\s\S]*?onclick=\{retry\}>\{t\('ลองอีกครั้ง', 'Try again'\)\}/);
+});
+
+test('Codex W0 review 2 (MAJOR 1): after a failed auto-save, switching whose account AI uses never retries on the other one', async (context) => {
+	const failing = (writes) => async (input, id) => {
+		writes.push({ input, id });
+		throw new Error('บันทึกไม่สำเร็จ');
+	};
+	// Company account pac-A first, then each person's own.
+	{
+		const writes = [];
+		const run = await setup(context, { service: { save: failing(writes) } });
+		run.view.setMode('company');
+		await run.view.companyAccountReady('flow', 'pac-A');
+		assert.equal(writes.length, 1);
+		assert.equal(writes[0].input.programAccountID, 'pac-A');
+		assert.equal(run.view.state.saveError, 'บันทึกไม่สำเร็จ');
+		// The change event did not arrive (or came late): ลองอีกครั้ง checks the account chosen now.
+		run.view.setMode('personal');
+		await run.view.retry();
+		assert.equal(writes.length, 1, 'nothing saved on pac-A after choosing personal');
+		assert.equal(run.view.state.saveError, '');
+		assert.equal(run.view.state.toolsFor, '', 'what was read on pac-A is dropped');
+		assert.equal(run.view.state.toolsAccount, '');
+		// Connecting the person's own account then saves without any company account.
+		await run.view.accountReady('flow');
+		assert.equal(writes.length, 2);
+		assert.equal(writes[1].input.programAccountID, undefined);
+	}
+	// Each person's own first, then the company account.
+	{
+		const writes = [];
+		const run = await setup(context, { service: { save: failing(writes) } });
+		await run.view.accountReady('flow');
+		assert.equal(writes.length, 1);
+		run.view.setMode('company');
+		run.view.accountChanged();
+		assert.equal(run.view.state.saveError, '', 'the change clears the retry at once');
+		assert.equal(run.view.state.toolsFor, '');
+		await run.view.retry();
+		assert.equal(writes.length, 1, 'no personal save while บัญชีกลาง is chosen');
+	}
+	const source = await readFile(new URL('./programs/AddProgramFlow.svelte', import.meta.url), 'utf8');
+	assert.equal(source.match(/bind:group=\{accountMode\} onchange=\{accountChanged\}/g)?.length, 2, 'both choices clear what was read');
+});
+
+test('Codex W0 review 2 (NOTE): a retry after a conflict whose newer program holds writes opens the tools review instead of saving', async (context) => {
+	let attempt = 0;
+	const writes = [];
+	const newer = { id: 'saved-1', name: 'FlowAccount (2)', description: '', mcpID: 'flow', enabled: true, toolNames: ['list', 'create'], reviewedTools: true, reviewedReadOnly: false, version: 2 };
+	const run = await setup(context, {
+		service: {
+			save: async (input, id) => {
+				attempt++;
+				writes.push({ input, id });
+				if (attempt === 1) return { ...input, id: 'saved-1', version: 1 };
+				const error = new Error('conflict');
+				error.status = 409;
+				throw error;
+			}
+		}
+	});
+	await run.view.accountReady('flow');
+	assert.equal(writes.length, 1);
+	// Back on the connect page: someone else saved a version with a write tool; this tab's save is refused.
+	run.view.setConnections([{ id: 'old', name: 'FlowAccount', mcpID: 'x' }, newer]);
+	await run.view.save(true);
+	assert.equal(writes.length, 2);
+	assert.deepEqual(run.view.state.selected, ['list', 'create'], 'the newest program is shown');
+	assert.ok(run.view.state.saveError);
+	run.navigations.length = 0;
+	await run.view.retry();
+	assert.equal(writes.length, 2, 'no silent save of a selection with a write');
+	assert.deepEqual(run.navigations, ['/app?view=add-program&source=flow&step=tools'], 'the manager reviews what AI may do first');
+});
+
+test('independent W0 review: a failed save on company account pac-A, then pac-B whose reading fails: ลองอีกครั้ง writes nothing', async (context) => {
+	const writes = [];
+	const run = await setup(context, {
+		service: {
+			discover: async (id, account) => {
+				if (account === 'pac-B') throw new Error('อ่านรายการไม่สำเร็จ');
+				return offered;
+			},
+			save: async (input, id) => {
+				writes.push({ input, id });
+				throw new Error('บันทึกไม่สำเร็จ');
+			}
+		}
+	});
+	run.view.setMode('company');
+	await run.view.companyAccountReady('flow', 'pac-A');
+	assert.equal(writes.length, 1);
+	assert.equal(writes[0].input.programAccountID, 'pac-A');
+	assert.equal(run.view.state.saveError, 'บันทึกไม่สำเร็จ');
+	// pac-B is picked in CompanyAccountConnect, and its reading fails.
+	await run.view.companyAccountReady('flow', 'pac-B');
+	assert.equal(run.view.state.discoverError, 'อ่านรายการไม่สำเร็จ');
+	assert.equal(run.view.state.saveError, '', "pac-A's error and its retry are gone");
+	assert.equal(run.view.state.toolsFor, '', "pac-A's tools are dropped");
+	assert.equal(run.view.state.toolsAccount, '');
+	assert.deepEqual(run.view.state.tools, []);
+	await run.view.retry();
+	assert.equal(writes.length, 1, 'nothing is saved on pac-A');
+	assert.deepEqual(run.navigations, [], 'and no "connected" return');
+	assert.deepEqual(run.toasts, []);
+	// The same account still retries (the guard refuses only another one).
+	const second = await setup(context, { service: { save: async (input, id) => { writes.push({ input, id }); throw new Error('x'); } } });
+	second.view.setMode('company');
+	await second.view.companyAccountReady('flow', 'pac-A');
+	const before = writes.length;
+	await second.view.retry();
+	assert.equal(writes.length, before + 1, 'the same account retries');
+	const source = await readFile(new URL('./programs/AddProgramFlow.svelte', import.meta.url), 'utf8');
+	assert.match(source, /readyAccount !== undefined && readyAccount !== toolsAccount/, 'retry compares the exact company account');
+});
+
+test('independent W0 review (NOTE 1): the account choice is locked while a save is in flight, and a conflict changes it through accountChanged', async () => {
+	const source = await readFile(new URL('./programs/AddProgramFlow.svelte', import.meta.url), 'utf8');
+	assert.match(source, /<fieldset class="ap-mode" disabled=\{discovering \|\| saving\}>/);
+	const rebase = source.slice(source.indexOf('async function rebase('), source.indexOf('function pick('));
+	assert.match(rebase, /accountMode = latestAccount \? 'company' : 'personal';\s*accountChanged\(\);/);
 });

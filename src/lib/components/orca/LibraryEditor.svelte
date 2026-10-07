@@ -552,8 +552,8 @@
 	}
 	.ed-h h1 {
 		margin: 0;
-		font-size: 20px;
-		font-weight: 700;
+		font-size: 24px;
+		font-weight: 600;
 		line-height: 1.35;
 	}
 	.ed-h span {
@@ -803,6 +803,12 @@
 		}
 		.ta {
 			min-height: 220px;
+		}
+	}
+	/* W0: every page's H1 is 24, and 20 on a phone. */
+	@media (max-width: 720px) {
+		.ed-h h1 {
+			font-size: 20px;
 		}
 	}
 </style>

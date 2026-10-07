@@ -187,10 +187,25 @@
 		color: var(--orca-deny) !important;
 		font-size: 13.5px;
 	}
+	/* A phone: the text takes the row and ตัดการเชื่อมต่อ drops under it (W0 visual review). */
 	@container ca (max-width: 560px) {
 		li {
 			flex-wrap: wrap;
 			padding: 14px;
+		}
+		.ca-copy {
+			flex: 1 1 calc(100% - 54px);
+		}
+		.ca-cut {
+			margin-left: 54px;
+		}
+	}
+	@media (max-width: 480px) {
+		li {
+			flex-wrap: wrap;
+		}
+		.ca-copy {
+			flex: 1 1 calc(100% - 54px);
 		}
 		.ca-cut {
 			margin-left: 54px;

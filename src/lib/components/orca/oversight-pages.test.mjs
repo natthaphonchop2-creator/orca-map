@@ -83,11 +83,15 @@ test("disconnecting is one word everywhere, and the connect page keeps its one n
   assert.doesNotMatch(page + list, /<select/, "no native select for the page's choices");
 });
 
-test("ตรวจสอบ keeps the chips and the person in the address, and the histories keep &hub=", async () => {
+test("แอป AI ที่เชื่อม (now AI ของฉัน › ทั้งบริษัท) keeps the chips and the person in the address, and the histories keep &hub=", async () => {
+  const frame = await readFile(new URL("./views/MyAIFrame.svelte", import.meta.url), "utf8");
+  assert.match(frame, /appsFilter\(page\.url\.searchParams\.get\('filter'\)\)/);
+  assert.match(frame, /page\.url\.searchParams\.get\('holder'\)/);
+  assert.match(frame, /<ConnectedAIApps \{data\} \{filter\} \{holder\} \/>/);
+  const page = await readFile(new URL("../../../routes/app/+page.svelte", import.meta.url), "utf8");
+  assert.match(page, /\{:else if view === "secrets" && data\.canManage\}<MyAIFrame data=\{currentData!\} \/>/, "Owners and Admins only, on the data without archived records");
   const view = await readFile(new URL("./views/OversightView.svelte", import.meta.url), "utf8");
-  assert.match(view, /appsFilter\(page\.url\.searchParams\.get\('filter'\)\)/);
-  assert.match(view, /page\.url\.searchParams\.get\('holder'\)/);
-  assert.match(view, /<ConnectedAIApps data=\{activeData\} filter=\{appsFilterValue\} holder=\{appsHolder\} \/>/);
+  assert.doesNotMatch(view, /<ConnectedAIApps|import ConnectedAIApps|href: '\/app\?view=secrets'/, 'the tab moved out of ประวัติ');
   assert.match(view, /`\/app\?view=executions\$\{hub\}`/);
   assert.match(view, /`\/app\?view=audit\$\{hub\}`/);
   const audit = await readFile(new URL("./Audit.svelte", import.meta.url), "utf8");
@@ -98,4 +102,36 @@ test("ตรวจสอบ keeps the chips and the person in the address, and t
   assert.equal(view.match(/<Audit [^>]*onhubchange=\{\(id\) => \(chosenHub = id\)\}/g)?.length, 2);
   assert.match(view, /\$effect\(\(\) => \{\s*chosenHub = hubID;\s*\}\);/, 'a new address still wins');
   assert.match(audit, /\$effect\(\(\) => \{\s*onhubchange\?\.\(selectedHubID\);\s*\}\);/);
+});
+
+test("W0: ประวัติ is one page with three tabs; an employee's are their own requests and use", async () => {
+  const { term } = await importTypeScript(new URL("../../orca/glossary.ts", import.meta.url));
+  const base = { term, t: (th) => th, localeHref: (path) => path };
+  const PageHeader = (await serverComponent(new URL("./ui/PageHeader.svelte", import.meta.url), { pageHeaderClaimed: () => false })).Component;
+  const PageTabs = (await serverComponent(new URL("./ui/PageTabs.svelte", import.meta.url), base)).Component;
+  const shown = [];
+  const { warnings, Component } = await serverComponent(new URL("./views/OversightView.svelte", import.meta.url), {
+    ...base, hubAsksApproval: approvals.hubAsksApproval, untrack: (fn) => fn(), PageHeader, PageTabs,
+    Approvals: () => shown.push("Approvals"), Audit: (_r, props) => shown.push(`Audit:${props.mode}:${props.showModeTabs}`)
+  });
+  assert.deepEqual(warnings, []);
+  const tabs = (html) => [...html.matchAll(/<a href="([^"]*)"[^>]*>([^<]*)/g)].map(([, href, label]) => `${label} ${href}`);
+  let html = render(Component, { props: { data: data(true), view: "approvals", pendingApprovals: 4 } }).body;
+  assert.match(html, /<h1[^>]*>ประวัติ<\/h1>/);
+  assert.equal(html.match(/<h1/g)?.length, 1);
+  assert.deepEqual(tabs(html), ["รออนุมัติ /app?view=approvals", "การใช้งาน /app?view=executions", "การตั้งค่า /app?view=audit"]);
+  assert.match(html, /aria-label="รออนุมัติ 4"/);
+  assert.match(html, /<a href="\/app\?view=approvals" aria-current="page"/);
+  html = render(Component, { props: { data: data(true), view: "executions", hubID: "hub one" } }).body;
+  assert.deepEqual(tabs(html).slice(1), ["การใช้งาน /app?view=executions&amp;hub=hub%20one", "การตั้งค่า /app?view=audit&amp;hub=hub%20one"], "the workspace filter rides along");
+  assert.deepEqual(shown.slice(-1), ["Audit:executions:false"], "the frame's tabs replace Audit's own");
+  // An employee without writes waiting: their use and their settings changes.
+  html = render(Component, { props: { data: data(false), view: "executions" } }).body;
+  assert.deepEqual(tabs(html), ["การใช้งาน /app?view=executions", "การตั้งค่า /app?view=audit"]);
+  // With a workspace that holds writes for approval: คำขอของฉัน first, never a count.
+  const writes = { ...data(false), hubs: [{ id: "h", status: "active", writeMode: "approval" }] };
+  html = render(Component, { props: { data: writes, view: "executions", pendingApprovals: 3 } }).body;
+  assert.deepEqual(tabs(html), ["คำขอของฉัน /app?view=approvals", "การใช้งาน /app?view=executions", "การตั้งค่า /app?view=audit"]);
+  assert.doesNotMatch(html, /คำขอของฉัน 3/);
+  assert.doesNotMatch(html, /แอป AI ที่เชื่อม|ตรวจสอบ/);
 });

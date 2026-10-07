@@ -72,6 +72,14 @@
       "bytes": 2129
     },
     {
+      "name": "canva",
+      "sourceURL": "https://raw.githubusercontent.com/simple-icons/simple-icons/13.21.0/icons/canva.svg",
+      "note": "Simple Icons 13.21.0 (CC0), filled with Canva's brand colour #00C4CC; replaces canva.ico, which blurs on Retina (W0)",
+      "path": "/orca/catalog/canva.svg",
+      "sha256": "ec888a8e0befda917f4841963e4b4ee6a961d3e436a4599b635e57ba5b8a949f",
+      "bytes": 2771
+    },
+    {
       "name": "lazada",
       "sourceURL": "https://www.lazada.co.th/favicon.ico",
       "path": "/orca/catalog/lazada.ico",

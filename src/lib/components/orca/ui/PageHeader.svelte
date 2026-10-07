@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { ChevronLeft } from '@lucide/svelte';
 	import StatusPill, { type StatusTone } from './StatusPill.svelte';
+	import { pageHeaderClaimed } from './page-header-context';
 
 	// The page contract: an H1 of at most 4 words, one line under it, an
 	// optional status pill and at most one primary action.
@@ -12,7 +13,8 @@
 		back,
 		eyebrow,
 		action,
-		id = 'orca-page-title'
+		id = '',
+		frame = false
 	}: {
 		title: string;
 		subtitle?: string;
@@ -20,17 +22,35 @@
 		back?: { href: string; label: string };
 		eyebrow?: Snippet;
 		action?: Snippet;
+		/** The heading's id; by default orca-page-title for the page's H1, and a unique one inside a frame. */
 		id?: string;
+		/** The frame's own header (ตั้งค่า, ประวัติ, AI ของฉัน): always the page's H1. */
+		frame?: boolean;
 	} = $props();
+	// Inside a frame that already shows the page's H1 (ตั้งค่า, ประวัติ, AI ของฉัน):
+	// only the action and status stay, on a row of their own.
+	const claimed = pageHeaderClaimed();
+	const nested = $derived(!frame && claimed);
+	// One id per page: the frame's H1 keeps orca-page-title, a part inside it gets its own (Codex W0 review 1).
+	const uid = $props.id();
+	const headingID = $derived(id || (nested ? `orca-page-section-${uid}` : 'orca-page-title'));
 </script>
 
+{#if nested}
+	<!-- The frame's H1 names the page; this part keeps its name for screen readers (and any aria-labelledby). -->
+	<h2 id={headingID} class="orca-page-hidden">{title}</h2>
+	{#if action || status}<div class="orca-page-subhead">
+			{#if status}<StatusPill label={status.label} tone={status.tone ?? 'neutral'} dot />{/if}
+			{#if action}<div class="orca-page-action">{@render action()}</div>{/if}
+		</div>{/if}
+{:else}
 <header class="orca-page-header">
 	{#if back}<a class="orca-page-back" href={back.href}><ChevronLeft size={16} aria-hidden="true" />{back.label}</a>{/if}
 	{#if eyebrow}<div class="orca-page-eyebrow">{@render eyebrow()}</div>{/if}
 	<div class="orca-page-row">
 		<div class="orca-page-heading">
 			<div class="orca-page-title">
-				<h1 {id}>{title}</h1>
+				<h1 id={headingID}>{title}</h1>
 				{#if status}<StatusPill label={status.label} tone={status.tone ?? 'neutral'} dot />{/if}
 			</div>
 			{#if subtitle}<p class="orca-page-subtitle">{subtitle}</p>{/if}
@@ -38,6 +58,7 @@
 		{#if action}<div class="orca-page-action">{@render action()}</div>{/if}
 	</div>
 </header>
+{/if}
 
 <style>
 	/* orca-type-remap v1 */
@@ -98,6 +119,22 @@
 		color: var(--orca-muted);
 		font-size: 14px;
 		line-height: 1.6;
+	}
+	.orca-page-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
+	.orca-page-subhead {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 8px 12px;
+		margin: 0 0 16px;
 	}
 	.orca-page-action {
 		display: flex;

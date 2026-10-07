@@ -359,15 +359,15 @@
 		padding: 0 18px;
 		border: 1px solid transparent;
 		border-radius: var(--orca-radius);
-		background: var(--orca-citron);
-		color: var(--orca-on-citron);
+		background: var(--orca-ink);
+		color: var(--orca-on-ink);
 		font: inherit;
 		font-size: 13.5px;
 		font-weight: 600;
 		cursor: pointer;
 	}
 	.ov-primary:hover {
-		background: var(--orca-citron-hover);
+		background: var(--orca-ink);
 	}
 	.ov-created-actions .k-button {
 		min-height: 42px;
@@ -383,9 +383,9 @@
 		gap: 14px;
 		margin-bottom: 20px;
 		padding: 14px 16px;
-		border: 1px solid var(--orca-citron-line);
+		border: 1px solid var(--orca-line-strong);
 		border-radius: var(--orca-radius-lg);
-		background: var(--orca-citron-soft);
+		background: var(--orca-secondary);
 		color: var(--orca-ink);
 	}
 	.ov-banner > :global(svg) {

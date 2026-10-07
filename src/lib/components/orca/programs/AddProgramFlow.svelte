@@ -12,6 +12,7 @@
 		programCategory,
 		programConnectedHref,
 		programDisplayName,
+		programReturnHref,
 		programStepHref,
 		readDraft,
 		rememberSavedProgram,
@@ -22,6 +23,7 @@
 		type ProgramStep
 	} from '$lib/orca/program-catalog';
 	import {
+		autoReviewSelection,
 		initialPreset,
 		initialSelection,
 		presetFor,
@@ -36,24 +38,26 @@
 	import { ProgramService, programSaveConflict, programSaveError, type ProgramTool } from '$lib/services/orca-programs';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import PageHeader from '../ui/PageHeader.svelte';
-	import Stepper from '../ui/Stepper.svelte';
+	import { showToast } from '../ui/toast-store.svelte';
 	import CompanyAccountConnect from './CompanyAccountConnect.svelte';
 	import ProgramAccount from './ProgramAccount.svelte';
-	import ProgramDone from './ProgramDone.svelte';
 	import ProgramLogo from './ProgramLogo.svelte';
 	import ProgramPicker from './ProgramPicker.svelte';
 	import ProgramRequestSheet from './ProgramRequestSheet.svelte';
 	import ProgramToolsEditor from './ProgramToolsEditor.svelte';
 
-	// เพิ่มโปรแกรม in four steps: 1 เลือกโปรแกรม · 2 เชื่อมบัญชี · 3 เลือกสิ่งที่ AI
-	// ทำได้ · 4 เสร็จ. On the page (`page`) the step and the program live in the
-	// address, so a reload or an OAuth popup never loses the place; ticked tools
-	// live in sessionStorage. Inside a sheet (`sheet`, the workspace form) the
-	// same steps run in place and finish by handing back the saved program.
-	// Step 2 chooses whose account AI uses: each person's own (the manager
+	// เชื่อมโปรแกรม (W0): the catalog dialog picks the program; this page
+	// connects it. No stepper and no "done" page. On the page (`page`) the
+	// program and its place live in the address, so a reload or an OAuth popup
+	// never loses it; ticked tools live in sessionStorage. The connect step
+	// holds one choice, whose account AI uses: each person's own (the manager
 	// connects theirs now), or บัญชีกลาง, one company account connected once
-	// (company accounts design §7). A company account is in the address
-	// (`account`), and steps 3 and 4 run on it.
+	// (company accounts design §7), which is then in the address (`account`).
+	// Once the account works, the program is saved read-only (the default the
+	// owner chose) and the page goes back where it came from; สิ่งที่ AI ทำได้
+	// is the program page's tab. Only when nothing is read-only does the page
+	// ask what AI may do first. Inside a sheet (`sheet`, the workspace form) the
+	// choice of tools stays in place and hands back the saved program.
 	let {
 		data,
 		mode = 'page',
@@ -138,16 +142,6 @@
 	};
 	const key = $derived(draftKey(currentCompany()));
 	const savedKey = $derived(savedProgramKey(currentCompany()));
-	const done = $derived(
-		connectionID ? (data.connections.find((item) => item.id === connectionID) ?? (saved?.id === connectionID ? saved : undefined)) : undefined
-	);
-	const steps = $derived([
-		{ id: 'choose', label: t('เลือกโปรแกรม', 'Choose a program') },
-		{ id: 'connect', label: t('เชื่อมบัญชี', 'Connect the account') },
-		{ id: 'tools', label: t('เลือกสิ่งที่ AI ทำได้', 'Choose what AI can do') },
-		...(mode === 'page' ? [{ id: 'done', label: t('เสร็จ', 'Done') }] : [])
-	]);
-
 	$effect(() => {
 		const busy = discovering || saving;
 		untrack(() => onbusychange?.(busy));
@@ -245,6 +239,13 @@
 		if (account && !(account in accountHints)) void readAccountHint(account);
 		discovering = true;
 		discoverError = '';
+		// What was read before belongs to the earlier reading: a new one, on whichever
+		// account, starts clean, so nothing saves on tools read elsewhere (independent W0
+		// review). saveError stays: a conflict's notice (rebase) must survive the re-read it
+		// starts; the connect step's ready paths clear it themselves.
+		tools = [];
+		toolsFor = '';
+		toolsAccount = '';
 		try {
 			const found = account ? await ProgramService.discover(id, account) : await ProgramService.discover(id);
 			if (!alive || request !== discovery) return false;
@@ -268,16 +269,33 @@
 		}
 	}
 
-	// Step 2 succeeded: see what AI can do, then move on.
+	/**
+	 * The account the connect step last said works ('' for the person's own, or the
+	 * company account's id); undefined before any. ลองอีกครั้ง saves only when the
+	 * tools were read on exactly this one.
+	 */
+	let readyAccount = $state<string | undefined>();
+	/** The page saves at once when the start is the read-only default (W0); otherwise it asks. */
+	const savesAtOnce = () =>
+		mode === 'page' && preset === 'read' && autoReviewSelection(tools, selected).length > 0 && !saveProblem({ name, selected });
+	// The account works: see what AI can do, then save read-only (or ask, with nothing read-only).
 	async function accountReady(id: string) {
 		if (id !== sourceID) return;
-		if ((await discover(id, '')) && id === sourceID) await go('tools', { account: null });
+		readyAccount = '';
+		saveError = '';
+		if (!(await discover(id, '')) || id !== sourceID) return;
+		if (savesAtOnce()) await save(true);
+		else await go('tools', { account: null });
 	}
-	// Step 2 with บัญชีกลาง: the company account is connected; see what AI can do on it.
+	// With บัญชีกลาง: the company account is connected; see what AI can do on it.
 	async function companyAccountReady(id: string, accountID: string, accountHint = '') {
 		if (id !== sourceID || !accountID) return;
 		if (accountHint) accountHints = { ...accountHints, [accountID]: accountHint };
-		if ((await discover(id, accountID)) && id === sourceID) await go('tools', { account: accountID });
+		readyAccount = accountID;
+		saveError = '';
+		if (!(await discover(id, accountID)) || id !== sourceID) return;
+		if (savesAtOnce()) await save(true);
+		else await go('tools', { account: accountID });
 	}
 
 	// The program's company account policy, for step 2's choice.
@@ -325,8 +343,9 @@
 		untrack(() => writeDraft(storage(), key, draft));
 	});
 
-	async function save() {
-		if (saving || toolsFor !== sourceID || toolsAccount !== companyAccount) return;
+	/** `atOnce`: the read-only save right after connecting, before the address names a company account. */
+	async function save(atOnce = false) {
+		if (saving || toolsFor !== sourceID || (!atOnce && toolsAccount !== companyAccount)) return;
 		const problem = saveProblem({ name, selected });
 		if (problem) {
 			saveError =
@@ -358,7 +377,10 @@
 			saved = result;
 			await onchanged();
 			if (mode === 'sheet') await oncompleted?.(result);
-			else await go('done', { connection: result.id });
+			else {
+				showToast(t(`เชื่อม ${programName || result.name} แล้ว`, `${programName || result.name} connected`));
+				await navigate?.(localeHref(programReturnHref(returnTo, result.id)));
+			}
 		} catch (cause) {
 			if (!alive) return;
 			saveError = programSaveError(cause);
@@ -391,9 +413,10 @@
 		// draft (Codex release review deploy44 rounds 1 and 2, MAJOR).
 		const latestAccount = latest.programAccountID ?? '';
 		if (latestAccount !== toolsAccount) {
-			toolsFor = '';
 			clearDraft(storage(), key);
+			// The account changes under the page: the same reset as choosing it (accountChanged), then the notice.
 			accountMode = latestAccount ? 'company' : 'personal';
+			accountChanged();
 			saveError = latestAccount
 				? t(
 						'มีคนเปลี่ยนโปรแกรมนี้ให้ใช้บัญชีกลางอีกบัญชีหลังจากคุณบันทึก หน้านี้แสดงฉบับล่าสุดแล้ว ตรวจแล้วบันทึกอีกครั้ง หรือกลับไปเลือกบัญชีใหม่',
@@ -416,6 +439,40 @@
 			'มีคนแก้โปรแกรมนี้หลังจากคุณบันทึก หน้านี้แสดงฉบับล่าสุดแล้ว ตรวจแล้วบันทึกอีกครั้ง',
 			'Someone changed this program after you saved it. This shows the newest version now: check it, then save again.'
 		);
+	}
+
+	/**
+	 * Whose account AI uses changed in the connect step: what was read (and a
+	 * failed save's retry) belonged to the other one, so it goes (Codex W0
+	 * review 2, MAJOR 1).
+	 */
+	function accountChanged() {
+		discovery++;
+		discovering = false;
+		discoverError = '';
+		saveError = '';
+		toolsFor = '';
+		toolsAccount = '';
+		readyAccount = undefined;
+	}
+	/**
+	 * ลองอีกครั้ง after the save right after connecting failed or was refused.
+	 * Only on the account chosen now; and when what would be saved is no longer
+	 * the pure read-only start (a newer program with writes, after a conflict),
+	 * the person reviews what AI may do first instead (Codex W0 review 2, NOTE).
+	 */
+	async function retry() {
+		if (saving || discovering || toolsFor !== sourceID) return;
+		if ((accountMode === 'company') !== !!toolsAccount || (readyAccount !== undefined && readyAccount !== toolsAccount)) {
+			accountChanged();
+			return;
+		}
+		if (!savesAtOnce()) {
+			saveError = '';
+			await go('tools', { account: toolsAccount || null });
+			return;
+		}
+		await save(true);
 	}
 
 	function pick(id: string, existing?: string) {
@@ -457,13 +514,11 @@
 {#snippet kept(text: string)}{#each keepTogether(text, ['ตัวเอง', 'ครั้งเดียว', 'เข้าใช้เอง', 'รหัสหรือคีย์']) as part, index (index)}{#if part.keep}<span class="ap-keep">{part.text}</span>{:else}{part.text}{/if}{/each}{/snippet}
 
 <div class="ap" class:sheet={mode === 'sheet'}>
-	<div class="ap-top">
-		<!-- Once saved (step 4) the steps are a record, not links. (Going back with the browser still updates the same program: savedProgramFor.) -->
-		<Stepper {steps} current={step} hrefFor={mode === 'page' && step !== 'done' ? (id) => href(id as ProgramStep) : undefined} label={t('ขั้นตอนเชื่อมโปรแกรม', 'Connect a program: steps')} />
-		{#if mode === 'page' && step !== 'done'}
+	{#if mode === 'page'}
+		<div class="ap-top">
 			<a class="k-button quiet ap-cancel" href={localeHref(programCancelHref(returnTo))} onclick={() => clearDraft(storage(), key)}><X size={16} aria-hidden="true" />{t('ยกเลิก', 'Cancel')}</a>
-		{/if}
-	</div>
+		</div>
+	{/if}
 
 	{#if step === 'choose'}
 		<ProgramPicker
@@ -476,27 +531,6 @@
 			connectedHref={mode === 'page' ? (id) => localeHref(programConnectedHref(id, returnTo)) : undefined}
 			onpick={mode === 'sheet' ? pick : undefined}
 		/>
-	{:else if step === 'done'}
-		{#if done}
-			{@const logoSource = sources.find((item) => item.id === done.mcpID)}
-			<ProgramDone
-				connection={done}
-				programName={logoSource ? programDisplayName(catalogSource(logoSource)) : done.name}
-				logoName={logoSource ? catalogSource(logoSource).name : done.name}
-				hubs={data.hubs}
-				people={data.members.filter((member) => !member.status || member.status === 'active').length}
-				{returnTo}
-				anotherHref={programStepHref(address, 'choose', { source: null })}
-			/>
-		{:else}
-			<div class="ap-problem" role="alert">
-				<CircleAlert size={20} aria-hidden="true" />
-				<div>
-					<p>{t('ไม่พบโปรแกรมนี้ อาจถูกลบไปแล้ว', 'This program was not found. It may have been removed.')}</p>
-					<a class="k-button" href={localeHref('/app?view=servers')}>{t('ไปที่โปรแกรมที่เชื่อม', 'Go to Programs')}</a>
-				</div>
-			</div>
-		{/if}
 	{:else if catalogLoading}
 		<p class="ap-loading" role="status"><LoaderCircle size={18} class="k-spin" aria-hidden="true" />{t('กำลังโหลด…', 'Loading…')}</p>
 	{:else if !source}
@@ -512,27 +546,31 @@
 	{:else if step === 'connect'}
 		{#if mode === 'page'}
 			<PageHeader
-				title={t('เชื่อมบัญชี', 'Connect your account')}
-				subtitle={accountMode === 'company' && companyAllowed
-					? t(`เชื่อมบัญชีกลาง ${programName} ครั้งเดียว ทุกคนใช้ได้โดยไม่ต้องลงชื่อเข้าใช้เอง แล้ว ORCA จะพาไปเลือกสิ่งที่ AI ทำได้`, `Connect one ${programName} company account once; everyone uses it without signing in. Then choose what AI can do.`)
-					: t(`เชื่อมบัญชี ${programName} ของคุณครั้งเดียว แล้ว ORCA จะพาไปเลือกสิ่งที่ AI ทำได้`, `Connect your ${programName} account once; then choose what AI can do.`)}
+				title={t(`เชื่อม ${programName}`, `Connect ${programName}`)}
+				subtitle={t('AI เริ่มจากดูข้อมูลอย่างเดียว เปลี่ยนได้ที่หน้าของโปรแกรม', 'AI starts read-only. Change it on the program’s page.')}
 			/>
 		{/if}
 		{@render strip(false)}
 		{#if companyAllowed}
-			<fieldset class="ap-mode" disabled={discovering}>
+			<fieldset class="ap-mode" disabled={discovering || saving}>
 				<legend>{t('AI ใช้บัญชีของใคร', 'Whose account AI uses')}</legend>
 				<label class="ap-mode-option" class:on={accountMode === 'personal'}>
-					<input type="radio" name="ap-mode" value="personal" bind:group={accountMode} />
+					<input type="radio" name="ap-mode" value="personal" bind:group={accountMode} onchange={accountChanged} />
 					<span><strong>{t('บัญชีของแต่ละคน', "Each person's own")}</strong><small>{@render kept(t(`แต่ละคนลงชื่อเข้าใช้ ${programName} ด้วยบัญชีของตัวเอง ตอนนี้เชื่อมบัญชีของคุณก่อน`, `Each person signs in to ${programName} with their own account. Connect yours now.`))}</small></span>
 				</label>
 				<label class="ap-mode-option" class:on={accountMode === 'company'}>
-					<input type="radio" name="ap-mode" value="company" bind:group={accountMode} />
+					<input type="radio" name="ap-mode" value="company" bind:group={accountMode} onchange={accountChanged} />
 					<span><strong>{t('บัญชีกลาง', 'Company account')}</strong><small>{@render kept(t(`ทุกคนใช้ ${programName} บัญชีเดียว ผู้ดูแลเชื่อมครั้งเดียว สมาชิกไม่ต้องลงชื่อเข้าใช้และไม่เห็นรหัสหรือคีย์`, `Everyone uses one ${programName} account: a manager connects it once, and members never sign in or see the key.`))}</small></span>
 				</label>
 			</fieldset>
 		{/if}
 		{#if discoverError}<p class="ap-error" role="alert"><CircleAlert size={16} aria-hidden="true" />{discoverError}</p>{/if}
+		<!-- The save right after connecting (บันทึกอัตโนมัติ) was refused or failed: say so, with a retry (Codex W0 review 1). -->
+		{#if saveError && !discovering && toolsFor === sourceID}<div class="ap-error ap-save-error" role="alert">
+				<CircleAlert size={16} aria-hidden="true" />
+				<span>{saveError}</span>
+				<button type="button" class="k-button small" disabled={saving} onclick={retry}>{t('ลองอีกครั้ง', 'Try again')}</button>
+			</div>{/if}
 		{#key sourceID}
 			{#if accountMode === 'company' && companyAllowed}
 				<CompanyAccountConnect
@@ -604,27 +642,11 @@
 		min-width: 0;
 		color: var(--orca-ink);
 	}
-	/* The steps and ยกเลิก share a row while the steps have at least 360px; on a
-	   phone ยกเลิก moves up to its own row at the right (wrap-reverse) and the steps
-	   get the full width. */
+	/* ยกเลิก sits at the right, above the page's header. */
 	.ap-top {
 		display: flex;
-		flex-wrap: wrap-reverse;
-		align-items: center;
-		justify-content: space-between;
-		gap: 12px 24px;
-		min-height: 36px;
-		margin-bottom: 36px;
-	}
-	.ap-top :global(.orca-stepper) {
-		flex: 1 1 360px;
-	}
-	.ap.sheet .ap-top {
-		margin-bottom: 24px;
-	}
-	/* A done step's bar is green, as in the mockup. */
-	.ap-top :global(.orca-step.done .orca-step-bar) {
-		background: var(--orca-ok);
+		justify-content: flex-end;
+		margin-bottom: 8px;
 	}
 	.ap-cancel {
 		flex: none;
@@ -730,6 +752,14 @@
 		color: var(--orca-deny);
 		font-size: 13.5px;
 	}
+	.ap-save-error {
+		align-items: center;
+		flex-wrap: wrap;
+	}
+	.ap-save-error span {
+		flex: 1 1 200px;
+		min-width: 0;
+	}
 	.ap-back {
 		margin-top: 20px;
 	}
@@ -782,9 +812,6 @@
 		white-space: nowrap;
 	}
 	@media (max-width: 720px) {
-		.ap-top {
-			margin-bottom: 24px;
-		}
 		.ap-strip {
 			margin-bottom: 24px;
 			padding: 12px;

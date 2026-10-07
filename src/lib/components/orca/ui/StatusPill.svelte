@@ -12,53 +12,44 @@
 
 <style>
 	/* orca-type-remap v1 */
+	/* W0: a state is text with a dot, in its colour; never a filled pill or a badge. */
 	.orca-pill {
 		display: inline-flex;
 		align-items: center;
 		gap: 5px;
 		flex: none;
-		padding: 2px 9px;
-		border: 1px solid var(--orca-line);
-		border-radius: 999px;
-		background: var(--orca-secondary);
+		padding: 0;
+		border: 0;
+		background: none;
 		color: var(--orca-text-2);
-		font-size: 11.5px;
-		font-weight: 600;
+		font-size: 12.5px;
+		font-weight: 500;
 		line-height: 1.5;
 		white-space: nowrap;
 	}
 	.orca-pill.ok {
-		border-color: var(--orca-ok-line);
-		background: var(--orca-ok-bg);
-		color: var(--orca-ok);
+		color: var(--orca-ink);
 	}
 	.orca-pill.warn {
-		border-color: var(--orca-warn-line);
-		background: var(--orca-warn-bg);
 		color: var(--orca-warn);
 	}
 	.orca-pill.deny {
-		border-color: var(--orca-deny-line);
-		background: var(--orca-deny-bg);
 		color: var(--orca-deny);
 	}
-	.orca-pill.citron {
-		border-color: var(--orca-citron-line);
-		background: var(--orca-citron-soft);
+	.orca-pill.citron,
+	.orca-pill.ink {
 		color: var(--orca-ink);
 	}
-	.orca-pill.ink {
-		border-color: var(--orca-ink);
-		background: var(--orca-ink);
-		color: var(--orca-on-ink);
-	}
 	.orca-pill-dot {
-		width: 6px;
-		height: 6px;
+		width: 7px;
+		height: 7px;
 		border-radius: 50%;
 		background: currentColor;
 	}
-	/* A neutral state ("ยังไม่ได้เชื่อม") has a quiet dot, as on the pinned button. */
+	.orca-pill.ok .orca-pill-dot {
+		background: var(--orca-ok);
+	}
+	/* A neutral state ("ยังไม่ได้เชื่อม") has a quiet dot. */
 	.orca-pill.neutral .orca-pill-dot {
 		background: var(--orca-muted);
 	}

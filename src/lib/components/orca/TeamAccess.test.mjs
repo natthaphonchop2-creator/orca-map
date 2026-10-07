@@ -6,6 +6,9 @@ import { pathToFileURL } from 'node:url';
 import { compile } from 'svelte/compiler';
 import { render } from 'svelte/server';
 import { importTypeScript } from '../../orca/test-import.mjs';
+import { serverComponent } from './test-render.mjs';
+// W0: the page's header is the shared PageHeader (its H1, subtitle and the invite action).
+const { Component: PageHeader } = await serverComponent(new URL('./ui/PageHeader.svelte', import.meta.url), { pageHeaderClaimed: () => false });
 const { gatewayHasMember } = await importTypeScript(new URL('../../orca/gateway-sources.ts', import.meta.url));
 const { connectedAppsHref } = await importTypeScript(new URL('../../orca/connected-ai-apps.ts', import.meta.url));
 const require = createRequire(import.meta.url);
@@ -13,11 +16,11 @@ const source=await readFile(new URL('./TeamAccess.svelte',import.meta.url),'utf8
 const code=compile(source,{filename:'TeamAccess.svelte',generate:'server'}).js.code.replace(/^import[\s\S]*?;\n/gm,'').replace('export default function TeamAccess','function TeamAccess').replace('let accounts = [];','let accounts = testAccounts;').replace('let memberStatus = "active";','let memberStatus = testStatus;').replace('let localAvailable = false;','let localAvailable = testLocalAvailable;');
 const {organizationRole,canResetMemberPassword}=await import('data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(await readFile(new URL('../../orca/member-access.ts',import.meta.url),'utf8'))).toString('base64'));
 const module=`import * as $ from ${JSON.stringify(pathToFileURL(require.resolve('svelte/internal/server')).href)};
-export function component(deps) { const { gatewayHasMember, connectedAppsHref, testAccounts, testStatus, testLocalAvailable, beforeNavigate, organizationRole, canResetMemberPassword, OrcaLibraryService, TeamLifecycleActions, LibraryDepartments, MemberRoleEditor, MemberInvitations, LOCAL_AUTH_MIN_PASSWORD_LENGTH, t,localeHref,OrcaService,orcaError,memberName,memberRole,Building2,Check,Crown,Ellipsis,Info,KeyRound,MailPlus,RefreshCw,Shield,UserPlus,Users,onMount,onDestroy,untrack }=deps; ${code}; return TeamAccess; }`;
+export function component(deps) { const { gatewayHasMember, connectedAppsHref, testAccounts, testStatus, testLocalAvailable, beforeNavigate, organizationRole, canResetMemberPassword, OrcaLibraryService, TeamLifecycleActions, LibraryDepartments, MemberRoleEditor, MemberInvitations, PageHeader, LOCAL_AUTH_MIN_PASSWORD_LENGTH, t,localeHref,OrcaService,orcaError,memberName,memberRole,Building2,Check,Crown,Ellipsis,Info,KeyRound,MailPlus,RefreshCw,Shield,UserPlus,Users,onMount,onDestroy,untrack }=deps; ${code}; return TeamAccess; }`;
 const {component}=await import('data:text/javascript;base64,'+Buffer.from(module).toString('base64'));
 function screen(actorRole,targets=[],props={},testState={}) {
  const actions=[];const noop=()=>{};
- const view=component({gatewayHasMember,connectedAppsHref,testAccounts:testState.accounts||[],testStatus:testState.status||'active',testLocalAvailable:testState.localAvailable||false,beforeNavigate:noop,organizationRole,canResetMemberPassword,OrcaLibraryService:{},TeamLifecycleActions:(_r,input)=>actions.push(input),LibraryDepartments:noop,MemberRoleEditor:noop,MemberInvitations:noop,LOCAL_AUTH_MIN_PASSWORD_LENGTH:12,t:(_th,en)=>en,localeHref:x=>x,OrcaService:{},orcaError:()=>'',memberName:m=>m.displayName||m.email,memberRole:organizationRole,Building2:noop,Check:noop,Crown:noop,Ellipsis:noop,Info:noop,KeyRound:noop,MailPlus:noop,RefreshCw:noop,Shield:noop,UserPlus:noop,Users:noop,onMount:noop,onDestroy:noop,untrack:(fn)=>fn()});
+ const view=component({gatewayHasMember,connectedAppsHref,testAccounts:testState.accounts||[],testStatus:testState.status||'active',testLocalAvailable:testState.localAvailable||false,beforeNavigate:noop,organizationRole,canResetMemberPassword,OrcaLibraryService:{},TeamLifecycleActions:(_r,input)=>actions.push(input),LibraryDepartments:noop,MemberRoleEditor:noop,MemberInvitations:noop,PageHeader,LOCAL_AUTH_MIN_PASSWORD_LENGTH:12,t:(_th,en)=>en,localeHref:x=>x,OrcaService:{},orcaError:()=>'',memberName:m=>m.displayName||m.email,memberRole:organizationRole,Building2:noop,Check:noop,Crown:noop,Ellipsis:noop,Info:noop,KeyRound:noop,MailPlus:noop,RefreshCw:noop,Shield:noop,UserPlus:noop,Users:noop,onMount:noop,onDestroy:noop,untrack:(fn)=>fn()});
  const data={currentUserID:'actor',canManage:actorRole!=='employee',canManageRoles:actorRole==='owner',platformOperator:testState.operator===true,canChangeMemberStatus:'changeStatus' in testState?testState.changeStatus:true,connections:[],hubs:testState.hubs||[],units:[],members:[{id:'actor',email:'actor@example.test',role:actorRole},...targets]};
  const result=render(view,{props:{data,onchanged:async()=>{},...props}}); return {actions,html:result.body};
 }
@@ -106,7 +109,7 @@ test('each member shows whether they can reach company data, and how to fix it',
  assert.match(result.html,/Main workspace/);
  assert.doesNotMatch(result.html,/Old workspace|Paused workspace/);
  assert.match(result.html,/No data access yet/);assert.match(result.html,/Add to a workspace/);
- assert.match(result.html,/No data access<span[^>]*>2<\/span>/,'the filter counts members without a workspace');
+ assert.match(result.html,/<option value="noaccess"[^>]*>No data access 2<\/option>/,'the filter counts members without a workspace (W0: one dropdown)');
  assert.match(result.html,/<a role="menuitem" href="\/app\?view=secrets&amp;holder=employee"[^>]*>See connected AI apps<\/a>/,'each row links to that person\'s connected AI apps');
 });
 test('a view-only member sees the list without management menus',()=>{

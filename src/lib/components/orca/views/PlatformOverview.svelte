@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { ArrowRight, Building2, Check, Grid2x2Plus, Inbox, KeyRound, LogIn, Shield, TriangleAlert } from '@lucide/svelte';
+	import { ArrowRight, Building2, Grid2x2Plus, Inbox, KeyRound, LogIn, Shield, TriangleAlert } from '@lucide/svelte';
 	import { term } from '$lib/orca/glossary';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { platformHref, type PlatformSection } from '$lib/orca/navigation';
@@ -192,7 +192,7 @@
 		<ul class="overview-todos">
 			{#each todos as todo (todo.title)}
 				<li class="tone-{todo.tone}">
-					<span class="overview-todo-icon" aria-hidden="true"><todo.icon size={17} /></span>
+					<span class="overview-todo-icon" aria-hidden="true"><todo.icon size={16} strokeWidth={1.75} /></span>
 					<span class="overview-todo-copy"><strong>{todo.title}</strong><small>{todo.detail}</small></span>
 					<a class="k-button small" href={localeHref(platformHref(todo.href))}>{todo.action}<ArrowRight size={14} aria-hidden="true" /></a>
 				</li>
@@ -200,7 +200,7 @@
 		</ul>
 	{:else if !(companiesError || pilotsError || googleError || catalogFailed)}
 		<!-- Only when every read answered: a failed one proves nothing (Codex release review 64). -->
-		<p class="overview-clear"><Check size={17} aria-hidden="true" />{clearText}</p>
+		<p class="overview-clear"><span class="overview-clear-dot" aria-hidden="true"></span>{clearText}</p>
 	{/if}
 	{#if companiesError || pilotsError || googleError || catalogFailed}
 		<p class="overview-error" role="alert">{t('โหลดข้อมูลบางส่วนไม่สำเร็จ', "Some of this couldn't load.")} <button type="button" class="k-link-button" onclick={load}>{t('ลองอีกครั้ง', 'Try again')}</button></p>
@@ -292,21 +292,11 @@
 	.overview-todos li + li {
 		border-top: 1px solid var(--orca-line-soft);
 	}
+	/* W0: a plain 16px line icon in --subtle, never a tinted tile. */
 	.overview-todo-icon {
-		display: grid;
+		display: inline-flex;
 		flex: none;
-		place-items: center;
-		width: 34px;
-		height: 34px;
-		border-radius: 10px;
-	}
-	.tone-warn .overview-todo-icon {
-		background: var(--orca-warn-bg);
-		color: var(--orca-warn);
-	}
-	.tone-deny .overview-todo-icon {
-		background: var(--orca-deny-bg);
-		color: var(--orca-deny);
+		color: var(--orca-subtle);
 	}
 	.overview-todo-copy {
 		display: flex;
@@ -341,10 +331,19 @@
 		color: var(--orca-muted);
 		font-size: 13.5px;
 	}
+	/* One text line in ink with a green dot, never a green box. */
 	.overview-clear {
-		border-color: var(--orca-ok-line);
-		background: var(--orca-ok-bg);
-		color: var(--orca-ok);
+		padding: 0;
+		border: 0;
+		background: none;
+		color: var(--orca-text-2);
+	}
+	.overview-clear-dot {
+		flex: none;
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--orca-ok);
 	}
 	.overview-error {
 		margin: 10px 0 0;

@@ -7,6 +7,7 @@ export interface IntegrationReference {
   name: string;
   protocol: 'MCP' | 'API';
   categoryId: 'communication' | 'social-media' | 'ecommerce' | 'cloud-infrastructure';
+  /** A vendor mark sharp at any size, or '' for the name as text (W0: never a blurred favicon or a generic icon). */
   icon: string;
   authMethods: ('oauth' | 'secrets' | 'none')[];
   description: LocalizedCopy;
@@ -85,7 +86,7 @@ export const integrationReferences: IntegrationReference[] = [
   },
   {
     id: 'guide-lazada-seller-api', name: 'Lazada Seller API', protocol: 'API', guideOnly: true,
-    categoryId: 'ecommerce', icon: '/orca/catalog/lazada.ico', authMethods: ['oauth', 'secrets'], checkedOn,
+    categoryId: 'ecommerce', icon: '', authMethods: ['oauth', 'secrets'], checkedOn,
     description: ["เชื่อมต่อข้อมูลสินค้าและคำสั่งซื้อจากร้าน Lazada", "Connect product and order data from a Lazada store."],
     requirements: [
       ['ลงทะเบียนนักพัฒนาและสร้างแอป พร้อม App Key, App Secret และ callback URL', 'Register a developer account and an app with an App Key, App Secret, and callback URL.'],
