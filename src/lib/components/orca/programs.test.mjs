@@ -184,8 +184,13 @@ test('the programs list (W0: the approved card grid): logo, name, account type, 
 	assert.match(raw, /<a href="\/app\?view=servers&amp;connection=c-read"/, 'the card opens the program');
 	// Above the grid: search and one dropdown filter, never black chips.
 	assert.match(raw, /<input type="search"/);
-	assert.match(raw, /<select[\s\S]*?<option value="all"[^>]*>ทั้งหมด 4<\/option>[\s\S]*?<option value="review"[^>]*>ต้องจัดการ 1<\/option>[\s\S]*?<option value="paused"[^>]*>หยุดชั่วคราว 1<\/option>/);
+	assert.match(raw, /<select[\s\S]*?<option value="all"[^>]*>ทั้งหมด 4<\/option>[\s\S]*?<option value="ready"[^>]*>เชื่อมแล้ว 2<\/option>[\s\S]*?<option value="review"[^>]*>ต้องจัดการ 1<\/option>[\s\S]*?<option value="paused"[^>]*>หยุดชั่วคราว 1<\/option>/);
 	assert.doesNotMatch(raw, /programs-filters|programs-table|orca-pill/);
+	// W0.1: the filter says เชื่อมแล้ว for the cards that say it; a company account waiting to sign in again is not counted.
+	const centerFilter = await readFile(new URL('./ConnectionCenter.svelte', import.meta.url), 'utf8');
+	assert.match(centerFilter, /const connected = \(id: string\) => statuses\.get\(id\) === 'ready' && !reconnect\.has\(id\);/);
+	assert.match(centerFilter, /\{ id: 'ready', label: t\('เชื่อมแล้ว', 'Connected'\) \}/);
+	assert.doesNotMatch(centerFilter, /label: t\('ใช้ได้'/, 'admins never read ใช้ได้');
 	const centerSource = await readFile(new URL('./ConnectionCenter.svelte', import.meta.url), 'utf8');
 	// A company account that needs connecting again says so, in the same word as Home.
 	assert.match(centerSource, /\{#if reconnect\.has\(connection\.id\)\}<span class="programs-state warn"><i aria-hidden="true"><\/i>\{t\(RECONNECT_WORD\.th, RECONNECT_WORD\.en\)\}/);

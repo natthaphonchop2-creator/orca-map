@@ -190,17 +190,17 @@
 .orca.o-auth-page.o-login .o-password-label button:hover {
 	color: var(--login-text);
 }
-/* Primary: the website's citron button. */
+/* Primary: W0's light primary, a white fill with ink text (citron stays on small points). */
 .orca.o-auth-page.o-login .o-button {
 	min-height: 44px;
 	border: 0;
 	border-radius: 10px;
-	background: var(--login-citron);
-	color: var(--login-on-citron) !important;
+	background: var(--login-text);
+	color: var(--login-bg) !important;
 	font-weight: 600;
 }
 .orca.o-auth-page.o-login .o-button:hover {
-	background: var(--login-citron-hover);
+	background: #ffffff;
 }
 /* Secondary (another provider): outline on the dark card. */
 .orca.o-auth-page.o-login .o-button.outline {

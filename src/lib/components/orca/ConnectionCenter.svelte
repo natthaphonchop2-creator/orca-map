@@ -33,8 +33,8 @@
 	// dialog, held in the address (&catalog=1) so a reload or a link opens it.
 	let { data }: { data: OrcaBootstrap; onchanged?: () => Promise<void> } = $props();
 
-	type Filter = 'all' | 'review' | 'paused' | 'archived';
-	const fromAddress: Record<string, Filter> = { 'needs-review': 'review', review: 'review', paused: 'paused', archived: 'archived' };
+	type Filter = 'all' | 'ready' | 'review' | 'paused' | 'archived';
+	const fromAddress: Record<string, Filter> = { ready: 'ready', connected: 'ready', 'needs-review': 'review', review: 'review', paused: 'paused', archived: 'archived' };
 	let filter = $state<Filter>(fromAddress[page.url.searchParams.get('status') ?? ''] ?? 'all');
 	let query = $state('');
 	let candidates = $state.raw<OrcaCandidate[]>([]);
@@ -46,8 +46,12 @@
 	const live = $derived(data.connections.filter((item) => !item.deletedAt));
 	const needsLook = (status: string | undefined) => status === 'review' || status === 'setup';
 	const statuses = $derived(new Map(live.map((item) => [item.id, programStatus(item, health.get(item.id))])));
+	const reconnect = $derived(new Set(programsToReconnect(live, accounts).map((item) => item.id)));
+	// W0.1: เชื่อมแล้ว counts the cards that say เชื่อมแล้ว (ready, not waiting to sign in again).
+	const connected = (id: string) => statuses.get(id) === 'ready' && !reconnect.has(id);
 	const counts = $derived({
 		all: live.filter((item) => !item.archivedAt).length,
+		ready: live.filter((item) => connected(item.id)).length,
 		// Waiting for a choice or for a new review: one chip, "ต้องจัดการ".
 		review: live.filter((item) => needsLook(statuses.get(item.id))).length,
 		paused: live.filter((item) => statuses.get(item.id) === 'paused').length,
@@ -58,6 +62,7 @@
 		live.filter((item) => {
 			const status = statuses.get(item.id);
 			if (filter === 'archived' ? status !== 'archived' : status === 'archived') return false;
+			if (filter === 'ready' && !connected(item.id)) return false;
 			if (filter === 'review' && !needsLook(status)) return false;
 			if (filter === 'paused' && status !== 'paused') return false;
 			const text = `${item.name} ${item.description}`.normalize('NFKC').toLocaleLowerCase();
@@ -70,13 +75,13 @@
 		(
 			[
 				{ id: 'all', label: t('ทั้งหมด', 'All') },
+				{ id: 'ready', label: t('เชื่อมแล้ว', 'Connected') },
 				{ id: 'review', label: t('ต้องจัดการ', 'Needs attention') },
 				{ id: 'paused', label: t('หยุดชั่วคราว', 'Paused') },
 				{ id: 'archived', label: t('จัดเก็บแล้ว', 'Archived') }
 			] as { id: Filter; label: string }[]
 		).filter((item) => item.id === 'all' || counts[item.id] > 0 || filter === item.id)
 	);
-	const reconnect = $derived(new Set(programsToReconnect(live, accounts).map((item) => item.id)));
 	// The people who can use a program: everyone in the workspaces that use it.
 	function people(connection: OrcaConnection): number {
 		const ids = new Set<string>();

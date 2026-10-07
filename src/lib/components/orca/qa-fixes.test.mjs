@@ -99,3 +99,26 @@ test('an outlined o-button draws no outline but its focus ring, in one rule for 
 		assert.match(await read(page), /import "(?:\$lib\/components\/orca|\.)\/orca\.css";/, `${page} loads orca.css`);
 	}
 });
+
+test('W0.1: the sign-in, invite, CompanyGate and file pages use the light primary in dark, not a citron fill', async () => {
+	const forms = (await read('./forms.css')).replace(/\/\*[\s\S]*?\*\//g, '');
+	const dark = forms.match(/:root\[data-orca-theme='dark'\] \.orca\.o-auth-page:not\(\.o-login\) \.o-button \{[^}]*\}/)?.[0];
+	assert.ok(dark, 'forms.css has a dark primary');
+	assert.match(dark, /background: var\(--orca-ink\);/);
+	assert.match(dark, /color: var\(--orca-bg\) !important;/);
+	assert.doesNotMatch(dark, /citron/);
+	assert.match(forms, /:root\[data-orca-theme='dark'\] \.orca\.o-auth-page:not\(\.o-login\) \.o-button:hover \{\s*background: #ffffff;\s*\}/);
+	const login = (await read('./login.css')).replace(/\/\*[\s\S]*?\*\//g, '');
+	const primary = login.match(/\.orca\.o-auth-page\.o-login \.o-button \{[^}]*\}/)?.[0];
+	assert.ok(primary, 'login.css has a primary');
+	assert.match(primary, /background: var\(--login-text\);/);
+	assert.match(primary, /color: var\(--login-bg\) !important;/);
+	assert.doesNotMatch(primary, /citron/);
+	assert.match(login, /\.orca\.o-auth-page\.o-login \.o-button:hover \{\s*background: #ffffff;\s*\}/);
+	// No citron fill is left on any o-button in either file.
+	for (const css of [forms, login]) {
+		for (const rule of css.match(/[^{}]*\.o-button[^{}]*\{[^}]*\}/g) ?? []) {
+			assert.doesNotMatch(rule, /background: var\(--(?:orca|login)-citron/, rule.trim().split('{')[0]);
+		}
+	}
+});
