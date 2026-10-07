@@ -80,16 +80,27 @@
 		if (document.activeElement === closeButton) void focusRow('first');
 		else closeButton?.focus();
 	}
+	// Where focus was when the menu opened: the button, or (opened with the
+	// pointer, where a click does not move focus) the control the person was on,
+	// such as a rail item. Closing returns there, so it is the only layer that closes.
+	let opener: HTMLElement | null = null;
+	function remember() {
+		const active = typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null);
+		opener = active && active !== document.body ? active : null;
+	}
 	export function close(refocus = false) {
 		if (!open) return;
 		// The modal sheet first, so the button behind is no longer inert.
 		if (sheetDialog?.open) sheetDialog.close();
 		open = false;
-		if (refocus) trigger?.focus();
+		if (!refocus) return;
+		const back = opener?.isConnected && !menu?.contains(opener) && !sheetDialog?.contains(opener) ? opener : trigger;
+		back?.focus();
 	}
 	function toggle(event: MouseEvent) {
 		if (open) close();
 		else {
+			remember();
 			open = true;
 			// A keyboard "click" (Enter or Space) lands on the first row.
 			if (event.detail === 0) void focusRow('first');
@@ -98,6 +109,7 @@
 	function onButtonKey(event: KeyboardEvent) {
 		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
 			event.preventDefault();
+			if (!open) remember();
 			open = true;
 			void focusRow(event.key === 'ArrowDown' ? 'first' : 'last');
 		}

@@ -314,6 +314,13 @@
 					if (!alive || sourceID !== id) return;
 					policy = found;
 					policyFor = id;
+					// สร้าง › บัญชีกลาง on a program that allows each person's own account
+					// only: the step shows that account, so the choice follows it, and a
+					// failed save's ลองอีกครั้ง saves on it (Codex W0.1 round 2, NOTE 1).
+					if (accountMode === 'company' && policyStep(found) === 'personal-only') {
+						accountMode = 'personal';
+						accountChanged();
+					}
 				});
 		});
 	});

@@ -149,3 +149,17 @@ test('W0.1: the sign-in page lists its three points as plain lines with a small 
 	assert.match(dot, /width: 6px;[\s\S]*height: 6px;[\s\S]*border-radius: 50%;[\s\S]*background: var\(--login-citron\);/);
 	assert.doesNotMatch(dot, /border:/);
 });
+
+test('W0.1: รออนุมัติ / ตัดสินแล้ว above the approvals list are plain text, never a black filled chip', async () => {
+	const source = await read('./Approvals.svelte');
+	assert.match(source, /<div class="approvals-tabs" role="group"[^>]*>\s*<button type="button" class:chosen=\{tab === "pending"\} aria-pressed=\{tab === "pending"\}/, 'still a pressed toggle for each status');
+	const css = source.slice(source.indexOf('<style>')).replace(/\/\*[\s\S]*?\*\//g, '');
+	const rules = [...css.matchAll(/\.approvals-tabs[^{]*\{[^}]*\}/g)].map((match) => match[0]);
+	assert.ok(rules.length >= 4, 'the tab rules');
+	for (const rule of rules) {
+		assert.doesNotMatch(rule, /background: var\(--orca-(?:ink|secondary|surface)\)|999px|border: 1px|box-shadow/, rule.split('{')[0].trim());
+	}
+	assert.match(css, /\.approvals-tabs button\.chosen \{ color: var\(--orca-ink\); font-weight: 600; \}/);
+	assert.match(css, /\.approvals-tabs button span \{ color: var\(--orca-subtle\);/, 'the count is plain text');
+	assert.doesNotMatch(css, /approvals-tabs button\.chosen span/, 'no chip around the count either');
+});

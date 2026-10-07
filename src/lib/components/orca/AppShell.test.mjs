@@ -98,6 +98,21 @@ test('employees: หน้าหลัก, AI ของฉัน, คลัง�
 	assert.doesNotMatch(railOf(html), /Workflows|w1-soon|view=servers|w1-count/);
 	({ html } = await renderShell({ data: { ...data, hubs: [{ id: 'h', status: 'active', writeMode: 'approval' }] }, companies: [companies[1]], account: '7' }));
 	assert.ok(railLinks(html).includes('History /app?view=approvals'), 'their requests once a workspace holds writes');
+	// An employee's history pages light ประวัติ, whichever tab (W0, e45e9ea).
+	const requests = { ...data, hubs: [{ id: 'h', status: 'active', writeMode: 'approval' }] };
+	const lit = (page) => [...railOf(page).matchAll(/<a class="w1-item active"[^>]*aria-current="page"[^>]*>(?:(?!<\/a>)[\s\S])*?<span class="w1-label">([^<]*)<\/span>/g)].map((match) => match[1]);
+	for (const view of ['approvals', 'executions', 'audit']) {
+		({ html } = await renderShell({ data: requests, companies: [companies[1]], account: '7', view }));
+		assert.deepEqual(lit(html), ['History'], view);
+	}
+	// LINE's writes wait for a manager even in a workspace that runs at once (design §14l); rendered, as in W0 (e45e9ea).
+	const line = { ...data, connections: [{ id: 'c-line', mcpID: 'default-orca-api-line-messaging' }], hubs: [{ id: 'h', status: 'active', writeMode: 'direct', sources: [{ connectionID: 'c-line', toolNames: ['line_push_text'] }] }] };
+	({ html } = await renderShell({ data: line, companies: [companies[1]], account: '7', view: 'approvals' }));
+	assert.ok(railLinks(html).includes('History /app?view=approvals'), 'a LINE write: their requests');
+	assert.ok(!railLinks(html).includes('History /app?view=executions'));
+	({ html } = await renderShell({ data: { ...line, hubs: [{ ...line.hubs[0], sources: [{ connectionID: 'c-line', toolNames: ['line_profile_get'] }] }] }, companies: [companies[1]], account: '7', view: 'dashboard' }));
+	assert.ok(railLinks(html).includes('History /app?view=executions'), 'reads alone never wait');
+	assert.ok(!railLinks(html).includes('History /app?view=approvals'));
 });
 
 test('Skills shows in the rail only with the bootstrap feature', async () => {
@@ -137,7 +152,7 @@ test('the rail opens on hover, focus and Esc through the rail module, and its pi
 	assert.match(source, /onpointerleave=\{\(\) => \{ hideTip\(\); railControl\.pointerLeave\(\); \}\}/);
 	assert.match(source, /onfocusin=\{onRailFocusIn\}/);
 	assert.match(source, /onfocusout=\{onRailFocusOut\}/);
-	assert.match(source, /if \(event\.key === "Escape" && railControl\.escape\(\)\)/);
+	assert.match(source, /if \(event\.key === "Escape" && !layerAboveRail\(\) && railControl\.escape\(\)\)/);
 	assert.match(source, /onclick=\{\(\) => railControl\.togglePin\(\)\}/);
 	assert.match(source, /visible = !!target\?\.matches\(":focus-visible"\);/, 'only keyboard focus opens it at once');
 	// Tooltips only while it is closed.
@@ -318,7 +333,7 @@ test('the phone สร้าง sheet is a modal dialog: focus trapped, the page
 	// Esc (cancel), the scrim and the close button all return focus to the button, after the modal is gone.
 	assert.match(source, /oncancel=\{\(event\) => \{\s*event\.preventDefault\(\);\s*close\(true\);/);
 	assert.match(source, /if \(event\.target === sheetDialog\) close\(true\);/);
-	assert.match(source, /if \(sheetDialog\?\.open\) sheetDialog\.close\(\);\s*open = false;\s*if \(refocus\) trigger\?\.focus\(\);/);
+	assert.match(source, /if \(sheetDialog\?\.open\) sheetDialog\.close\(\);\s*open = false;\s*if \(!refocus\) return;\s*const back = opener\?\.isConnected && !menu\?\.contains\(opener\) && !sheetDialog\?\.contains\(opener\) \? opener : trigger;\s*back\?\.focus\(\);/, 'back to where focus was when it opened, else the button');
 	assert.match(source, /\.pm-sheet \{\s*position: fixed;\s*inset: auto 0 0 0;/, 'at the bottom of the screen');
 	assert.match(source, /\.pm-sheet::backdrop \{\s*background: var\(--orca-scrim/);
 	assert.doesNotMatch(source, /pm-scrim/, 'no fake scrim button: the dialog\'s backdrop');
@@ -333,7 +348,10 @@ test('Esc closes the topmost layer from anywhere: a dialog, then a menu, then th
 	const source = await readFile(shell, 'utf8');
 	const handler = source.slice(source.indexOf('function onShortcut('), source.indexOf('// ไปที่…: the pages'));
 	// The shell's document handler leaves dialogs and menus to themselves, then closes an unpinned rail.
-	assert.match(handler, /if \(event\.key === "Escape"\) \{\s*if \(event\.defaultPrevented \|\| jumping \|\| drawer\?\.open \|\| document\.querySelector\("dialog\[open\]"\) \|\| menuOpen\(\)\) return;\s*if \(railControl\.escape\(\)\) event\.preventDefault\(\);/);
+	assert.match(handler, /if \(event\.key === "Escape"\) \{\s*if \(event\.defaultPrevented \|\| layerAboveRail\(\)\) return;\s*if \(railControl\.escape\(\)\) event\.preventDefault\(\);/);
+	assert.match(source, /function layerAboveRail\(\) \{\s*return jumping \|\| !!drawer\?\.open \|\| !!document\.querySelector\("dialog\[open\]"\) \|\| menuOpen\(\);/);
+	// The rail's own Esc (focus inside it) keeps the same order (Codex W0.1 round 2, NOTE 2).
+	assert.match(source, /if \(event\.key === "Escape" && !layerAboveRail\(\) && railControl\.escape\(\)\)/);
 	assert.match(source, /const menuOpen = \(\) => creating \|\| companyOpen \|\| accountOpen;/);
 });
 
@@ -342,12 +360,12 @@ test('the rail never hides the control focus is on: ตั้งค่า pages 
 	assert.match(source, /onchange: \(state\) => \{\s*const closing = rail\.open && !state\.open;[\s\S]*?rail = state;\s*if \(closing\) keepFocusVisible\(\);/, 'on every collapse: Esc, leaving, unpinning');
 	assert.match(source, /railFocusTarget\(document\.activeElement as HTMLElement \| null, railElement\)\?\.focus\(\);/);
 	// After Esc the tooltip names the control focus is on now.
-	assert.match(source, /if \(event\.key === "Escape" && railControl\.escape\(\)\) \{\s*event\.preventDefault\(\);[^\n]*\n?\s*(?:\/\/[^\n]*\n\s*)?tipFor\(document\.activeElement\);/);
+	assert.match(source, /if \(event\.key === "Escape" && !layerAboveRail\(\) && railControl\.escape\(\)\) \{\s*event\.preventDefault\(\);[^\n]*\n?\s*(?:\/\/[^\n]*\n\s*)?tipFor\(document\.activeElement\);/);
 });
 
 test('⌘K from a row of an open menu: the menu closes and ไปที่… returns focus to the menu\'s button (Codex W0.1 round 1)', async () => {
 	const source = await readFile(shell, 'utf8');
-	assert.match(source, /function leaveMenu\(\) \{\s*const trigger = \(document\.activeElement as Element \| null\)\?\.closest\("\.pm"\)\?\.querySelector<HTMLElement>\(":scope > button"\);\s*creating = companyOpen = accountOpen = false;\s*trigger\?\.focus\(\);/);
+	assert.match(source, /function leaveMenu\(\) \{\s*const menu = \(document\.activeElement as Element \| null\)\?\.closest\("\.pm"\);\s*const trigger = menu\?\.querySelector<HTMLElement>\(":scope > button"\);\s*menu\?\.querySelector<HTMLDialogElement>\("dialog\[open\]"\)\?\.close\(\);\s*creating = companyOpen = accountOpen = false;\s*trigger\?\.focus\(\);/, 'the phone sheet closes before its button takes focus');
 	const handler = source.slice(source.indexOf('function onShortcut('), source.indexOf('// ไปที่…: the pages'));
 	assert.match(handler, /if \(isJumpShortcut\(event\)\) \{\s*event\.preventDefault\(\);\s*leaveMenu\(\);\s*closeDrawer\(\);\s*jumping = true;/, 'the button is focused before ไปที่… remembers where to return');
 });

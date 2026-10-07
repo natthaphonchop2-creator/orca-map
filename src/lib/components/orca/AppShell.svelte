@@ -261,7 +261,9 @@
     railControl.focusOut();
   }
   function onRailKey(event: KeyboardEvent) {
-    if (event.key === "Escape" && railControl.escape()) {
+    // A dialog or a menu above the rail closes first, one layer per press (Codex W0.1 round 2, NOTE 2):
+    // a menu opened with the pointer can leave focus in the rail.
+    if (event.key === "Escape" && !layerAboveRail() && railControl.escape()) {
       event.preventDefault();
       // The tooltip stays for a keyboard user (notes.md), on the control focus is on now.
       tipFor(document.activeElement);
@@ -274,10 +276,18 @@
   const createGroups = $derived(data && !platformMode ? createMenu({ canManage, canCreateSkills: data.canCreateSkills === true, features, views }) : []);
   const sequence = createSequence();
   const menuOpen = () => creating || companyOpen || accountOpen;
+  // Esc's layers above the rail: a dialog (ไปที่…, the phone drawer, any other), then a menu.
+  function layerAboveRail() {
+    return jumping || !!drawer?.open || !!document.querySelector("dialog[open]") || menuOpen();
+  }
   // ⌘K from a row of an open menu: the row goes away with the menu, so the
-  // menu's own button is where focus returns when ไปที่… closes.
+  // menu's own button is where focus returns when ไปที่… closes. The phone
+  // sheet is a modal dialog: it closes first, or the button behind it is still
+  // inert and cannot take focus (Codex W0.1 round 2, NOTE 3).
   function leaveMenu() {
-    const trigger = (document.activeElement as Element | null)?.closest(".pm")?.querySelector<HTMLElement>(":scope > button");
+    const menu = (document.activeElement as Element | null)?.closest(".pm");
+    const trigger = menu?.querySelector<HTMLElement>(":scope > button");
+    menu?.querySelector<HTMLDialogElement>("dialog[open]")?.close();
     creating = companyOpen = accountOpen = false;
     trigger?.focus();
   }
@@ -292,7 +302,7 @@
     // Esc closes the topmost layer, one per press: a dialog (its own cancel),
     // then a menu (PopMenu's own listener), then the rail opened by hover.
     if (event.key === "Escape") {
-      if (event.defaultPrevented || jumping || drawer?.open || document.querySelector("dialog[open]") || menuOpen()) return;
+      if (event.defaultPrevented || layerAboveRail()) return;
       if (railControl.escape()) event.preventDefault();
       return;
     }
