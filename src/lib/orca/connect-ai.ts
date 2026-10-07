@@ -219,6 +219,31 @@ export function sessionMatchesApp(session: MyAISession, app: AIApp, since = Infi
 }
 
 /**
+ * The one app a sign-in is, for AI ของฉัน's cards (W0): Claude or ChatGPT by
+ * the server's hint (a Claude Code sign-in is not claude.ai), a developer tool
+ * only by its own name, and "other" only for a sign-in no name matches. Never
+ * the newness fallback of sessionMatchesApp, so one Codex sign-in never marks
+ * every developer tool (Codex W0 review 2, MAJOR 2).
+ */
+export function sessionApp(session: MyAISession): AIApp | undefined {
+	if (session.client === 'claude' && !CLAUDE_CODE.test(session.app)) return 'claude';
+	if (session.client === 'chatgpt') return 'chatgpt';
+	for (const app of DEV_APPS) if (app !== 'other' && DEV_NAMES[app]?.test(session.app)) return app;
+	return session.client === 'other' ? 'other' : undefined;
+}
+
+/** The apps with a live sign-in through the company's link, each card at most once. */
+export function connectedApps(apps: MyAIApps | undefined, now: number): AIApp[] {
+	const found = new Set<AIApp>();
+	for (const session of liveSessions(apps, now)) {
+		if (!companyLinkSession(session)) continue;
+		const app = sessionApp(session);
+		if (app) found.add(app);
+	}
+	return [...found];
+}
+
+/**
  * The newest live sign-in of the chosen app through the company's link: step
  * 5's "เชื่อม Claude แล้ว". One through a workspace's own link does not count.
  */

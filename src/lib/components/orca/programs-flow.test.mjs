@@ -28,7 +28,7 @@ const compiled = compileModule(
 		const { ${[...new Set(names)].join(', ')} } = deps;
 		${script}
 		return {
-			discover, accountReady, companyAccountReady, save, pick, change, loadCatalog,
+			discover, accountReady, companyAccountReady, save, retry, accountChanged, pick, change, loadCatalog,
 			setConnections(list) { data.connections = list; },
 			set(input) {
 				if (input.selected !== undefined) selected = input.selected;
@@ -738,14 +738,16 @@ test('W0 (Codex review 1): a refused or failed auto-save is shown on the connect
 				}
 			}
 		});
-		if (company) await run.view.companyAccountReady('flow', 'pac-1');
-		else await run.view.accountReady('flow');
+		if (company) {
+			run.view.setMode('company');
+			await run.view.companyAccountReady('flow', 'pac-1');
+		} else await run.view.accountReady('flow');
 		assert.equal(run.view.state.saveError, 'บันทึกไม่สำเร็จ', company ? 'company' : 'personal');
 		assert.deepEqual(run.navigations, [], 'it stays on the connect page');
 		assert.equal(run.view.state.step, 'connect');
 		// ลองอีกครั้ง: the same save, on the same account.
 		fail = false;
-		await run.view.save(true);
+		await run.view.retry();
 		assert.equal(writes.length, 1);
 		assert.equal(writes[0].input.programAccountID, company ? 'pac-1' : undefined);
 		assert.deepEqual(writes[0].input.toolNames, ['list', 'get']);
@@ -753,5 +755,78 @@ test('W0 (Codex review 1): a refused or failed auto-save is shown on the connect
 	}
 	const source = await readFile(new URL('./programs/AddProgramFlow.svelte', import.meta.url), 'utf8');
 	const connect = source.slice(source.indexOf("{:else if step === 'connect'}\n"), source.indexOf("{#key sourceID}"));
-	assert.match(connect, /\{#if saveError && !discovering && toolsFor === sourceID\}<div class="ap-error ap-save-error" role="alert">[\s\S]*?\{saveError\}[\s\S]*?onclick=\{\(\) => save\(true\)\}>\{t\('ลองอีกครั้ง', 'Try again'\)\}/);
+	assert.match(connect, /\{#if saveError && !discovering && toolsFor === sourceID\}<div class="ap-error ap-save-error" role="alert">[\s\S]*?\{saveError\}[\s\S]*?onclick=\{retry\}>\{t\('ลองอีกครั้ง', 'Try again'\)\}/);
+});
+
+test('Codex W0 review 2 (MAJOR 1): after a failed auto-save, switching whose account AI uses never retries on the other one', async (context) => {
+	const failing = (writes) => async (input, id) => {
+		writes.push({ input, id });
+		throw new Error('บันทึกไม่สำเร็จ');
+	};
+	// Company account pac-A first, then each person's own.
+	{
+		const writes = [];
+		const run = await setup(context, { service: { save: failing(writes) } });
+		run.view.setMode('company');
+		await run.view.companyAccountReady('flow', 'pac-A');
+		assert.equal(writes.length, 1);
+		assert.equal(writes[0].input.programAccountID, 'pac-A');
+		assert.equal(run.view.state.saveError, 'บันทึกไม่สำเร็จ');
+		// The change event did not arrive (or came late): ลองอีกครั้ง checks the account chosen now.
+		run.view.setMode('personal');
+		await run.view.retry();
+		assert.equal(writes.length, 1, 'nothing saved on pac-A after choosing personal');
+		assert.equal(run.view.state.saveError, '');
+		assert.equal(run.view.state.toolsFor, '', 'what was read on pac-A is dropped');
+		assert.equal(run.view.state.toolsAccount, '');
+		// Connecting the person's own account then saves without any company account.
+		await run.view.accountReady('flow');
+		assert.equal(writes.length, 2);
+		assert.equal(writes[1].input.programAccountID, undefined);
+	}
+	// Each person's own first, then the company account.
+	{
+		const writes = [];
+		const run = await setup(context, { service: { save: failing(writes) } });
+		await run.view.accountReady('flow');
+		assert.equal(writes.length, 1);
+		run.view.setMode('company');
+		run.view.accountChanged();
+		assert.equal(run.view.state.saveError, '', 'the change clears the retry at once');
+		assert.equal(run.view.state.toolsFor, '');
+		await run.view.retry();
+		assert.equal(writes.length, 1, 'no personal save while บัญชีกลาง is chosen');
+	}
+	const source = await readFile(new URL('./programs/AddProgramFlow.svelte', import.meta.url), 'utf8');
+	assert.equal(source.match(/bind:group=\{accountMode\} onchange=\{accountChanged\}/g)?.length, 2, 'both choices clear what was read');
+});
+
+test('Codex W0 review 2 (NOTE): a retry after a conflict whose newer program holds writes opens the tools review instead of saving', async (context) => {
+	let attempt = 0;
+	const writes = [];
+	const newer = { id: 'saved-1', name: 'FlowAccount (2)', description: '', mcpID: 'flow', enabled: true, toolNames: ['list', 'create'], reviewedTools: true, reviewedReadOnly: false, version: 2 };
+	const run = await setup(context, {
+		service: {
+			save: async (input, id) => {
+				attempt++;
+				writes.push({ input, id });
+				if (attempt === 1) return { ...input, id: 'saved-1', version: 1 };
+				const error = new Error('conflict');
+				error.status = 409;
+				throw error;
+			}
+		}
+	});
+	await run.view.accountReady('flow');
+	assert.equal(writes.length, 1);
+	// Back on the connect page: someone else saved a version with a write tool; this tab's save is refused.
+	run.view.setConnections([{ id: 'old', name: 'FlowAccount', mcpID: 'x' }, newer]);
+	await run.view.save(true);
+	assert.equal(writes.length, 2);
+	assert.deepEqual(run.view.state.selected, ['list', 'create'], 'the newest program is shown');
+	assert.ok(run.view.state.saveError);
+	run.navigations.length = 0;
+	await run.view.retry();
+	assert.equal(writes.length, 2, 'no silent save of a selection with a write');
+	assert.deepEqual(run.navigations, ['/app?view=add-program&source=flow&step=tools'], 'the manager reviews what AI may do first');
 });

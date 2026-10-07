@@ -3,7 +3,7 @@
 	import { Check, Copy, Info } from '@lucide/svelte';
 	import { aiConnectionLine } from '$lib/orca/ai-connection';
 	import { aiConnection, setAIConnection } from '$lib/orca/ai-connection.svelte';
-	import { AI_APPS, type AIApp } from '$lib/orca/client-config';
+	import type { AIApp } from '$lib/orca/client-config';
 	import { companyPinned, currentCompany } from '$lib/orca/company';
 	import { companyStop } from '$lib/orca/company-stop';
 	import {
@@ -11,6 +11,7 @@
 		aiConnectionFrom,
 		appName,
 		connectAccess,
+		connectedApps,
 		connectedSession,
 		connectorName,
 		createPoller,
@@ -205,7 +206,8 @@
 		sheetOpen = true;
 		void poller?.poke();
 	}
-	const connectedApps = $derived(AI_APPS.filter((item) => connectedSession(apps, item, checkedAt, 0)));
+	// Each card by its real app only (connectedApps), never by "a new sign-in since the page opened".
+	const cardsConnected = $derived(connectedApps(apps, checkedAt));
 
 	// ---------- Copying the connector's name ----------
 	let nameCopied = $state(false);
@@ -236,7 +238,7 @@
 
 	<section class="ca-apps" aria-labelledby="ca-apps-title">
 		<h2 id="ca-apps-title">{t('เชื่อม AI', 'Connect AI')}</h2>
-		<AIAppCards connected={connectedApps} onopen={openApp} />
+		<AIAppCards connected={cardsConnected} onopen={openApp} />
 	</section>
 
 	<Sheet bind:open={sheetOpen} title={t(`เชื่อม ${name}`, `Connect ${name}`)}>

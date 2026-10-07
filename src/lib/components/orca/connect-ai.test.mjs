@@ -462,7 +462,34 @@ test('W0: one card per app, Claude first, then ChatGPT, developer tools behind a
 	assert.doesNotMatch(plain(html), /Needs Plus, Pro or Business Connected/);
 	const view = await readFile(new URL('./views/ConnectAIView.svelte', import.meta.url), 'utf8');
 	assert.match(view, /function openApp\(next: AIApp\) \{\s*choose\(next\);\s*sheetOpen = true;/, 'the card picks the app the page watches for, then opens its sheet');
-	assert.match(view, /const connectedApps = \$derived\(AI_APPS\.filter\(\(item\) => connectedSession\(apps, item, checkedAt, 0\)\)\);/);
+	assert.match(view, /const cardsConnected = \$derived\(connectedApps\(apps, checkedAt\)\);/);
+	assert.match(view, /<AIAppCards connected=\{cardsConnected\}/);
+	assert.doesNotMatch(view, /connectedSession\([^)]*, 0\)/, 'no newness fallback for the cards');
+});
+
+test('Codex W0 review 2 (MAJOR 2): one Codex sign-in marks Codex only, never every developer tool', () => {
+	const live = (extra) => ({ id: extra.app, hubID: '', hubName: '', createdAt: ago(5), lastRefreshedAt: ago(1), expiresAt: ago(-600), ...extra });
+	const codexOnly = { sessions: [live({ app: 'Codex', client: 'other' })], keys: [] };
+	assert.deepEqual(ai.connectedApps(codexOnly, NOW), ['codex']);
+	for (const other of ['claude', 'chatgpt', 'claude-code', 'cursor', 'vscode', 'windsurf', 'other'])
+		assert.ok(!ai.connectedApps(codexOnly, NOW).includes(other), other);
+	// Each app by its own name; an unnamed tool is "other" only; claude.ai and Claude Code apart.
+	const many = {
+		sessions: [
+			live({ app: 'Claude', client: 'claude' }),
+			live({ app: 'claude-code', client: 'claude' }),
+			live({ app: 'Visual Studio Code', client: 'other' }),
+			live({ app: 'my-agent', client: 'other' }),
+			live({ app: 'ChatGPT', client: 'chatgpt', hubID: 'sales', hubName: 'Sales' }),
+			live({ app: 'Cursor', client: 'other', expiresAt: ago(10) })
+		],
+		keys: []
+	};
+	assert.deepEqual(ai.connectedApps(many, NOW).sort(), ['claude', 'claude-code', 'other', 'vscode']);
+	assert.ok(!ai.connectedApps(many, NOW).includes('chatgpt'), 'a workspace-only sign-in is not the company link');
+	assert.ok(!ai.connectedApps(many, NOW).includes('cursor'), 'an expired sign-in is not connected');
+	assert.equal(ai.sessionApp(live({ app: 'Codex CLI', client: 'other' })), 'codex');
+	assert.deepEqual(ai.connectedApps(undefined, NOW), []);
 });
 
 test('program sign-ins and the in-app browser notice keep their promises', async () => {

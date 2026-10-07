@@ -423,6 +423,39 @@
 		);
 	}
 
+	/**
+	 * Whose account AI uses changed in the connect step: what was read (and a
+	 * failed save's retry) belonged to the other one, so it goes (Codex W0
+	 * review 2, MAJOR 1).
+	 */
+	function accountChanged() {
+		discovery++;
+		discovering = false;
+		discoverError = '';
+		saveError = '';
+		toolsFor = '';
+		toolsAccount = '';
+	}
+	/**
+	 * ลองอีกครั้ง after the save right after connecting failed or was refused.
+	 * Only on the account chosen now; and when what would be saved is no longer
+	 * the pure read-only start (a newer program with writes, after a conflict),
+	 * the person reviews what AI may do first instead (Codex W0 review 2, NOTE).
+	 */
+	async function retry() {
+		if (saving || discovering || toolsFor !== sourceID) return;
+		if ((accountMode === 'company') !== !!toolsAccount) {
+			accountChanged();
+			return;
+		}
+		if (!savesAtOnce()) {
+			saveError = '';
+			await go('tools', { account: toolsAccount || null });
+			return;
+		}
+		await save(true);
+	}
+
 	function pick(id: string, existing?: string) {
 		if (existing && mode === 'sheet') {
 			const connection = data.connections.find((item) => item.id === existing);
@@ -503,11 +536,11 @@
 			<fieldset class="ap-mode" disabled={discovering}>
 				<legend>{t('AI ใช้บัญชีของใคร', 'Whose account AI uses')}</legend>
 				<label class="ap-mode-option" class:on={accountMode === 'personal'}>
-					<input type="radio" name="ap-mode" value="personal" bind:group={accountMode} />
+					<input type="radio" name="ap-mode" value="personal" bind:group={accountMode} onchange={accountChanged} />
 					<span><strong>{t('บัญชีของแต่ละคน', "Each person's own")}</strong><small>{@render kept(t(`แต่ละคนลงชื่อเข้าใช้ ${programName} ด้วยบัญชีของตัวเอง ตอนนี้เชื่อมบัญชีของคุณก่อน`, `Each person signs in to ${programName} with their own account. Connect yours now.`))}</small></span>
 				</label>
 				<label class="ap-mode-option" class:on={accountMode === 'company'}>
-					<input type="radio" name="ap-mode" value="company" bind:group={accountMode} />
+					<input type="radio" name="ap-mode" value="company" bind:group={accountMode} onchange={accountChanged} />
 					<span><strong>{t('บัญชีกลาง', 'Company account')}</strong><small>{@render kept(t(`ทุกคนใช้ ${programName} บัญชีเดียว ผู้ดูแลเชื่อมครั้งเดียว สมาชิกไม่ต้องลงชื่อเข้าใช้และไม่เห็นรหัสหรือคีย์`, `Everyone uses one ${programName} account: a manager connects it once, and members never sign in or see the key.`))}</small></span>
 				</label>
 			</fieldset>
@@ -517,7 +550,7 @@
 		{#if saveError && !discovering && toolsFor === sourceID}<div class="ap-error ap-save-error" role="alert">
 				<CircleAlert size={16} aria-hidden="true" />
 				<span>{saveError}</span>
-				<button type="button" class="k-button small" disabled={saving} onclick={() => save(true)}>{t('ลองอีกครั้ง', 'Try again')}</button>
+				<button type="button" class="k-button small" disabled={saving} onclick={retry}>{t('ลองอีกครั้ง', 'Try again')}</button>
 			</div>{/if}
 		{#key sourceID}
 			{#if accountMode === 'company' && companyAllowed}
