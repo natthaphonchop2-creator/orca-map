@@ -20,16 +20,16 @@
 		{
 			q: t('เชื่อม Claude หรือ ChatGPT อย่างไร', 'How do I connect Claude or ChatGPT?'),
 			a: t(
-				'เปิดหน้า เชื่อม AI ของฉัน คัดลอกลิงก์ ORCA ของบริษัท วางใน Claude หรือ ChatGPT แล้วเข้าสู่ระบบด้วยบัญชีของคุณ ไม่ต้องใช้คีย์',
-				"Open Connect my AI, copy your company's ORCA link, paste it into Claude or ChatGPT and sign in with your account. No key needed."
+				'เปิดหน้า AI ของฉัน คัดลอกลิงก์ ORCA ของบริษัท วางใน Claude หรือ ChatGPT แล้วเข้าสู่ระบบด้วยบัญชีของคุณ ไม่ต้องใช้คีย์',
+				"Open My AI, copy your company's ORCA link, paste it into Claude or ChatGPT and sign in with your account. No key needed."
 			),
-			links: [{ href: '/app?view=connect-ai', label: term('connectMyAI', t) }]
+			links: [{ href: '/app?view=connect-ai', label: term('myAI', t) }]
 		},
 		{
 			q: t('AI บอกว่าดึงข้อมูลจากโปรแกรมไม่ได้', "AI says it can't reach a program"),
 			a: t(
-				'ลงชื่อเข้าใช้บัญชีโปรแกรมของคุณอีกครั้ง ที่ เชื่อม AI ของฉัน › บัญชีโปรแกรมของคุณ',
-				'Sign in to your program account again, under Connect my AI › Your program accounts.'
+				'ลงชื่อเข้าใช้บัญชีโปรแกรมของคุณอีกครั้ง ที่ AI ของฉัน › บัญชีโปรแกรมของคุณ',
+				'Sign in to your program account again, under My AI › Your program accounts.'
 			),
 			links: [{ href: '/app?view=connect-ai#accounts', label: t('บัญชีโปรแกรมของคุณ', 'Your program accounts') }]
 		},
@@ -48,8 +48,8 @@
 						'AI starts read-only. If you let it create or change data, a workspace can require an admin to approve first.'
 					)
 				: t(
-						'ทำได้เฉพาะที่บริษัทอนุญาต ถ้าต้องให้ผู้ดูแลอนุมัติก่อน คำขอของคุณจะรออยู่ที่ คำขอของฉัน',
-						'Only what your company allows. If an admin must approve first, your request waits in My requests.'
+						'ทำได้เฉพาะที่บริษัทอนุญาต ถ้าต้องให้ผู้ดูแลอนุมัติก่อน คำขอของคุณจะรออยู่ที่ ประวัติ › คำขอของฉัน',
+						'Only what your company allows. If an admin must approve first, your request waits in History › My requests.'
 					),
 			links: manager
 				? [
@@ -64,12 +64,12 @@
 						q: t('มีคนลาออก ต้องทำอะไร', 'Someone left. What do I do?'),
 						a: data.canChangeMemberStatus
 							? t(
-									'ระงับการใช้งานคนนั้นในหน้า ทีม แล้ว ORCA จะตัดการเชื่อมต่อแอป AI และคีย์ทั้งหมดของเขาในบริษัทนี้ทันที',
-									'Suspend them on the Team page. ORCA then disconnects all their AI apps and keys in this company at once.'
+									'ระงับการใช้งานคนนั้นที่ ตั้งค่า › ทีม แล้ว ORCA จะตัดการเชื่อมต่อแอป AI และคีย์ทั้งหมดของเขาในบริษัทนี้ทันที',
+									'Suspend them under Settings › Team. ORCA then disconnects all their AI apps and keys in this company at once.'
 								)
 							: t(
-									'ตัดการเชื่อมต่อแอป AI ของเขาที่ ตรวจสอบ › แอป AI ที่เชื่อมอยู่',
-									'Disconnect their AI apps in Oversight › Connected AI apps.'
+									'ตัดการเชื่อมต่อแอป AI ของเขาที่ AI ของฉัน › ทั้งบริษัท',
+									'Disconnect their AI apps under My AI › Whole company.'
 								),
 						links: [
 							...(data.canChangeMemberStatus ? [{ href: '/app?view=members', label: term('team', t) }] : []),

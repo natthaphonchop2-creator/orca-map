@@ -41,10 +41,12 @@
 	import ProgramSignIns from '../connect-ai/ProgramSignIns.svelte';
 	import CopyField from '../ui/CopyField.svelte';
 	import PageHeader from '../ui/PageHeader.svelte';
+	import PageTabs from '../ui/PageTabs.svelte';
+	import { myAITabs } from './MyAIFrame.svelte';
 	import SupportContact from '../ui/SupportContact.svelte';
 	import { copyFeedback, copyText } from '../ui/copy';
 
-	// view=connect-ai, "เชื่อม AI ของฉัน" (proposal §3.1, the approved mockup):
+	// view=connect-ai, AI ของฉัน (W0; was "เชื่อม AI ของฉัน", proposal §3.1):
 	// who the AI will reach, five steps from choosing the app to a live check
 	// (B1, polled while waiting), then the person's connected AI apps, their
 	// program sign-ins and, collapsed, keys for developers.
@@ -219,10 +221,12 @@
 
 <div class="ca">
 	<PageHeader
-		title={term('connectMyAI', t)}
-		subtitle={t('ทำครั้งเดียว ประมาณ 3 นาที', 'Once, about 3 minutes.')}
+		title={term('myAI', t)}
+		subtitle={t('ใช้ ORCA ใน ChatGPT หรือ Claude', 'Use ORCA in ChatGPT or Claude.')}
 		status={aiConnection.state === 'unknown' ? undefined : { label: aiConnectionLine(aiConnection, t), tone: aiConnection.state === 'connected' && !aiConnection.only?.length ? 'ok' : 'neutral' }}
 	/>
+	<!-- W0: Owners and Admins also see every AI app of the company (ทั้งบริษัท, was ตรวจสอบ › แอป AI ที่เชื่อมอยู่). -->
+	{#if data.canManage}<PageTabs tabs={myAITabs(t)} current="connect-ai" label={term('myAI', t)} />{/if}
 
 	<!-- LINE or Facebook's own browser, where Google refuses sign-in (critique 13): the shared notice. -->
 	<InAppBrowserNotice level={2} variant="workspace" />

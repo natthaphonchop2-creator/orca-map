@@ -69,10 +69,12 @@ test('W0: inside a frame that shows the page H1, a PageHeader keeps only its act
 	const nested = await serverComponent(new URL('./ui/PageHeader.svelte', import.meta.url), { StatusPill: pill, pageHeaderClaimed: () => true });
 	const action = (renderer) => renderer.push('<a class="k-button" href="/x">Invite</a>');
 	let html = render(nested.Component, { props: { title: 'Team', subtitle: 'Invite with a link.', action } }).body;
-	assert.doesNotMatch(html, /<h1|orca-page-subtitle|Team/);
+	assert.doesNotMatch(html, /<h1|orca-page-subtitle|Invite with a link/);
+	// Its name stays for screen readers (and a section's aria-labelledby), hidden.
+	assert.match(html, /<h2 id="orca-page-title" class="orca-page-hidden[^"]*">Team<\/h2>/);
 	assert.match(html, /<div class="orca-page-subhead[^"]*">[\s\S]*<a class="k-button" href="\/x">Invite<\/a>/);
 	html = render(nested.Component, { props: { title: 'Team', subtitle: 'Invite with a link.' } }).body;
-	assert.doesNotMatch(html, /orca-page-subhead|<h1/, 'nothing at all without an action');
+	assert.doesNotMatch(html, /orca-page-subhead|<h1/, 'no visible row without an action');
 	html = render(nested.Component, { props: { title: 'Team', status: { label: 'Connected', tone: 'ok' } } }).body;
 	assert.match(html, /data-pill="ok">Connected/);
 	// Without a frame: the page's own H1, as before.

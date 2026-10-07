@@ -20,6 +20,7 @@
   import HelpView from "$lib/components/orca/views/HelpView.svelte";
   import ConnectAIView from "$lib/components/orca/views/ConnectAIView.svelte";
   import OversightView from "$lib/components/orca/views/OversightView.svelte";
+  import MyAIFrame from "$lib/components/orca/views/MyAIFrame.svelte";
   import PlatformView from "$lib/components/orca/views/PlatformView.svelte";
   import TeamView from "$lib/components/orca/views/TeamView.svelte";
   import WorkspaceHubView from "$lib/components/orca/views/WorkspaceHubView.svelte";
@@ -348,7 +349,8 @@
     {/if}
   {:else if view === "connect-ai"}<ConnectAIView data={currentData!} onchanged={refresh} />
   {:else if view === "members"}<TeamView {data} onchanged={refresh} />
-  {:else if view === "approvals" || view === "executions" || view === "audit" || view === "secrets"}<OversightView
+  {:else if view === "secrets" && data.canManage}<MyAIFrame data={currentData!} />
+  {:else if view === "approvals" || view === "executions" || view === "audit"}<OversightView
       {data}
       activeData={currentData!}
       {view}

@@ -89,7 +89,8 @@ async function page(props) {
 test('the page follows the mockup: access strip, five steps, then the person’s apps, programs and keys', async () => {
 	const { warnings, html, find } = await page({ data: data() });
 	assert.deepEqual(warnings, []);
-	assert.match(html, /<h1>Connect my AI<\/h1>/);
+	// W0: the page is AI ของฉัน (My AI), the menu item's name.
+	assert.match(html, /<h1>My AI<\/h1>/);
 	assert.match(html, /data-status="neutral">Not connected/);
 	assert.deepEqual(find('ConnectStep').map((step) => [step.number, step.state]), [[1, 'done'], [2, 'current'], [3, 'upcoming'], [4, 'upcoming'], [5, 'upcoming']]);
 	assert.doesNotMatch(html, /\binert\b/);

@@ -29,6 +29,8 @@
 </script>
 
 {#if nested}
+	<!-- The frame's H1 names the page; this part keeps its name for screen readers (and any aria-labelledby). -->
+	<h2 {id} class="orca-page-hidden">{title}</h2>
 	{#if action || status}<div class="orca-page-subhead">
 			{#if status}<StatusPill label={status.label} tone={status.tone ?? 'neutral'} dot />{/if}
 			{#if action}<div class="orca-page-action">{@render action()}</div>{/if}
@@ -109,6 +111,14 @@
 		color: var(--orca-muted);
 		font-size: 14px;
 		line-height: 1.6;
+	}
+	.orca-page-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 	.orca-page-subhead {
 		display: flex;
