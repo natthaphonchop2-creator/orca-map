@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { ArrowRight, ChevronDown, ExternalLink, ListChecks, Mail } from '@lucide/svelte';
+	import { ArrowRight, ChevronDown, ExternalLink, Mail } from '@lucide/svelte';
 	import { term } from '$lib/orca/glossary';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import { ORCA_SUPPORT_LINE_REL, supportLinks, type SupportLink } from '$lib/orca/support';
 	import type { OrcaBootstrap } from '$lib/services/orca';
 	import PageHeader from '../ui/PageHeader.svelte';
 
-	// view=help: a short FAQ. The setup steps live in one place, Home's
-	// checklist; this page points there instead of repeating them.
+	// view=help: a short FAQ. What still needs doing shows on หน้าหลัก's
+	// ต้องดูแล (W0), so this page has no setup steps of its own.
 	// "ยังติดอยู่" gives the ORCA team's LINE and email ($lib/orca/support) to
 	// everyone in a company on ORCA; the trial-request form (/home?to=start) is
 	// for companies not on ORCA yet, so it is not offered here.
@@ -100,19 +100,6 @@
 
 <PageHeader title={term('help', t)} subtitle={t('คำถามที่พบบ่อย', 'Common questions.')} />
 
-<section class="help-setup" aria-labelledby="help-setup-title">
-	<span class="help-setup-icon" aria-hidden="true"><ListChecks size={20} /></span>
-	<div class="help-setup-copy">
-		<h2 id="help-setup-title">{t('ขั้นตอนตั้งค่าอยู่ที่หน้าหลัก', 'The setup steps are on Home')}</h2>
-		<p>
-			{manager
-				? t('4 ขั้นตอน ประมาณ 10 นาที: เชื่อมโปรแกรม ให้ทีมใช้ได้ เชื่อม AI ของฉัน แล้วลองถาม', '4 steps, about 10 minutes: connect a program, let your team use it, connect your AI, then ask.')
-				: t('3 ขั้นตอน ประมาณ 7 นาที: เชื่อม AI ของฉัน ลงชื่อเข้าใช้บัญชีโปรแกรม แล้วลองถาม', '3 steps, about 7 minutes: connect your AI, sign in to your programs, then ask.')}
-		</p>
-	</div>
-	<a class="k-button primary" href={localeHref('/app#setup')}>{t('ไปที่ขั้นตอนตั้งค่า', 'Go to the setup steps')}<ArrowRight size={16} aria-hidden="true" /></a>
-</section>
-
 <section class="help-faq" aria-labelledby="help-faq-title">
 	<h2 id="help-faq-title">{t('คำถามที่พบบ่อย', 'Common questions')}</h2>
 	<div class="help-list">
@@ -137,49 +124,6 @@
 
 <style>
 	/* orca-type-remap v1 */
-	.help-setup {
-		display: flex;
-		align-items: center;
-		gap: 16px;
-		margin-bottom: 28px;
-		padding: 20px 24px;
-		border: 1px solid var(--orca-line);
-		border-radius: var(--orca-radius-lg);
-		background: var(--orca-surface);
-	}
-	.help-setup-icon {
-		display: grid;
-		flex: none;
-		place-items: center;
-		width: 40px;
-		height: 40px;
-		border-radius: 10px;
-		background: var(--orca-citron-soft);
-		color: var(--orca-ink);
-	}
-	.help-setup-copy {
-		flex: 1;
-		min-width: 0;
-	}
-	.help-setup .help-setup-copy h2,
-	section.help-faq h2 {
-		margin: 0;
-		color: var(--orca-ink);
-		font-size: 16px;
-		font-weight: 700;
-		line-height: 1.4;
-	}
-	.help-setup .help-setup-copy p {
-		margin: 2px 0 0;
-		color: var(--orca-muted);
-		font-size: 13.5px;
-	}
-	.help-setup :global(.k-button) {
-		flex: none;
-		min-height: 44px;
-		padding: 0 18px;
-		font-weight: 600;
-	}
 	section.help-faq h2 {
 		margin-bottom: 12px;
 	}
@@ -256,14 +200,7 @@
 		white-space: nowrap;
 	}
 	@media (max-width: 720px) {
-		.help-setup {
-			flex-wrap: wrap;
-			padding: 18px 16px;
-		}
-		.help-setup :global(.k-button) {
-			flex: 1 1 100%;
-		}
-		summary {
+				summary {
 			padding: 14px 16px;
 		}
 		.help-answer {

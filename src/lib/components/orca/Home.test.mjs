@@ -5,9 +5,11 @@ import { render } from 'svelte/server';
 import { importTypeScript } from '../../orca/test-import.mjs';
 import { serverComponent } from './test-render.mjs';
 
-// Home's first-run checklist, Help and the in-app-browser notice, rendered on
-// the server with their real children and rules (workspace UX U6).
+// หน้าหลัก (W0, the calm workspace): ต้องดูแล, the overview tiles and ล่าสุด,
+// Help and the in-app-browser notice, rendered on the server with their real
+// rules. The first-run checklist (U6) is gone: its steps are ต้องดูแล rows.
 const home = await importTypeScript(new URL('../../orca/home-setup.ts', import.meta.url));
+const attention = await importTypeScript(new URL('../../orca/home-attention.ts', import.meta.url));
 const activation = await importTypeScript(new URL('../../orca/activation.ts', import.meta.url));
 const gateway = await importTypeScript(new URL('../../orca/gateway-sources.ts', import.meta.url));
 const glossary = await importTypeScript(new URL('../../orca/glossary.ts', import.meta.url));
@@ -19,9 +21,11 @@ const secrets = await importTypeScript(new URL('../../orca/secrets.ts', import.m
 const connectAI = await importTypeScript(new URL('../../orca/connect-ai.ts', import.meta.url));
 const aiConnection = await importTypeScript(new URL('../../orca/ai-connection.ts', import.meta.url));
 const support = await importTypeScript(new URL('../../orca/support.ts', import.meta.url));
+const programTools = await importTypeScript(new URL('../../orca/program-tools.ts', import.meta.url));
+const programCatalog = await importTypeScript(new URL('../../orca/program-catalog.ts', import.meta.url));
 
 const th = (thai) => thai;
-const base = { ...home, ...activation, ...gateway, ...inApp, ...copy, ...support, TEAM_INVITE_HREF: navigation.TEAM_INVITE_HREF, connectedAppsHref: connectedApps.connectedAppsHref, STALE_DAYS: secrets.STALE_DAYS, term: glossary.term, t: th, localeHref: (path) => path, orcaLocale: { value: 'th' } };
+const base = { ...home, ...attention, ...activation, ...gateway, ...inApp, ...copy, ...support, TEAM_INVITE_HREF: navigation.TEAM_INVITE_HREF, connectedAppsHref: connectedApps.connectedAppsHref, STALE_DAYS: secrets.STALE_DAYS, term: glossary.term, t: th, localeHref: (path) => path, orcaLocale: { value: 'th' } };
 const component = async (path, deps) => {
 	const { warnings, Component } = await serverComponent(new URL(path, import.meta.url), deps);
 	assert.deepEqual(warnings, [], path);
@@ -30,11 +34,6 @@ const component = async (path, deps) => {
 const StatusPill = await component('./ui/StatusPill.svelte', base);
 const children = { ...base, StatusPill };
 children.SupportContact = await component('./ui/SupportContact.svelte', base);
-children.SetupStep = await component('./home/SetupStep.svelte', children);
-children.SetupCard = await component('./home/SetupCard.svelte', children);
-children.PromptList = await component('./home/PromptList.svelte', children);
-const OwnerSetup = await component('./home/OwnerSetup.svelte', children);
-const EmployeeSetup = await component('./home/EmployeeSetup.svelte', children);
 
 const tool = (name, readOnlyHint) => ({ name, inputSchema: {}, definition: { annotations: { readOnlyHint } } });
 const flow = {
@@ -53,158 +52,137 @@ const company = (extra = {}) => ({
 	currentUserID: 'me', canManage: true, members: [{ id: 'me', displayName: 'วิภา ตัวอย่าง', email: 'me@example.com', role: 'owner' }],
 	units: [], connections: [], hubs: [], ...extra
 });
-const owner = (data, ai = 'none', asked = false, extra = {}) =>
-	render(OwnerSetup, { props: { data, list: home.ownerChecklist(data, ai, asked), ai, invite: { done: false, skipped: false }, knowledge: { done: false, skipped: false }, onskip: () => {}, ...extra } }).body;
 const text = (html) => html.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+const rows = (input) => attention.managerAttention({ pendingApprovals: 0, staleApps: 0, iconName: (connection) => connection.name, ...input }, th);
+const ids = (list) => list.map((row) => row.id);
 
-test('a new company: step 1 is next and opens the add-program flow', () => {
-	const html = owner(company());
-	assert.match(text(html), /เสร็จ 0 จาก 4 · เหลือประมาณ 10 นาที/);
-	assert.match(html, /<li class="home-step current[^"]*" aria-current="step"[\s\S]*?เชื่อมโปรแกรมแรก/);
-	assert.match(html, /class="k-button primary lg" href="\/app\?view=add-program"/);
-	// Later steps are shown, but their actions cannot be used yet.
-	assert.match(html, /<button type="button" class="k-button home-off[^"]*" disabled[^>]*>เชื่อม AI ของฉัน<\/button>/);
-	// The one name for connect-ai (critique 16), never the old ones.
-	assert.doesNotMatch(html, /เชื่อม Claude หรือ ChatGPT ของคุณ|เชื่อม AI กับ ORCA/);
-	assert.match(text(html), /ไม่บังคับ/);
-	// "ส่งลิงก์เชิญ" opens ทีม's invite dialog, where "ทุกคน" is pre-ticked.
-	assert.match(html, /href="\/app\?view=members&amp;tab=invitations&amp;invite=1"[^>]*>ส่งลิงก์เชิญ/);
-	assert.match(html, /href="\/app\?view=knowledge&amp;kind=knowledge&amp;create=1"/);
-	assert.match(html, /aria-label="ข้าม ชวนทีม"/);
+test('ต้องดูแล for a new company: connect a program first; nothing else is claimed before it is known', () => {
+	const list = rows({ data: company() });
+	assert.deepEqual(ids(list), ['program']);
+	assert.equal(list[0].title, 'ยังไม่ได้เชื่อมโปรแกรม');
+	assert.equal(list[0].action.href, '/app?view=servers&catalog=1', 'the catalog dialog on โปรแกรม');
+	// No numbered steps or time estimates anywhere in the rows.
+	assert.doesNotMatch(JSON.stringify(list), /ขั้นตอน|ประมาณ \d+ นาที|เสร็จ \d+ จาก/);
 });
 
-test('step 2 shows who, what and the approval rule before the one click for everyone', () => {
-	const html = owner(company({ connections: [flow] }));
-	const plain = text(html);
-	assert.match(plain, /เสร็จ 1 จาก 4 · เหลือประมาณ 6 นาที/);
-	assert.match(plain, /FlowAccount เชื่อมแล้ว · AI ทำได้ 3 อย่าง/);
-	assert.match(plain, /ทุกคนในบริษัท · ตอนนี้ 1 คน/);
-	assert.match(plain, /3 อย่างใน FlowAccount/);
-	assert.match(plain, /ดูข้อมูล 2 อย่าง · สร้างหรือแก้ 1 อย่าง/);
-	assert.match(plain, /ต้องให้ผู้ดูแลอนุมัติก่อน/);
-	assert.match(html, /class="k-button primary lg" href="\/app\?view=new&amp;everyone=1&amp;connection=conn-flow"/);
-	assert.match(html, /href="\/app\?view=new&amp;connection=conn-flow"/);
-	// Exactly one primary action on the screen.
-	assert.equal(html.match(/k-button primary/g).length, 1);
-
-	// A read-only program says AI cannot change data.
-	const readOnly = { ...flow, tools: flow.tools.slice(0, 2), toolNames: ['list_invoices', 'get_invoice'] };
-	assert.match(text(owner(company({ connections: [readOnly] }))), /AI แก้ข้อมูลไม่ได้/);
+test('ต้องดูแล: a ready program with no workspace offers the one click for everyone, or adding myself to theirs', () => {
+	let list = rows({ data: company({ connections: [flow] }) });
+	assert.deepEqual(ids(list), ['team']);
+	assert.equal(list[0].title, 'ทีมยังใช้ FlowAccount กับ AI ไม่ได้');
+	assert.equal(list[0].action.href, '/app?view=new&everyone=1&connection=conn-flow');
 	// A ready workspace I'm not in: add myself instead of making another.
 	const theirs = { ...workspace, memberIDs: ['other'], effectiveMemberIDs: ['other'] };
-	assert.match(owner(company({ connections: [flow], hubs: [theirs] })), /href="\/app\?view=hub&amp;hub=hub-1&amp;tab=people"/);
+	list = rows({ data: company({ connections: [flow], hubs: [theirs] }) });
+	assert.deepEqual(ids(list), ['team']);
+	assert.equal(list[0].action.href, '/app?view=hub&hub=hub-1&tab=people');
+	// Set up: nothing.
+	assert.deepEqual(ids(rows({ data: company({ connections: [flow], hubs: [workspace] }) })), []);
 });
 
-test('steps 3 and 4: connect my AI, then a copyable first question per program', () => {
-	const data = company({ connections: [flow], hubs: [workspace] });
-	let html = owner(data, 'none', false);
-	assert.match(html, /<li class="home-step current[^"]*"[\s\S]*?เชื่อม AI ของฉัน/);
-	assert.match(html, /class="k-button primary lg" href="\/app\?view=connect-ai"/);
-	html = owner(data, 'connected', false, { aiApp: 'Claude' });
-	assert.match(text(html), /Claude เชื่อมแล้ว/);
-	assert.match(text(html), /“?สรุปใบแจ้งหนี้ที่ค้างชำระจาก FlowAccount/);
-	assert.match(html, /คัดลอกคำถามนี้/);
-	// Without B1 the two steps open together, and step 3 says how it finishes.
-	html = owner(data, 'unknown', false);
-	assert.match(text(html), /ขั้นนี้จะขึ้นว่าเสร็จเมื่อคุณถามครั้งแรก/);
-	// One copy button per program, each named by its program for screen readers.
-	assert.match(html, /<button type="button" class="k-button small" aria-label="คัดลอกคำถามนี้: FlowAccount">[\s\S]*?คัดลอกคำถามนี้/);
-	// History that could not be read offers a retry, not a false "done".
-	html = owner(data, 'connected', undefined, { historyFailed: true });
-	assert.match(text(html), /ตรวจไม่ได้ว่าคุณถามแล้วหรือยัง/);
+test('ต้องดูแล for managers: approvals, company accounts to reconnect, programs to review, workspaces, paused programs and unused AI apps', () => {
+	const unreviewed = { ...flow, id: 'conn-new', name: 'PEAK', mcpID: 'default-orca-peak', reviewedTools: false, reviewedReadOnly: false };
+	const paused = { ...flow, id: 'conn-paused', name: 'Gmail', enabled: false };
+	const shared = { ...flow, id: 'conn-shared', name: 'Google Drive', programAccountID: 'acct-1' };
+	const blockedHub = { ...workspace, id: 'hub-2', sources: [{ connectionID: 'conn-new', toolNames: [] }], connectionID: 'conn-new', toolNames: [] };
+	const data = company({ connections: [flow, unreviewed, paused, shared], hubs: [workspace, blockedHub] });
+	const accounts = [{ id: 'acct-1', sourceID: 'drive', label: 'office', status: 'needs_reconnect', pausedReason: 'grant_revoked', generation: 1, acknowledgedRevision: 0, staged: false, createdAt: 'x', updatedAt: 'x' }];
+	const changed = new Map([['conn-flow', { changed: 1, lastFailureAt: '2026-09-05T00:00:00Z' }]]);
+	const list = rows({ data, pendingApprovals: 2, accounts, health: changed, staleApps: 3 });
+	assert.deepEqual(ids(list), ['approvals', 'reconnect:conn-shared', 'setup', 'review', 'blocked', 'paused', 'stale']);
+	const by = Object.fromEntries(list.map((row) => [row.id, row]));
+	assert.equal(by.approvals.title, 'รออนุมัติ 2 รายการ');
+	assert.equal(by.approvals.action.href, '/app?view=approvals');
+	// The same word as the โปรแกรม tile.
+	assert.equal(by['reconnect:conn-shared'].title, 'Google Drive ต้องเชื่อมใหม่');
+	assert.match(by['reconnect:conn-shared'].meta, /หมดอายุหรือถูกยกเลิก/);
+	assert.equal(by['reconnect:conn-shared'].action.href, '/app?view=servers&connection=conn-shared');
+	assert.equal(by.setup.title, 'โปรแกรมรอเลือกสิ่งที่ AI ทำได้ 1 โปรแกรม');
+	assert.equal(by.review.title, 'โปรแกรมที่ต้องตรวจใหม่ 1 โปรแกรม');
+	assert.equal(by.blocked.title, 'พื้นที่ทำงานที่ยังใช้ไม่ได้ 1 แห่ง');
+	assert.equal(by.paused.title, 'โปรแกรมที่หยุดชั่วคราว 1 โปรแกรม');
+	assert.equal(by.stale.title, 'มี 3 แอป AI ที่ไม่ได้ใช้เกิน 30 วัน');
+	assert.equal(by.stale.action.href, connectedApps.connectedAppsHref('stale'), 'the alert opens แอป AI ที่เชื่อม on its own filter');
+	for (const row of list) assert.ok(row.action.label, row.id);
+	// A tool changed before the last save is history, not a review.
+	const cleared = new Map([['conn-flow', { changed: 2, lastFailureAt: '2026-09-01T00:00:00Z' }]]);
+	assert.ok(!ids(rows({ data: company({ connections: [flow], hubs: [workspace] }), health: cleared })).includes('review'));
+	// Without the company accounts list, no program is said to need reconnecting.
+	assert.ok(!ids(rows({ data })).some((id) => id.startsWith('reconnect:')));
+	assert.equal(attention.programsToReconnect([shared, { ...shared, id: 'gone', archivedAt: 'x' }], accounts).length, 1, 'archived programs do not count');
 });
 
-test('after my own disconnect, step "เชื่อม AI" is open again and says why, never ticked by an earlier question (Codex release review 70)', () => {
-	const data = company({ connections: [flow], hubs: [workspace] });
-	// I asked before, then disconnected my AI in ตรวจสอบ, and the read after it failed.
-	let html = owner(data, 'revoked', true);
-	let plain = text(html);
-	assert.match(html, /<li class="home-step current[^"]*" aria-current="step"[\s\S]*?เชื่อม AI ของฉัน/);
-	assert.match(plain, /คุณเพิ่งตัดการเชื่อม AI ขั้นนี้จะขึ้นว่าเสร็จเมื่อ ORCA ตรวจเจอ AI ที่ยังเชื่อมอยู่/);
-	assert.doesNotMatch(plain, /AI ของคุณเชื่อมกับ ORCA แล้ว|เชื่อมแล้ว ลองถาม/, 'never "connected", and no promise that asking ticks it');
-	assert.match(plain, /เสร็จ 3 จาก 4/);
-	// The same for an employee.
-	const list = home.employeeChecklist('revoked', ['signed-in'], true);
-	html = render(EmployeeSetup, { props: { list, ai: 'revoked', programs: [flow], accounts: [{ id: 'default-orca-flowaccount', name: 'FlowAccount', icon: 'FlowAccount', state: 'signed-in' }] } }).body;
-	plain = text(html);
-	assert.match(plain, /คุณเพิ่งตัดการเชื่อม AI ขั้นนี้จะขึ้นว่าเสร็จเมื่อ ORCA ตรวจเจอ AI ที่ยังเชื่อมอยู่/);
-	assert.doesNotMatch(plain, /AI ของคุณเชื่อมกับ ORCA แล้ว|เชื่อมแล้ว ลองถาม/);
-	// Connected only through a workspace's own link (B3 follow-up): open, and says where it reaches.
-	html = owner(data, 'limited', true, { aiOnly: 'เฉพาะ ฝ่ายขาย', aiApp: 'Claude' });
-	plain = text(html);
-	assert.match(html, /<li class="home-step current[^"]*" aria-current="step"[\s\S]*?เชื่อม AI ของฉัน/);
-	assert.match(plain, /AI ของคุณใช้ได้เฉพาะ ฝ่ายขาย ใช้ลิงก์ ORCA ของบริษัทเพื่อให้ AI ใช้ได้ทุกพื้นที่ทำงานของคุณ/);
-	assert.doesNotMatch(plain, /Claude เชื่อมแล้ว|AI ของคุณเชื่อมกับ ORCA แล้ว|เชื่อมแล้ว ลองถาม/);
-	html = render(EmployeeSetup, { props: { list: home.employeeChecklist('limited', ['signed-in'], true), ai: 'limited', aiOnly: 'เฉพาะ ฝ่ายขาย', programs: [flow], accounts: [] } }).body;
-	assert.match(text(html), /AI ของคุณใช้ได้เฉพาะ ฝ่ายขาย/);
-	// Without a disconnect, an older server still merges the two steps, as before.
-	assert.match(text(owner(data, 'unknown', false)), /ขั้นนี้จะขึ้นว่าเสร็จเมื่อคุณถามครั้งแรก/);
-	assert.doesNotMatch(text(owner(data, 'unknown', false)), /คุณเพิ่งตัดการเชื่อม AI/);
+test('ต้องดูแล for employees: ask an admin for access, then sign in to each program of theirs', () => {
+	let list = attention.employeeAttention({ accounts: [], noWorkspace: true, requestText: 'รบกวนเพิ่มฉัน https://a.test/app?openExternalBrowser=1' }, th);
+	assert.deepEqual(ids(list), ['access']);
+	assert.equal(list[0].action.label, 'คัดลอกข้อความขอสิทธิ์');
+	assert.match(list[0].action.copy, /openExternalBrowser=1/);
+	assert.match(list[0].meta, /ขอสิทธิ์จากผู้ดูแล/);
+	list = attention.employeeAttention({
+		accounts: [
+			{ id: 'default-orca-flowaccount', name: 'FlowAccount', icon: 'FlowAccount', state: 'signed-in' },
+			{ id: 'drive', name: 'Google Drive', icon: 'Google Drive', state: 'needed' },
+			{ id: 'later', name: 'PEAK', icon: 'PEAK', state: 'waiting' }
+		],
+		noWorkspace: false,
+		requestText: ''
+	}, th);
+	assert.deepEqual(ids(list), ['account:drive']);
+	assert.equal(list[0].title, 'ลงชื่อเข้าใช้ Google Drive');
+	assert.equal(list[0].action.href, '/app?view=connect-ai#accounts');
 });
 
-test('employee: connect my AI, a sign-in row per program, then ask; or ask an admin for access', () => {
-	const list = home.employeeChecklist('none', ['signed-in', 'needed'], false);
-	let html = render(EmployeeSetup, { props: {
-		list, ai: 'none', programs: [flow],
-		accounts: [{ id: 'default-orca-flowaccount', name: 'FlowAccount', icon: 'FlowAccount', state: 'signed-in' }, { id: 'drive', name: 'Google Drive', icon: 'Google Drive', state: 'needed' }]
-	} }).body;
-	const plain = text(html);
-	assert.match(plain, /เสร็จ 0 จาก 3/);
-	assert.match(plain, /ลงชื่อเข้าใช้บัญชีโปรแกรมของคุณ/);
-	assert.match(plain, /FlowAccount ลงชื่อเข้าใช้แล้ว/);
-	assert.match(plain, /Google Drive ยังไม่ได้ลงชื่อเข้าใช้/);
-	assert.match(html, /href="\/app\?view=connect-ai#accounts"/);
-	assert.match(plain, /ไม่มีบัญชีของตัวเอง\? ขอให้ผู้ดูแลเพิ่มผู้ใช้ให้คุณในโปรแกรมนั้น/);
-
-	html = render(EmployeeSetup, { props: { list, ai: 'none', programs: [], accounts: [], noWorkspace: true, requestText: 'รบกวนเพิ่มฉัน https://a.test/app?openExternalBrowser=1' } }).body;
-	assert.match(text(html), /ขอสิทธิ์จากผู้ดูแล/);
-	assert.match(html, /คัดลอกข้อความขอสิทธิ์/);
-	assert.match(html, /openExternalBrowser=1/);
-	assert.doesNotMatch(html, /aria-current="step"/, 'nothing is "next" until an admin adds them');
+test('the AI row: none until B1 answers; never connected, or lapsed (expired, disconnected, limited), never claimed from history alone', () => {
+	assert.equal(attention.aiAttention('none', false, false), undefined, 'not before B1 answers');
+	assert.equal(attention.aiAttention('connected', true, true), undefined);
+	assert.equal(attention.aiAttention('unknown', true, false), undefined, 'an older server: nothing claimed');
+	assert.equal(attention.aiAttention('none', true, false), 'never');
+	assert.equal(attention.aiAttention('none', true, undefined), 'lapsed');
+	assert.equal(attention.aiAttention('none', true, true), 'lapsed');
+	assert.equal(attention.aiAttention('limited', true, false), 'lapsed');
+	// After my own disconnect, an earlier question proves nothing: the banner says I disconnected it.
+	assert.equal(attention.aiAttention('revoked', true, true), 'lapsed');
+	assert.equal(home.aiLapse({ state: 'unknown', disconnected: true }, 'revoked'), 'disconnected');
 });
 
-test('Home picks its mode from the viewer\'s own data: setup at once, else a short check, never a false "ready"', async () => {
+test('หน้าหลัก: a greeting with today\'s use, ต้องดูแล only when there is something, and no setup checklist', async () => {
 	const personal = await importTypeScript(new URL('../../orca/personal-connections.ts', import.meta.url));
 	const PageHeader = await component('./ui/PageHeader.svelte', children);
 	const Dashboard = await component('./WorkspaceDashboard.svelte', {
-		...children, ...personal, OwnerSetup, EmployeeSetup, PageHeader, currentCompany: () => 'default',
+		...children, ...personal, PageHeader, currentCompany: () => 'default', aiConnection: { state: 'unknown' },
 		connectAccess: connectAI.connectAccess, onlyWorkspacesText: aiConnection.onlyWorkspacesText
 	});
-	const page = (data) => render(Dashboard, { props: { data } }).body;
+	const page = (data, props = {}) => render(Dashboard, { props: { data, ...props } }).body;
 
-	// A new company: the checklist shows before anything else loads.
 	let html = page(company());
-	assert.match(html, /<h1[^>]*>ยินดีต้อนรับ วิภา<\/h1>/);
-	assert.match(text(html), /ยังตั้งค่าไม่เสร็จ/);
-	assert.match(text(html), /4 ขั้นตอน ประมาณ 10 นาที/);
-	assert.match(html, /id="setup"/);
-	// A manager of a company already on ORCA reaches the ORCA team on LINE or by email, not through the trial-request form.
-	assert.match(html, /ติดตรงไหน <span class="orca-support[^"]*">(?:<!--[^>]*-->)*<a href="https:\/\/line\.me\/R\/ti\/p\/@147njpwd" target="_blank" rel="noopener noreferrer"/);
-	assert.match(html, /href="mailto:natthaphon\.chop@gmail\.com"/);
-	assert.doesNotMatch(html, /\/home\?to=start/);
-	assert.doesNotMatch(html, /พร้อมใช้งาน/);
-
-	// Steps 1 and 2 done; whether I connected AI and asked is still loading:
-	// no checklist flash and no pill until it is known.
-	html = page(company({ connections: [flow], hubs: [workspace] }));
-	assert.match(html, /<h1[^>]*>หน้าหลัก<\/h1>/);
-	assert.match(text(html), /กำลังตรวจสถานะการตั้งค่า/);
-	assert.doesNotMatch(html, /id="setup"|ยังตั้งค่าไม่เสร็จ|พร้อมใช้งาน/);
-	// Create buttons belong to the status view only.
-	assert.doesNotMatch(html, /view=new"/);
+	assert.match(html, /<h1[^>]*>สวัสดี คุณวิภา<\/h1>/);
+	assert.match(text(html), /วันนี้ AI ใช้ข้อมูลบริษัท 0 ครั้ง/);
+	assert.match(text(html), /ต้องดูแล 1 ยังไม่ได้เชื่อมโปรแกรม/);
+	assert.match(html, /href="\/app\?view=servers&amp;catalog=1"/);
+	assert.doesNotMatch(text(html), /ขั้นตอน|ประมาณ \d+ นาที|ยินดีต้อนรับ|ไม่มีเรื่องที่ต้องดูแล|ตั้งค่าเสร็จแล้ว|ติดตรงไหน/);
+	assert.doesNotMatch(html, /id="setup"|home-stat\b|home-bar/);
+	// Set up, nothing to do: no ต้องดูแล at all, and no create buttons (สร้าง is in the top bar).
+	html = page(company({ connections: [flow], hubs: [{ ...workspace, usedToday: 12 }] }));
+	assert.match(text(html), /วันนี้ AI ใช้ข้อมูลบริษัท 12 ครั้ง/);
+	assert.doesNotMatch(text(html), /ต้องดูแล/);
+	assert.doesNotMatch(html, /view=new"|k-button primary/);
+	// Approvals waiting: the first row.
+	html = page(company({ connections: [flow], hubs: [workspace] }), { pendingApprovals: 3 });
+	assert.match(text(html), /ต้องดูแล 1 รออนุมัติ 3 รายการ/);
+	assert.match(html, /href="\/app\?view=approvals"[^>]*>ดูคำขอ<\/a>/);
 
 	// An employee with no usable workspace asks an admin, in generic words.
 	const employee = company({ canManage: false, members: [{ id: 'me', displayName: 'มาลี สมมุติ', email: 'mali@example.com', role: 'member' }] });
 	html = page(employee);
-	assert.match(text(html), /ยินดีต้อนรับ มาลี/);
-	assert.match(text(html), /3 ขั้นตอน ประมาณ 7 นาที/);
-	assert.match(text(html), /ขอสิทธิ์จากผู้ดูแล/);
-	assert.match(text(html), /รบกวนเพิ่ม มาลี สมมุติ \(mali@example\.com\) เข้าพื้นที่ทำงาน AI ของ บริษัท ตัวอย่าง/);
-	assert.match(html, /href="\/app\?view=help"/, 'an employee is pointed at the FAQ, not at the ORCA team');
-	assert.doesNotMatch(html, /\/home\?to=start/);
+	assert.match(html, /<h1[^>]*>สวัสดี คุณมาลี<\/h1>/);
+	assert.match(text(html), /วันนี้ AI ใช้ข้อมูลในพื้นที่ทำงานของคุณ 0 ครั้ง/);
+	assert.match(text(html), /ยังไม่มีพื้นที่ทำงาน AI ที่คุณใช้ได้/);
+	assert.match(text(html), /คัดลอกข้อความขอสิทธิ์/);
+	const source = await readFile(new URL('./WorkspaceDashboard.svelte', import.meta.url), 'utf8');
+	assert.match(source, /accessRequestText\(/, 'the request names them, their email and the company');
+	assert.doesNotMatch(source, /OwnerSetup|EmployeeSetup|homeMode|invitations\(\)/);
 });
 
-test('a lapsed AI sign-in after setup: one line and a way back on the status view, not the checklist', async () => {
+test('a lapsed AI sign-in: one row of ต้องดูแล and a way back', async () => {
 	const Banner = await component('./home/AIReconnectBanner.svelte', base);
 	const html = render(Banner).body;
 	assert.match(text(html), /การเชื่อม AI ของคุณหมดอายุแล้ว เชื่อมใหม่/);
@@ -216,20 +194,15 @@ test('a lapsed AI sign-in after setup: one line and a way back on the status vie
 	assert.match(text(mine), /คุณตัดการเชื่อม AI แล้ว เชื่อมใหม่/);
 	assert.doesNotMatch(text(mine), /หมดอายุ/);
 	assert.match(mine, /href="\/app\?view=connect-ai">เชื่อมใหม่<\/a>/);
-	// Home: the rule decides the mode and the pill, and the banner sits on the status view only.
+	// Home: the banner sits in ต้องดูแล, once, with the lapse from the store.
 	const page = await readFile(new URL('./WorkspaceDashboard.svelte', import.meta.url), 'utf8');
-	assert.match(page, /const lapsed = \$derived\(aiLapsed\(list, ai\)\);/);
-	assert.match(page, /homeMode\(list, noWorkspace, loaded, lapsed\)/);
-	assert.match(page, /homeBadge\(mode, manager, attention, t, lapsed\)/);
-	const status = page.slice(page.indexOf("{:else if mode === 'loading'}"));
-	assert.match(status, /\{:else\}\s*\{#if lapsed\}<AIReconnectBanner lapse=\{aiLapse\(aiConnection, ai\)\} only=\{aiOnly\} own=\{access\.ownSignIn\} \/>\{\/if\}/);
+	assert.match(page, /\{:else if aiRow === 'lapsed'\}\s*<AIReconnectBanner lapse=\{aiLapse\(aiConnection, ai\)\} only=\{aiOnly\} own=\{access\.ownSignIn\} \/>/);
+	assert.equal(page.match(/<AIReconnectBanner/g)?.length, 1);
+	assert.match(page, /const aiOnly = \$derived\(ai === 'limited' \? onlyWorkspacesText\(aiConnection\.only \?\? \[\], t\) : ''\);/);
 	// Connected only through a workspace's own link: where it reaches, and the company link (B3 follow-up).
 	const limited = render(Banner, { props: { lapse: 'limited', only: 'เฉพาะ ฝ่ายขาย' } }).body;
 	assert.match(text(limited), /AI ของคุณใช้ได้เฉพาะ ฝ่ายขาย ใช้ลิงก์ของบริษัท/);
 	assert.doesNotMatch(text(limited), /หมดอายุ|คุณตัดการเชื่อม/);
-	assert.match(page, /const aiOnly = \$derived\(ai === 'limited' \? onlyWorkspacesText\(aiConnection\.only \?\? \[\], t\) : ''\);/);
-	assert.equal(page.match(/^\t+\{aiOnly\}$/gm)?.length, 2, 'both setup cards get it');
-	assert.equal(page.match(/<AIReconnectBanner/g)?.length, 1);
 	// A live sign-in that reaches none of my workspaces (they have their own sign-in): nothing expired (Codex review 72).
 	const unreached = render(Banner, { props: { lapse: 'unreached', own: [{ id: 'h sso', name: 'ฝ่ายขาย' }] } }).body;
 	assert.match(text(unreached), /AI ที่เชื่อมไว้ยังใช้พื้นที่ทำงานของคุณไม่ได้ ใช้ลิงก์ของ ฝ่ายขาย/);
@@ -237,118 +210,93 @@ test('a lapsed AI sign-in after setup: one line and a way back on the status vie
 	assert.doesNotMatch(text(unreached), /หมดอายุ|คุณตัดการเชื่อม|ลิงก์ของบริษัท/);
 	const several = render(Banner, { props: { lapse: 'unreached', own: [{ id: 'a', name: 'ฝ่ายขาย' }, { id: 'b', name: 'บัญชี' }] } }).body;
 	assert.match(text(several), /AI ที่เชื่อมไว้ยังใช้พื้นที่ทำงานของคุณไม่ได้ ดูลิงก์ที่ต้องใช้/);
-	assert.match(several, /href="\/app\?view=connect-ai">ดูลิงก์ที่ต้องใช้<\/a>/, 'เชื่อม AI ของฉัน lists each workspace\'s link');
+	assert.match(several, /href="\/app\?view=connect-ai">ดูลิงก์ที่ต้องใช้<\/a>/);
 	const unreachedEn = render(await component('./home/AIReconnectBanner.svelte', { ...base, t: (_th, en) => en }), { props: { lapse: 'unreached', own: [{ id: 'h', name: 'Sales' }] } }).body;
 	assert.match(text(unreachedEn), /The AI you connected can't use your workspaces yet Use Sales's link/);
 	const banner = await readFile(new URL('./home/AIReconnectBanner.svelte', import.meta.url), 'utf8');
 	assert.doesNotMatch(banner, /#[0-9a-f]{3,6}\b|rgba?\(/i, 'tokens only');
-	// "ใช้ลิงก์ของ {a long workspace name}" wraps inside the button on a phone, never past the banner (Codex review 73).
+	// "ใช้ลิงก์ของ {a long workspace name}" wraps inside the button on a phone, never past the row (Codex review 73).
 	const button = banner.slice(banner.indexOf('.home-reconnect .k-button {'));
 	assert.match(button, /^\.home-reconnect \.k-button \{[^}]*flex: 0 1 auto;[^}]*min-width: 0;[^}]*max-width: 100%;[^}]*white-space: normal;[^}]*overflow-wrap: anywhere;/);
 	assert.doesNotMatch(button.slice(0, button.indexOf('}')), /flex: none/);
 });
 
-test('back on Home with setup open, the checklist checks again by itself, without blanking what it shows (Codex release review 63)', async () => {
+test('back on Home while AI is not connected, it checks again by itself, without blanking what it shows (Codex release review 63)', async () => {
 	const page = await readFile(new URL('./WorkspaceDashboard.svelte', import.meta.url), 'utf8');
 	const recheck = page.slice(page.indexOf('async function recheck()'), page.indexOf('async function loadAIApps()'));
-	assert.match(recheck, /if \(!alive \|\| mode !== 'setup' \|\| document\.visibilityState === 'hidden'\) return;/, 'only while setup is open and the page is seen');
+	assert.match(recheck, /if \(!alive \|\| !aiRow \|\| document\.visibilityState === 'hidden'\) return;/, 'only while the AI row shows and the page is seen');
 	assert.match(recheck, /Date\.now\(\) - lastRecheck < 10_000/, 'at most every 10 seconds');
 	assert.match(recheck, /await OrcaService\.audit\(\)/);
 	assert.match(recheck, /await refreshAIConnection\(\)/);
-	assert.doesNotMatch(recheck, /events = undefined/, 'the steps stay on screen while it checks');
+	assert.doesNotMatch(recheck, /events = undefined/, 'the list stays on screen while it checks');
 	assert.match(page, /document\.addEventListener\('visibilitychange', onReturn\);\s*window\.addEventListener\('focus', onReturn\);/);
 	assert.match(page, /onDestroy\(\(\) => \{\s*alive = false;\s*stopRechecks\(\);/);
 });
 
-test('the status view follows the role: managers see the company and its alerts, employees their own part', async () => {
-	const programTools = await importTypeScript(new URL('../../orca/program-tools.ts', import.meta.url));
-	const programCatalog = await importTypeScript(new URL('../../orca/program-catalog.ts', import.meta.url));
+test('the overview tiles and ล่าสุด follow the role: เชื่อมแล้ว for managers, ใช้ได้ for employees', async () => {
 	const HomeStatus = await component('./home/HomeStatus.svelte', {
-		...children, eventToolLabel: programTools.eventToolLabel, programEventOutcome: programCatalog.programEventOutcome, programStatus: programCatalog.programStatus,
-		programStatusCopy: programCatalog.programStatusCopy, displayDate: (value) => value, memberName: (member) => member.displayName
+		...children, eventToolLabel: programTools.eventToolLabel, programEventOutcome: programCatalog.programEventOutcome,
+		displayDate: (value) => value, memberName: (member) => member.displayName
 	});
-	const unreviewed = { ...flow, id: 'conn-new', name: 'PEAK', mcpID: 'default-orca-peak', reviewedTools: false };
 	const titled = { ...flow, tools: flow.tools.map((item) => ({ ...item, description: 'ค้นใบกำกับตามลูกค้า', definition: { ...item.definition, annotations: { ...item.definition.annotations, title: item.name === 'create_quotation' ? 'สร้างใบเสนอราคา' : 'ดูใบกำกับภาษี' } } })) };
+	const shared = { ...titled, id: 'conn-shared', name: 'Google Drive', programAccountID: 'acct-1' };
 	const events = [
 		{ id: 'e1', createdAt: '2026-09-28T03:00:00Z', userID: 'me', hubID: 'hub-1', connectionID: 'conn-flow', action: 'tools.call', toolName: 'list_invoices', outcome: 'success' },
-		{ id: 'e2', createdAt: '2026-09-28T02:00:00Z', userID: 'me', hubID: 'hub-1', connectionID: 'conn-flow', action: 'tools.call', toolName: 'create_quotation', outcome: 'admitted' }
+		{ id: 'e2', createdAt: '2026-09-28T02:00:00Z', userID: 'u2', hubID: 'hub-1', connectionID: 'conn-flow', action: 'tools.call', toolName: 'create_quotation', outcome: 'admitted' },
+		{ id: 'e3', createdAt: '2026-09-28T01:00:00Z', userID: 'u2', hubID: 'hub-1', connectionID: 'conn-flow', action: 'tools.call', toolName: 'get_invoice', outcome: 'error' }
 	];
 	const members = [
 		{ id: 'me', displayName: 'วิภา ตัวอย่าง', email: 'me@example.com', role: 'owner' },
-		{ id: 'u2', displayName: 'มาลี สมมุติ', email: 'm@example.com', role: 'member' },
-		{ id: 'u3', displayName: 'ศิริ ทดลอง', email: 's@example.com', role: 'member', status: 'suspended' }
+		{ id: 'u2', displayName: 'มาลี สมมุติ', email: 'm@example.com', role: 'member' }
 	];
-	let html = render(HomeStatus, { props: { data: company({ members, connections: [flow, unreviewed], hubs: [workspace] }), events } }).body;
+	const accounts = [{ id: 'acct-1', status: 'needs_reconnect' }];
+	let html = render(HomeStatus, { props: { data: company({ members, connections: [titled, shared], hubs: [workspace] }), events, accounts, ai: 'connected', aiApp: 'Claude', knowledge: { count: 18, updatedAt: '2026-10-05' } } }).body;
 	let plain = text(html);
-	assert.match(plain, /ทีม 2 คนที่ใช้งานอยู่/, 'a suspended member is not counted');
-	assert.match(plain, /ต้องดูแล/);
-	assert.match(plain, /โปรแกรมรอเลือกสิ่งที่ AI ทำได้ 1 โปรแกรม/);
-	assert.match(html, /<th scope="col"[^>]*>คน<\/th>/);
-	assert.match(html, /href="\/app\?view=servers&amp;connection=conn-flow"/);
-	// The same program status words as โปรแกรมที่เชื่อม.
-	assert.match(plain, /PEAK.*รอเลือกสิ่งที่ AI ทำได้/);
-	// An admitted call is received, never "waiting for approval" (the same words as ตรวจสอบ).
-	assert.match(plain, /รับคำขอแล้ว/);
-	assert.doesNotMatch(plain, /รออนุมัติ/);
-	// The program's own title, not the English id.
-	html = render(HomeStatus, { props: { data: company({ members, connections: [titled], hubs: [workspace] }), events } }).body;
-	assert.match(text(html), /ดูใบกำกับภาษี.*สร้างใบเสนอราคา/);
-	assert.doesNotMatch(text(html), /List invoices|Create quotation/);
-	// A tool changed at the provider after the last save: ต้องตรวจใหม่ here too; before it, history.
-	const changed = new Map([['conn-flow', { connectionID: 'conn-flow', changed: 2, lastFailureAt: '2026-09-05T00:00:00Z' }]]);
-	html = render(HomeStatus, { props: { data: company({ members, connections: [flow], hubs: [workspace] }), events, health: changed } }).body;
-	assert.match(text(html), /โปรแกรมที่ต้องตรวจใหม่ 1 โปรแกรม/);
-	assert.match(text(html), /FlowAccount.*ต้องตรวจใหม่/);
-	const cleared = new Map([['conn-flow', { connectionID: 'conn-flow', changed: 2, lastFailureAt: '2026-09-01T00:00:00Z' }]]);
-	html = render(HomeStatus, { props: { data: company({ members, connections: [flow], hubs: [workspace] }), events, health: cleared } }).body;
-	assert.doesNotMatch(text(html), /ต้องตรวจใหม่/);
-	assert.match(text(html), /พร้อมใช้ 1 โปรแกรม/);
-	html = render(HomeStatus, { props: { data: company({ members, connections: [flow, unreviewed], hubs: [workspace] }), events } }).body;
+	assert.match(plain, /โปรแกรม 2 เชื่อมแล้ว/);
+	// The tile's footer uses the same word as the ต้องดูแล row.
+	assert.match(html, /<span class="home-state warn[^"]*"><span class="home-dot[^"]*" aria-hidden="true"><\/span>ต้องเชื่อมใหม่ 1<\/span>/);
+	assert.match(plain, /AI ของฉัน Claude เชื่อมแล้ว/);
+	assert.match(plain, /คลังความรู้ 18 เรื่อง แก้ล่าสุด 2026-10-05/);
+	assert.doesNotMatch(plain, /Skills/, 'no Skills tile without the feature');
+	assert.match(html, /class="home-tiles[^"]*\bthree\b/);
+	// ล่าสุด: the program's own title, who and where; a call that went through shows its time.
+	assert.match(plain, /ดูใบกำกับภาษี วิภา ตัวอย่าง · ผู้ช่วยบัญชี 2026-09-28T03:00:00Z/);
+	// "admitted" was received, never "waiting for approval"; only a failed call gets a word.
+	assert.match(plain, /สร้างใบเสนอราคา มาลี สมมุติ · ผู้ช่วยบัญชี 2026-09-28T02:00:00Z/);
+	assert.doesNotMatch(plain, /รออนุมัติ|รับคำขอแล้ว|(?<!ไม่)สำเร็จ/);
+	assert.match(html, /<span class="home-state deny[^"]*">ไม่สำเร็จ<\/span>/);
+	assert.doesNotMatch(plain, /List invoices|Create quotation/);
+	assert.match(html, /href="\/app\?view=executions"[^>]*>ดูประวัติ/);
+	assert.match(html, /href="\/app\?view=servers"/);
+	// With Skills: four tiles.
+	html = render(HomeStatus, { props: { data: company({ members, connections: [titled], hubs: [workspace] }), events, skills: { count: 0 } } }).body;
+	assert.doesNotMatch(html, /class="home-tiles[^"]*\bthree\b/);
+	assert.match(html, /href="\/app\?view=skills"/);
 
-	assert.doesNotMatch(html, /view=secrets/, 'no unused-apps alert until ตรวจสอบ reports one');
-	// AI apps unused for 30 days: the alert opens ตรวจสอบ on its own filter.
-	html = render(HomeStatus, { props: { data: company({ members, connections: [flow], hubs: [workspace] }), events, staleApps: 3 } }).body;
-	assert.match(html, /class="home-alert quiet[^"]*" href="\/app\?view=secrets&amp;filter=stale"[\s\S]*?มี 3 แอป AI ที่ไม่ได้ใช้เกิน 30 วัน/);
-	assert.doesNotMatch(text(html), /ไม่มีเรื่องที่ต้องดูแล/);
-
-	html = render(HomeStatus, { props: { data: company({ canManage: false, connections: [flow], hubs: [workspace] }), events } }).body;
+	// An employee: their own programs (ใช้ได้), their own history without a person, and no manager pages.
+	html = render(HomeStatus, { props: { data: company({ canManage: false, connections: [titled], hubs: [workspace] }), events, accounts, ai: 'none' } }).body;
 	plain = text(html);
-	assert.match(plain, /พื้นที่ทำงานของคุณ/);
-	assert.doesNotMatch(plain, /ต้องดูแล|คนที่ใช้งานอยู่/, 'no company alerts or head count for an employee');
-	assert.doesNotMatch(html, /<th scope="col"[^>]*>คน<\/th>/, 'their own history needs no person column');
-	assert.doesNotMatch(html, /view=servers/, 'employees reach programs through เชื่อม AI ของฉัน');
+	assert.match(plain, /โปรแกรม 1 ใช้ได้/);
+	assert.doesNotMatch(plain, /เชื่อมแล้ว|ต้องเชื่อมใหม่|วิภา ตัวอย่าง|มาลี สมมุติ/);
+	assert.match(plain, /AI ของฉัน ยังไม่ได้เชื่อม/);
+	assert.doesNotMatch(html, /view=servers/, 'employees reach programs through AI ของฉัน');
 	assert.match(html, /href="\/app\?view=connect-ai#accounts"/);
+	assert.match(plain, /คลังความรู้ — เรื่อง/, 'no count before it is read');
 });
 
-test('"nothing needs attention" waits for the unused-app and changed-program checks; a failed check says so with a retry (Codex release review 67)', async () => {
-	const programTools = await importTypeScript(new URL('../../orca/program-tools.ts', import.meta.url));
-	const programCatalog = await importTypeScript(new URL('../../orca/program-catalog.ts', import.meta.url));
-	const HomeStatus = await component('./home/HomeStatus.svelte', {
-		...children, eventToolLabel: programTools.eventToolLabel, programEventOutcome: programCatalog.programEventOutcome, programStatus: programCatalog.programStatus,
-		programStatusCopy: programCatalog.programStatusCopy, displayDate: (value) => value, memberName: (member) => member.displayName
-	});
-	const data = company({ connections: [flow], hubs: [workspace] });
-	let plain = text(render(HomeStatus, { props: { data, events: [], checks: 'done' } }).body);
-	assert.match(plain, /ไม่มีเรื่องที่ต้องดูแล/, 'both checks answered and found nothing');
-	let html = render(HomeStatus, { props: { data, events: [], checks: 'loading' } }).body;
-	assert.doesNotMatch(text(html), /ไม่มีเรื่องที่ต้องดูแล/, 'not while a check is on its way');
-	assert.match(text(html), /กำลังตรวจ…/);
-	html = render(HomeStatus, { props: { data, events: [], checks: 'failed', onretrychecks() {} } }).body;
-	assert.doesNotMatch(text(html), /ไม่มีเรื่องที่ต้องดูแล/, 'never beside a failed check');
-	assert.match(html, /role="alert"[^>]*>ตรวจแอป AI ที่ไม่ได้ใช้และโปรแกรมที่เปลี่ยนไปไม่สำเร็จ[\s\S]*?>ลองอีกครั้ง<\/button>/);
-	// A failed check still shows what is known.
-	html = render(HomeStatus, { props: { data: company({ connections: [flow, { ...flow, id: 'conn-paused', enabled: false }], hubs: [workspace] }), events: [], checks: 'failed' } }).body;
-	assert.match(text(html), /โปรแกรมที่หยุดชั่วคราว 1 โปรแกรม/);
+test('ต้องดูแล says when a check failed, with a retry, instead of a false "nothing to do" (Codex release review 67)', async () => {
 	const dashboard = await readFile(new URL('./WorkspaceDashboard.svelte', import.meta.url), 'utf8');
 	assert.match(dashboard, /checks = results\.every\(\(result\) => result\.status === 'fulfilled'\) \? 'done' : 'failed';/, 'either read failing is a failed check');
-	assert.match(dashboard, /<HomeStatus [^>]*\{checks\}[^>]*onretrychecks=/);
+	assert.match(dashboard, /\{#if manager && checks === 'failed'\}[\s\S]*?ตรวจแอป AI ที่ไม่ได้ใช้และโปรแกรมที่เปลี่ยนไปไม่สำเร็จ[\s\S]*?onclick=\{\(\) => void loadChecks\(\)\}>\{t\('ลองอีกครั้ง'/);
+	assert.doesNotMatch(dashboard, /ไม่มีเรื่องที่ต้องดูแล/, 'an empty ต้องดูแล is simply not shown');
 });
 
-test('Help is a short FAQ that points at Home\'s checklist, without a sign-out button', async () => {
+test('Help is a short FAQ without setup steps or a sign-out button', async () => {
 	const Help = await component('./views/HelpView.svelte', { ...base, PageHeader: await component('./ui/PageHeader.svelte', children) });
 	let html = render(Help, { props: { data: { canManage: true, canChangeMemberStatus: true } } }).body;
 	assert.match(html, /<h1[^>]*>ช่วยเหลือ<\/h1>/);
-	assert.match(html, /class="k-button primary" href="\/app#setup"/);
+	// W0: no numbered setup steps and no second primary button; ต้องดูแล on Home holds what is left.
+	assert.doesNotMatch(html, /app#setup|ขั้นตอน|k-button primary/);
 	assert.equal((html.match(/<details\b/g) ?? []).length, 7);
 	assert.match(html, /href="\/app\?view=members"/);
 	assert.match(html, /href="\/app\?view=secrets"/);
@@ -369,7 +317,7 @@ test('Help is a short FAQ that points at Home\'s checklist, without a sign-out b
 	html = render(Help, { props: { data: { canManage: false } } }).body;
 	assert.equal((html.match(/<details\b/g) ?? []).length, 6);
 	assert.doesNotMatch(html, /view=approvals|view=secrets|\/home\?to=start/);
-	assert.match(text(html), /3 ขั้นตอน ประมาณ 7 นาที/);
+	assert.doesNotMatch(text(html), /ขั้นตอน ประมาณ/);
 
 	const page = await readFile(new URL('../../../routes/app/+page.svelte', import.meta.url), 'utf8');
 	assert.match(page, /\{:else if view === "help"\}<HelpView \{data\} \/>/);

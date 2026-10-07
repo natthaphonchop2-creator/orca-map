@@ -262,7 +262,7 @@
   {:else if navigation.redirect}<div class="k-loading" role="status" aria-live="polite">
       <LoaderCircle size={25} class="k-spin" />{t("กำลังเปิดหน้า…", "Opening…")}
     </div>
-  {:else if view === "dashboard"}{#key data}<WorkspaceDashboard data={currentData!} />{/key}
+  {:else if view === "dashboard"}{#key data}<WorkspaceDashboard data={currentData!} {pendingApprovals} />{/key}
   {:else if view === "new"}
     {#if !data.canManage}<div class="k-empty">
         <Folder size={34} />
@@ -344,7 +344,7 @@
     />{/key}
   {:else if view === "workspaces"}<AppOverview data={managementData!} onchanged={refresh} />
   {:else if view === "help"}<HelpView {data} />
-  {:else}{#key data}<WorkspaceDashboard data={currentData!} />{/key}
+  {:else}{#key data}<WorkspaceDashboard data={currentData!} {pendingApprovals} />{/key}
   {/if}
   <footer class="k-footer">
     <span

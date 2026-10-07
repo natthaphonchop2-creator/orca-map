@@ -1,12 +1,10 @@
 <script lang="ts">
-	import { CircleAlert } from '@lucide/svelte';
 	import type { AILapse } from '$lib/orca/home-setup';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
 	import type { OrcaHub } from '$lib/services/orca';
 
-	// Home after setup, when only the viewer's own AI lapsed (home-setup's
-	// aiLapsed). One line and the way back, instead of the whole setup
-	// checklist again. Why (`lapse`, aiLapse):
+	// A row of หน้าหลัก's ต้องดูแล (W0) when the viewer's own AI lapsed. One
+	// line and the way back. Why (`lapse`, aiLapse):
 	// - `limited`: it still reaches some workspaces through their own links
 	//   (`only`: "เฉพาะ ฝ่ายขาย"), never the company's link (B3 follow-up)
 	// - `unreached`: a live sign-in reaches none of the viewer's workspaces now,
@@ -41,35 +39,27 @@
 </script>
 
 <section class="home-reconnect" aria-label={t('การเชื่อม AI ของคุณ', 'Your AI connection')}>
-	<CircleAlert size={18} aria-hidden="true" />
 	<p>{message}</p>
 	<a class="k-button small" href={action.href}>{action.label}</a>
 </section>
 
 <style>
 	/* orca-type-remap v1 */
+	/* One row of the ต้องดูแล panel, which draws the border. */
 	.home-reconnect {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 10px 12px;
-		margin-bottom: 20px;
-		padding: 12px 16px 12px 18px;
-		border: 1px solid var(--orca-warn-line);
-		border-radius: var(--orca-radius-lg);
-		background: var(--orca-warn-bg);
-	}
-	.home-reconnect > :global(svg) {
-		flex: none;
-		color: var(--orca-warn);
+		padding: 12px 16px;
 	}
 	.home-reconnect p {
 		flex: 1 1 200px;
 		min-width: 0;
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 13.5px;
-		font-weight: 600;
+		font-size: 14px;
+		font-weight: 500;
 	}
 	/* A long workspace name ("ใช้ลิงก์ของ …") wraps inside the button on a phone instead of overflowing (Codex review 73). */
 	.home-reconnect .k-button {
