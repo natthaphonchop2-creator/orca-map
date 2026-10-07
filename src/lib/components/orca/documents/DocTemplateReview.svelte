@@ -168,7 +168,7 @@
 				memberIDs: audience === 'list' ? chosen : [],
 				unitIDs: []
 			});
-			showToast(t('เผยแพร่แล้ว AI ใช้เทมเพลตนี้ได้', 'Published. AI can use this template.'));
+			showToast(t('เผยแพร่แล้ว AI ใช้แม่แบบนี้ได้', 'Published. AI can use this template.'));
 			onchanged();
 		} catch (cause) {
 			const parsed = parseErrorContent(cause);
@@ -197,7 +197,7 @@
 		busy = 'delete';
 		try {
 			await OrcaDocTemplateService.remove(hub.id, template.id);
-			showToast(t('ลบเทมเพลตแล้ว', 'Template deleted'));
+			showToast(t('ลบแม่แบบแล้ว', 'Template deleted'));
 			onchanged();
 			onback();
 		} catch (cause) {
@@ -245,9 +245,9 @@
 
 <div class="dt">
 	<PageHeader
-		title={template?.title || t('เทมเพลตเอกสาร', 'Document template')}
+		title={template?.title || t('แม่แบบเอกสาร', 'Document template')}
 		subtitle={version ? `${version.originalName} · ${versionStateText(version.state, t)}` : ''}
-		back={{ href: localeHref(`/app?view=documents&hub=${encodeURIComponent(hub.id)}`), label: t('เอกสาร', 'Documents') }}
+		back={{ href: localeHref(`/app?view=documents&hub=${encodeURIComponent(hub.id)}`), label: t('แม่แบบเอกสาร', 'Document templates') }}
 	/>
 
 	{#if loadError}
@@ -258,7 +258,7 @@
 		<p class="dt-panel" role="status">{t('ORCA กำลังตรวจไฟล์และหาช่องที่ต้องกรอก หน้านี้จะแสดงผลเองเมื่อเสร็จ', 'ORCA is checking the file and finding the cells to fill. This page updates when it is done.')}</p>
 	{:else if version.state === 'refused'}
 		<div class="dt-panel">
-			<p class="dt-strong">{t('ใช้ไฟล์นี้เป็นเทมเพลตไม่ได้', 'This file can’t be a template')}</p>
+			<p class="dt-strong">{t('ใช้ไฟล์นี้เป็นแม่แบบไม่ได้', 'This file can’t be a template')}</p>
 			<p>{refusalText(version.refusalReason, t)}</p>
 			<label class="k-button">
 				<input type="file" accept=".xlsx" class="dt-file" onchange={replace} disabled={!!busy} />{busy === 'replace' ? t('กำลังอัปโหลด…', 'Uploading…') : t('อัปโหลดไฟล์ที่แก้แล้ว', 'Upload the fixed file')}
@@ -388,7 +388,7 @@
 
 		<section class="dt-section">
 			<h2>{t('บอก AI ว่าใช้เมื่อไหร่', 'Tell AI when to use it')}</h2>
-			<label class="k-field wide"><span>{t('เมื่อไหร่ใช้เทมเพลตนี้', 'When to use this template')}</span>
+			<label class="k-field wide"><span>{t('เมื่อไหร่ใช้แม่แบบนี้', 'When to use this template')}</span>
 				<textarea rows="2" maxlength="500" bind:value={review.whenToUse} placeholder={t('เช่น ทุกเช้าหลังปิด Night Audit', 'e.g. every morning after the night audit')}></textarea>
 			</label>
 			<label class="k-field wide"><span>{t('รายงานที่ใช้ (คั่นด้วยจุลภาค)', 'Reports it needs (comma separated)')}</span>
@@ -416,7 +416,7 @@
 			{/if}
 
 			{#if template.status === 'published' && version.state === 'published'}
-				<p class="dt-panel">{t('เผยแพร่แล้ว AI ของคนในกลุ่มที่เลือกใช้เทมเพลตนี้ได้', 'Published: the chosen people’s AI can use it.')}</p>
+				<p class="dt-panel">{t('เผยแพร่แล้ว AI ของคนในกลุ่มที่เลือกใช้แม่แบบนี้ได้', 'Published: the chosen people’s AI can use it.')}</p>
 				<div class="dt-buttons"><button type="button" class="k-button" disabled={!!busy} onclick={unpublish}>{t('หยุดเผยแพร่', 'Unpublish')}</button></div>
 			{:else}
 				<h2>{t('เผยแพร่', 'Publish')}</h2>
@@ -444,15 +444,15 @@
 			<label class="k-button quiet small">
 				<input type="file" accept=".xlsx" class="dt-file" onchange={replace} disabled={!!busy} />{t('อัปโหลดไฟล์ฉบับใหม่', 'Upload a new version')}
 			</label>
-			<button type="button" class="k-button danger small" disabled={!!busy} onclick={() => (deleteOpen = true)}>{t('ลบเทมเพลต', 'Delete template')}</button>
+			<button type="button" class="k-button danger small" disabled={!!busy} onclick={() => (deleteOpen = true)}>{t('ลบแม่แบบ', 'Delete template')}</button>
 		</section>
 	{/if}
 </div>
 
 <ConfirmDialog
 	bind:open={deleteOpen}
-	title={t('ลบเทมเพลตนี้?', 'Delete this template?')}
-	message={t('AI จะใช้เทมเพลตนี้ไม่ได้อีก ไฟล์ที่สร้างไปแล้วจะถูกลบด้วย', 'AI can no longer use it, and the files made from it are deleted too.')}
+	title={t('ลบแม่แบบนี้?', 'Delete this template?')}
+	message={t('AI จะใช้แม่แบบนี้ไม่ได้อีก ไฟล์ที่สร้างไปแล้วจะถูกลบด้วย', 'AI can no longer use it, and the files made from it are deleted too.')}
 	confirmLabel={t('ลบ', 'Delete')}
 	cancelLabel={t('ยกเลิก', 'Cancel')}
 	tone="danger"

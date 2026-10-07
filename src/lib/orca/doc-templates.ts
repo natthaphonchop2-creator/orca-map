@@ -53,7 +53,7 @@ export function templateFileText(reason: TemplateFileRefusal, t: Translate): str
 		case 'empty':
 			return t('ไฟล์ว่าง', 'The file is empty');
 		default:
-			return t('เทมเพลตเอกสารต้องเป็นไฟล์ .xlsx', 'A document template must be an .xlsx file');
+			return t('แม่แบบเอกสารต้องเป็นไฟล์ .xlsx', 'A document template must be an .xlsx file');
 	}
 }
 
@@ -104,7 +104,7 @@ export function refusalText(reason: string | undefined, t: Translate): string {
 		memory: ['ไฟล์ซับซ้อนเกินกว่าที่ ORCA ตรวจได้', 'The file is too complex for ORCA to check.']
 	};
 	const text = texts[code];
-	return text ? t(text[0], text[1]) : t('ORCA ใช้ไฟล์นี้เป็นเทมเพลตไม่ได้ ลองบันทึกใหม่ใน Excel แล้วอัปโหลดอีกครั้ง', 'ORCA can’t use this file as a template. Save it again in Excel and upload it again.');
+	return text ? t(text[0], text[1]) : t('ORCA ใช้ไฟล์นี้เป็นแม่แบบไม่ได้ ลองบันทึกใหม่ใน Excel แล้วอัปโหลดอีกครั้ง', 'ORCA can’t use this file as a template. Save it again in Excel and upload it again.');
 }
 
 /** The version the review works on: the draft, else the published one. */
@@ -247,7 +247,7 @@ export function gateText(gate: { block: GateBlock; count: number }, t: Translate
 		case 'scanning':
 			return t('ORCA กำลังตรวจไฟล์ รอสักครู่', 'ORCA is checking the file');
 		case 'refused':
-			return t('ไฟล์นี้ใช้เป็นเทมเพลตไม่ได้', 'This file can’t be a template');
+			return t('ไฟล์นี้ใช้เป็นแม่แบบไม่ได้', 'This file can’t be a template');
 		case 'undecided':
 			return t(`ยังมี ${gate.count} ช่องที่ยังไม่ได้เลือกว่าจะคงไว้หรือล้างทุกครั้ง`, `${gate.count} cells still need คงไว้ or ล้างทุกครั้ง`);
 		case 'unconfirmed':

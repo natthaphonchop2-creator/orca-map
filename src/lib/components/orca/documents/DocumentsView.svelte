@@ -26,8 +26,8 @@
 	import { showToast } from '../ui/toast-store.svelte';
 	import DocTemplateReview from './DocTemplateReview.svelte';
 
-	// view=documents (kv2 phase 2a P5): เทมเพลตเอกสาร, the company forms AI
-	// fills, and เอกสารที่สร้าง, the files it made. A manager adds and sets up
+	// view=documents (kv2 phase 2a P5): แม่แบบเอกสาร (renamed in W0.2), the company forms AI
+	// fills, and ไฟล์ที่ AI สร้าง, the files it made. A manager adds and sets up
 	// templates; everyone sees the files they made; a manager also sees
 	// everyone's, without names or contents, and opens one only through the
 	// audited ตรวจเอกสาร. The server checks every right again.
@@ -146,7 +146,7 @@
 
 {#if !on}
 	<PageHeader title={term('knowledge', t)} subtitle={t('ข้อมูลที่ AI ของทีมใช้ตอบคำถาม', 'What your team’s AI answers from')} />
-	<p class="dc-panel">{t(`เทมเพลตเอกสารยังไม่เปิดให้บริษัทนี้ ติดต่อทีม ORCA ทาง LINE ${ORCA_SUPPORT_LINE_ID}`, `Document templates are not on for this company. Contact the ORCA team on LINE ${ORCA_SUPPORT_LINE_ID}.`)}</p>
+	<p class="dc-panel">{t(`แม่แบบเอกสารยังไม่เปิดให้บริษัทนี้ ติดต่อทีม ORCA ทาง LINE ${ORCA_SUPPORT_LINE_ID}`, `Document templates are not on for this company. Contact the ORCA team on LINE ${ORCA_SUPPORT_LINE_ID}.`)}</p>
 {:else if !hub}
 	<PageHeader title={term('knowledge', t)} subtitle={t('ข้อมูลที่ AI ของทีมใช้ตอบคำถาม', 'What your team’s AI answers from')} />
 	<p class="dc-panel">{t('เปิดคลังความรู้เพื่อเลือกพื้นที่ทำงาน AI ก่อน', 'Open Knowledge to choose an AI workspace first.')} <a href={localeHref('/app?view=knowledge')}>{t('เปิดคลังความรู้', 'Open Knowledge')}</a></p>
@@ -155,13 +155,13 @@
 		<DocTemplateReview {data} {hub} {templateID} onback={() => void goto(hrefFor())} onchanged={() => void load(hub!.id)} />
 	{/key}
 {:else}
-	<!-- W0: เอกสาร is a tab of คลังความรู้: the same header and type tabs, its own page. -->
+	<!-- W0: แม่แบบเอกสาร (was เอกสาร, W0.2) is a tab of คลังความรู้: the same header and type tabs, its own page. -->
 	<div class="dc">
-		<PageHeader title={term('knowledge', t)} subtitle={t('ฟอร์มของบริษัทที่ AI กรอกให้ และไฟล์ที่ได้', 'Company forms AI fills, and the files it made')}>
+		<PageHeader title={term('knowledge', t)} subtitle={t('แม่แบบฟอร์มของบริษัทที่ AI กรอกให้ และไฟล์ที่ AI สร้าง', 'Company form templates AI fills, and the files it made')}>
 			{#snippet action()}
 				{#if data.canManage && tab === 'templates'}
 					<label class="k-button dc-upload" aria-disabled={uploading}>
-						<input type="file" accept=".xlsx" onchange={upload} disabled={uploading} /><Upload size={16} strokeWidth={2.3} aria-hidden="true" />{uploading ? t('กำลังอัปโหลด…', 'Uploading…') : t('เพิ่มเทมเพลต', 'Add a template')}
+						<input type="file" accept=".xlsx" onchange={upload} disabled={uploading} /><Upload size={16} strokeWidth={2.3} aria-hidden="true" />{uploading ? t('กำลังอัปโหลด…', 'Uploading…') : t('เพิ่มแม่แบบ', 'Add a template')}
 					</label>
 				{/if}
 			{/snippet}
@@ -171,12 +171,12 @@
 			<a href={knowledgeHref('knowledge')}><BookOpen size={16} aria-hidden="true" />{t('บทความ', 'Articles')}</a>
 			<a href={knowledgeHref('file')}><Files size={16} aria-hidden="true" />{t('ไฟล์', 'Files')}</a>
 			<a href={knowledgeHref('template')}><Zap size={16} aria-hidden="true" />{term('readyPrompt', t)}</a>
-			<a class="on" href={hrefFor()} aria-current="page"><FileSpreadsheet size={16} aria-hidden="true" />{t('เอกสาร', 'Documents')}</a>
+			<a class="on" href={hrefFor()} aria-current="page"><FileSpreadsheet size={16} aria-hidden="true" />{t('แม่แบบเอกสาร', 'Document templates')}</a>
 		</nav>
 
-		<div class="dc-tabs" role="group" aria-label={t('เอกสาร', 'Documents')}>
-			<button type="button" aria-pressed={tab === 'templates'} class:on={tab === 'templates'} onclick={() => (tab = 'templates')}>{t('เทมเพลต', 'Templates')}</button>
-			<button type="button" aria-pressed={tab === 'files'} class:on={tab === 'files'} onclick={() => (tab = 'files')}>{t('ไฟล์ที่สร้าง', 'Made files')}</button>
+		<div class="dc-tabs" role="group" aria-label={t('แม่แบบเอกสาร', 'Document templates')}>
+			<button type="button" aria-pressed={tab === 'templates'} class:on={tab === 'templates'} onclick={() => (tab = 'templates')}>{t('แม่แบบ', 'Templates')}</button>
+			<button type="button" aria-pressed={tab === 'files'} class:on={tab === 'files'} onclick={() => (tab = 'files')}>{t('ไฟล์ที่ AI สร้าง', 'Files AI made')}</button>
 		</div>
 
 		{#if uploadError}<p class="dc-alert" role="alert">{uploadError}</p>{/if}
@@ -202,7 +202,7 @@
 				<p class="dc-panel">
 					{data.canManage
 						? t('เพิ่มไฟล์ Excel ที่ทีมกรอกทุกวัน เช่น Daily Briefing แล้ว ORCA จะหาช่องที่ต้องกรอกให้ AI ทำแทน', 'Add an Excel file your team fills every day, such as a daily briefing. ORCA finds the cells for AI to fill.')
-						: t('ยังไม่มีเทมเพลตเอกสารที่คุณใช้ได้', 'No document templates for you yet.')}
+						: t('ยังไม่มีแม่แบบเอกสารที่คุณใช้ได้', 'No document templates for you yet.')}
 				</p>
 			{/if}
 		{:else}

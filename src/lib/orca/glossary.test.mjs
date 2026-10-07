@@ -24,6 +24,7 @@ test('every term has Thai and English, and the menu names match the owner-approv
 test('no glossary term uses a word the glossary retired', () => {
 	const words = retiredWords.map(([th]) => th);
 	for (const [key, [th]] of Object.entries(glossary)) {
-		for (const word of words) assert.ok(!th.includes(word), `${key}: ${th} contains ${word}`);
+		// แม่แบบ is retired for prompts; แม่แบบเอกสาร (document templates, W0.2) is its one use.
+		for (const word of words) if (!(key === 'docTemplate' && word === 'แม่แบบ' && th === 'แม่แบบเอกสาร')) assert.ok(!th.includes(word), `${key}: ${th} contains ${word}`);
 	}
 });

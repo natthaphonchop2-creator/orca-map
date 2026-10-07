@@ -34,7 +34,7 @@ test('every new file component compiles without warnings, uses tokens only, and 
 		const source = await readFile(new URL(`./${file}`, import.meta.url), 'utf8');
 		for (const generate of ['client', 'server']) assert.deepEqual(compile(source, { filename: file, generate }).warnings, [], `${file} (${generate})`);
 		assert.doesNotMatch(source, /#[0-9a-f]{3,8}\b/i, `${file} uses tokens only`);
-		assert.doesNotMatch(source, /<select|Orca Cloud|MCP URL|แม่แบบ|กรุณา|\{@html/, file);
+		assert.doesNotMatch(source, /<select|Orca Cloud|MCP URL|แม่แบบ(?!เอกสาร)|กรุณา|\{@html/, file);
 	}
 });
 

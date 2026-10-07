@@ -29,7 +29,7 @@ test('every knowledge component compiles without warnings, and none keeps the ol
 	for (const file of files) {
 		const source = await readFile(new URL(`./${file}`, import.meta.url), 'utf8');
 		for (const generate of ['client', 'server']) assert.deepEqual(compile(source, { filename: file, generate }).warnings, [], `${file} (${generate})`);
-		assert.doesNotMatch(source, /Orca Cloud|MCP URL|ลิงก์เชื่อม AI|แม่แบบ|ชื่อตัวแปร|<select/, file);
+		assert.doesNotMatch(source, /Orca Cloud|MCP URL|ลิงก์เชื่อม AI|แม่แบบ(?!เอกสาร)|ชื่อตัวแปร|<select/, file);
 		assert.doesNotMatch(source, /#fff\b|#ffffff|#151823/i, `${file} uses tokens only`);
 	}
 	const page = await readFile(new URL('./KnowledgeLibrary.svelte', import.meta.url), 'utf8');

@@ -27,7 +27,8 @@ test('each new screen compiles without warnings, uses tokens only, and keeps the
 		const source = await readFile(new URL(`./${file}`, import.meta.url), 'utf8');
 		for (const generate of ['client', 'server']) assert.deepEqual(compile(source, { filename: file.split('/').pop(), generate }).warnings, [], `${file} (${generate})`);
 		assert.doesNotMatch(source, /#[0-9a-f]{3,8}\b/i, `${file} uses tokens only`);
-		assert.doesNotMatch(source, /<select|\{@html|กรุณา|แม่แบบ|StatusPill/, file);
+		// W0.2: this area says แม่แบบ (document templates), never the older เทมเพลต.
+		assert.doesNotMatch(source, /<select|\{@html|กรุณา|เทมเพลต|StatusPill/, file);
 	}
 	// W0: สร้าง is the page's one ink primary; in-page buttons are outline, and no citron.
 	for (const file of FILES.slice(0, 2)) {
@@ -48,20 +49,25 @@ async function view(data, props = {}) {
 }
 
 test('the page needs both company switches, then opens the viewer\'s workspace', async () => {
-	assert.match(await view({ features: { libraryV2: true } }), /เทมเพลตเอกสารยังไม่เปิดให้บริษัทนี้/);
-	assert.match(await view({ features: { docTemplates: true } }), /เทมเพลตเอกสารยังไม่เปิดให้บริษัทนี้/);
+	assert.match(await view({ features: { libraryV2: true } }), /แม่แบบเอกสารยังไม่เปิดให้บริษัทนี้/);
+	assert.match(await view({ features: { docTemplates: true } }), /แม่แบบเอกสารยังไม่เปิดให้บริษัทนี้/);
 	assert.match(await view({ hubs: [] , canManage: false }), /เปิดคลังความรู้เพื่อเลือกพื้นที่ทำงาน AI ก่อน/);
 	const manager = await view({});
-	// W0: เอกสาร is a tab of คลังความรู้: its header, its type tabs with เอกสาร current.
+	// W0: แม่แบบเอกสาร (W0.2's name for เอกสาร) is a tab of คลังความรู้: its header, its type tabs with it current,
+	// and its two sub-tabs แม่แบบ and ไฟล์ที่ AI สร้าง.
 	assert.match(manager, /<h1[^>]*>คลังความรู้<\/h1>/);
-	assert.match(manager, /ฟอร์มของบริษัทที่ AI กรอกให้ และไฟล์ที่ได้/);
+	assert.match(manager, /แม่แบบฟอร์มของบริษัทที่ AI กรอกให้ และไฟล์ที่ AI สร้าง/);
+	assert.match(manager, /aria-current="page">(?:<[^>]*>)*แม่แบบเอกสาร<\/a>/);
+	assert.match(manager, /aria-pressed="true"[^>]*>แม่แบบ<\/button>/);
+	assert.match(manager, />ไฟล์ที่ AI สร้าง<\/button>/);
+	assert.doesNotMatch(manager, /เทมเพลต/, 'แม่แบบ throughout this area');
 	for (const kind of ['knowledge', 'file', 'template']) assert.match(manager, new RegExp(`href="/app\\?view=knowledge&amp;hub=front&amp;kind=${kind}"`));
 	assert.match(manager, /class="on[^"]*" href="\/app\?view=documents&amp;hub=front" aria-current="page"/);
 	assert.doesNotMatch(manager, /orca-page-back/, 'a tab, not a page to go back from');
-	assert.match(manager, /<label class="k-button dc-upload[^"]*"[^>]*><input type="file" accept="\.xlsx"[^>]*\/>(?:<[^>]*>)*เพิ่มเทมเพลต<\/label>/);
+	assert.match(manager, /<label class="k-button dc-upload[^"]*"[^>]*><input type="file" accept="\.xlsx"[^>]*\/>(?:<[^>]*>)*เพิ่มแม่แบบ<\/label>/);
 	assert.doesNotMatch(manager, /k-button primary/, 'สร้าง is the one primary');
 	const member = await view({ canManage: false });
-	assert.doesNotMatch(member, /เพิ่มเทมเพลต/, 'a member adds no templates');
+	assert.doesNotMatch(member, /เพิ่มแม่แบบ/, 'a member adds no templates');
 });
 
 test('the review opens for a manager only', async () => {
@@ -70,7 +76,7 @@ test('the review opens for a manager only', async () => {
 	assert.doesNotMatch(member, /<review/);
 });
 
-test('the knowledge list links to เอกสาร only while the company has it', async () => {
+test('the knowledge list links to แม่แบบเอกสาร only while the company has it', async () => {
 	const { glossary } = await importTypeScript(new URL('../../orca/glossary.ts', import.meta.url));
 	const term = (key, t) => t(...glossary[key]);
 	const { warnings, Component } = await serverComponent(new URL('./knowledge/KnowledgeList.svelte', import.meta.url), {
@@ -78,9 +84,14 @@ test('the knowledge list links to เอกสาร only while the company has 
 	});
 	assert.deepEqual(warnings, []);
 	const props = { hub: hub('front'), choices: [], items: [], departments: [], members: [], currentUserID: 'me', onchoose: noop, oncreate: noop, onopen: noop, onreload: noop };
-	// W0: a fourth type tab, เอกสาร, beside the library's own.
-	assert.match(render(Component, { props: { ...props, documentsHref: '/app?view=documents&hub=front' } }).body, /<div class="seg[^"]*"[^>]*>[\s\S]*<a href="\/app\?view=documents&amp;hub=front"[^>]*>(?:<!---->)?เอกสาร<\/a>/);
-	assert.doesNotMatch(render(Component, { props }).body, /view=documents|>เอกสาร</);
+	// W0: a fourth type tab, แม่แบบเอกสาร (เอกสาร until W0.2), beside the library's own.
+	assert.match(render(Component, { props: { ...props, documentsHref: '/app?view=documents&hub=front' } }).body, /<div class="seg[^"]*"[^>]*>[\s\S]*<a href="\/app\?view=documents&amp;hub=front"[^>]*>(?:<!---->)?แม่แบบเอกสาร<\/a>/);
+	assert.doesNotMatch(render(Component, { props }).body, /view=documents|แม่แบบเอกสาร/);
+	// W0.2: ไฟล์ keeps its name, and one short line says what these files are for.
+	const fileTab = render(Component, { props: { ...props, kind: 'file', features: { files: true, audienceModes: true }, documentsHref: '/app?view=documents&hub=front' } }).body;
+	assert.match(fileTab, /aria-pressed="true"[^>]*>(?:<[^>]*>)*ไฟล์/);
+	assert.match(fileTab, /<p class="kn-kind-line[^"]*">ไฟล์ที่ AI อ่านเพื่อตอบคำถาม<\/p>/);
+	assert.doesNotMatch(render(Component, { props }).body, /ไฟล์ที่ AI อ่านเพื่อตอบคำถาม/, 'only on the ไฟล์ tab');
 });
 
 // Codex code review 1, finding 9: the review confirms what it sent, and

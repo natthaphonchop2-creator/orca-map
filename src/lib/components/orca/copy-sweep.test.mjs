@@ -64,7 +64,11 @@ test('no screen calls a connected program "ระบบ" or asks with a chain of
 	for (const file of SOURCES) {
 		const source = await readFile(new URL(file, root), 'utf8');
 		for (const text of thaiCopy(source)) {
-			for (const word of banned) assert.ok(!text.includes(word), `${file}: “${text}” uses ${word}`);
+			// แม่แบบ stays retired for prompts; since W0.2 it names document templates: anywhere as
+			// แม่แบบเอกสาร, and alone only on the document templates' own screens.
+			const documentArea = /\/documents\/|\/doc-templates\.ts$/.test(file);
+			const uses = (word) => (word === 'แม่แบบ' ? !documentArea && /แม่แบบ(?!เอกสาร)/.test(text) : text.includes(word));
+			for (const word of banned) assert.ok(!uses(word), `${file}: “${text}” uses ${word}`);
 			// "ระบบ" stays only in เข้าสู่ระบบ / ออกจากระบบ and the theme's ตามระบบ.
 			const rest = text.replaceAll('เข้าสู่ระบบ', '').replaceAll('ออกจากระบบ', '').replaceAll('ตามระบบ', '');
 			assert.ok(!rest.includes('ระบบ'), `${file}: “${text}” says ระบบ for a program`);

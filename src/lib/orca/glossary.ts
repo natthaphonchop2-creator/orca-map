@@ -46,7 +46,7 @@ export const glossary = {
 	createWorkspace: ['พื้นที่ทำงาน AI', 'AI workspace'],
 	orcaAgent: ['ORCA Agent', 'ORCA Agent'],
 	createKnowledge: ['ความรู้', 'Knowledge'],
-	docTemplate: ['เทมเพลตเอกสาร', 'Document template'],
+	docTemplate: ['แม่แบบเอกสาร', 'Document template'],
 	connectAI: ['เชื่อม AI', 'Connect AI'],
 	inviteMember: ['ชวนสมาชิก', 'Invite a member'],
 	companyAccount: ['บัญชีกลาง', 'Company account'],
@@ -103,5 +103,7 @@ export const retiredWords: readonly Term[] = [
 	['เชื่อม AI กับ ORCA', 'Connect AI to ORCA'],
 	['เพิ่มระบบใหม่', 'Add a system'],
 	['ตั้งค่าระบบ', 'Setup'],
+	// แม่แบบ was the old word for a ready-made prompt (now คำสั่งสำเร็จรูป). Since W0.2 (owner,
+	// 2026-10-08) it names document templates only: แม่แบบเอกสาร, and แม่แบบ inside that area.
 	['แม่แบบ', 'Template']
 ];

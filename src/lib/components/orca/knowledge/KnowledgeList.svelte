@@ -212,8 +212,8 @@
 					<button type="button" aria-pressed={kind === 'template'} class:on={kind === 'template'} onclick={() => (kind = 'template')}>
 						<Zap size={16} aria-hidden="true" />{term('readyPrompt', t)}{#if counted}<span class="c">{templateCount}</span>{/if}
 					</button>
-					<!-- เอกสาร (document templates, kv2 phase 2a): a tab of คลังความรู้ on its own page, only with the company's flag on. -->
-					{#if documentsHref}<a href={documentsHref}><FileSpreadsheet size={16} aria-hidden="true" />{t('เอกสาร', 'Documents')}</a>{/if}
+					<!-- แม่แบบเอกสาร (document templates, kv2 phase 2a): a tab of คลังความรู้ on its own page, only with the company's flag on. -->
+					{#if documentsHref}<a href={documentsHref}><FileSpreadsheet size={16} aria-hidden="true" />{t('แม่แบบเอกสาร', 'Document templates')}</a>{/if}
 				</div>
 				<label class="search">
 					<Search size={16} aria-hidden="true" />
@@ -221,6 +221,8 @@
 				</label>
 			</div>
 
+			<!-- W0.2: ไฟล์ and แม่แบบเอกสาร read apart: one line says what these files are for. -->
+			{#if kind === 'file' && files}<p class="kn-kind-line">{t('ไฟล์ที่ AI อ่านเพื่อตอบคำถาม', 'Files AI reads to answer questions')}</p>{/if}
 			{#if kind === 'file' && files && fileZone}{@render fileZone()}{/if}
 			{#if kind === 'file' && !files}
 				<p class="kn-note off">
@@ -332,6 +334,12 @@
 </div>
 
 <style>
+	/* orca-type-remap v2 */
+	.kn-kind-line {
+		margin: 0 0 12px;
+		color: var(--orca-muted);
+		font-size: 13px;
+	}
 	/* orca-type-remap v1 */
 	.kn-head {
 		margin-bottom: 28px;
