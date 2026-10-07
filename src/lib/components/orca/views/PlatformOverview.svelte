@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { rememberCompanies } from '$lib/orca/jump-cache.svelte';
 	import { onMount } from 'svelte';
 	import { ArrowRight, Building2, Grid2x2Plus, Inbox, KeyRound, LogIn, Shield, TriangleAlert } from '@lucide/svelte';
 	import { term } from '$lib/orca/glossary';
@@ -58,7 +59,7 @@
 		catalogFailed = false;
 		await Promise.all([
 			loadUsage(),
-			OrcaService.platformCompanies().then((items) => (companies = items), (cause) => (companiesError = orcaError(cause))),
+			OrcaService.platformCompanies().then((items) => { companies = items; rememberCompanies(items); }, (cause) => (companiesError = orcaError(cause))),
 			canReviewPilotRequests
 				? OrcaService.listPilotRequests().then((response) => (pilots = response.items ?? []), (cause) => (pilotsError = orcaError(cause)))
 				: Promise.resolve(),

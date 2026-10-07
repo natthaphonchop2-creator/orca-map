@@ -12,6 +12,7 @@
 	} from '$lib/orca/doc-templates';
 	import { saveBlob } from '$lib/download';
 	import { term } from '$lib/orca/glossary';
+	import { rememberTemplates } from '$lib/orca/jump-cache.svelte';
 	import { BookOpen, Download, FileSpreadsheet, Files, Upload, Zap } from '@lucide/svelte';
 	import { getHttpStatusCode } from '$lib/errors';
 	import { ORCA_SUPPORT_LINE_ID } from '$lib/orca/support';
@@ -60,6 +61,7 @@
 			]);
 			if (number !== request) return;
 			templates = list;
+			untrack(() => rememberTemplates(id, list));
 			mine = liveDocuments(files, Date.now());
 			everyone = liveDocuments(managed, Date.now());
 			loaded = id;

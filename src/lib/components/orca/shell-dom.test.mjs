@@ -14,7 +14,7 @@ const PLAYWRIGHT = '/Users/natthaphon/Developer/MCP orgzi/outputs/node_modules/p
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 const BUILD = path.join(root, 'build');
 const ORIGIN = 'https://orca.test';
-const sources = ['src/lib/components/orca/AppShell.svelte', 'src/lib/components/orca/shell/PopMenu.svelte', 'src/lib/components/orca/shell/CreateMenu.svelte', 'src/lib/orca/rail.ts', 'src/lib/orca/menu-keys.ts'];
+const sources = ['src/lib/components/orca/AppShell.svelte', 'src/lib/components/orca/shell/PopMenu.svelte', 'src/lib/components/orca/shell/CreateMenu.svelte', 'src/lib/components/orca/shell/JumpDialog.svelte', 'src/lib/components/orca/w01.css', 'src/lib/components/orca/w02.css', 'src/lib/orca/rail.ts', 'src/lib/orca/menu-keys.ts', 'src/lib/orca/jump-targets.ts'];
 
 function unavailable() {
 	if (!existsSync(PLAYWRIGHT)) return `Playwright is not at ${PLAYWRIGHT}`;
@@ -41,8 +41,8 @@ function api(pathname) {
 	return [200, { items: [] }];
 }
 
-async function open(browser, viewport) {
-	const context = await browser.newContext({ viewport, deviceScaleFactor: 1, locale: 'en-US' });
+async function open(browser, viewport, { reducedMotion = 'no-preference' } = {}) {
+	const context = await browser.newContext({ viewport, deviceScaleFactor: 1, locale: 'en-US', reducedMotion });
 	await context.addInitScript(() => {
 		try {
 			localStorage.setItem('orca.workspace.rail.pinned', '0');
@@ -113,6 +113,106 @@ test('⌘K from a row of the phone สร้าง sheet: the sheet closes first
 		await page.waitForFunction(() => !document.querySelector('dialog.orca-modal[open]'));
 		assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('w1-create')), true, 'focus is back on สร้าง');
 		await context.close();
+	} finally {
+		await browser.close();
+	}
+});
+
+// W0.2 (owner, "ปุ่มค้นหาใช้ไม่ได้"): on the collapsed rail the panel opens when the
+// pointer arrives, so a click on ค้นหา must land on ค้นหา: no rail item moves while it opens.
+// Chromium and, when installed, WebKit (the owner uses Safari).
+test('the rail never moves under the pointer while it opens: every icon keeps its place, the click on ค้นหา opens search', { skip }, async () => {
+	const pw = createRequire(import.meta.url)(PLAYWRIGHT);
+	for (const engine of ['chromium', 'webkit']) {
+		let browser;
+		try {
+			browser = await pw[engine].launch();
+		} catch {
+			continue; // that engine is not installed here
+		}
+		try {
+			const { context, page } = await open(browser, { width: 1440, height: 900 });
+			const icons = () => page.evaluate(() => [...document.querySelectorAll('.w1-rail .w1-item:not(.w1-subitem) > :is(svg, .mcp-mark), .w1-rail .w1-brand')].map((icon) => {
+				const box = icon.getBoundingClientRect();
+				return `${icon.closest('[data-label], .w1-brand')?.getAttribute('data-label') ?? 'mark'} ${box.left.toFixed(1)},${box.top.toFixed(1)}`;
+			}));
+			await page.mouse.move(900, 500);
+			const closed = await icons();
+			assert.ok(closed.length >= 8, `${engine}: the rail's icons`);
+			const jump = await page.locator('.w1-rail .w1-jump > svg').boundingBox();
+			const x = jump.x + jump.width / 2, y = jump.y + jump.height / 2;
+			await page.mouse.move(x, y, { steps: 3 });
+			for (const wait of [40, 120, 230, 270, 330, 450]) {
+				await page.waitForTimeout(wait === 40 ? 40 : 60);
+				assert.deepEqual(await icons(), closed, `${engine}: the icons at about ${wait} ms into the hover`);
+				assert.equal(await page.evaluate(([px, py]) => !!document.elementFromPoint(px, py)?.closest('.w1-jump'), [x, y]), true, `${engine}: ค้นหา is still under the pointer`);
+			}
+			assert.equal(await railOpen(page), true, `${engine}: the panel opened`);
+			assert.deepEqual(await icons(), closed, `${engine}: open, the icons are where they were`);
+			await page.mouse.down();
+			await page.mouse.up();
+			await page.waitForSelector('dialog.orca-jump[open]');
+			assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('role')), 'combobox', `${engine}: the search field has focus`);
+			await context.close();
+		} finally {
+			await browser.close();
+		}
+	}
+});
+
+test('ค้นหา… finds a settings tab and a person, opens the active row on Enter, and says what it searched when nothing matches', { skip }, async () => {
+	const { chromium } = createRequire(import.meta.url)(PLAYWRIGHT);
+	const browser = await chromium.launch();
+	try {
+		const { context, page } = await open(browser, { width: 1440, height: 900 });
+		await page.keyboard.press('Control+KeyK');
+		await page.waitForSelector('dialog.orca-jump[open]');
+		const groups = () => page.$$eval('.jump-group-label', (nodes) => nodes.map((node) => node.textContent.trim()));
+		assert.deepEqual(await groups(), ['Pages', 'Create'], 'with no query: pages and the สร้าง actions');
+		await page.keyboard.type('manop');
+		assert.deepEqual(await groups(), ['Members']);
+		assert.match(await page.locator('.jump-row.active').textContent(), /Manop/);
+		await page.fill('dialog.orca-jump input', 'zzqx');
+		assert.match(await page.locator('.jump-empty').textContent(), /Nothing found for “zzqx”[\s\S]*a page, a program or a person/);
+		await page.fill('dialog.orca-jump input', 'acc');
+		const rows = await page.$$eval('.jump-row', (nodes) => nodes.map((node) => node.querySelector('.jump-label').textContent));
+		const at = rows.indexOf('My account');
+		assert.ok(at >= 0, `ตั้งค่า's บัญชีของฉัน is listed: ${rows}`);
+		for (let i = 0; i < at; i++) await page.keyboard.press('ArrowDown');
+		assert.equal(await page.locator('.jump-row.active .jump-label').textContent(), 'My account');
+		await page.keyboard.press('Enter');
+		await page.waitForFunction(() => location.search.includes('section=account'));
+		assert.equal(await page.locator('dialog.orca-jump[open]').count(), 0, 'the dialog closed');
+		await context.close();
+	} finally {
+		await browser.close();
+	}
+});
+
+test('reduced motion turns the W0.2 transitions and animations off', { skip }, async () => {
+	const { chromium } = createRequire(import.meta.url)(PLAYWRIGHT);
+	const browser = await chromium.launch();
+	try {
+		const read = (page) => page.evaluate(() => {
+			const seconds = (value) => Math.max(...value.split(',').map((part) => parseFloat(part) * (part.trim().endsWith('ms') ? 0.001 : 1)));
+			const style = (selector) => getComputedStyle(document.querySelector(selector));
+			return { rail: seconds(style('.w1-rail').transitionDuration), item: seconds(style('.w1-rail .w1-item').transitionDuration), create: seconds(style('.w1-create').transitionDuration) };
+		});
+		const moving = await open(browser, { width: 1440, height: 900 });
+		const on = await read(moving.page);
+		assert.ok(on.rail >= 0.15 && on.rail <= 0.22, `the rail slides (${on.rail}s)`);
+		assert.ok(on.item >= 0.15 && on.create >= 0.15, 'rows and buttons ease their colours');
+		await moving.page.keyboard.press('Control+KeyK');
+		await moving.page.waitForSelector('dialog.orca-jump[open]');
+		assert.notEqual(await moving.page.evaluate(() => getComputedStyle(document.querySelector('dialog.orca-jump')).animationName), 'none', 'the dialog rises in');
+		await moving.context.close();
+		const still = await open(browser, { width: 1440, height: 900 }, { reducedMotion: 'reduce' });
+		const off = await read(still.page);
+		assert.ok(off.rail < 0.001 && off.item < 0.001 && off.create < 0.001, `no transitions: ${JSON.stringify(off)}`);
+		await still.page.keyboard.press('Control+KeyK');
+		await still.page.waitForSelector('dialog.orca-jump[open]');
+		assert.equal(await still.page.evaluate(() => getComputedStyle(document.querySelector('dialog.orca-jump')).animationName), 'none', 'no animation');
+		await still.context.close();
 	} finally {
 		await browser.close();
 	}

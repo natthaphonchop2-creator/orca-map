@@ -4,6 +4,7 @@
   import { parseErrorContent } from "$lib/errors";
   import { invitationLink, lineShareURL } from "$lib/orca/invitations";
   import { localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
+  import { rememberCompanies } from "$lib/orca/jump-cache.svelte";
   import { platformHref } from "$lib/orca/navigation";
   import { canInviteOwner, canRevokeOwnerInvitation, emailDomain, ownerStatus, platformRefusal, resendEmail, signInWarnings, type OwnerStatus } from "$lib/orca/platform-companies";
   import { companyStatus, companyStatusNote, contractNote, platformCompanyHref } from "$lib/orca/platform-console";
@@ -103,6 +104,8 @@
       const next = await OrcaService.platformCompanies();
       if (current !== request) return;
       items = next;
+      // ค้นหา… on the platform finds these companies by name (W0.2).
+      rememberCompanies(next);
       loaded = true;
       listError = "";
     } catch (cause) {

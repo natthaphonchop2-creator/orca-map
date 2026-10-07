@@ -43,6 +43,7 @@
     tab,
     ontab,
     invite = false,
+    member = "",
   }: {
     data: OrcaBootstrap;
     onchanged: () => Promise<void>;
@@ -52,9 +53,20 @@
     ontab?: (next: TeamSection) => void;
     /** Open the invite dialog at once (&invite=1, from Home); managers only. */
     invite?: boolean;
+    /** ค้นหา…'s link to one person (&member=): the list opens filtered to them. */
+    member?: string;
   } = $props();
   let saving = $state(false);
   let query = $state("");
+  // ค้นหา… (W0.2) found this person: the list shows them (their email, which is unique).
+  $effect(() => {
+    const wanted = member;
+    if (!wanted) return;
+    untrack(() => {
+      const found = data.members.find((item) => item.id === wanted);
+      if (found) query = found.email || memberName(found);
+    });
+  });
   let section = $state<TeamSection>(untrack(() => tab ?? "members"));
   let memberStatus = $state("active");
   let departments = $state<LibraryDepartment[]>([]);

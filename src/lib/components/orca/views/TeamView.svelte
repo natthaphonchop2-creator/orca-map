@@ -11,6 +11,8 @@
 	// (&tab=invitations|departments). The page itself is today's TeamAccess.
 	let { data, onchanged }: { data: OrcaBootstrap; onchanged: () => Promise<void> } = $props();
 	const requested = $derived(page.url.searchParams.get('tab'));
+	// &member= (ค้นหา…, W0.2): the list opens filtered to that person.
+	const member = $derived(page.url.searchParams.get('member') ?? '');
 	const tab = $derived<TeamTab>((TEAM_TABS as readonly string[]).includes(requested ?? '') ? (requested as TeamTab) : 'members');
 	// &invite=1 (Home's "ส่งลิงก์เชิญ"): the invite dialog opens once; a reload does not reopen it.
 	const invite = untrack(() => data.canManage && page.url.searchParams.get('invite') === '1');
@@ -29,4 +31,4 @@
 	}
 </script>
 
-<div class="arcade-embedded"><TeamAccess {data} {onchanged} {tab} {ontab} {invite} /></div>
+<div class="arcade-embedded"><TeamAccess {data} {onchanged} {tab} {ontab} {invite} {member} /></div>

@@ -312,12 +312,26 @@
   font-size: 12px;
   font-weight: 400;
 }
+/* ค้นหา… (W0.2): on the rail an icon with the items' hover tile; in the open panel a
+   field look (filled, 8 px) with the ⌘K hint as plain text. The icon keeps its place. */
 .orca-w01 .w1-jump {
   margin-bottom: 4px;
   color: var(--orca-subtle);
   font-weight: 400;
 }
-.orca-w01 .w1-jump kbd {
+.orca-w01 .w1-rail.open .w1-jump,
+.orca-w01 .w1-drawer .w1-jump {
+  border-radius: var(--orca-radius-sm);
+  background: var(--orca-secondary);
+}
+.orca-w01 .w1-rail.open .w1-jump:hover,
+.orca-w01 .w1-drawer .w1-jump:hover {
+  background: var(--orca-hover);
+  box-shadow: inset 0 0 0 1px var(--orca-line-strong);
+  color: var(--orca-muted);
+}
+.orca-w01 .w1-jump-hint {
+  flex: none;
   margin-left: auto;
   color: var(--orca-subtle);
   font-size: 12px;

@@ -22,7 +22,7 @@ const require = createRequire(import.meta.url);
 // The harness compiles from a script, so a test can also run a mutant of it.
 const harnessCode = (script) => compileModule(
   `export function harness(dependencies) {
-  const { OrcaService, onMount, tick, parseErrorContent, invitationLink, lineShareURL, t, canInviteOwner, canRevokeOwnerInvitation, emailDomain, ownerStatus, platformRefusal, resendEmail, signInWarnings, displayDate, orcaError, externalBrowserLink, showToast, window, navigator } = dependencies;
+  const { OrcaService, rememberCompanies, onMount, tick, parseErrorContent, invitationLink, lineShareURL, t, canInviteOwner, canRevokeOwnerInvitation, emailDomain, ownerStatus, platformRefusal, resendEmail, signInWarnings, displayDate, orcaError, externalBrowserLink, showToast, window, navigator } = dependencies;
   ${script}
   return {
     load, loadGoogle, show, openCompany, inviteOwner, revoke, copy, explain, setLibraryV2, setDocTemplates, docTemplatesWaiting,
@@ -61,6 +61,7 @@ function mount(service, make = harness) {
         setCompanyDocTemplates: async (...args) => { calls.docs.push(args); return service.docs(...args); },
         googleSignIn: async () => { if (service.google === undefined) throw new Error("unavailable"); return { enabled: service.google }; },
       },
+      rememberCompanies: () => {},
       onMount: () => {},
       tick: async () => {},
       parseErrorContent: (error) => ({ status: error.status, message: error.message }),

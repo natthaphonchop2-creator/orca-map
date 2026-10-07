@@ -14,6 +14,8 @@ const { term } = await import(await typescriptModuleURL(new URL('../../orca/glos
 const workspaceNav = await import(await typescriptModuleURL(new URL('../../orca/workspace-nav.ts', import.meta.url)));
 const menuKeys = await import(await typescriptModuleURL(new URL('../../orca/menu-keys.ts', import.meta.url)));
 const rail = await import(await typescriptModuleURL(new URL('../../orca/rail.ts', import.meta.url)));
+const jumpTargets = await import(await typescriptModuleURL(new URL('../../orca/jump-targets.ts', import.meta.url)));
+const { platformCompanyHref } = await import(await typescriptModuleURL(new URL('../../orca/platform-console.ts', import.meta.url)));
 const { hubAsksApproval } = await import(await typescriptModuleURL(new URL('../../orca/approvals.ts', import.meta.url)));
 const shell = new URL('./AppShell.svelte', import.meta.url);
 const B = 'org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -43,7 +45,7 @@ async function renderShell(props) {
 		...company, ...workspaceNav, ...menuKeys, ...rail, localeHref: (path) => path, t: en, orcaLocale: { value: 'en' },
 		activeNavigationView: navigation.activeNavigationView, APP_VIEWS: navigation.APP_VIEWS, platformHref: navigation.platformHref, showsPlatformSwitch: navigation.showsPlatformSwitch,
 		term, hubAsksApproval, memberName: (member) => member.displayName, memberRole: () => 'Member',
-		writesInFlight: () => 0, onMount: () => {}, untrack: (fn) => fn(), goto: async () => {}, PopMenu, CreateMenu, McpMark,
+		...jumpTargets, platformCompanyHref, jumpCache: { knowledge: [], templates: [], companies: [] }, writesInFlight: () => 0, onMount: () => {}, untrack: (fn) => fn(), goto: async () => {}, PopMenu, CreateMenu, McpMark,
 	});
 	return { warnings, html: render(Component, { props: { view: 'dashboard', refreshing: false, onrefresh() {}, children: () => {}, ...props } }).body };
 }
@@ -57,7 +59,7 @@ const menuOf = (html, id) => {
 };
 const createRows = (html) => [...menuOf(html, 'orca-create-menu').matchAll(/data-create="([^"]+)"/g)].map((match) => match[1]);
 
-test('W0.1 rail for Owners and Admins: ไปที่…, หน้าหลัก, then AI · ข้อมูล · จัดการ, and ช่วยเหลือ with the ORCA mark', async () => {
+test('W0.1 rail for Owners and Admins: ค้นหา…, หน้าหลัก, then AI · ข้อมูล · จัดการ, and ช่วยเหลือ with the ORCA mark', async () => {
 	const { warnings, html } = await renderShell({ data: owner, companies: [companies[0]], account: '7', pendingApprovals: 2 });
 	assert.deepEqual(warnings, []);
 	assert.deepEqual(sections(html), ['AI', 'Data', 'Manage']);
@@ -65,7 +67,9 @@ test('W0.1 rail for Owners and Admins: ไปที่…, หน้าหลั
 		'Home /app', 'My AI /app?view=connect-ai', 'Programs /app?view=servers', 'Knowledge /app?view=knowledge', 'History /app?view=approvals', 'Settings /app?view=settings', 'Help /app?view=help'
 	]);
 	const aside = railOf(html);
-	assert.match(aside, /class="w1-item w1-jump"[^>]*aria-keyshortcuts="Meta\+K Control\+K"[\s\S]*?Go to…[\s\S]*?<kbd>⌘K<\/kbd>/);
+	// W0.2: ค้นหา… is a search field in the open panel (an icon on the rail), its ⌘K a plain hint, not a boxed key.
+	assert.match(aside, /class="w1-item w1-jump"[^>]*aria-label="Search" aria-haspopup="dialog" aria-keyshortcuts="Meta\+K Control\+K"[\s\S]*?<span class="w1-label">Search…<\/span><span class="w1-jump-hint" aria-hidden="true">⌘K<\/span>/);
+	assert.doesNotMatch(aside, /<kbd>/, 'no boxed key');
 	assert.match(aside, /<span class="w1-item w1-soon" aria-disabled="true" data-label="Workflows · Coming soon">[\s\S]*?Workflows<\/span><small class="w1-aside">Coming soon<\/small>/);
 	assert.doesNotMatch(aside, /<a [^>]*>(?:(?!<\/a>)[\s\S])*Workflows/);
 	// โปรแกรม's icon is the MCP mark (owner, 2026-10-07).

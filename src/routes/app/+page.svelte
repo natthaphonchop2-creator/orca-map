@@ -335,6 +335,7 @@
       {hubID}
       initialKind={libraryKind}
       initialCreate={createLibraryItem}
+      initialItem={page.url.searchParams.get("item") ?? ""}
       onchanged={refresh}
     />
   {:else if view === "documents"}<DocumentsView data={currentData!} {hubID} templateID={page.url.searchParams.get("template") ?? ""} />

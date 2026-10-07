@@ -1,13 +1,15 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { companyHref, companySwitch, currentCompany, DEFAULT_COMPANY, rememberCompany, type OrcaCompanyChoice } from "$lib/orca/company";
-  import { companyStatus, companyStatusNote } from "$lib/orca/platform-console";
+  import { companyStatus, companyStatusNote, platformCompanyHref } from "$lib/orca/platform-console";
   import { localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
   import { writesInFlight } from "$lib/services/writes";
   import { activeNavigationView, APP_VIEWS, platformHref, showsPlatformSwitch, type PlatformSection } from "$lib/orca/navigation";
   import { hubAsksApproval } from "$lib/orca/approvals";
   import { term } from "$lib/orca/glossary";
-  import { createMenu, createShortcut, menuFeatures, settingsEntries, workspaceSections, type JumpTarget, type NavIcon, type NavSectionID, type SettingsEntryID } from "$lib/orca/workspace-nav";
+  import { createMenu, createShortcut, menuFeatures, settingsEntries, workspaceSections, type CreateItem, type NavIcon, type NavSectionID, type SettingsEntryID } from "$lib/orca/workspace-nav";
+  import { buildJumpTargets, type JumpGroup, type JumpTarget } from "$lib/orca/jump-targets";
+  import { jumpCache } from "$lib/orca/jump-cache.svelte";
   import { createSequence, isJumpShortcut } from "$lib/orca/menu-keys";
   import { createRail, railFocusTarget, type RailState } from "$lib/orca/rail";
   import {
@@ -319,25 +321,97 @@
     void goto(localeHref(item.href));
   }
 
-  // ไปที่…: the pages in the menu, ตั้งค่า's tabs, and the programs and workspaces this viewer can open.
+  // ไปที่… (ค้นหา…, W0.2): the pages, ตั้งค่า's tabs, the สร้าง actions, and the programs,
+  // workspaces, people, knowledge, templates and companies this viewer can already open,
+  // from what the page holds (no new requests). jump-targets.ts builds and matches them.
+  const createLabels: Record<CreateItem["id"], () => string> = {
+    workspace: () => term("createWorkspace", t),
+    program: () => term("addProgram", t),
+    workflow: () => "Workflow",
+    skill: () => "Skill",
+    agent: () => term("orcaAgent", t),
+    knowledge: () => term("createKnowledge", t),
+    template: () => term("docTemplate", t),
+    ai: () => term("connectAI", t),
+    invite: () => term("inviteMember", t),
+    account: () => term("companyAccount", t),
+  };
+  // Words a row also answers to: "สร้าง", and what people type for it.
+  const createWords: Partial<Record<CreateItem["id"], string>> = {
+    workspace: "workspace ใหม่",
+    program: "เชื่อม เพิ่ม connect add program โปรแกรม",
+    knowledge: "เพิ่ม ความรู้ add",
+    template: "template excel",
+    ai: "เชื่อม connect claude chatgpt",
+    invite: "เชิญ invite member คน",
+    account: "บัญชีกลาง company account",
+  };
+  const jumpGroupLabels: Record<JumpGroup, () => string> = {
+    action: () => term("create", t),
+    page: () => t("หน้า", "Pages"),
+    setting: () => term("settings", t),
+    program: () => term("programs", t),
+    workspace: () => term("workspaces", t),
+    person: () => term("members", t),
+    knowledge: () => term("knowledge", t),
+    template: () => term("docTemplate", t),
+    company: () => term("company", t),
+  };
+  const jumpGroupLabel = (group: JumpGroup) => jumpGroupLabels[group]();
+  const hubName = (id: string) => data?.hubs?.find((hub) => hub?.id === id)?.name ?? "";
   const jumpTargets = $derived.by<JumpTarget[]>(() => {
-    const pages = t("หน้า", "Page");
-    const targets: JumpTarget[] = sections
-      .flatMap((railSection) => railSection.items)
-      .filter((item) => !item.soon)
-      .map((item) => ({ id: `page:${item.id}`, label: item.label, href: item.href, group: pages }));
-    targets.push({ id: "page:help", label: term("help", t), href: "/app?view=help", group: pages });
-    if (platformMode) return targets;
-    for (const entry of settingsList) targets.push({ id: `page:${entry.id}`, label: entry.label, href: entry.href, group: pages });
-    if (canManage)
-      for (const connection of data?.connections ?? [])
-        if (!connection.archivedAt && !connection.deletedAt)
-          targets.push({ id: `program:${connection.id}`, label: connection.name, href: `/app?view=servers&connection=${encodeURIComponent(connection.id)}`, group: term("program", t) });
-    for (const hub of data?.hubs ?? [])
-      if (hub.status !== "archived" && hub.status !== "deleted")
-        targets.push({ id: `hub:${hub.id}`, label: hub.name, href: `/app?view=hub&hub=${encodeURIComponent(hub.id)}`, group: term("workspaces", t) });
-    return targets;
+    try {
+      return buildJumpTargets({
+        platformMode,
+        canManage,
+        pages: [
+          ...sections.flatMap((railSection) => railSection.items),
+          { id: "help", label: term("help", t), href: "/app?view=help" },
+        ],
+        settings: settingsList,
+        actions: createGroups.flat().map((item) => ({
+          id: item.id,
+          label: createLabels[item.id](),
+          href: item.href,
+          soon: item.soon,
+          keywords: `${term("create", t)} ${createWords[item.id] ?? ""}`,
+        })),
+        connections: data?.connections,
+        hubs: data?.hubs,
+        members: data?.members,
+        memberName: (member: Parameters<typeof memberName>[0]) => memberName(member),
+        knowledge: jumpCache.knowledge.map((item) => ({ ...item, hubName: hubName(item.hubID) })),
+        templates: features?.docTemplates ? jumpCache.templates.map((item) => ({ ...item, hubName: hubName(item.hubID) })) : [],
+        // The platform: its customer companies as its pages listed them; a company: the switcher's.
+        companies: platformMode && jumpCache.companies.length ? jumpCache.companies : companies,
+        currentCompany: company,
+        platformCompanyHref: (id) => platformCompanyHref(id),
+        companyHref: (id) => companyHref(id),
+      });
+    } catch {
+      // A field the live bootstrap left out must never take the search down: the pages at least.
+      return sections.flatMap((railSection) => railSection.items).filter((item) => !item.soon).map((item) => ({ id: `page:${item.id}`, label: item.label, href: item.href, group: "page" as const }));
+    }
   });
+  const jumpPlaceholder = $derived(
+    platformMode ? t("ค้นหาหน้า หรือบริษัทลูกค้า…", "Search pages or customer companies…")
+      : canManage ? t("ค้นหาหน้า โปรแกรม คน หรือความรู้…", "Search pages, programs, people or knowledge…")
+      : t("ค้นหาหน้า พื้นที่ทำงาน หรือความรู้…", "Search pages, workspaces or knowledge…"),
+  );
+  const jumpEmptyHint = $derived(
+    platformMode ? t("ลองค้นชื่อหน้า หรือชื่อบริษัท", "Try a page or a company name")
+      : canManage ? t("ลองค้นชื่อหน้า โปรแกรม หรือคน", "Try a page, a program or a person")
+      : t("ลองค้นชื่อหน้า หรือพื้นที่ทำงาน", "Try a page or a workspace name"),
+  );
+  // Another company from the search: the same guard as the switcher (a save in flight waits).
+  function pickJump(target: JumpTarget, event: MouseEvent) {
+    if (target.group !== "company" || !target.reload) return;
+    switchCompany(event, target.id.slice("company:".length));
+    if (!event.defaultPrevented) return;
+    jumping = false;
+    // A save still in flight: the company menu says so (its note), as when switching there.
+    if (switchWaiting) companyOpen = true;
+  }
   const accountInitial = $derived((accountName.trim()[0] || "O").toLocaleUpperCase());
   // One company: it is still listed, with its check, so the menu says where you are.
   const companyChoices = $derived<Pick<OrcaCompanyChoice, "id" | "displayName" | "status">[]>(
@@ -393,8 +467,9 @@
 
 {#snippet railBody(mobile: boolean)}
   <div class="w1-rail-scroll">
-    <button type="button" class="w1-item w1-jump" data-label={`${term("jumpTo", t)} ⌘K`} aria-keyshortcuts="Meta+K Control+K" onclick={() => { closeDrawer(); jumping = true; }}
-      ><Search size={20} strokeWidth={1.75} aria-hidden="true" /><span class="w1-label">{term("jumpTo", t)}</span><kbd>⌘K</kbd></button
+    <!-- ค้นหา… (W0.2): an icon on the rail, a search field in the open panel; it opens ไปที่… either way. -->
+    <button type="button" class="w1-item w1-jump" data-label={`${t("ค้นหา", "Search")} ⌘K`} aria-label={t("ค้นหา", "Search")} aria-haspopup="dialog" aria-keyshortcuts="Meta+K Control+K" onclick={() => { closeDrawer(); jumping = true; }}
+      ><Search size={18} strokeWidth={1.75} aria-hidden="true" /><span class="w1-label">{t("ค้นหา…", "Search…")}</span><span class="w1-jump-hint" aria-hidden="true">⌘K</span></button
     >
     <nav class="w1-nav" aria-label={platformMode ? term("platform", t) : t("เมนูหลัก", "Main navigation")}>
       {#each sections as railSection (railSection.id)}
@@ -582,6 +657,6 @@
       {@render children()}
     </main>
   </div>
-  <JumpDialog bind:open={jumping} targets={jumpTargets} />
+  <JumpDialog bind:open={jumping} targets={jumpTargets} groupLabel={jumpGroupLabel} placeholder={jumpPlaceholder} emptyHint={jumpEmptyHint} onpick={pickJump} />
   <Toast />
 </div>

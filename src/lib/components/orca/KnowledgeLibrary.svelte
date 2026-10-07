@@ -6,6 +6,7 @@
 	import { aiConnectionAppFor, aiConnectionReaches } from '$lib/orca/ai-connection';
 	import { aiConnection } from '$lib/orca/ai-connection.svelte';
 	import { currentCompany } from '$lib/orca/company';
+	import { rememberLibrary } from '$lib/orca/jump-cache.svelte';
 	import { term } from '$lib/orca/glossary';
 	import {
 		accessRequestMessage,
@@ -64,12 +65,15 @@
 		hubID,
 		initialKind,
 		initialCreate = false,
+		initialItem = '',
 		onchanged
 	}: {
 		data: OrcaBootstrap;
 		hubID: string;
 		initialKind?: LibraryKind;
 		initialCreate?: boolean;
+		/** ค้นหา…'s link to one item (&item=): its page opens once the library is loaded. */
+		initialItem?: string;
 		onchanged: () => Promise<void>;
 	} = $props();
 
@@ -191,6 +195,30 @@
 					// Before the router starts: the intent stays in the address.
 				}
 			}
+		});
+	});
+
+	// ค้นหา… lists the titles this page loaded (W0.2): kept in step with the list, cleared when it goes.
+	// (The write is untracked: the cache is read while it is replaced, which must not run this again.)
+	$effect(() => {
+		const id = hub?.id ?? '';
+		const list = items;
+		if (id && loadedHub === id) untrack(() => rememberLibrary(id, list));
+	});
+	// ค้นหา…'s link to one item (&item=): its page, once, after the library is loaded.
+	const consumedItems = new Set<string>();
+	$effect(() => {
+		const id = hub?.id;
+		const wanted = initialItem;
+		if (!id || !wanted || loadedHub !== id) return;
+		untrack(() => {
+			const key = `${id}:${wanted}`;
+			if (consumedItems.has(key) || dirty) return;
+			consumedItems.add(key);
+			const found = items.find((item) => item.id === wanted);
+			if (!found) return;
+			kind = found.kind;
+			show({ name: 'detail', id: found.id });
 		});
 	});
 
