@@ -827,6 +827,9 @@ html:has(.orca-workspace.orca-app .workspace-drawer[open]) {
   .orca-workspace.orca-app *::after,
   .orca-workspace.orca-app dialog::backdrop {
     transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
   }
 }
 

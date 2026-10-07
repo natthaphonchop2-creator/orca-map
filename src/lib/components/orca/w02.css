@@ -1,0 +1,128 @@
+/* orca-type-remap v1 */
+/* orca-type-remap v2 */
+/*
+ * W0.2, a polish pass (owner 2026-10-08). Loaded last in the shell, after w01.css.
+ * The scale itself lives in the tokens (orca-system.css, orca-theme.css): radius
+ * 8 / 10 / 14 / 18, the grey page under white cards, 32 px controls, 34 px rows.
+ * This file holds what is new in W0.2:
+ * - Short functional motion only (150-220 ms, --orca-ease): the rail's labels fade in
+ *   as it opens, menus and dialogs fade and rise 4-8 px, hover and active states
+ *   change background and colour, tab bars fade their underline in. No glow, orbit or
+ *   sweep. All of it sits inside prefers-reduced-motion: no-preference, and
+ *   orca-system.css turns any transition or animation off under reduce.
+ * - Phone tap targets of at least 40 px (pointer: coarse).
+ */
+
+/* ---------- Motion ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  /* Hover and active states: background, colour, border and the hairline ring only.
+     Beats w0.css's `transition: none` on the same elements (same specificity, later). */
+  .orca-workspace.orca-app.orca-w0 :is(
+      .w1-item, .w1-menu-row, .w1-icon-button, .w1-company, .w1-create, .w1-avatar-button, .w1-pin, .w1-caret,
+      .k-button, .k-link-button, .cm-row, .pm-close, .orca-modal-close,
+      .orca-page-tabs a, .settings-tabs a, .oversight-tabs a, .team-tabs button, .audit-tabs a,
+      .workspace-nav a, .workspace-mode a, .workspace-account > summary, .workspace-account-menu > a, .workspace-icon-button, .workspace-jump, .workspace-company-switch > summary
+    ) {
+    transition:
+      background-color var(--orca-dur-fast) var(--orca-ease),
+      color var(--orca-dur-fast) var(--orca-ease),
+      border-color var(--orca-dur-fast) var(--orca-ease),
+      box-shadow var(--orca-dur-fast) var(--orca-ease),
+      opacity var(--orca-dur-fast) var(--orca-ease);
+  }
+  /* The rail: the panel slides open (w01.css); its words fade in just after, so the
+     icons, which never move, are all that shows while it is narrow. */
+  .orca-w01 .w1-rail.open :is(.w1-label, .w1-jump-hint, .w1-sec span, .w1-aside, .w1-count, .w1-caret, .w1-pin, .w1-brand-full, .w1-sub) {
+    animation: w02-fade var(--orca-dur) var(--orca-ease) 60ms both;
+  }
+  .orca-w01 .w1-group .w1-caret svg {
+    transition: transform var(--orca-dur) var(--orca-ease);
+  }
+  /* The phone drawer slides in from the left; the dimmed page fades. */
+  .orca-w01 .w1-drawer[open] {
+    animation: w02-slide-in var(--orca-dur-slow) var(--orca-ease);
+  }
+  .orca-workspace.orca-app dialog[open]::backdrop {
+    animation: w02-fade var(--orca-dur) var(--orca-ease);
+  }
+  /* Dialogs and confirmations: a fade and a 6 px rise; side sheets come 12 px from the right. */
+  .orca-workspace.orca-app :is(.orca-confirm, .lifecycle-dialog, .team-dialog, .invitation-dialog, .company-dialog)[open] {
+    animation: w02-rise var(--orca-dur) var(--orca-ease);
+  }
+  .orca-workspace.orca-app .orca-sheet[open] {
+    animation: w02-from-right var(--orca-dur-slow) var(--orca-ease);
+  }
+  /* Small menus that are not PopMenus (ทีม's row menus, the knowledge scope, the person picker). */
+  .orca-workspace.orca-app :is(.team-menu-panel:not([hidden]), .kn-scope-menu, .orca-picker-list) {
+    animation: w02-rise-small var(--orca-dur) var(--orca-ease);
+  }
+  /* Tab bars: the chosen tab's underline fades in when its page opens. */
+  .orca-workspace.orca-app :is(.orca-page-tabs a.chosen, .settings-tabs a.chosen, .oversight-tabs a.chosen, .team-tabs button.active, .audit-tabs a.active) {
+    animation: w02-underline var(--orca-dur-slow) var(--orca-ease);
+  }
+  /* Long lists and dialog bodies scroll smoothly (keyboard and in-page jumps), and never
+     hand the scroll on to the page behind. The page itself keeps instant scrolling, so a
+     page change still starts at the top at once. */
+  .orca-workspace.orca-app :is(.w1-rail-scroll, .w1-drawer, .pm-menu, .pm-sheet, .orca-sheet-body, .orca-confirm, .orca-picker-list, .kn-scope-menu) {
+    scroll-behavior: smooth;
+  }
+}
+.orca-workspace.orca-app :is(.w1-rail-scroll, .w1-drawer, .orca-sheet-body, .orca-picker-list, .kn-scope-menu) {
+  overscroll-behavior: contain;
+}
+@keyframes w02-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes w02-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes w02-rise-small {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes w02-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+@keyframes w02-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+@keyframes w02-underline {
+  from {
+    border-bottom-color: transparent;
+  }
+}
+
+/* ---------- Phone: tap targets of at least 40 px ---------- */
+@media (pointer: coarse) {
+  .orca-workspace.orca-app.orca-w0 :is(.k-button, .w1-item, .w1-menu-row, .cm-row, .orca-page-tabs a, .k-field input:not([type='checkbox']):not([type='radio']), .k-field select) {
+    min-height: 40px;
+  }
+  .orca-workspace.orca-app.orca-w0 .k-button.small {
+    min-height: 36px;
+  }
+  .orca-w01 :is(.w1-icon-button, .w1-avatar-button, .w1-pin, .w1-caret) {
+    width: 40px;
+    height: 40px;
+  }
+  .orca-w01 .w1-create,
+  .orca-w01 .w1-company {
+    height: 40px;
+    min-height: 40px;
+  }
+  .orca-w01 .w1-caret {
+    top: 0;
+  }
+}

@@ -219,6 +219,7 @@
 .orca-w01 .w1-rail.open {
   width: var(--w1-panel);
 }
+/* The panel slides open; its labels fade in after it starts (w02.css), the icons never move. */
 @media (prefers-reduced-motion: no-preference) {
   .orca-w01 .w1-rail {
     transition: width var(--orca-dur-slow, 0.22s) var(--orca-ease);

@@ -6,7 +6,7 @@
 
 	// A centred dialog (W0: สร้าง, the program catalog, ไปที่…). On a phone it
 	// opens as a bottom sheet up to 92% of the screen. Esc, the close button and
-	// a tap on the dimmed page close it. No motion.
+	// a tap on the dimmed page close it. It opens with a short fade and rise (W0.2).
 	let {
 		open = $bindable(false),
 		title,
@@ -146,6 +146,7 @@
 		min-height: 0;
 		padding: 8px 20px 20px;
 		overflow: auto;
+		overscroll-behavior: contain;
 	}
 	.orca-modal-foot {
 		display: flex;
@@ -155,6 +156,29 @@
 		gap: 12px;
 		padding: 12px 20px;
 		border-top: 1px solid var(--orca-line);
+	}
+	/* Opening: a short fade and a 6 px rise; the sheet rises 8 px. Off with reduced motion (W0.2). */
+	@media (prefers-reduced-motion: no-preference) {
+		.orca-modal[open] {
+			animation: orca-modal-in var(--orca-dur, 180ms) var(--orca-ease, ease-out);
+		}
+		.orca-modal[open]::backdrop {
+			animation: orca-modal-fade var(--orca-dur, 180ms) var(--orca-ease, ease-out);
+		}
+		.orca-modal-body {
+			scroll-behavior: smooth;
+		}
+	}
+	@keyframes orca-modal-in {
+		from {
+			opacity: 0;
+			transform: translateY(6px);
+		}
+	}
+	@keyframes orca-modal-fade {
+		from {
+			opacity: 0;
+		}
 	}
 	/* A phone: a bottom sheet, full width, up to 92% of the screen. */
 	@media (max-width: 720px) {

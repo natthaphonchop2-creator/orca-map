@@ -5,7 +5,7 @@
  * orca-system.css, so these rules win at the same specificity.
  * - Type (W0.2, owner 2026-10-08, one more step down): h1 22 (18 at ≤720 px), body 13.5, small 12.
  * - Black, white and grey. Citron only on small points: the active item's dot.
- * - No effects or animation on the menu or on buttons.
+ * - No effects on the menu or on buttons; W0.2's short functional transitions live in w02.css.
  */
 
 /* ---------- Type ---------- */

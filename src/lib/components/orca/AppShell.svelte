@@ -27,6 +27,7 @@
   import "./orca-system.css";
   import "./w0.css";
   import "./w01.css";
+  import "./w02.css";
   import {
     BookOpenText,
     BotMessageSquare,
@@ -348,6 +349,21 @@
   function closeDrawer() {
     drawer?.close();
   }
+  // In-page links (#…, the skip link, a form's error list) glide to their place unless
+  // reduced motion is asked for (W0.2). The page itself keeps instant scrolling, so a page
+  // change still starts at the top at once (SvelteKit scrolls the window on navigation).
+  function onAnchorClick(event: MouseEvent) {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const link = (event.target as Element | null)?.closest?.("a[href^='#']");
+    const id = link?.getAttribute("href")?.slice(1);
+    if (!link || !id) return;
+    const target = document.getElementById(decodeURIComponent(id));
+    if (!target) return;
+    event.preventDefault();
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+    target.focus({ preventScroll: true });
+  }
   onMount(() => {
     const desktop = window.matchMedia("(min-width: 821px)");
     const onResize = () => {
@@ -355,9 +371,11 @@
     };
     desktop.addEventListener("change", onResize);
     document.addEventListener("keydown", onShortcut);
+    document.addEventListener("click", onAnchorClick);
     return () => {
       desktop.removeEventListener("change", onResize);
       document.removeEventListener("keydown", onShortcut);
+      document.removeEventListener("click", onAnchorClick);
       railControl.dispose();
     };
   });

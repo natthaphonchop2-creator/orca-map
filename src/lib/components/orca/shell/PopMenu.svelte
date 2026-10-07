@@ -220,7 +220,9 @@
 		max-width: calc(100vw - 24px);
 		max-height: calc(100dvh - 80px);
 		overflow: auto;
-		padding: 4px;
+		overscroll-behavior: contain;
+		/* 18 px corners, 8 px in: the rows' 10 px corners follow the menu's (W0.2). */
+		padding: 8px;
 		border: 1px solid var(--orca-line);
 		border-radius: var(--orca-radius-xl);
 		background: var(--orca-popover, var(--orca-surface));
@@ -236,7 +238,7 @@
 	.pm-menu.align-left {
 		left: 0;
 	}
-	/* The phone sheet: a modal dialog at the bottom, up to 92% of the screen. No motion. */
+	/* The phone sheet: a modal dialog at the bottom, up to 92% of the screen; it rises in (below). */
 	.pm-sheet {
 		position: fixed;
 		inset: auto 0 0 0;
@@ -246,12 +248,42 @@
 		margin: 0;
 		padding: 4px 8px calc(8px + env(safe-area-inset-bottom));
 		overflow: auto;
+		overscroll-behavior: contain;
 		border: 1px solid var(--orca-line);
 		border-bottom: 0;
 		border-radius: var(--orca-radius-xl, 18px) var(--orca-radius-xl, 18px) 0 0;
 		background: var(--orca-popover, var(--orca-surface));
 		color: var(--orca-ink);
 		box-shadow: none;
+	}
+	/* Opening: a short fade and a 4 px rise (8 px for the sheet), off with reduced motion (W0.2). */
+	@media (prefers-reduced-motion: no-preference) {
+		.pm-menu {
+			animation: pm-in var(--orca-dur, 180ms) var(--orca-ease, ease-out);
+		}
+		.pm-sheet[open] {
+			animation: pm-sheet-in var(--orca-dur-slow, 220ms) var(--orca-ease, ease-out);
+		}
+		.pm-sheet[open]::backdrop {
+			animation: pm-fade var(--orca-dur, 180ms) var(--orca-ease, ease-out);
+		}
+	}
+	@keyframes pm-in {
+		from {
+			opacity: 0;
+			transform: translateY(4px);
+		}
+	}
+	@keyframes pm-sheet-in {
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+	}
+	@keyframes pm-fade {
+		from {
+			opacity: 0;
+		}
 	}
 	.pm-sheet::backdrop {
 		background: var(--orca-scrim, rgba(21, 24, 35, 0.45));

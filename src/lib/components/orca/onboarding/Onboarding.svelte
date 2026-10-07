@@ -27,6 +27,7 @@
 	import '../app-workspace.css';
 	import '../orca-system.css';
 	import '../w0.css';
+	import '../w02.css';
 
 	// The first run (W0): two screens without the sidebar, the ORCA logo top left
 	// and the company top right, two small dots for the page. Screen 1: the

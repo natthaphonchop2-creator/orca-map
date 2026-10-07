@@ -26,8 +26,8 @@
 		const target = document.getElementById(field);
 		if (!target) return;
 		event.preventDefault();
-		target.scrollIntoView({ block: 'center' });
-		target.focus();
+		target.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+		target.focus({ preventScroll: true });
 	}
 </script>
 

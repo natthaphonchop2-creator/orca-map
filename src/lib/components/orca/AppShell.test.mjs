@@ -142,8 +142,16 @@ test('the rail\'s active item: a grey tile only on the rail; the citron dot only
 	assert.match(css, /--w1-rail: 52px;\s*--w1-panel: 256px;/);
 	assert.match(css, /\.orca-w01 \.w1-stage \{[^}]*margin-left: var\(--w1-rail\);/);
 	assert.match(css, /\.orca-w01\.rail-pinned \.w1-stage \{\s*margin-left: var\(--w1-panel\);/);
-	assert.match(css, /@media \(prefers-reduced-motion: no-preference\) \{\s*\.orca-w01 \.w1-rail \{\s*transition: width/);
-	assert.doesNotMatch(css.replace(/@media \(prefers-reduced-motion: no-preference\) \{[^}]*\}\s*\}/, ''), /transition|animation/, 'no other motion');
+	assert.match(css, /@media \(prefers-reduced-motion: no-preference\) \{\s*\.orca-w01 \.w1-rail \{\s*transition: width var\(--orca-dur-slow, 0\.22s\) var\(--orca-ease\);/);
+	assert.doesNotMatch(css.replace(/@media \(prefers-reduced-motion: no-preference\) \{[^}]*\}\s*\}/, ''), /transition|animation/, 'no other motion in the shell file');
+	// W0.2's other motion (w02.css) is all inside no-preference blocks, and reduce turns every transition and animation off.
+	const motion = (await readFile(new URL('./w02.css', import.meta.url), 'utf8')).replace(/\/\*[\s\S]*?\*\//g, '');
+	const outside = motion.replace(/@media \(prefers-reduced-motion: no-preference\) \{(?:[^{}]*\{[^{}]*\})*\s*\}/g, '').replace(/@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*\s*\}/g, '');
+	assert.doesNotMatch(outside, /transition|animation/, 'w02.css: no motion outside no-preference');
+	assert.match(motion, /@media \(prefers-reduced-motion: no-preference\)/);
+	assert.doesNotMatch(motion, /glow|orbit|sweep|infinite/i, 'functional motion only');
+	const system = await readFile(new URL('./orca-system.css', import.meta.url), 'utf8');
+	assert.match(system, /@media \(prefers-reduced-motion: reduce\) \{[^}]*transition-duration: 0\.01ms !important;[^}]*animation: none !important;[^}]*scroll-behavior: auto !important;/);
 });
 
 test('the rail opens on hover, focus and Esc through the rail module, and its pin through the shell', async () => {
