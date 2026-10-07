@@ -20,8 +20,9 @@ test('sticky save bars keep keyboard focus in view, and the phone drawer closes 
 	assert.match(css, /html:has\(\.orca-workspace\.orca-app \.workspace-drawer\[open\]\) \{\s*overflow: hidden;/);
 	const shell = await read('./AppShell.svelte');
 	assert.match(shell, /onclick=\{\(event\) => \{\s*if \(event\.target === drawer\) closeDrawer\(\);/);
-	// W0: the company sits under the logo in the sidebar and in the phone drawer alike.
-	assert.match(shell, /\{#if data && !compact\}[\s\S]*?<div class="workspace-company">/);
+	// W0.1: the company is the top bar's (a phone too); the drawer holds the rail's contents.
+	assert.match(shell, /<PopMenu id="orca-company-menu"/);
+	assert.match(shell, /<dialog\s+class="workspace-drawer w1-drawer"[\s\S]*?\{@render railBody\(true\)\}/);
 });
 
 test('an "#accounts" link reaches the program sign-ins once they render', async () => {

@@ -34,5 +34,6 @@
 	returnTo={params.get('return')}
 	address={page.url.pathname + page.url.search}
 	navigate={(href) => goto(href, { keepFocus: true, noScroll: true })}
+	startCompany={params.get('as') === 'company'}
 	{onchanged}
 />

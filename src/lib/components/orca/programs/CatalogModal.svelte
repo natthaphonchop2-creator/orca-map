@@ -21,6 +21,7 @@
 		open = $bindable(false),
 		returnTo = '',
 		added = '',
+		startCompany = false,
 		onrequest,
 		onclose
 	}: {
@@ -30,6 +31,8 @@
 		returnTo?: string;
 		/** The program the connect page just saved (&added): what AI was allowed, with a way to change it. */
 		added?: string;
+		/** สร้าง › บัญชีกลาง: the connect step starts on the company account (&as=company). */
+		startCompany?: boolean;
 		/** "ขอให้เพิ่ม": the request form, with what was searched. */
 		onrequest?: (query: string) => void;
 		onclose?: () => void;
@@ -63,7 +66,7 @@
 	$effect(() => {
 		if (open && !loaded && !loading && !error) void load();
 	});
-	const back = $derived(returnTo === 'new' || returnTo === 'welcome' ? `&return=${returnTo}` : '');
+	const back = $derived(`${returnTo === 'new' || returnTo === 'welcome' ? `&return=${returnTo}` : ''}${startCompany ? '&as=company' : ''}`);
 	const connectHref = (source: CatalogTool) => localeHref(`/app?view=add-program&source=${encodeURIComponent(source.id)}&step=connect${back}`);
 	const programHref = (connectionID: string) =>
 		localeHref(returnTo === 'new' ? `/app?view=new&connection=${encodeURIComponent(connectionID)}` : `/app?view=servers&connection=${encodeURIComponent(connectionID)}`);

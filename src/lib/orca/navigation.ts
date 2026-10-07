@@ -401,6 +401,8 @@ export function appNavigation(
 
 	if (hash === '#accounts' && view !== 'connect-ai') hash = '';
 	if (view !== 'servers') p.delete('catalog');
+	// &as=company (สร้าง › บัญชีกลาง): the connect step starts on บัญชีกลาง. Only beside the catalog or the connect page.
+	if (p.get('as') !== null && (p.get('as') !== 'company' || !((view === 'servers' && p.get('catalog') === '1') || view === 'add-program'))) p.delete('as');
 	const connectionDetail = view === 'servers' && Boolean(p.get('connection'));
 	const before = canonicalSearch(params, options.hash && options.hash !== '#' ? options.hash : '');
 	const after = canonicalSearch(p, hash);

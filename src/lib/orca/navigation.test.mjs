@@ -467,3 +467,12 @@ test("W0: &added (the program just saved) stays on the catalog and onboarding 2 
   redirects("view=knowledge&added=c1", "/app?view=knowledge");
   redirects("view=servers&catalog=1&added=c1", "/app?view=connect-ai#accounts", { role: employee });
 });
+
+test("W0.1: &as=company (สร้าง › บัญชีกลาง) rides with the catalog and the connect page only", () => {
+  stays("view=servers&catalog=1&as=company", "servers");
+  stays("view=add-program&source=s1&step=connect&as=company", "add-program");
+  redirects("view=servers&as=company", "/app?view=servers");
+  redirects("view=servers&catalog=1&as=other", "/app?view=servers&catalog=1");
+  redirects("view=knowledge&as=company", "/app?view=knowledge");
+  redirects("view=servers&catalog=1&as=company", "/app?view=connect-ai#accounts", { role: employee });
+});

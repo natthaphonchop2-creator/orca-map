@@ -878,3 +878,12 @@ test('independent W0 review (NOTE 1): the account choice is locked while a save 
 	const rebase = source.slice(source.indexOf('async function rebase('), source.indexOf('function pick('));
 	assert.match(rebase, /accountMode = latestAccount \? 'company' : 'personal';\s*accountChanged\(\);/);
 });
+
+test('W0.1: สร้าง › บัญชีกลาง starts the connect step on the company account', async (context) => {
+	const run = await setup(context, { props: { startCompany: true } });
+	assert.equal(run.view.state.accountMode, 'company');
+	const plain = await setup(context);
+	assert.equal(plain.view.state.accountMode, 'personal');
+	const view = await readFile(new URL('./views/AddProgramView.svelte', import.meta.url), 'utf8');
+	assert.match(view, /startCompany=\{params\.get\('as'\) === 'company'\}/);
+});

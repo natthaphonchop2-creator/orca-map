@@ -119,12 +119,14 @@
 	});
 	const returnTo = $derived(page.url.searchParams.get('return') ?? '');
 	const added = $derived(page.url.searchParams.get('added') ?? '');
+	const startCompany = $derived(page.url.searchParams.get('as') === 'company');
 	function closeCatalog() {
 		const url = new URL(page.url.href);
 		if (!url.searchParams.has('catalog')) return;
 		url.searchParams.delete('catalog');
 		url.searchParams.delete('return');
 		url.searchParams.delete('added');
+		url.searchParams.delete('as');
 		void goto(url.pathname + url.search + url.hash, { replaceState: true, keepFocus: true, noScroll: true });
 	}
 	let requestOpen = $state(false);
@@ -229,6 +231,7 @@
 		bind:open={catalogOpen}
 		{returnTo}
 		{added}
+		{startCompany}
 		onclose={closeCatalog}
 		onrequest={(query) => {
 			requested = query;

@@ -243,7 +243,8 @@ test('W0: the catalog dialog: search, the category tabs, เชื่อม or �
 	assert.match(source, /\{:else if card\.state === 'soon'\}<span class="cat-later">\{t\('เร็วๆ นี้', 'Coming soon'\)\}<\/span>/);
 	assert.match(source, /\{:else\}<a class="k-button small" href=\{connectHref\(source\)\}/);
 	assert.match(source, /`\/app\?view=add-program&source=\$\{encodeURIComponent\(source\.id\)\}&step=connect\$\{back\}`/);
-	assert.match(source, /const back = \$derived\(returnTo === 'new' \|\| returnTo === 'welcome' \? `&return=\$\{returnTo\}` : ''\);/);
+	// The way back, and W0.1's สร้าง › บัญชีกลาง start (&as=company), ride with the connect link.
+	assert.match(source, /const back = \$derived\(`\$\{returnTo === 'new' \|\| returnTo === 'welcome' \? `&return=\$\{returnTo\}` : ''\}\$\{startCompany \? '&as=company' : ''\}`\);/);
 	assert.match(source, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/, 'two columns');
 	assert.match(source.slice(source.indexOf('@media (max-width: 720px)')), /\.cat-grid \{\s*grid-template-columns: minmax\(0, 1fr\);/, 'one on a phone');
 });
