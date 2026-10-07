@@ -235,6 +235,7 @@
 />
 
 <style>
+	/* orca-type-remap v1 */
 	.dc {
 		display: grid;
 		gap: 16px;
@@ -256,7 +257,7 @@
 		background: transparent;
 		color: var(--orca-muted);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 		cursor: pointer;
 	}
 	.dc-seg button.on {
@@ -272,7 +273,7 @@
 	.dc-block h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 650;
 	}
 	.dc-list {
@@ -301,7 +302,7 @@
 	.dc-title {
 		overflow-wrap: anywhere;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 	}
 	a.dc-title {
@@ -313,7 +314,7 @@
 	.dc-state {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.dc-state {
@@ -331,7 +332,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
 		color: var(--orca-ink);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.dc-panel a {
@@ -346,7 +347,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-deny-bg);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.dc-upload {
 		position: relative;

@@ -353,7 +353,7 @@
 	}
 	.kn-docs {
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		text-decoration: underline;
 		text-underline-offset: 3px;

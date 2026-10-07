@@ -461,6 +461,7 @@
 />
 
 <style>
+	/* orca-type-remap v1 */
 	.dt {
 		display: grid;
 		gap: 18px;
@@ -485,7 +486,7 @@
 	.dt-section h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 650;
 	}
 	.dt-row {
@@ -499,7 +500,7 @@
 	.dt-section p {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.dt-panel {
@@ -509,7 +510,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface-2);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.dt-strong {
@@ -523,7 +524,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-deny-bg);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		list-style: none;
 	}
 	.dt-fields,
@@ -553,7 +554,7 @@
 		grid-column: 1 / -1;
 		color: var(--orca-muted);
 		font-family: var(--orca-mono, ui-monospace, monospace);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.dt .k-field {
 		display: grid;
@@ -562,7 +563,7 @@
 	}
 	.dt .k-field > span {
 		color: var(--orca-text-2);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.dt-check {
 		display: inline-flex;
@@ -570,7 +571,7 @@
 		gap: 6px;
 		min-height: 40px;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.dt-count {
 		color: var(--orca-ink) !important;
@@ -603,7 +604,7 @@
 	.dt-text {
 		overflow: hidden;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
@@ -620,7 +621,7 @@
 		gap: 6px;
 		min-height: 36px;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.dt-people {
 		display: grid;
@@ -635,7 +636,7 @@
 	}
 	.dt-grid {
 		border-collapse: collapse;
-		font-size: 12px;
+		font-size: 11.5px;
 	}
 	.dt-grid th,
 	.dt-grid td {
@@ -685,7 +686,7 @@
 		flex-wrap: wrap;
 		gap: 6px 14px;
 		margin: 0;
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.dt-legend span {
 		padding: 1px 6px;
@@ -703,7 +704,7 @@
 		gap: 8px;
 		min-height: 40px;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.dt-buttons {
 		display: flex;

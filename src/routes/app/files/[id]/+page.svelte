@@ -92,19 +92,20 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
   .file-main { display: flex; justify-content: center; }
   .file-panel { align-self: center; width: min(100%, 460px); }
   .file-loading { display: flex; align-items: center; gap: 10px; }
-  .file-title { margin: 0 0 6px; font-size: 22px; line-height: 1.35; overflow-wrap: anywhere; }
-  .file-facts { margin: 0 0 18px; color: var(--orca-muted); font-size: 14px; }
-  .file-note { margin: 14px 0 0; color: var(--orca-muted); font-size: 13.5px; line-height: 1.6; }
+  .file-title { margin: 0 0 6px; font-size: 20px; line-height: 1.35; overflow-wrap: anywhere; }
+  .file-facts { margin: 0 0 18px; color: var(--orca-muted); font-size: 13.5px; }
+  .file-note { margin: 14px 0 0; color: var(--orca-muted); font-size: 13px; line-height: 1.6; }
   a.o-button { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
-  .file-report { margin-top: 18px; font-size: 13.5px; }
+  .file-report { margin-top: 18px; font-size: 13px; }
   .file-report summary { cursor: pointer; font-weight: 600; }
   .file-report table { width: 100%; margin-top: 10px; border-collapse: collapse; }
   .file-report th, .file-report td { padding: 6px 8px; border-top: 1px solid var(--orca-line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
   .file-report th { color: var(--orca-muted); font-weight: 500; }
   .file-what { display: block; }
-  .file-cell { display: block; color: var(--orca-muted); font-size: 12px; }
+  .file-cell { display: block; color: var(--orca-muted); font-size: 11.5px; }
   .file-over { margin: 8px 0 0; color: var(--orca-muted); }
 </style>
