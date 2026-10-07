@@ -15,6 +15,7 @@ import type {
 	GeneratedDocument,
 	GeneratedReport
 } from '../services/orca-doc-templates';
+import { stoppedFromRefusal } from './platform-console';
 
 type Translate = (th: string, en: string) => string;
 
@@ -431,23 +432,25 @@ export async function confirmReview<T>(
 export const FILE_ID = /^[0-9a-f]{32}$/;
 
 export type FilePage =
-	| { kind: 'ready'; location: DocumentLocation; href: string }
+	| { kind: 'ready'; location: DocumentLocation; company: string }
+	| { kind: 'stopped'; status: 'suspended' | 'closed' }
 	| { kind: 'missing' }
 	| { kind: 'retry' };
 
 /**
- * What the file page shows. The download is pinned to the company locate
- * named, never the page's own; a file locate does not answer for is the
- * same "not found" whatever the reason, and nothing else is tried.
+ * What the file page shows, from locate's answer or the download's refusal.
+ * The download is pinned to the company locate named, never the page's own.
+ * The file's company that is suspended or closed answers its requester 423
+ * (platform console C6 §4.2): the page says so with the fixed message. Any
+ * other file locate does not answer for is the same "not found" whatever the
+ * reason, and nothing else is tried.
  */
-export function filePage(
-	id: string,
-	answer: { location?: DocumentLocation; status?: number },
-	downloadHref: (id: string, company: string) => string
-): FilePage {
+export function filePage(id: string, answer: { location?: DocumentLocation; status?: number; message?: string }): FilePage {
 	if (!FILE_ID.test(id)) return { kind: 'missing' };
 	const location = answer.location;
-	if (location && location.id === id && location.companyID) return { kind: 'ready', location, href: downloadHref(id, location.companyID) };
+	if (location && location.id === id && location.companyID) return { kind: 'ready', location, company: location.companyID };
+	const stopped = stoppedFromRefusal(answer.status, answer.message ?? '');
+	if (stopped) return { kind: 'stopped', status: stopped };
 	if (answer.status && answer.status >= 500) return { kind: 'retry' };
 	return { kind: 'missing' };
 }

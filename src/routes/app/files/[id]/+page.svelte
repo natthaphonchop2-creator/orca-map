@@ -3,8 +3,10 @@
   import PublicFooter from "$lib/components/orca/PublicFooter.svelte";
   import "$lib/components/orca/forms.css";
   import "$lib/components/orca/orca.css";
+  import { saveBlob } from "$lib/download";
   import { parseErrorContent } from "$lib/errors";
   import { filePage, FILE_ID, expiryText, reportLine, reportRows, type FilePage } from "$lib/orca/doc-templates";
+  import { stoppedMessage } from "$lib/orca/platform-console";
   import { formatBytes } from "$lib/orca/knowledge";
   import { initializeLocale, localeHref, orcaLocale, t } from "$lib/orca/locale.svelte";
   import { OrcaDocTemplateService, type GeneratedDocument } from "$lib/services/orca-doc-templates";
@@ -25,12 +27,12 @@
   onMount(async () => {
     initializeLocale();
     if (!FILE_ID.test(data.id)) {
-      view = filePage(data.id, {}, OrcaDocTemplateService.downloadHref);
+      view = filePage(data.id, {});
       return;
     }
     try {
       const location = await OrcaDocTemplateService.locate(data.id);
-      view = filePage(data.id, { location }, OrcaDocTemplateService.downloadHref);
+      view = filePage(data.id, { location });
       if (view.kind === "ready") {
         try {
           const mine = await OrcaDocTemplateService.documents(location.hubID, location.companyID);
@@ -40,9 +42,30 @@
         }
       }
     } catch (cause) {
-      view = filePage(data.id, { status: parseErrorContent(cause).status }, OrcaDocTemplateService.downloadHref);
+      view = filePage(data.id, parseErrorContent(cause));
     }
   });
+
+  // The file, after a click, through the request layer (as the library's
+  // originals): a refusal reaches the page. The file's company stopped, or the
+  // file is gone, turns the page; anything else asks to try again.
+  let downloading = $state(false);
+  let downloadError = $state("");
+  async function download(ready: Extract<FilePage, { kind: "ready" }>) {
+    if (downloading) return;
+    downloading = true;
+    downloadError = "";
+    try {
+      const file = await OrcaDocTemplateService.download(ready.location.id, ready.company);
+      saveBlob(file.blob, file.fileName);
+    } catch (cause) {
+      const next = filePage(data.id, parseErrorContent(cause));
+      if (next.kind === "retry") downloadError = t("ดาวน์โหลดไม่สำเร็จ ลองอีกครั้ง", "The download didn't finish. Try again.");
+      else view = next;
+    } finally {
+      downloading = false;
+    }
+  }
 </script>
 
 <svelte:head><title>{t("เอกสารจาก ORCA", "A document from ORCA")}</title><meta name="robots" content="noindex" /></svelte:head>
@@ -57,7 +80,9 @@
       {:else if view.kind === "ready"}
         <h1 class="file-title">{view.location.name}</h1>
         <p class="file-facts">{formatBytes(view.location.bytes)} · {expiryText(view.location.expiresAt, now, t)}</p>
-        <a class="o-button" href={view.href} download><Download size={16} aria-hidden="true" />{t("ดาวน์โหลด", "Download")}</a>
+        {@const ready = view}
+        <button type="button" class="o-button" disabled={downloading} onclick={() => download(ready)}><Download size={16} aria-hidden="true" />{t("ดาวน์โหลด", "Download")}</button>
+        {#if downloadError}<p class="o-alert file-alert" role="alert">{downloadError}</p>{/if}
         <p class="file-note">{t("ตรวจตัวเลขในไฟล์ก่อนส่งต่อ ไฟล์นี้เปิดได้เฉพาะคุณ", "Check the figures before you send it on. Only you can open this file.")}</p>
         {#if doc?.report}
           <details class="file-report">
@@ -77,6 +102,10 @@
             {/each}
           </details>
         {/if}
+      {:else if view.kind === "stopped"}
+        <h1 class="file-title">{t("เปิดเอกสารนี้ไม่ได้", "This document can't be opened")}</h1>
+        <p>{stoppedMessage(view.status, t)}</p>
+        <a class="o-button outline" href={localeHref("/app")}>{t("เปิด ORCA", "Open ORCA")}</a>
       {:else if view.kind === "retry"}
         <h1 class="file-title">{t("เปิดเอกสารไม่สำเร็จ", "The document did not open")}</h1>
         <p>{t("ORCA ตอบไม่ได้ในตอนนี้ ลองอีกครั้ง", "ORCA can't answer right now. Try again.")}</p>
@@ -99,7 +128,8 @@
   .file-title { margin: 0 0 6px; font-size: 20px; line-height: 1.35; overflow-wrap: anywhere; }
   .file-facts { margin: 0 0 18px; color: var(--orca-muted); font-size: 13.5px; }
   .file-note { margin: 14px 0 0; color: var(--orca-muted); font-size: 13px; line-height: 1.6; }
-  a.o-button { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+  a.o-button, button.o-button { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+  .file-alert { margin: 12px 0 0; }
   .file-report { margin-top: 18px; font-size: 13px; }
   .file-report summary { cursor: pointer; font-weight: 600; }
   .file-report table { width: 100%; margin-top: 10px; border-collapse: collapse; }

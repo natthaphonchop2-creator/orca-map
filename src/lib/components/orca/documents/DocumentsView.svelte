@@ -10,7 +10,8 @@
 		versionStateText,
 		workingVersion
 	} from '$lib/orca/doc-templates';
-	import { currentCompany } from '$lib/orca/company';
+	import { saveBlob } from '$lib/download';
+	import { getHttpStatusCode } from '$lib/errors';
 	import { ORCA_SUPPORT_LINE_ID } from '$lib/orca/support';
 	import { formatBytes, libraryScope } from '$lib/orca/knowledge';
 	import { localeHref, t } from '$lib/orca/locale.svelte';
@@ -113,7 +114,25 @@
 		const member = data.members.find((m) => m.id === id);
 		return member ? memberName(member) : t('คนที่ออกไปแล้ว', 'Someone who left');
 	};
-	const company = $derived(currentCompany());
+
+	// A file, after a click, through the request layer like every other request
+	// (as the library's originals, Codex PC1 review 2 MAJOR 2): a suspended or
+	// closed company's 423 stops the page there, which opens the suspended
+	// page; a plain link's answer never reached the page.
+	let fetching = $state('');
+	async function save(doc: GeneratedDocument, inspect: boolean) {
+		if (fetching || !hub) return;
+		fetching = doc.id;
+		try {
+			const file = inspect ? await OrcaDocTemplateService.inspect(hub.id, doc.id) : await OrcaDocTemplateService.download(doc.id);
+			saveBlob(file.blob, file.fileName);
+		} catch (cause) {
+			if (getHttpStatusCode(cause) === 423) return;
+			showToast(orcaError(cause), { tone: 'error' });
+		} finally {
+			fetching = '';
+		}
+	}
 </script>
 
 {#if !on}
@@ -186,7 +205,7 @@
 									{#if doc.report}<span class="dc-sub">{reportLine(doc.report, !!doc.reportTruncated, t)}</span>{/if}
 								</div>
 								<span class="dc-actions">
-									<a class="k-button small" href={OrcaDocTemplateService.downloadHref(doc.id, company)} download>{t('ดาวน์โหลด', 'Download')}</a>
+									<button type="button" class="k-button small" disabled={!!fetching} onclick={() => save(doc, false)}>{t('ดาวน์โหลด', 'Download')}</button>
 									<button type="button" class="k-button quiet small" onclick={() => (removing = doc)}>{t('ลบ', 'Delete')}</button>
 								</span>
 							</li>
@@ -208,7 +227,7 @@
 										<span class="dc-title">{doc.templateTitle ?? ''}</span>
 										<span class="dc-sub">{person(doc.requesterID)} · {displayDate(doc.readyAt)} · {formatBytes(doc.bytes)} · {expiryText(doc.expiresAt, now, t)}</span>
 									</div>
-									<a class="k-button quiet small" href={OrcaDocTemplateService.inspectHref(hub.id, doc.id)} download>{t('ตรวจเอกสาร', 'Inspect')}</a>
+									<button type="button" class="k-button quiet small" disabled={!!fetching} onclick={() => save(doc, true)}>{t('ตรวจเอกสาร', 'Inspect')}</button>
 								</li>
 							{/each}
 						</ul>

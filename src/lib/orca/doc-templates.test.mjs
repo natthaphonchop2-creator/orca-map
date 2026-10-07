@@ -174,17 +174,26 @@ test('เอกสารที่สร้าง: only unexpired files, newest f
 
 test('the file page downloads in the company locate named, and says "not found" for everything else', () => {
 	const id = '0123456789abcdef0123456789abcdef';
-	const href = (file, company) => `/api/orca/orgs/${company}/files/${file}/download`;
 	const location = { id, companyID: 'org-b', hubID: 'h', name: 'Daily Briefing.xlsx', bytes: 48213, expiresAt: '2026-11-05T00:00:00Z' };
-	assert.deepEqual(d.filePage(id, { location }, href), { kind: 'ready', location, href: `/api/orca/orgs/org-b/files/${id}/download` });
+	assert.deepEqual(d.filePage(id, { location }), { kind: 'ready', location, company: 'org-b' });
 	// Not the requester, gone, expired, or another company's: the same answer, and nothing else is asked.
-	for (const status of [404, 403, 401]) assert.deepEqual(d.filePage(id, { status }, href), { kind: 'missing' });
-	assert.deepEqual(d.filePage(id, { status: 503 }, href), { kind: 'retry' });
+	for (const status of [404, 403, 401]) assert.deepEqual(d.filePage(id, { status }), { kind: 'missing' });
+	assert.deepEqual(d.filePage(id, { status: 503 }), { kind: 'retry' });
 	// A location for another file, or without a company, opens nothing.
-	assert.deepEqual(d.filePage(id, { location: { ...location, id: 'f'.repeat(32) } }, href), { kind: 'missing' });
-	assert.deepEqual(d.filePage(id, { location: { ...location, companyID: '' } }, href), { kind: 'missing' });
+	assert.deepEqual(d.filePage(id, { location: { ...location, id: 'f'.repeat(32) } }), { kind: 'missing' });
+	assert.deepEqual(d.filePage(id, { location: { ...location, companyID: '' } }), { kind: 'missing' });
 	for (const bad of ['0123', id.toUpperCase(), `${id}0`, '../x', ''])
-		assert.deepEqual(d.filePage(bad, { location: { ...location, id: bad } }, href), { kind: 'missing' }, bad);
+		assert.deepEqual(d.filePage(bad, { location: { ...location, id: bad } }), { kind: 'missing' }, bad);
+});
+
+test('the file page says the file\'s company is suspended or closed, with the fixed message (PC1)', () => {
+	const id = '0123456789abcdef0123456789abcdef';
+	// Locate's or the download's 423 for the file's own company.
+	assert.deepEqual(d.filePage(id, { status: 423, message: 'orca_company_suspended' }), { kind: 'stopped', status: 'suspended' });
+	assert.deepEqual(d.filePage(id, { status: 423, message: 'orca_company_closed' }), { kind: 'stopped', status: 'closed' });
+	// Any other answer is not a stop; a malformed ID never gets that far.
+	assert.deepEqual(d.filePage(id, { status: 404, message: 'orca_company_suspended' }), { kind: 'missing' });
+	assert.deepEqual(d.filePage('0123', { status: 423, message: 'orca_company_suspended' }), { kind: 'missing' });
 });
 
 test('each filled cell shows where it came from, for the requester', () => {

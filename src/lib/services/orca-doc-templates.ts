@@ -1,6 +1,6 @@
 import { orcaPath } from '$lib/orca/company';
-import { baseURL, doDelete, doGet, doPost, doPut, doUpload } from './http';
-import type { UploadProgress } from './orca-library';
+import { doDelete, doGet, doGetForResponse, doPost, doPut, doUpload } from './http';
+import { attachmentName, type UploadProgress } from './orca-library';
 
 // Document templates (knowledge library v2 phase 2a): a manager uploads a
 // company .xlsx, ORCA scans it and proposes a fill spec, the manager confirms
@@ -189,6 +189,7 @@ const normalize = (template: DocTemplate): DocTemplate => ({
 	unitIDs: template.unitIDs ?? [],
 	versions: template.versions ?? []
 });
+const saved = async (response: Response) => ({ blob: await response.blob(), fileName: attachmentName(response.headers.get('Content-Disposition')) });
 const form = (file: File) => {
 	const body = new FormData();
 	body.append('files', file, file.name);
@@ -237,8 +238,17 @@ export const OrcaDocTemplateService = {
 	removeDocument: (id: string) => doDelete(orcaPath(`/files/${part(id)}`), options),
 	/** The file page's first question, asked without a company. */
 	locate: (id: string) => doGet(`/orca/files/${part(id)}/locate`, options) as Promise<DocumentLocation>,
-	/** A plain same-origin link in the pinned company; the server checks and audits it. */
-	downloadHref: (id: string, company: string) => `${baseURL}${orcaPath(`/files/${part(id)}/download`, company)}`,
-	/** ตรวจเอกสาร: a manager's audited open of a person's file. */
-	inspectHref: (hubID: string, id: string) => `${baseURL}${orcaPath(`/hubs/${part(hubID)}/documents/${part(id)}/inspect`)}`
+	/**
+	 * A file, after a click, through the request layer like every other
+	 * request, as the library's originals (Codex PC1 review 2 MAJOR 2): its
+	 * refusals reach the page, and a suspended or closed company's 423 stops
+	 * it. `company` pins the file page's; the server checks and audits it.
+	 */
+	async download(id: string, company?: string): Promise<{ blob: Blob; fileName: string }> {
+		return saved(await doGetForResponse(orcaPath(`/files/${part(id)}/download`, company), options));
+	},
+	/** ตรวจเอกสาร: a manager's audited open of a person's file, the same way. */
+	async inspect(hubID: string, id: string): Promise<{ blob: Blob; fileName: string }> {
+		return saved(await doGetForResponse(orcaPath(`/hubs/${part(hubID)}/documents/${part(id)}/inspect`), options));
+	}
 };
