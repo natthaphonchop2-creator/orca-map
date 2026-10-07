@@ -595,6 +595,7 @@
 />
 
 <style>
+	/* orca-type-remap v1 */
 	.kn-back {
 		display: inline-flex;
 		align-items: center;
@@ -604,7 +605,7 @@
 		border: 0;
 		background: transparent;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		cursor: pointer;
 	}
 	.kn-back:hover {
@@ -624,7 +625,7 @@
 	}
 	.kd-title h1 {
 		margin: 0;
-		font-size: 26px;
+		font-size: 22px;
 		font-weight: 700;
 		line-height: 1.35;
 		overflow-wrap: anywhere;
@@ -636,7 +637,7 @@
 		gap: 6px 14px;
 		margin: 8px 0 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.kd-status.draft :global(.orca-pill-dot) {
 		width: 8px;
@@ -677,7 +678,7 @@
 	.kd-summary {
 		margin: 0;
 		color: var(--orca-text-2);
-		font-size: 15px;
+		font-size: 14px;
 		line-height: 1.6;
 	}
 	.fd-alert {
@@ -690,7 +691,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-deny-bg);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.55;
 	}
 	.fd-alert :global(svg) {
@@ -720,13 +721,13 @@
 	.fd-state h2,
 	.fd-card h2 {
 		margin: 0 0 6px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 	}
 	.fd-state p {
 		margin: 0;
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.fd-state-actions {
@@ -746,7 +747,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface-2);
 		color: var(--orca-text-2);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.fd-note span {
@@ -782,7 +783,7 @@
 		align-items: flex-start;
 		gap: 10px;
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.55;
 	}
 	.fd-lines i {
@@ -804,20 +805,20 @@
 	.fd-hint {
 		margin: 12px 0 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.fd-name {
 		margin: 4px 0 2px;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		overflow-wrap: anywhere;
 	}
 	.fd-meta {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.55;
 	}
 	.fd-buttons {
@@ -836,7 +837,7 @@
 		display: grid;
 		gap: 6px;
 		color: var(--orca-text-2);
-		font-size: 13px;
+		font-size: 12.5px;
 		overflow-wrap: anywhere;
 	}
 	.fd-bar {
@@ -877,7 +878,7 @@
 		border-radius: 8px;
 		background: transparent;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 500;
 		cursor: pointer;
 	}

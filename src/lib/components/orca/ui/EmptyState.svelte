@@ -25,6 +25,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.orca-empty {
 		display: flex;
 		flex-direction: column;
@@ -49,7 +50,7 @@
 		max-width: 46ch;
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 500;
 		line-height: 1.6;
 	}

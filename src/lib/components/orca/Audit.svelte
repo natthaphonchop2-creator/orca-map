@@ -87,7 +87,7 @@
   const subtitle = $derived(
     mode === "administration"
       ? data.canManage
-        ? t("ดูว่าเจ้าของบริษัทและผู้ดูแลเปลี่ยนการตั้งค่าอะไร เมื่อไร", "See what owners and admins changed, and when.")
+        ? t("ใครเปลี่ยนการตั้งค่าอะไร เมื่อไร", "Who changed which setting, and when.")
         : // An employee receives only their own changes.
           t("สิ่งที่คุณเปลี่ยนเอง เช่น ความรู้และคำสั่งสำเร็จรูปที่คุณแก้ และเมื่อไร", "What you changed yourself, such as knowledge and ready-made prompts, and when.")
       : data.canManage
@@ -655,7 +655,7 @@
     </div>{/if}
   <p class="retention-note">
     {t(
-      "แสดง 200 รายการล่าสุดที่คุณมีสิทธิ์ดู ตัวกรองและตัวเลขนับจากรายการชุดนี้",
+      "แสดง 200 รายการล่าสุด",
       "Shows the 200 most recent records you may see. Filters and counts use only these.",
     )}
   </p>
@@ -726,6 +726,7 @@
 </dialog>
 
 <style>
+	/* orca-type-remap v1 */
   /* The page follows its own width, not the window's: the sidebar takes a share. */
   .observability {
     min-width: 0;
@@ -751,7 +752,7 @@
     min-height: 46px;
     border-bottom: 2px solid transparent;
     color: var(--orca-muted);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 500;
     text-decoration: none;
     white-space: nowrap;
@@ -786,7 +787,7 @@
     gap: 6px;
     min-width: 0;
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 600;
   }
   .audit-field select,
@@ -800,7 +801,7 @@
     background-color: var(--orca-field);
     color: var(--orca-ink);
     font: inherit;
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 400;
   }
   .search-field {
@@ -823,7 +824,7 @@
     background: transparent;
     color: var(--orca-ink);
     font: inherit;
-    font-size: 14px;
+    font-size: 13.5px;
   }
   .search-field input::placeholder {
     color: var(--orca-subtle);
@@ -879,7 +880,7 @@
     gap: 4px 8px;
     margin: 0;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .audit-error {
     display: flex;
@@ -902,7 +903,7 @@
     border-radius: var(--orca-radius-lg);
     background: var(--orca-surface);
     color: var(--orca-muted);
-    font-size: 14px;
+    font-size: 13.5px;
   }
   /* The table */
   .audit-panel {
@@ -916,7 +917,7 @@
     width: 100%;
     border-collapse: collapse;
     text-align: start;
-    font-size: 14px;
+    font-size: 13.5px;
   }
   th {
     height: 42px;
@@ -924,7 +925,7 @@
     border-bottom: 1px solid var(--orca-line);
     background: var(--orca-surface);
     color: var(--orca-subtle);
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 600;
     text-align: start;
     white-space: nowrap;
@@ -964,7 +965,7 @@
     background: transparent;
     color: var(--orca-ink);
     font: inherit;
-    font-size: 14.5px;
+    font-size: 13.5px;
     font-weight: 600;
     text-align: start;
     cursor: pointer;
@@ -981,7 +982,7 @@
     overflow: hidden;
     color: var(--orca-muted);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12px;
+    font-size: 11.5px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -994,13 +995,13 @@
     display: block;
     margin-top: 2px;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
     overflow-wrap: break-word;
   }
   .duration,
   .timestamp {
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
@@ -1034,7 +1035,7 @@
     padding: 10px 16px;
     border-top: 1px solid var(--orca-line);
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .pagination > div {
     display: flex;
@@ -1052,7 +1053,7 @@
     width: 72px;
     height: 32px;
     padding: 0 8px;
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .pagination button {
     display: inline-grid;
@@ -1078,7 +1079,7 @@
   .retention-note {
     margin: 12px 0 0;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: 1.6;
   }
   /* The detail drawer */
@@ -1109,7 +1110,7 @@
   }
   .drawer-heading h2 {
     margin: 0;
-    font-size: 17px;
+    font-size: 16px;
     font-weight: 700;
     line-height: 1.45;
     overflow-wrap: anywhere;
@@ -1117,7 +1118,7 @@
   .drawer-heading p {
     margin: 2px 0 0;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .drawer-close {
     display: inline-grid;
@@ -1145,7 +1146,7 @@
     justify-content: space-between;
     gap: 10px;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .identity-details {
     display: grid;
@@ -1161,20 +1162,20 @@
   }
   dt {
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
   }
   dd {
     min-width: 0;
     margin: 0;
     color: var(--orca-ink);
-    font-size: 14px;
+    font-size: 13.5px;
     overflow-wrap: anywhere;
   }
   dd small {
     display: block;
     margin-top: 2px;
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
   }
   dd .audit-id {
     max-width: none;
@@ -1200,7 +1201,7 @@
   .admission-note {
     margin: 16px 0 0;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: 1.6;
   }
   .admission-note {
@@ -1304,7 +1305,7 @@
     .person-cell .primary-cell,
     .context-cell .primary-cell {
       color: var(--orca-text-2);
-      font-size: 13.5px;
+      font-size: 13px;
     }
     .pagination {
       padding: 4px 0 0;

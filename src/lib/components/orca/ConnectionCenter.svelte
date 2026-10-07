@@ -95,7 +95,7 @@
 		localeHref(`/app?view=servers&connection=${encodeURIComponent(id)}${tab ? `&tab=${tab}` : ''}`);
 </script>
 
-<PageHeader title={term('programs', t)} subtitle={t('โปรแกรมที่ AI ของทีมใช้ได้ และสิ่งที่ AI ทำได้ในแต่ละโปรแกรม', 'The programs your team’s AI can use, and what AI can do in each.')}>
+<PageHeader title={term('programs', t)} subtitle={t('โปรแกรมที่ AI ของทีมใช้ได้', 'The programs your team’s AI can use.')}>
 	{#snippet action()}
 		{#if data.canManage}<a class="k-button primary" href={localeHref('/app?view=add-program')}><Plus size={16} aria-hidden="true" />{term('addProgram', t)}</a>{/if}
 	{/snippet}
@@ -198,6 +198,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.programs-toolbar {
 		display: flex;
 		flex-wrap: wrap;
@@ -221,13 +222,13 @@
 		background: var(--orca-surface);
 		color: var(--orca-text-2);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		cursor: pointer;
 	}
 	.programs-filters button span {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.programs-filters button.on {
 		border-color: var(--orca-chosen);
@@ -258,7 +259,7 @@
 		background: var(--orca-field);
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.programs-table {
 		overflow: hidden;
@@ -279,7 +280,7 @@
 		border-bottom: 1px solid var(--orca-line);
 		background: var(--orca-surface-2);
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 600;
 	}
 	.programs-row {
@@ -307,7 +308,7 @@
 	.programs-name a {
 		overflow: hidden;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 		text-decoration: none;
 		text-overflow: ellipsis;
@@ -331,13 +332,13 @@
 		display: block;
 		overflow: hidden;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 	.programs-cell {
 		min-width: 0;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.programs-cell b {
 		display: block;
@@ -375,13 +376,13 @@
 	}
 	.programs-start h2 {
 		margin: 0;
-		font-size: 20px;
+		font-size: 18px;
 		font-weight: 700;
 	}
 	.programs-start > p {
 		margin: 6px 0 20px;
 		color: var(--orca-muted);
-		font-size: 15px;
+		font-size: 14px;
 	}
 	.programs-start-grid {
 		display: grid;
@@ -404,19 +405,19 @@
 	}
 	.programs-start-card strong {
 		margin-top: 14px;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 	}
 	.programs-start-card span {
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.5;
 	}
 	.programs-start-card em {
 		margin-top: auto;
 		padding-top: 12px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-style: normal;
 	}
 	.programs-start-card .go {
@@ -456,14 +457,14 @@
 	}
 	.programs-start-links .k-link-button {
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.programs-start-all {
 		display: inline-flex;
 		align-items: center;
 		gap: 4px;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		text-decoration: underline;
 		text-decoration-color: var(--orca-line-strong);
@@ -505,7 +506,7 @@
 			display: block;
 			margin-bottom: 2px;
 			color: var(--orca-muted);
-			font-size: 12px;
+			font-size: 11.5px;
 		}
 		.programs-go {
 			position: absolute;

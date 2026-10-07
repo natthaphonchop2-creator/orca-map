@@ -157,18 +157,18 @@
 	]);
 
 	const sections = $derived([
-		{ id: 'companies' as PlatformSection, label: term('customerCompanies', t), detail: t('เปิดบริษัทใหม่และส่งลิงก์ให้เจ้าของบริษัท', 'Open a company and send its owner a link'), icon: Building2 },
+		{ id: 'companies' as PlatformSection, label: term('customerCompanies', t), icon: Building2 },
 		...(canReviewPilotRequests
-			? [{ id: 'pilots' as PlatformSection, label: term('pilotRequests', t), detail: t('คำขอทดลองใช้จากหน้าเว็บไซต์', 'Trial requests from the website'), icon: Inbox }]
+			? [{ id: 'pilots' as PlatformSection, label: term('pilotRequests', t), icon: Inbox }]
 			: []),
-		{ id: 'signin' as PlatformSection, label: term('googleSignIn', t), detail: t('ปุ่มเข้าสู่ระบบของทุกบริษัทบน ORCA', 'The sign-in button of every company on ORCA'), icon: LogIn },
-		{ id: 'oauth-apps' as PlatformSection, label: term('programOAuthApps', t), detail: t('แอปที่ให้พนักงานเชื่อมบัญชีโปรแกรมของตัวเอง', 'Apps that let people connect their own program accounts'), icon: KeyRound },
-		{ id: 'catalog' as PlatformSection, label: term('programCatalog', t), detail: t('โปรแกรมที่ทุกบริษัทเลือกเชื่อมได้', 'The programs every company can connect'), icon: Grid2x2Plus },
-		{ id: 'breakglass' as PlatformSection, label: term('breakGlass', t), detail: t('บัญชีรหัสผ่านสำหรับกรณีฉุกเฉิน', 'Password accounts for emergencies'), icon: Shield }
+		{ id: 'signin' as PlatformSection, label: term('googleSignIn', t), icon: LogIn },
+		{ id: 'oauth-apps' as PlatformSection, label: term('programOAuthApps', t), icon: KeyRound },
+		{ id: 'catalog' as PlatformSection, label: term('programCatalog', t), icon: Grid2x2Plus },
+		{ id: 'breakglass' as PlatformSection, label: term('breakGlass', t), icon: Shield }
 	]);
 </script>
 
-<PageHeader title={term('platformOverview', t)} subtitle={t('ตั้งค่าที่ใช้กับทุกบริษัทบน ORCA และงานที่รอทีม ORCA', 'Settings shared by every company on ORCA, and what is waiting for the ORCA team.')}>
+<PageHeader title={term('platformOverview', t)} subtitle={t('ตั้งค่าของทุกบริษัท และงานที่รอทีม ORCA', 'Settings for every company, and what waits for the ORCA team.')}>
 	{#snippet eyebrow()}<PlatformBadge />{/snippet}
 </PageHeader>
 
@@ -216,7 +216,7 @@
 			<li>
 				<a href={localeHref(platformHref(section.id))}>
 					<span class="platform-section-icon" aria-hidden="true"><section.icon size={18} /></span>
-					<span class="platform-section-copy"><strong>{section.label}</strong><small>{section.detail}</small></span>
+					<span class="platform-section-copy"><strong>{section.label}</strong></span>
 					<ArrowRight size={16} aria-hidden="true" />
 				</a>
 			</li>
@@ -225,6 +225,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.overview-tiles {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
@@ -252,25 +253,25 @@
 	}
 	.overview-tile-label {
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 500;
 	}
 	.overview-tile-value {
-		font-size: 28px;
+		font-size: 24px;
 		font-weight: 700;
 		line-height: 1.3;
 		font-variant-numeric: tabular-nums;
 	}
 	.overview-tile-detail {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.overview-block {
 		margin-bottom: 28px;
 	}
 	.overview-block h2 {
 		margin: 0 0 12px;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 650;
 	}
 	.overview-todos {
@@ -314,12 +315,12 @@
 		min-width: 0;
 	}
 	.overview-todo-copy strong {
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.overview-todo-copy small {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.overview-todos .k-button {
 		flex: none;
@@ -338,7 +339,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.overview-clear {
 		border-color: var(--orca-ok-line);
@@ -348,7 +349,7 @@
 	.overview-error {
 		margin: 10px 0 0;
 		color: var(--orca-deny);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.platform-sections {
 		display: grid;
@@ -391,13 +392,8 @@
 		min-width: 0;
 	}
 	.platform-section-copy strong {
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
-	}
-	.platform-section-copy small {
-		color: var(--orca-muted);
-		font-size: 13px;
-		line-height: 1.5;
 	}
 	@media (max-width: 720px) {
 		.overview-tiles {
@@ -408,7 +404,7 @@
 			padding: 14px;
 		}
 		.overview-tile-value {
-			font-size: 24px;
+			font-size: 20px;
 		}
 		.overview-todos li {
 			flex-wrap: wrap;

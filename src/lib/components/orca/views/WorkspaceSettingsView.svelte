@@ -234,6 +234,7 @@
 />
 
 <style>
+	/* orca-type-remap v1 */
 	.st {
 		max-width: 1056px;
 		margin-top: -8px;
@@ -246,7 +247,7 @@
 		background: var(--orca-field);
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 15px;
+		font-size: 14px;
 		line-height: 1.5;
 	}
 	.st-input:focus {
@@ -266,16 +267,16 @@
 	.st-error {
 		margin: 6px 0 0;
 		color: var(--orca-deny);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.st-hint {
 		margin: 10px 0 0;
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.st-count {
 		margin: 4px 0 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		text-align: right;
 	}
 	.st-limit {
@@ -284,7 +285,7 @@
 		align-items: center;
 		gap: 10px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.st-limit .st-input {
 		width: 160px;
@@ -312,13 +313,13 @@
 	.st-danger h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 	}
 	.st-danger p {
 		margin: 4px 0 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.st-danger-actions {

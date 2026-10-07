@@ -90,6 +90,7 @@
   <div class="dialog-actions"><button bind:this={cancelButton} class="k-button" disabled={saving} onclick={() => dialog.close()}>{t('ยกเลิก', 'Cancel')}</button><button class="k-button" class:primary={!destructive} class:danger-solid={destructive} disabled={saving || stale || disabled || completed} onclick={confirm}>{saving ? t('กำลังบันทึก…', 'Saving…') : label}</button></div>
 </dialog>
 <style>
+	/* orca-type-remap v1 */
   .team-lifecycle { display: flex; flex-wrap: wrap; gap: 8px; }
   .team-lifecycle.compact { flex-wrap: nowrap; gap: 4px; }
   .compact .lifecycle-button { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--orca-radius); background: transparent; color: var(--orca-subtle); cursor: pointer; }
@@ -100,9 +101,9 @@
   .team-dialog::backdrop { background: rgba(21, 24, 35, 0.45); }
   .dialog-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--orca-radius); background: var(--orca-secondary); color: var(--orca-nav); }
   .dialog-icon.danger { background: var(--orca-deny-bg); color: var(--orca-deny); }
-  .team-dialog h2 { margin: 16px 0 4px; font-size: 18px; line-height: 1.4; font-weight: 600; }
-  .team-dialog p { margin: 10px 0; color: var(--orca-muted); font-size: 14px; line-height: 1.7; }
+  .team-dialog h2 { margin: 16px 0 4px; font-size: 16px; line-height: 1.4; font-weight: 600; }
+  .team-dialog p { margin: 10px 0; color: var(--orca-muted); font-size: 13.5px; line-height: 1.7; }
   .team-dialog .subject { margin: 0 0 14px; color: var(--orca-ink); font-weight: 600; overflow-wrap: anywhere; }
-  .team-dialog .dialog-error { margin-top: 14px; padding: 10px 12px; border-radius: var(--orca-radius); background: var(--orca-deny-bg); color: var(--orca-deny); font-size: 13px; }
+  .team-dialog .dialog-error { margin-top: 14px; padding: 10px 12px; border-radius: var(--orca-radius); background: var(--orca-deny-bg); color: var(--orca-deny); font-size: 12.5px; }
   .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 22px; }
 </style>

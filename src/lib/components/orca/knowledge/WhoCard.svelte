@@ -78,6 +78,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.kd-card {
 		padding: 20px 22px;
 		border: 1px solid var(--orca-line);
@@ -86,13 +87,13 @@
 	}
 	.kd-card h2 {
 		margin: 0 0 10px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 	}
 	.kd-hint {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.kd-who {
@@ -107,7 +108,7 @@
 		align-items: center;
 		gap: 8px;
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.kd-who :global(svg) {
 		flex: none;
@@ -116,7 +117,7 @@
 	.kd-who small {
 		margin-left: auto;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.live {
 		display: flex;
@@ -135,7 +136,7 @@
 	.live p {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.45;
 	}
 	.avs {

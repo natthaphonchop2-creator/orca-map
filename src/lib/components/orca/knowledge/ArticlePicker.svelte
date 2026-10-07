@@ -62,6 +62,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.ap {
 		display: grid;
 		gap: 8px;
@@ -76,13 +77,13 @@
 		display: inline-flex;
 		align-items: baseline;
 		gap: 8px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.ap-label small,
 	.ap-count {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 400;
 	}
 	.ap-search {
@@ -107,7 +108,7 @@
 		outline: 0;
 		background: transparent;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ap-search input:focus-visible {
 		outline: 0;
@@ -157,14 +158,14 @@
 		min-width: 0;
 	}
 	.ap-t b {
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.4;
 	}
 	.ap-t small {
 		overflow: hidden;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		white-space: nowrap;
 		text-overflow: ellipsis;
 	}
@@ -172,6 +173,6 @@
 		margin: 0;
 		padding: 10px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 </style>

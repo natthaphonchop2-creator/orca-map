@@ -109,6 +109,7 @@
 {#if failed}<p class="ca-failed" role="alert">{t('คัดลอกไม่ได้ เลือกข้อความแล้วคัดลอกเอง', 'Copy failed. Select the text and copy it yourself.')}</p>{/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.ca-need {
 		display: flex;
 		align-items: flex-start;
@@ -119,7 +120,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-warn-bg);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.55;
 	}
 	.ca-need :global(svg) {
@@ -142,7 +143,7 @@
 		padding: 13px 18px;
 		border-top: 1px solid var(--orca-line-soft);
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		line-height: 1.9;
 	}
 	.ca-mini li:first-child {
@@ -160,7 +161,7 @@
 		border-radius: 50%;
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 700;
 		line-height: 1;
 	}
@@ -176,7 +177,7 @@
 		background: var(--orca-surface-2);
 		color: var(--orca-ink);
 		font-family: inherit;
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 600;
 		line-height: 1.4;
 		white-space: nowrap;
@@ -199,7 +200,7 @@
 	.ca-small {
 		flex: 1 1 260px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.ca-dev {
@@ -231,7 +232,7 @@
 		min-width: 0;
 		color: var(--orca-ink);
 		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-		font-size: 12.5px;
+		font-size: 12px;
 		overflow-wrap: anywhere;
 	}
 	.ca-commands .k-button {
@@ -240,7 +241,7 @@
 	.ca-after {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.ca-facts {
@@ -248,7 +249,7 @@
 		grid-template-columns: auto 1fr;
 		gap: 4px 16px;
 		margin: 0;
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.ca-facts dt {
 		color: var(--orca-muted);
@@ -257,7 +258,7 @@
 		margin: 0;
 		color: var(--orca-ink);
 		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.ca-config {
 		width: 100%;
@@ -273,7 +274,7 @@
 		min-height: 40px;
 		padding: 8px 12px 8px 14px;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		list-style: none;
 		cursor: pointer;
@@ -310,7 +311,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface-2);
 		color: var(--orca-ink);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.55;
 	}
 	.ca-docs {
@@ -318,7 +319,7 @@
 		align-items: center;
 		gap: 6px;
 		color: var(--orca-ink);
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 500;
 		text-decoration: underline;
 		text-underline-offset: 3px;
@@ -334,13 +335,13 @@
 	.ca-failed {
 		margin: 10px 0 0;
 		color: var(--orca-deny);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	@container ca (max-width: 560px) {
 		.ca-mini li {
 			align-items: flex-start;
 			padding: 12px 14px;
-			font-size: 14.5px;
+			font-size: 13.5px;
 		}
 		.ca-letter {
 			margin-top: 4px;

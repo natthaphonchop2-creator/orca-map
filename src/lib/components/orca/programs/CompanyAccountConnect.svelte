@@ -316,6 +316,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.cc {
 		min-width: 0;
 		padding: 18px 20px;
@@ -326,7 +327,7 @@
 	.cc-note {
 		margin: 0 0 4px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.cc-note.warn {
 		margin-top: 12px;
@@ -359,14 +360,14 @@
 	}
 	.cc-form legend {
 		margin-bottom: 6px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.cc-field {
 		display: grid;
 		gap: 6px;
 		margin-top: 10px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 	}
 	.cc-field small {
@@ -387,7 +388,7 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.cc-choice small {
 		color: var(--orca-muted);

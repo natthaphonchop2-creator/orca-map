@@ -25,6 +25,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.um {
 		padding: 18px 20px;
 		border: 1px solid var(--orca-line);
@@ -33,7 +34,7 @@
 	}
 	.um h2 {
 		margin: 0 0 12px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.um ul {
@@ -53,7 +54,7 @@
 		justify-content: space-between;
 		gap: 2px 10px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.um-line b {
 		color: var(--orca-ink);
@@ -77,7 +78,7 @@
 		align-items: center;
 		gap: 6px;
 		color: var(--orca-ink);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 	}
 	.um-dot {
@@ -89,6 +90,6 @@
 	.um p {
 		margin: 12px 0 0;
 		color: var(--orca-subtle);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 </style>

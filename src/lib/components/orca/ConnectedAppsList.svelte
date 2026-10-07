@@ -149,6 +149,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.cx-apps {
 		container: cx-apps / inline-size;
 	}
@@ -170,7 +171,7 @@
 		border-bottom: 1px solid var(--orca-line);
 		background: var(--orca-surface);
 		color: var(--orca-subtle);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 	}
 	.cx-hint {
@@ -196,7 +197,7 @@
 		width: 36px;
 		height: 36px;
 		border-radius: 50%;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 700;
 	}
 	.cx-avatar.tone-citron {
@@ -230,7 +231,7 @@
 		margin: 0;
 		overflow-wrap: anywhere;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 650;
 		line-height: 1.4;
 	}
@@ -241,7 +242,7 @@
 	}
 	.cx-gc {
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.cx-gc::before {
 		content: '·';
@@ -252,7 +253,7 @@
 		flex: none;
 		margin-right: -10px;
 		color: var(--orca-text-2) !important;
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.cx-all :global(svg) {
 		color: var(--orca-muted);
@@ -273,7 +274,7 @@
 		padding: 13px 20px 13px 72px;
 		border-top: 1px solid var(--orca-line-soft);
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.cx-rows > .cx-row:first-child {
 		border-top-color: var(--orca-line);
@@ -298,7 +299,7 @@
 		min-width: 0;
 		overflow: hidden;
 		color: var(--orca-ink);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -310,7 +311,7 @@
 		border-radius: 6px;
 		background: var(--orca-surface);
 		color: var(--orca-muted);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 		white-space: nowrap;
 	}
@@ -350,7 +351,7 @@
 	}
 	.cx-last small {
 		color: var(--orca-muted);
-		font-size: 12px;
+		font-size: 11.5px;
 	}
 	.cx-act {
 		display: flex;
@@ -360,7 +361,7 @@
 		min-width: 124px;
 		justify-content: center;
 		color: var(--orca-text-2) !important;
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.cx-list .cx-revoke:hover {
 		border-color: var(--orca-deny-line);
@@ -372,7 +373,7 @@
 		align-items: center;
 		gap: 6px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 500;
 		white-space: nowrap;
 	}
@@ -382,7 +383,7 @@
 		gap: 8px;
 		margin: 14px 0 0;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.55;
 	}
 	.cx-foot > :global(svg) {
@@ -485,7 +486,7 @@
 			display: block;
 			margin-bottom: 2px;
 			color: var(--orca-subtle);
-			font-size: 12px;
+			font-size: 11.5px;
 			font-weight: 600;
 		}
 		.cx-reach > span:last-child {

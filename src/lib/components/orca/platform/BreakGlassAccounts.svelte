@@ -119,7 +119,7 @@
 </script>
 
 {#if allowed}
-	<PageHeader title={term('breakGlass', t)} subtitle={t('บัญชีอีเมลและรหัสผ่านของบริษัทของทีม ORCA ใช้เมื่อเข้าสู่ระบบด้วย Google ไม่ได้', "Email-and-password accounts of the ORCA team's company, for when Google sign-in can't be used.")}>
+	<PageHeader title={term('breakGlass', t)} subtitle={t('ใช้เมื่อเข้าสู่ระบบด้วย Google ไม่ได้', "For when Google sign-in can't be used.")}>
 		{#snippet eyebrow()}<PlatformBadge />{/snippet}
 		{#snippet action()}{#if available}<button type="button" class="k-button primary breakglass-create" onclick={() => start()}><Plus size={16} aria-hidden="true" />{t('สร้างบัญชีรหัสผ่าน', 'Create a password account')}</button>{/if}{/snippet}
 	</PageHeader>
@@ -235,6 +235,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.breakglass-create {
 		min-height: 42px;
 		padding: 0 18px;
@@ -250,7 +251,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-warn-bg);
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.breakglass-note :global(svg) {
@@ -268,7 +269,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-deny-bg);
 		color: var(--orca-deny);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.breakglass-callout > div {
 		flex: 1 1 240px;
@@ -292,7 +293,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.breakglass-sr {
 		position: absolute;
@@ -313,14 +314,14 @@
 	.breakglass-table {
 		width: 100%;
 		border-collapse: collapse;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.breakglass-table th {
 		padding: 11px 18px;
 		border-bottom: 1px solid var(--orca-line);
 		background: var(--orca-surface-2);
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		text-align: left;
 		white-space: nowrap;
@@ -347,7 +348,7 @@
 	.breakglass-account small {
 		display: block;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.breakglass-mark {
 		display: grid;
@@ -384,7 +385,7 @@
 	.breakglass-form label,
 	.breakglass-label {
 		margin-top: 10px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.breakglass-form :is(label, .breakglass-label):first-child {
@@ -396,7 +397,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface-2);
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 		overflow-wrap: anywhere;
 	}
 	.breakglass-form input {
@@ -408,12 +409,12 @@
 		background: var(--orca-field);
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.breakglass-hint {
 		margin: 2px 0 0;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.6;
 	}
 	.breakglass-error {
@@ -422,7 +423,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-deny-bg);
 		color: var(--orca-deny);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	/* Each account is a card when the list is narrower than the table needs (a phone, or a laptop
 	   with the sidebar open), so emails never break letter by letter. */

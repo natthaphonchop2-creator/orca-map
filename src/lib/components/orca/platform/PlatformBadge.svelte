@@ -19,6 +19,7 @@
 >
 
 <style>
+	/* orca-type-remap v1 */
 	.platform-tag {
 		display: inline-flex;
 		align-items: center;
@@ -28,13 +29,13 @@
 		/* Ink in light (the mockup); citron in dark, where a white badge would glare. */
 		background: var(--orca-chosen);
 		color: var(--orca-on-ink);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 		line-height: 1.6;
 		white-space: nowrap;
 	}
 	.platform-scope {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 </style>

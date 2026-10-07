@@ -352,11 +352,12 @@
 />
 
 <style>
+	/* orca-type-remap v1 */
 	.pd-back {
 		display: inline-block;
 		margin-bottom: 12px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		text-decoration: none;
 	}
@@ -381,7 +382,7 @@
 	}
 	.pd-title h1 {
 		margin: 0;
-		font-size: 28px;
+		font-size: 24px;
 		font-weight: 700;
 		line-height: 1.3;
 		overflow-wrap: anywhere;
@@ -389,7 +390,7 @@
 	.pd-title p {
 		margin: 4px 0 0;
 		color: var(--orca-muted);
-		font-size: 15px;
+		font-size: 14px;
 	}
 	.pd-actions {
 		flex: none;
@@ -403,7 +404,7 @@
 		border: 1px solid var(--orca-warn-line);
 		border-radius: var(--orca-radius);
 		background: var(--orca-warn-bg);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.pd-banner :global(svg) {
 		flex: none;
@@ -426,7 +427,7 @@
 		padding: 10px 0 11px;
 		border-bottom: 2px solid transparent;
 		color: var(--orca-muted);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 500;
 		text-decoration: none;
 		white-space: nowrap;
@@ -445,7 +446,7 @@
 		border-radius: var(--orca-radius-sm);
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
-		font-size: 12px;
+		font-size: 11.5px;
 		text-align: center;
 	}
 	.pd-grid {
@@ -469,13 +470,13 @@
 	}
 	.pd-card-head h2 {
 		margin: 0;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 	}
 	.pd-card-head p {
 		margin: 3px 0 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.pd-summary .pd-card-head p {
 		color: var(--orca-text-2);
@@ -495,7 +496,7 @@
 		border-radius: 999px;
 		background: var(--orca-surface-2);
 		color: var(--orca-text-2);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.pd-chips li.more {
 		color: var(--orca-muted);
@@ -507,7 +508,7 @@
 		margin: 0;
 		padding: 0 20px 18px;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.pd-note.error {
 		color: var(--orca-deny);
@@ -521,7 +522,7 @@
 		gap: 16px;
 		padding: 12px 20px;
 		border-top: 1px solid var(--orca-line-soft);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.pd-list dt {
 		color: var(--orca-muted);
@@ -577,13 +578,13 @@
 	}
 	.pd-row-copy strong,
 	.pd-event-copy strong {
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.pd-row-copy small,
 	.pd-event-copy small {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.pd-event {
 		display: flex;
@@ -609,7 +610,7 @@
 			flex-wrap: wrap;
 		}
 		.pd-title h1 {
-			font-size: 24px;
+			font-size: 20px;
 		}
 		.pd-actions {
 			width: 100%;

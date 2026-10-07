@@ -316,6 +316,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.acct-card {
 		padding: 24px;
 		border: 1px solid var(--orca-line);
@@ -333,20 +334,20 @@
 	}
 	.acct-state h2 {
 		margin: 6px 0 0;
-		font-size: 18px;
+		font-size: 16px;
 		font-weight: 700;
 		line-height: 1.35;
 	}
 	.acct-state p {
 		margin: 6px 0 0;
 		color: var(--orca-muted);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		line-height: 1.55;
 	}
 	.acct-state .acct-small {
 		margin-top: 12px;
 		color: var(--orca-subtle);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.acct-icon {
 		display: grid;
@@ -385,7 +386,7 @@
 	:global(.orca-workspace.orca-app) .k-button.acct-lg {
 		min-height: 44px;
 		padding: 0 20px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 	}
 	.acct-error {
@@ -398,7 +399,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-deny-bg);
 		color: var(--orca-deny);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.acct-error :global(svg) {
 		flex: none;
@@ -430,7 +431,7 @@
 		gap: 4px 12px;
 	}
 	.acct-field label {
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.acct-field label em {
@@ -453,7 +454,7 @@
 		background: none;
 		color: var(--orca-text-2);
 		font: inherit;
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 500;
 		text-decoration: underline;
 		text-decoration-color: var(--orca-line-strong);
@@ -465,7 +466,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface-2);
 		color: var(--orca-text-2);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.55;
 	}
 	.acct-help p {
@@ -498,13 +499,13 @@
 	}
 	.acct-row-main strong {
 		display: block;
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.acct-row-main small {
 		display: block;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.acct-row-actions {
 		display: flex;

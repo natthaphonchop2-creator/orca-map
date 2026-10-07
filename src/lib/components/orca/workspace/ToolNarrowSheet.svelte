@@ -103,6 +103,7 @@
 </Sheet>
 
 <style>
+	/* orca-type-remap v1 */
 	.narrow-presets {
 		display: flex;
 		flex-wrap: wrap;
@@ -120,7 +121,7 @@
 		background: var(--orca-surface);
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -135,7 +136,7 @@
 	.narrow-note {
 		margin: -4px 0 14px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.narrow-group {
@@ -170,7 +171,7 @@
 	}
 	.narrow-title strong {
 		color: var(--orca-ink);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 700;
 	}
 	.narrow-title strong span {
@@ -179,7 +180,7 @@
 	}
 	.narrow-title small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.45;
 	}
 	.narrow-all {
@@ -189,7 +190,7 @@
 		align-items: center;
 		gap: 6px;
 		color: var(--orca-text-2);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -233,13 +234,13 @@
 		align-items: center;
 		gap: 6px;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.45;
 	}
 	.narrow-tool small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 		overflow-wrap: anywhere;
 	}
@@ -249,7 +250,7 @@
 		border-radius: 999px;
 		background: var(--orca-warn-bg);
 		color: var(--orca-warn);
-		font-size: 11.5px;
+		font-size: 11px;
 		font-style: normal;
 		font-weight: 600;
 	}
@@ -259,7 +260,7 @@
 		gap: 8px;
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.narrow-footnote :global(svg) {
@@ -274,6 +275,6 @@
 		margin-right: auto;
 		align-self: center;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 </style>

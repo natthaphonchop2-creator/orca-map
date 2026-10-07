@@ -46,6 +46,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	/* The same segmented look as .o-locale in orca-system.css. */
 	.o-theme {
 		display: inline-flex;
@@ -69,7 +70,7 @@
 		background: transparent;
 		color: var(--orca-muted);
 		font: inherit;
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		white-space: nowrap;
 		cursor: pointer;
@@ -100,7 +101,7 @@
 		padding-top: 11px;
 		border-top: 1px solid var(--orca-line);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 	}
 	.o-theme-caption {

@@ -115,6 +115,7 @@
 </ConfirmDialog>
 
 <style>
+	/* orca-type-remap v1 */
 	.ca-connected {
 		margin-bottom: 8px;
 	}
@@ -124,7 +125,7 @@
 		gap: 10px;
 		margin: 0 0 12px;
 		color: var(--orca-ink);
-		font-size: 17px;
+		font-size: 16px;
 		font-weight: 650;
 		line-height: 1.4;
 	}
@@ -134,7 +135,7 @@
 		border-radius: 999px;
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 	}
 	ul {
@@ -163,14 +164,14 @@
 	}
 	.ca-copy b {
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 		line-height: 1.45;
 		overflow-wrap: anywhere;
 	}
 	.ca-copy small {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.ca-cut {
@@ -184,7 +185,7 @@
 	.ca-error {
 		margin: 14px 0 0 !important;
 		color: var(--orca-deny) !important;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	@container ca (max-width: 560px) {
 		li {

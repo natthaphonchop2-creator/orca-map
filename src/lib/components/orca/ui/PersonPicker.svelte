@@ -142,6 +142,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.orca-picker {
 		position: relative;
 	}
@@ -177,11 +178,11 @@
 		border: 1px solid var(--orca-line);
 		border-radius: 999px;
 		background: var(--orca-secondary);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.orca-picker-chip small {
 		color: var(--orca-muted);
-		font-size: 12px;
+		font-size: 11.5px;
 	}
 	.orca-picker-name {
 		font-weight: 600;
@@ -213,7 +214,7 @@
 		background: var(--orca-surface);
 		border: 1px solid var(--orca-line);
 		color: var(--orca-text-2);
-		font-size: 11.5px;
+		font-size: 11px;
 		font-weight: 700;
 	}
 	.orca-picker-avatar.you {
@@ -237,7 +238,7 @@
 		background: transparent;
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14.5px;
+		font-size: 13.5px;
 	}
 	.orca-picker-list {
 		position: absolute;
@@ -273,11 +274,11 @@
 		min-width: 0;
 	}
 	.orca-picker-option strong {
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.orca-picker-option small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 </style>

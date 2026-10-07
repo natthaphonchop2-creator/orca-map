@@ -137,11 +137,9 @@
 		subtitle:
 			mode === 'setup'
 				? manager
-					? t(`ตั้งค่า ORCA ให้ ${company} · 4 ขั้นตอน ประมาณ 10 นาที`, `Set up ORCA for ${company} · 4 steps, about 10 minutes`)
-					: t(`ใช้ AI กับข้อมูลของ ${company} · 3 ขั้นตอน ประมาณ 7 นาที`, `Use AI with ${company}'s data · 3 steps, about 7 minutes`)
-				: manager
-					? t(`โปรแกรม พื้นที่ทำงาน AI และการใช้งานของ ${company}`, `Programs, AI workspaces and use at ${company}`)
-					: t(`พื้นที่ทำงาน AI และโปรแกรมที่คุณใช้ได้ใน ${company}`, `The AI workspaces and programs you can use at ${company}`),
+					? t('4 ขั้นตอน ประมาณ 10 นาที', '4 steps, about 10 minutes')
+					: t('3 ขั้นตอน ประมาณ 7 นาที', '3 steps, about 7 minutes')
+				: company,
 		status: homeBadge(mode, manager, attention, t, lapsed)
 	});
 
@@ -327,6 +325,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.home-anchor {
 		scroll-margin-top: 80px;
 	}
@@ -337,7 +336,7 @@
 		gap: 8px;
 		margin: 18px 4px 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.home-helpline a {
 		color: var(--orca-ink);
@@ -353,7 +352,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.home-done {
 		display: flex;
@@ -378,13 +377,13 @@
 	.home-done .home-done-copy h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 	}
 	.home-done .home-done-copy p {
 		margin: 2px 0 0;
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.home-done a {
 		color: var(--orca-ink);

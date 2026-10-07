@@ -126,6 +126,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.fz {
 		display: grid;
 		gap: 12px;
@@ -155,14 +156,14 @@
 	.fz-title {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 15.5px;
+		font-size: 14px;
 		font-weight: 700;
 	}
 	.fz-rules,
 	.fz-note {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.55;
 	}
 	.fz-rules {
@@ -217,7 +218,7 @@
 		padding: 10px 16px;
 		border-bottom: 1px solid var(--orca-line-soft);
 		background: var(--orca-surface-2);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.fz-head b {
 		font-weight: 600;
@@ -232,7 +233,7 @@
 		border-bottom: 1px solid var(--orca-deny-line);
 		background: var(--orca-deny-bg);
 		color: var(--orca-ink);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.fz-problem span {
@@ -282,7 +283,7 @@
 	.fz-name {
 		overflow: hidden;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -301,7 +302,7 @@
 	}
 	.fz-state {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	/* Status colours only as dots: the red dot marks it, the reason reads in ink. */
@@ -311,7 +312,7 @@
 	}
 	.fz-size {
 		color: var(--orca-subtle);
-		font-size: 12.5px;
+		font-size: 12px;
 		white-space: nowrap;
 	}
 	.fz-bar {

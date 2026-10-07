@@ -327,6 +327,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.kn-head {
 		margin-bottom: 28px;
 	}
@@ -336,7 +337,7 @@
 	.kn-add {
 		min-height: 44px !important;
 		padding: 0 18px !important;
-		font-size: 15px !important;
+		font-size: 14px !important;
 		font-weight: 600 !important;
 	}
 	.kn-ctx {
@@ -352,7 +353,7 @@
 		gap: 12px;
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.kn-strip span {
 		display: inline-flex;
@@ -398,7 +399,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-warn-bg);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.kn-note :global(svg) {
 		flex: none;
@@ -455,7 +456,7 @@
 		border-radius: 8px;
 		background: transparent;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		white-space: nowrap;
 		cursor: pointer;
@@ -476,7 +477,7 @@
 		border-radius: 999px;
 		background: var(--orca-surface);
 		color: var(--orca-muted);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 		line-height: 18px;
 	}
@@ -510,7 +511,7 @@
 		outline: 0;
 		background: transparent;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.search input:focus-visible {
 		outline: 0;
@@ -530,7 +531,7 @@
 		border-radius: 999px;
 		background: var(--orca-surface);
 		color: var(--orca-text-2);
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 500;
 		cursor: pointer;
 	}
@@ -567,7 +568,7 @@
 		border-bottom: 1px solid var(--orca-line);
 		background: var(--orca-surface-2);
 		color: var(--orca-subtle);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 	}
 	.kl-r {
@@ -578,7 +579,7 @@
 		border-top: 1px solid var(--orca-line-soft);
 		background: transparent;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		text-align: left;
 		cursor: pointer;
 		transition: background-color 0.15s var(--orca-ease);
@@ -616,7 +617,7 @@
 	.kl-t b {
 		display: block;
 		overflow: hidden;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 		line-height: 1.4;
 		white-space: nowrap;
@@ -627,7 +628,7 @@
 		overflow: hidden;
 		margin-top: 1px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 		white-space: nowrap;
 		text-overflow: ellipsis;
@@ -657,7 +658,7 @@
 		border-radius: 999px;
 		background: var(--orca-surface);
 		color: var(--orca-text-2);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		white-space: nowrap;
 		text-overflow: ellipsis;
@@ -668,7 +669,7 @@
 	}
 	.aud-none {
 		color: var(--orca-subtle);
-		font-size: 12.5px;
+		font-size: 12px;
 		white-space: nowrap;
 	}
 	.kl-s.draft :global(.orca-pill-dot) {
@@ -686,7 +687,7 @@
 		border-radius: 999px;
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 		line-height: 1.5;
 		white-space: nowrap;
@@ -695,7 +696,7 @@
 		display: block;
 		min-width: 0;
 		color: var(--orca-text-2);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.45;
 		white-space: nowrap;
 	}
@@ -706,7 +707,7 @@
 		overflow: hidden;
 		margin-top: 3px;
 		color: var(--orca-subtle);
-		font-size: 12.5px;
+		font-size: 12px;
 		text-overflow: ellipsis;
 	}
 	.mav {
@@ -737,7 +738,7 @@
 		border-top: 1px solid var(--orca-line-soft);
 		background: var(--orca-surface-2);
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.kl-f span {
 		display: inline-flex;
@@ -757,7 +758,7 @@
 		border-radius: var(--orca-radius-sm);
 		background: transparent;
 		color: var(--orca-ink);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -775,7 +776,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-deny-bg);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.kn-alert :global(svg) {
 		color: var(--orca-deny);
@@ -807,14 +808,14 @@
 	.kn-empty p {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 	}
 	.kn-empty small {
 		max-width: 420px;
 		margin-top: -6px;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.kn-empty-ic {
@@ -871,7 +872,7 @@
 		.seg.three button {
 			gap: 6px;
 			padding: 7px 4px;
-			font-size: 13.5px;
+			font-size: 13px;
 		}
 		.seg.three button :global(svg) {
 			display: none;

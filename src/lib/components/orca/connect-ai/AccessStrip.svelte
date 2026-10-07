@@ -161,6 +161,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.ca-access {
 		display: flex;
 		align-items: center;
@@ -207,7 +208,7 @@
 		flex: 1;
 		min-width: 0;
 		margin: 0;
-		font-size: 15px;
+		font-size: 14px;
 		line-height: 1.6;
 	}
 	.ca-text b {
@@ -219,10 +220,10 @@
 	}
 	:is(.none, .own) .ca-text > span {
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ca-title {
-		font-size: 15.5px;
+		font-size: 14px;
 	}
 	.ca-chips {
 		display: inline-flex;
@@ -239,7 +240,7 @@
 		border: 1px solid var(--orca-ok-line);
 		border-radius: 999px;
 		background: var(--orca-surface);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 600;
 		line-height: 1.6;
 	}
@@ -259,7 +260,7 @@
 		align-items: center;
 		gap: 6px;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		text-decoration: none;
 		white-space: nowrap;
@@ -289,7 +290,7 @@
 		background: var(--orca-field);
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ca-request {
 		margin: 8px 0 0;
@@ -299,7 +300,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface);
 		color: var(--orca-text-2);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.6;
 		overflow-wrap: anywhere;
 	}
@@ -309,7 +310,7 @@
 		gap: 4px 10px;
 		margin: 8px 0 0;
 		color: var(--orca-deny);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.ca-error a,
 	.ca-error button {
@@ -322,7 +323,7 @@
 		gap: 8px;
 		margin: 10px 0 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.ca-own :global(svg) {

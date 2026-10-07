@@ -263,7 +263,7 @@
 
 <PageHeader
 	title={term('connectedAIApps', t)}
-	subtitle={t('ดูว่าใครเชื่อม Claude หรือ ChatGPT กับข้อมูลบริษัทไว้ ถ้ามีคนลาออกหรือทำเครื่องหาย กด ตัดการเชื่อมต่อ ได้ทันที', 'See who connected Claude or ChatGPT to company data. Disconnect at once if someone leaves.')}
+	subtitle={t('ใครเชื่อม AI กับข้อมูลบริษัทไว้บ้าง', 'Who connected AI to company data.')}
 />
 
 {#if error}<div class="k-banner error cx-error" role="alert">
@@ -371,6 +371,7 @@
 </ConfirmDialog>
 
 <style>
+	/* orca-type-remap v1 */
 	.cx-error {
 		display: flex;
 		flex-wrap: wrap;
@@ -392,7 +393,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.cx-bar {
 		display: flex;
@@ -419,7 +420,7 @@
 		border-radius: 999px;
 		background: var(--orca-surface);
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		text-decoration: none;
 		white-space: nowrap;
@@ -439,7 +440,7 @@
 		border-radius: 999px;
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 700;
 		font-variant-numeric: tabular-nums;
 	}
@@ -497,7 +498,7 @@
 		background: transparent;
 		color: var(--orca-ink);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.cx-search input::placeholder {
 		color: var(--orca-subtle);
@@ -524,7 +525,7 @@
 		align-items: center;
 		gap: 10px;
 		padding: 9px 12px;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.cx-dialog-list li + li {
 		border-top: 1px solid var(--orca-line-soft);
@@ -540,7 +541,7 @@
 	}
 	.cx-dialog-list span:last-child {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.cx-dialog-note {
 		margin: 14px 0 0 !important;
@@ -548,7 +549,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface-2);
 		color: var(--orca-text-2) !important;
-		font-size: 13.5px !important;
+		font-size: 13px !important;
 	}
 	.cx-dialog-note a {
 		color: var(--orca-ink);
@@ -559,7 +560,7 @@
 	.cx-dialog-error {
 		margin: 12px 0 0 !important;
 		color: var(--orca-deny) !important;
-		font-size: 13.5px !important;
+		font-size: 13px !important;
 	}
 	@media (max-width: 720px) {
 		.cx-bar {
@@ -573,7 +574,7 @@
 			height: 34px;
 			padding: 0 11px;
 			gap: 6px;
-			font-size: 13.5px;
+			font-size: 13px;
 		}
 		.cx-tools {
 			width: 100%;

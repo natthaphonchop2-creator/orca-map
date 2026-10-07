@@ -158,6 +158,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
   .company-gate { align-self: center; }
   .company-gate-list { display: grid; gap: 10px; margin: 4px 0 0; padding: 0; list-style: none; }
   .company-gate-list a {
@@ -168,7 +169,7 @@
   .company-gate-list a:hover, .company-gate-list a:focus-visible { border-color: var(--orca-ink); }
   .company-gate-list span { display: grid; gap: 2px; min-width: 0; }
   .company-gate-list strong { overflow-wrap: anywhere; }
-  .company-gate-list small { color: var(--orca-muted); font-size: 13px; }
+  .company-gate-list small { color: var(--orca-muted); font-size: 12.5px; }
   .company-gate-list .company-gate-stopped { display: inline; color: var(--orca-deny); font-weight: 600; }
   a.o-button { text-decoration: none; }
 
@@ -179,15 +180,15 @@
     border: 1px solid var(--orca-line-strong); border-radius: 12px; background: var(--orca-surface-2);
   }
   .company-gate-paths li > div { display: grid; flex: 1; gap: 6px; min-width: 0; }
-  .company-gate-paths h3 { margin: 0; color: var(--orca-ink); font-size: 16px; font-weight: 700; line-height: 1.4; }
-  .company-gate-paths p { margin: 0 0 6px; color: var(--orca-muted); font-size: 13.5px; line-height: 1.6; }
+  .company-gate-paths h3 { margin: 0; color: var(--orca-ink); font-size: 15px; font-weight: 700; line-height: 1.4; }
+  .company-gate-paths p { margin: 0 0 6px; color: var(--orca-muted); font-size: 13px; line-height: 1.6; }
   .company-gate-paths .o-button { gap: 8px; }
   .company-gate-icon {
     display: grid; flex: none; place-items: center; width: 36px; height: 36px;
     border: 1px solid var(--orca-line); border-radius: 10px; background: var(--orca-surface); color: var(--orca-ink);
   }
   .company-gate-announce { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .company-gate-paths .company-gate-failed { margin: 4px 0 0; color: var(--orca-ink); font-size: 13px; user-select: all; overflow-wrap: anywhere; }
-  .company-gate-signout { margin-top: 20px; color: var(--orca-muted); font-size: 13.5px; text-align: center; }
+  .company-gate-paths .company-gate-failed { margin: 4px 0 0; color: var(--orca-ink); font-size: 12.5px; user-select: all; overflow-wrap: anywhere; }
+  .company-gate-signout { margin-top: 20px; color: var(--orca-muted); font-size: 13px; text-align: center; }
   .company-gate-signout a { color: var(--orca-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 </style>

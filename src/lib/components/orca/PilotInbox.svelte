@@ -74,7 +74,7 @@
 
 <PageHeader
 	title={term('pilotRequests', t)}
-	subtitle={t('คำขอจากหน้าเว็บไซต์ บันทึกว่าติดตามถึงไหนแล้ว ORCA ไม่ส่งข้อความถึงผู้ขอ', 'Requests from the website. Record how far each got; ORCA never messages the requester.')}
+	subtitle={t('คำขอทดลองใช้จากหน้าเว็บไซต์', 'Trial requests from the website.')}
 >
 	{#snippet eyebrow()}<PlatformBadge />{/snippet}
 	{#snippet action()}<button type="button" class="k-button" disabled={loading || Boolean(saving)} onclick={load}
@@ -162,6 +162,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.pilot-callout {
 		display: flex;
 		flex-wrap: wrap;
@@ -171,7 +172,7 @@
 		padding: 12px 16px;
 		border: 1px solid var(--orca-line);
 		border-radius: var(--orca-radius-lg);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.pilot-callout > span {
@@ -216,7 +217,7 @@
 		background: transparent;
 		color: var(--orca-muted);
 		font: inherit;
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -275,7 +276,7 @@
 	}
 	.pilot-title h2 {
 		margin: 0;
-		font-size: 16.5px;
+		font-size: 15px;
 		font-weight: 650;
 		line-height: 1.4;
 		overflow-wrap: anywhere;
@@ -283,7 +284,7 @@
 	.pilot-title p {
 		margin: 1px 0 0;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.pilot-meta {
 		display: flex;
@@ -292,7 +293,7 @@
 		margin: 14px 0 0 50px;
 		padding: 0;
 		color: var(--orca-text-2);
-		font-size: 13.5px;
+		font-size: 13px;
 		list-style: none;
 	}
 	.pilot-meta li {
@@ -314,7 +315,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface-2);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.7;
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
@@ -338,7 +339,7 @@
 	.pilot-status legend {
 		margin-bottom: 8px;
 		padding: 0;
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 600;
 		color: var(--orca-text-2);
 	}
@@ -356,7 +357,7 @@
 		border-radius: 999px;
 		background: var(--orca-surface);
 		color: var(--orca-text-2);
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 500;
 		cursor: pointer;
 	}

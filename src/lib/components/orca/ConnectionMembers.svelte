@@ -123,6 +123,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.cm {
 		min-width: 0;
 		overflow: hidden;
@@ -144,7 +145,7 @@
 		align-items: center;
 		gap: 8px;
 		margin: 0;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 	}
 	.cm-head h2 span {
@@ -152,13 +153,13 @@
 		border-radius: var(--orca-radius-sm);
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 	}
 	.cm-head p {
 		margin: 3px 0 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.cm-message {
 		display: flex;
@@ -167,7 +168,7 @@
 		margin: 0;
 		padding: 4px 20px 20px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.cm-message.error {
 		color: var(--orca-deny);
@@ -181,7 +182,7 @@
 		border: 1px solid var(--orca-warn-line);
 		border-radius: var(--orca-radius);
 		background: var(--orca-warn-bg);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.cm-notice :global(svg) {
 		flex: none;
@@ -200,7 +201,7 @@
 		gap: 16px;
 		padding: 12px 20px;
 		border-top: 1px solid var(--orca-line-soft);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.cm-person {
 		min-width: 0;
@@ -217,12 +218,12 @@
 	}
 	.cm-person small {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.cm-hubs {
 		min-width: 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.cm-row > :global(.orca-pill) {
 		justify-self: end;
@@ -237,7 +238,7 @@
 		border-top: 1px solid var(--orca-line-soft);
 		background: var(--orca-surface-2);
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	@media (max-width: 720px) {
 		.cm-row {
