@@ -124,6 +124,7 @@
 </aside>
 
 <style>
+	/* orca-type-remap v1 */
 	.rail {
 		display: flex;
 		flex-direction: column;
@@ -145,7 +146,7 @@
 	}
 	.ask-h b,
 	.connect-h b {
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 		line-height: 1.4;
 	}
@@ -163,7 +164,7 @@
 	.kn-card p {
 		margin: 0 0 14px;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.connect {
@@ -184,7 +185,7 @@
 		border-radius: 12px 12px 4px 12px;
 		background: var(--orca-surface-2);
 		color: var(--orca-ink);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.ask-copy {
@@ -202,7 +203,7 @@
 		padding-top: 12px;
 		border-top: 1px solid var(--orca-line-soft);
 		color: var(--orca-subtle);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.ask-src :global(svg) {
 		flex: none;
@@ -218,7 +219,7 @@
 	}
 	.lg h2 {
 		margin: 0 0 12px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.lg ul {
@@ -234,7 +235,7 @@
 		align-items: flex-start;
 		gap: 4px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.pill {
@@ -246,7 +247,7 @@
 		border-radius: 999px;
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 		white-space: nowrap;
 	}

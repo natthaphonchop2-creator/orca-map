@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { stoppedMessage } from "$lib/orca/platform-console";
   import Brand from "$lib/components/orca/Brand.svelte";
   import InAppBrowserNotice from "$lib/components/orca/InAppBrowserNotice.svelte";
   import PublicFooter from "$lib/components/orca/PublicFooter.svelte";
@@ -144,7 +145,10 @@
           <div><dt>{t("อีเมลที่ได้รับเชิญ", "Invited email")}</dt><dd>{preview.email}</dd></div>
           <div><dt>{t("ใช้ได้ถึง", "Valid until")}</dt><dd>{displayDate(preview.expiresAt)}</dd></div>
         </dl>
-        {#if data.signedIn}
+        {#if preview.companyStatus}
+          <!-- The company is suspended or closed by ORCA (platform console C6 §4.2): the invitation waits. -->
+          <div class="o-alert" role="status">{stoppedMessage(preview.companyStatus, t)} {t("รับคำเชิญได้เมื่อบริษัทเปิดให้ใช้งานอีกครั้ง", "You can accept once the company is open again.")}</div>
+        {:else if data.signedIn}
           <p>{t(`คุณเข้าสู่ระบบด้วย ${data.email}`, `You are signed in as ${data.email}.`)}</p>
           {#if error && !needsGoogle}<div class="o-alert" role="alert">{error}{#if wrongAccount}{" "}<a href={signOutHref}>{t("ออกจากระบบ", "Sign out")}</a>{/if}</div>{/if}
           {#if needsGoogle && !data.google}
@@ -181,14 +185,15 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
   .invite-panel { align-self: center; }
   .invite-loading { display: flex; align-items: center; gap: 10px; }
   .invite-done { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--orca-ok-bg, #e8f5ec); color: var(--orca-ok, #1d7a42); }
   .invite-facts { display: grid; gap: 0; margin: 4px 0 18px; border: 1px solid var(--orca-line, #e5e7eb); border-radius: 10px; overflow: hidden; }
   .invite-facts div { display: grid; grid-template-columns: minmax(110px, 40%) minmax(0, 1fr); }
   .invite-facts div + div { border-top: 1px solid var(--orca-line, #e5e7eb); }
-  .invite-facts dt { padding: 10px 12px; background: var(--orca-surface-2, #fafafa); color: var(--orca-muted, #5b6270); font-size: 13px; }
-  .invite-facts dd { margin: 0; padding: 10px 12px; font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+  .invite-facts dt { padding: 10px 12px; background: var(--orca-surface-2, #fafafa); color: var(--orca-muted, #5b6270); font-size: 12.5px; }
+  .invite-facts dd { margin: 0; padding: 10px 12px; font-size: 13.5px; font-weight: 500; overflow-wrap: anywhere; }
   .invite-panel :global(.o-alert a) { color: inherit; font-weight: 600; text-decoration: underline; }
   a.o-button { text-decoration: none; }
 </style>

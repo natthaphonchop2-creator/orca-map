@@ -7,7 +7,7 @@
 	import { OrcaService, orcaError, type OrcaCandidate, type OrcaGoogleSignIn, type OrcaPlatformCompany, type PilotRequest } from '$lib/services/orca';
 	import { catalogSummary, googleClientSaved, platformCounts } from '$lib/services/orca-platform';
 	import { PlatformUsageService } from '$lib/services/orca-platform-usage';
-	import type { OrcaPlatformUsage } from '$lib/orca/platform-usage';
+	import { usageNumber, type OrcaPlatformUsage } from '$lib/orca/platform-usage';
 	import PlatformBadge from '../platform/PlatformBadge.svelte';
 	import PlatformUsage from '../platform/PlatformUsage.svelte';
 	import PageHeader from '../ui/PageHeader.svelte';
@@ -79,13 +79,13 @@
 	const tiles = $derived<Tile[]>([
 		{
 			label: term('customerCompanies', t),
-			value: companies ? String(counts.customers) : '—',
+			value: companies ? usageNumber(counts.customers) : '—',
 			detail: companiesError ? t('โหลดไม่สำเร็จ', "Couldn't load") : t(`มีเจ้าของแล้ว ${counts.owned}`, `${counts.owned} with an owner`),
 			href: 'companies'
 		},
 		{
 			label: t('คนที่ใช้งานได้', 'People who can use ORCA'),
-			value: companies ? String(counts.customerSeats) : '—',
+			value: companies ? usageNumber(counts.customerSeats) : '—',
 			detail: companiesError ? t('โหลดไม่สำเร็จ', "Couldn't load") : t('รวมทุกบริษัทลูกค้า', 'Across customer companies'),
 			href: 'companies'
 		},
@@ -93,7 +93,7 @@
 			? [
 					{
 						label: t('คำขอทดลองใช้ใหม่', 'New pilot requests'),
-						value: pilots ? String(counts.pilots.received) : '—',
+						value: pilots ? usageNumber(counts.pilots.received) : '—',
 						detail: pilotsError ? t('โหลดไม่สำเร็จ', "Couldn't load") : t(`ยังไม่ปิด ${counts.pilots.open} จาก ${counts.pilots.total}`, `${counts.pilots.open} of ${counts.pilots.total} still open`),
 						href: 'pilots' as PlatformSection
 					}
@@ -113,16 +113,40 @@
 		}
 	]);
 
+	// Only the parts there are: "ลิงก์หมดอายุ 1", "ยังไม่ได้เชิญ 2", or both.
+	const ownerTodoDetail = $derived(
+		[
+			counts.ownerTodo.expired ? t(`ลิงก์หมดอายุ ${counts.ownerTodo.expired}`, `${counts.ownerTodo.expired} link expired`) : '',
+			counts.ownerTodo.notInvited ? t(`ยังไม่ได้เชิญ ${counts.ownerTodo.notInvited}`, `${counts.ownerTodo.notInvited} not invited`) : ''
+		]
+			.filter(Boolean)
+			.join(' · ')
+	);
+	// "Nothing waiting" says only what is true: a suspended or closed company may still have no owner.
+	const clearText = $derived(
+		!counts.customers
+			? t('ไม่มีงานค้าง ยังไม่มีบริษัทลูกค้า และปุ่ม Google เปิดอยู่', 'Nothing waiting. There are no customer companies yet, and Google sign-in is on.')
+			: counts.stoppedWithoutOwner
+			? t(
+					`ไม่มีงานค้าง บริษัทที่ใช้งานอยู่มีเจ้าของครบและปุ่ม Google เปิดอยู่ ส่วนบริษัทที่ระงับหรือปิดไว้ ${counts.stoppedWithoutOwner} บริษัทยังไม่มีเจ้าของ`,
+					`Nothing waiting. Every active company has an owner and Google sign-in is on. (${counts.stoppedWithoutOwner} suspended or closed ${counts.stoppedWithoutOwner === 1 ? 'company has' : 'companies have'} no owner.)`
+				)
+			: t('ไม่มีงานค้าง ทุกบริษัทมีเจ้าของและปุ่ม Google เปิดอยู่', 'Nothing waiting. Every company has an owner and Google sign-in is on.')
+	);
+
 	type Todo = { tone: 'warn' | 'deny'; icon: typeof Building2; title: string; detail: string; action: string; href: PlatformSection };
 	const todos = $derived<Todo[]>([
 		...(google && !google.enabled
 			? [{ tone: 'deny' as const, icon: TriangleAlert, title: t('การเข้าสู่ระบบด้วย Google ปิดอยู่', 'Sign in with Google is off'), detail: t('ลูกค้าจะเข้าสู่ระบบและรับคำเชิญไม่ได้', "Customers can't sign in or accept invitations"), action: t('เปิดการเข้าสู่ระบบ', 'Turn it on'), href: 'signin' as PlatformSection }]
 			: []),
+		// The heading, its breakdown and the waiting item all count one set: the
+		// companies that get the invite button (counts.ownerTodo). A suspended
+		// one is never offered a link (Codex PC1 polish review 1).
 		...(counts.needOwner
-			? [{ tone: 'warn' as const, icon: Building2, title: t(`${counts.needOwner} บริษัทยังไม่มีเจ้าของ`, `${counts.needOwner} ${counts.needOwner === 1 ? 'company has' : 'companies have'} no owner`), detail: t(`ลิงก์หมดอายุ ${counts.expired} · ยังไม่ได้เชิญ ${counts.noOwner}`, `${counts.expired} link expired · ${counts.noOwner} not invited`), action: t('ส่งลิงก์เชิญ', 'Send a link'), href: 'companies' as PlatformSection }]
+			? [{ tone: 'warn' as const, icon: Building2, title: t(`${counts.needOwner} บริษัทยังไม่มีเจ้าของ`, `${counts.needOwner} ${counts.needOwner === 1 ? 'company has' : 'companies have'} no owner`), detail: ownerTodoDetail, action: t('ส่งลิงก์เชิญ', 'Send a link'), href: 'companies' as PlatformSection }]
 			: []),
-		...(counts.waiting
-			? [{ tone: 'warn' as const, icon: Building2, title: t(`${counts.waiting} บริษัทรอเจ้าของตอบรับ`, `${counts.waiting} waiting for the owner`), detail: t('ส่งลิงก์ใหม่ได้ถ้าเจ้าของหาลิงก์ไม่เจอ', "Send a new link if the owner can't find theirs"), action: t('ดูบริษัท', 'View companies'), href: 'companies' as PlatformSection }]
+		...(counts.ownerTodo.waiting
+			? [{ tone: 'warn' as const, icon: Building2, title: t(`${counts.ownerTodo.waiting} บริษัทรอเจ้าของตอบรับ`, `${counts.ownerTodo.waiting} waiting for the owner`), detail: t('ส่งลิงก์ใหม่ได้ถ้าเจ้าของหาลิงก์ไม่เจอ', "Send a new link if the owner can't find theirs"), action: t('ดูบริษัท', 'View companies'), href: 'companies' as PlatformSection }]
 			: []),
 		...(catalogWaiting
 			? [{ tone: 'warn' as const, icon: Grid2x2Plus, title: t(`${catalogWaiting} โปรแกรมในคลังรอทีม ORCA`, `${catalogWaiting} catalog ${catalogWaiting === 1 ? 'program waits' : 'programs wait'} for the ORCA team`), detail: t('ตั้งค่าแอปหรือยืนยันกับผู้ให้บริการ ลูกค้าจึงเชื่อมได้', 'Set up an app or confirm with the provider so customers can connect'), action: t('ดูคลังโปรแกรม', 'View the catalog'), href: 'catalog' as PlatformSection }]
@@ -133,18 +157,18 @@
 	]);
 
 	const sections = $derived([
-		{ id: 'companies' as PlatformSection, label: term('customerCompanies', t), detail: t('เปิดบริษัทใหม่และส่งลิงก์ให้เจ้าของบริษัท', 'Open a company and send its owner a link'), icon: Building2 },
+		{ id: 'companies' as PlatformSection, label: term('customerCompanies', t), icon: Building2 },
 		...(canReviewPilotRequests
-			? [{ id: 'pilots' as PlatformSection, label: term('pilotRequests', t), detail: t('คำขอทดลองใช้จากหน้าเว็บไซต์', 'Trial requests from the website'), icon: Inbox }]
+			? [{ id: 'pilots' as PlatformSection, label: term('pilotRequests', t), icon: Inbox }]
 			: []),
-		{ id: 'signin' as PlatformSection, label: term('googleSignIn', t), detail: t('ปุ่มเข้าสู่ระบบของทุกบริษัทบน ORCA', 'The sign-in button of every company on ORCA'), icon: LogIn },
-		{ id: 'oauth-apps' as PlatformSection, label: term('programOAuthApps', t), detail: t('แอปที่ให้พนักงานเชื่อมบัญชีโปรแกรมของตัวเอง', 'Apps that let people connect their own program accounts'), icon: KeyRound },
-		{ id: 'catalog' as PlatformSection, label: term('programCatalog', t), detail: t('โปรแกรมที่ทุกบริษัทเลือกเชื่อมได้', 'The programs every company can connect'), icon: Grid2x2Plus },
-		{ id: 'breakglass' as PlatformSection, label: term('breakGlass', t), detail: t('บัญชีรหัสผ่านสำหรับกรณีฉุกเฉิน', 'Password accounts for emergencies'), icon: Shield }
+		{ id: 'signin' as PlatformSection, label: term('googleSignIn', t), icon: LogIn },
+		{ id: 'oauth-apps' as PlatformSection, label: term('programOAuthApps', t), icon: KeyRound },
+		{ id: 'catalog' as PlatformSection, label: term('programCatalog', t), icon: Grid2x2Plus },
+		{ id: 'breakglass' as PlatformSection, label: term('breakGlass', t), icon: Shield }
 	]);
 </script>
 
-<PageHeader title={term('platformOverview', t)} subtitle={t('ตั้งค่าที่ใช้กับทุกบริษัทบน ORCA และงานที่รอทีม ORCA', 'Settings shared by every company on ORCA, and what is waiting for the ORCA team.')}>
+<PageHeader title={term('platformOverview', t)} subtitle={t('ตั้งค่าของทุกบริษัท และงานที่รอทีม ORCA', 'Settings for every company, and what waits for the ORCA team.')}>
 	{#snippet eyebrow()}<PlatformBadge />{/snippet}
 </PageHeader>
 
@@ -176,7 +200,7 @@
 		</ul>
 	{:else if !(companiesError || pilotsError || googleError || catalogFailed)}
 		<!-- Only when every read answered: a failed one proves nothing (Codex release review 64). -->
-		<p class="overview-clear"><Check size={17} aria-hidden="true" />{t('ไม่มีงานค้าง ทุกบริษัทมีเจ้าของและปุ่ม Google เปิดอยู่', 'Nothing waiting. Every company has an owner and Google sign-in is on.')}</p>
+		<p class="overview-clear"><Check size={17} aria-hidden="true" />{clearText}</p>
 	{/if}
 	{#if companiesError || pilotsError || googleError || catalogFailed}
 		<p class="overview-error" role="alert">{t('โหลดข้อมูลบางส่วนไม่สำเร็จ', "Some of this couldn't load.")} <button type="button" class="k-link-button" onclick={load}>{t('ลองอีกครั้ง', 'Try again')}</button></p>
@@ -192,7 +216,7 @@
 			<li>
 				<a href={localeHref(platformHref(section.id))}>
 					<span class="platform-section-icon" aria-hidden="true"><section.icon size={18} /></span>
-					<span class="platform-section-copy"><strong>{section.label}</strong><small>{section.detail}</small></span>
+					<span class="platform-section-copy"><strong>{section.label}</strong></span>
 					<ArrowRight size={16} aria-hidden="true" />
 				</a>
 			</li>
@@ -201,6 +225,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.overview-tiles {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
@@ -228,25 +253,25 @@
 	}
 	.overview-tile-label {
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 500;
 	}
 	.overview-tile-value {
-		font-size: 28px;
+		font-size: 24px;
 		font-weight: 700;
 		line-height: 1.3;
 		font-variant-numeric: tabular-nums;
 	}
 	.overview-tile-detail {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.overview-block {
 		margin-bottom: 28px;
 	}
 	.overview-block h2 {
 		margin: 0 0 12px;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 650;
 	}
 	.overview-todos {
@@ -290,12 +315,12 @@
 		min-width: 0;
 	}
 	.overview-todo-copy strong {
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.overview-todo-copy small {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.overview-todos .k-button {
 		flex: none;
@@ -314,7 +339,7 @@
 		border-radius: var(--orca-radius-lg);
 		background: var(--orca-surface);
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.overview-clear {
 		border-color: var(--orca-ok-line);
@@ -324,7 +349,7 @@
 	.overview-error {
 		margin: 10px 0 0;
 		color: var(--orca-deny);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.platform-sections {
 		display: grid;
@@ -367,13 +392,8 @@
 		min-width: 0;
 	}
 	.platform-section-copy strong {
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
-	}
-	.platform-section-copy small {
-		color: var(--orca-muted);
-		font-size: 13px;
-		line-height: 1.5;
 	}
 	@media (max-width: 720px) {
 		.overview-tiles {
@@ -384,7 +404,7 @@
 			padding: 14px;
 		}
 		.overview-tile-value {
-			font-size: 24px;
+			font-size: 20px;
 		}
 		.overview-todos li {
 			flex-wrap: wrap;

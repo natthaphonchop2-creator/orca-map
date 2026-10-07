@@ -249,6 +249,7 @@
 </form>
 
 <style>
+	/* orca-type-remap v1 */
 	.tools {
 		container-type: inline-size;
 		min-width: 0;
@@ -261,14 +262,14 @@
 	}
 	.tools-sec h2 {
 		margin: 0;
-		font-size: 18px;
+		font-size: 16px;
 		font-weight: 700;
 		line-height: 1.3;
 	}
 	.tools-sec p {
 		margin: 4px 0 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.tools-locked {
 		display: flex;
@@ -280,7 +281,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-warn-bg);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.tools-locked :global(svg) {
 		flex: none;
@@ -290,7 +291,7 @@
 	.tools-cap {
 		margin: 12px 0 0;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	/* Presets */
 	.presets {
@@ -357,7 +358,7 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 8px;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 		line-height: 1.35;
 	}
@@ -370,13 +371,13 @@
 		border-radius: 999px;
 		background: var(--orca-citron-soft);
 		color: var(--orca-ink);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 	}
 	.preset-desc {
 		margin: 4px 0 12px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.5;
 	}
 	.preset-foot {
@@ -384,7 +385,7 @@
 		align-items: center;
 		gap: 6px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 500;
 	}
 	.preset-foot.ok {
@@ -447,7 +448,7 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 4px 6px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 700;
 		line-height: 1.35;
 	}
@@ -458,7 +459,7 @@
 	}
 	.grp-sub {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.grp.off .grp-title {
@@ -473,7 +474,7 @@
 		border-radius: 999px;
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 	}
 	.lnk {
@@ -499,7 +500,7 @@
 		border: 1px solid var(--orca-line);
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		white-space: nowrap;
 		cursor: pointer;
@@ -541,14 +542,14 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 4px 8px;
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.45;
 		overflow-wrap: anywhere;
 	}
 	.opt-desc {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 		overflow-wrap: anywhere;
 	}
@@ -562,7 +563,7 @@
 		border-radius: 999px;
 		background: var(--orca-warn-bg);
 		color: var(--orca-warn);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 		white-space: nowrap;
 	}
@@ -575,7 +576,7 @@
 		border-radius: 999px;
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 		white-space: nowrap;
 	}
@@ -587,7 +588,7 @@
 		border-top: 1px solid var(--orca-line-soft);
 		background: var(--orca-surface-2);
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.grp-foot :global(svg) {
 		flex: none;
@@ -654,7 +655,7 @@
 	.field label {
 		display: block;
 		margin-bottom: 6px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.field label em {
@@ -677,13 +678,13 @@
 	.hint {
 		margin: 6px 0 0;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	/* For developers */
 	.dev {
 		margin-top: 20px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.dev summary {
 		display: inline-flex;
@@ -705,7 +706,7 @@
 		border: 1px solid var(--orca-line);
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface-2);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.dev-body p {
 		margin: 0 0 8px;
@@ -717,7 +718,7 @@
 	.dev-body code {
 		color: var(--orca-ink);
 		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-		font-size: 12.5px;
+		font-size: 12px;
 		overflow-wrap: anywhere;
 	}
 	/* The sticky bar */
@@ -756,13 +757,13 @@
 	}
 	.sbar-copy b {
 		display: block;
-		font-size: 15px;
+		font-size: 14px;
 		line-height: 1.35;
 	}
 	.sbar-copy span {
 		display: block;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.4;
 	}
 	.sbar-actions {
@@ -774,7 +775,7 @@
 	:global(.orca-workspace.orca-app) .k-button.sbar-go {
 		min-height: 48px;
 		padding: 0 22px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 	}
 	.sbar-error {
@@ -784,7 +785,7 @@
 		gap: 6px;
 		margin: 0;
 		color: var(--orca-deny);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.sbar-error :global(svg) {
 		flex: none;

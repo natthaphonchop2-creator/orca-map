@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { groupPlatformViews, platformAuditLabel, platformAuditRelated } from "$lib/orca/platform-console";
   import { onDestroy, tick } from "svelte";
   import {
     ArrowDown,
@@ -22,6 +23,7 @@
     auditFilterOptions,
     auditPage,
     filterAuditEvents,
+    sortAuditEvents,
     type AuditMode,
     type AuditSort,
     type AuditTimeRange,
@@ -85,7 +87,7 @@
   const subtitle = $derived(
     mode === "administration"
       ? data.canManage
-        ? t("ดูว่าเจ้าของบริษัทและผู้ดูแลเปลี่ยนการตั้งค่าอะไร เมื่อไร", "See what owners and admins changed, and when.")
+        ? t("ใครเปลี่ยนการตั้งค่าอะไร เมื่อไร", "Who changed which setting, and when.")
         : // An employee receives only their own changes.
           t("สิ่งที่คุณเปลี่ยนเอง เช่น ความรู้และคำสั่งสำเร็จรูปที่คุณแก้ และเมื่อไร", "What you changed yourself, such as knowledge and ready-made prompts, and when.")
       : data.canManage
@@ -171,6 +173,11 @@
     "platform.company.create": t("เปิดบริษัทลูกค้า", "Customer company opened"),
     "platform.company.owner_invite": t("เชิญเจ้าของบริษัทลูกค้า", "Customer company's owner invited"),
     "platform.company.owner_revoke": t("ยกเลิกคำเชิญเจ้าของบริษัทลูกค้า", "Customer company's owner invitation revoked"),
+    // What ORCA did in this company (platform console C6, owner decision P6).
+    "platform.view": t("ORCA ดูข้อมูลบริษัท", "ORCA viewed company data"),
+    "platform.suspend": t("ORCA ระงับการใช้งานบริษัทชั่วคราว", "ORCA suspended the company"),
+    "platform.restore": t("ORCA เปิดให้ใช้งานบริษัทอีกครั้ง", "ORCA restored the company"),
+    "platform.rename": t("ORCA เปลี่ยนชื่อบริษัท", "ORCA renamed the company"),
   });
   const names = $derived({
     // A customer company's log names the platform, never the operator's account.
@@ -183,8 +190,10 @@
       data.connections.map((connection) => [connection.id, connection.name]),
     ),
   });
+  // In the table's order, like visibleEvents: grouped in another order, the
+  // filtered rows could outnumber the whole history (Codex PC1 polish review 1).
   const modeEvents = $derived(
-    events.filter((event) => auditEventMode(event) === mode),
+    sortAuditEvents(events.filter((event) => auditEventMode(event) === mode), sort),
   );
   const visibleEvents = $derived(
     filterAuditEvents(
@@ -206,7 +215,12 @@
       (event) => [eventLabel(event)],
     ),
   );
-  const pagination = $derived(auditPage(visibleEvents, pageNumber, pageSize));
+  // Consecutive looks by ORCA at the same area show as one row (C6 §4.1);
+  // every look is still recorded. The counts above the table and under it
+  // both count these rows.
+  const rows = $derived(groupPlatformViews(visibleEvents));
+  const modeRows = $derived(groupPlatformViews(modeEvents));
+  const pagination = $derived(auditPage(rows, pageNumber, pageSize));
   const activeFilters = $derived(
     Boolean(
       query ||
@@ -266,9 +280,11 @@
       return event.version === 1 ? t("เปิดคลังความรู้แบบไฟล์ให้บริษัทลูกค้า", "File Knowledge turned on for a customer company") : t("ปิดคลังความรู้แบบไฟล์ของบริษัทลูกค้า", "File Knowledge turned off for a customer company");
     return "";
   }
-  function eventLabel(event: OrcaAuditEvent) {
+  function eventLabel(event: OrcaAuditEvent & { repeated?: number }) {
     const flag = switchLabel(event);
     if (flag) return flag;
+    const platform = platformAuditLabel(event, t);
+    if (platform) return event.repeated && event.repeated > 1 ? t(`${platform} (${event.repeated} ครั้ง)`, `${platform} (${event.repeated} times)`) : platform;
     return mode === "executions"
       ? (event.toolName ? toolLabel(event.toolName, event.connectionID) : "") ||
           actionLabels[event.action ?? event.method ?? ""] ||
@@ -310,6 +326,9 @@
       : { id };
   }
   function resourceDisplay(event: OrcaAuditEvent): EntityDisplay {
+    // What ORCA did: the area it looked at, or the company (P6).
+    const platform = platformAuditRelated(event, t, data.organization?.displayName);
+    if (platform) return { label: platform };
     // The company's own details: name the company, never a code or "—".
     if ((event.action ?? "").startsWith("organization.") || event.action === "library.v2")
       return { label: data.organization?.displayName || t("ข้อมูลบริษัท", "Company details") };
@@ -529,8 +548,8 @@
   <div class="audit-meta">
     <p class="loaded-summary" role="status">
       {#if loading}{t("กำลังโหลด…", "Loading…")}{:else}{t(
-          `${visibleEvents.length} จาก ${modeEvents.length} รายการ`,
-          `${visibleEvents.length} of ${modeEvents.length} records`,
+          `${rows.length} จาก ${modeRows.length} รายการ`,
+          `${rows.length} of ${modeRows.length} records`,
         )}{#if loadedAt}<span>· {t("โหลดเมื่อ", "Loaded")} {displayDate(new Date(loadedAt).toISOString())}</span>{/if}{/if}
     </p>
     {#if activeFilters}<button type="button" class="k-button quiet small" onclick={clearFilters}
@@ -636,7 +655,7 @@
     </div>{/if}
   <p class="retention-note">
     {t(
-      "แสดง 200 รายการล่าสุดที่คุณมีสิทธิ์ดู ตัวกรองและตัวเลขนับจากรายการชุดนี้",
+      "แสดง 200 รายการล่าสุด",
       "Shows the 200 most recent records you may see. Filters and counts use only these.",
     )}
   </p>
@@ -707,6 +726,7 @@
 </dialog>
 
 <style>
+	/* orca-type-remap v1 */
   /* The page follows its own width, not the window's: the sidebar takes a share. */
   .observability {
     min-width: 0;
@@ -732,7 +752,7 @@
     min-height: 46px;
     border-bottom: 2px solid transparent;
     color: var(--orca-muted);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 500;
     text-decoration: none;
     white-space: nowrap;
@@ -767,7 +787,7 @@
     gap: 6px;
     min-width: 0;
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 600;
   }
   .audit-field select,
@@ -781,7 +801,7 @@
     background-color: var(--orca-field);
     color: var(--orca-ink);
     font: inherit;
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 400;
   }
   .search-field {
@@ -804,7 +824,7 @@
     background: transparent;
     color: var(--orca-ink);
     font: inherit;
-    font-size: 14px;
+    font-size: 13.5px;
   }
   .search-field input::placeholder {
     color: var(--orca-subtle);
@@ -860,7 +880,7 @@
     gap: 4px 8px;
     margin: 0;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .audit-error {
     display: flex;
@@ -883,7 +903,7 @@
     border-radius: var(--orca-radius-lg);
     background: var(--orca-surface);
     color: var(--orca-muted);
-    font-size: 14px;
+    font-size: 13.5px;
   }
   /* The table */
   .audit-panel {
@@ -897,7 +917,7 @@
     width: 100%;
     border-collapse: collapse;
     text-align: start;
-    font-size: 14px;
+    font-size: 13.5px;
   }
   th {
     height: 42px;
@@ -905,7 +925,7 @@
     border-bottom: 1px solid var(--orca-line);
     background: var(--orca-surface);
     color: var(--orca-subtle);
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 600;
     text-align: start;
     white-space: nowrap;
@@ -945,7 +965,7 @@
     background: transparent;
     color: var(--orca-ink);
     font: inherit;
-    font-size: 14.5px;
+    font-size: 13.5px;
     font-weight: 600;
     text-align: start;
     cursor: pointer;
@@ -962,7 +982,7 @@
     overflow: hidden;
     color: var(--orca-muted);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12px;
+    font-size: 11.5px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -975,13 +995,13 @@
     display: block;
     margin-top: 2px;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
     overflow-wrap: break-word;
   }
   .duration,
   .timestamp {
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
@@ -1015,7 +1035,7 @@
     padding: 10px 16px;
     border-top: 1px solid var(--orca-line);
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .pagination > div {
     display: flex;
@@ -1033,7 +1053,7 @@
     width: 72px;
     height: 32px;
     padding: 0 8px;
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .pagination button {
     display: inline-grid;
@@ -1059,7 +1079,7 @@
   .retention-note {
     margin: 12px 0 0;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: 1.6;
   }
   /* The detail drawer */
@@ -1090,7 +1110,7 @@
   }
   .drawer-heading h2 {
     margin: 0;
-    font-size: 17px;
+    font-size: 16px;
     font-weight: 700;
     line-height: 1.45;
     overflow-wrap: anywhere;
@@ -1098,7 +1118,7 @@
   .drawer-heading p {
     margin: 2px 0 0;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .drawer-close {
     display: inline-grid;
@@ -1126,7 +1146,7 @@
     justify-content: space-between;
     gap: 10px;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .identity-details {
     display: grid;
@@ -1142,20 +1162,20 @@
   }
   dt {
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
   }
   dd {
     min-width: 0;
     margin: 0;
     color: var(--orca-ink);
-    font-size: 14px;
+    font-size: 13.5px;
     overflow-wrap: anywhere;
   }
   dd small {
     display: block;
     margin-top: 2px;
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
   }
   dd .audit-id {
     max-width: none;
@@ -1181,7 +1201,7 @@
   .admission-note {
     margin: 16px 0 0;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: 1.6;
   }
   .admission-note {
@@ -1285,7 +1305,7 @@
     .person-cell .primary-cell,
     .context-cell .primary-cell {
       color: var(--orca-text-2);
-      font-size: 13.5px;
+      font-size: 13px;
     }
     .pagination {
       padding: 4px 0 0;

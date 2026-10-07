@@ -165,7 +165,7 @@ async function fileDetail(props) {
 	const rails = [];
 	const { warnings, Component } = await serverComponent(new URL('./knowledge/FileDetail.svelte', import.meta.url), {
 		...k, term, t: th, onDestroy: noop, getHttpStatusCode: noop, isAbortError: () => false, parseErrorContent: noop, orcaError: () => '',
-		OrcaLibraryService: { downloadHref: (hub, item, which) => `/api/orca/hubs/${hub}/library/files/${item}/download?version=${which}` },
+		OrcaLibraryService: { download: async () => ({ blob: new Blob(['x']), fileName: 'x' }) },
 		StatusPill, Switch, WhoCard,
 		ConfirmDialog: (_renderer, input) => dialogs.push(input),
 		FilePreview: (renderer, input) => {
@@ -202,8 +202,10 @@ test('a file\'s owner sees what the AI sees, its hidden parts with switches, and
 	assert.match(html, /ห้ามดาวน์โหลดต้นฉบับ/);
 	assert.match(html, /กันได้แค่ไฟล์ต้นฉบับ คนที่เห็นเนื้อหาผ่าน AI ยังคัดลอกข้อความได้/);
 	assert.match(html, /ต้องตรวจก่อนอัปเดต/);
-	// The download is a plain same-origin link: no new tab, nothing automatic.
-	assert.match(html, /<a class="k-button" href="\/api\/orca\/hubs\/sales\/library\/files\/f\/download\?version=published" download="">/);
+	// The download is a button: after a click, through the request layer
+	// (Codex PC1 review 2 MAJOR 2), no new tab, nothing automatic.
+	assert.match(html, /<button type="button" class="k-button">ดาวน์โหลด<\/button>/);
+	assert.doesNotMatch(html, /download\?version|<a [^>]*download/, 'never a plain link');
 	assert.doesNotMatch(html, /target="_blank"/);
 	assert.match(html, /อัปโหลดฉบับใหม่/);
 	assert.match(html, /อ่านไฟล์ใหม่<\/button>/);
@@ -277,13 +279,13 @@ test('a newer version held for review: both versions, and "ใช้ฉบับ
 test('someone else\'s file: what the AI sees, the download only if allowed, and no owner tools', async () => {
 	const theirs = (allow) => fileItem('o', { ownerID: 'y', canEdit: false, audienceMode: undefined, file: fileInfo({ ext: 'csv', allowDownload: allow, published: version(1, 'ready', { stats: { chars: 1, rows: 412, encoding: 'windows-874', hidden: hiddenParts({ comments: 3 }) } }) }) });
 	const allowed = await fileDetail({ item: theirs(true) });
-	assert.match(allowed.html, /download\?version=published" download/);
+	assert.match(allowed.html, />ดาวน์โหลด<\/button>/);
 	assert.equal(allowed.previews.length, 1);
 	assert.doesNotMatch(allowed.html, /role="switch"|อัปโหลดฉบับใหม่|อ่านไฟล์ใหม่|>ลบ<|>จัดเก็บ<|ตั้งค่าไฟล์|ส่วนที่ซ่อนอยู่|Windows-874/, 'the owner\'s alone');
 	assert.match(allowed.html, /เจ้าของไฟล์เป็นคนเลือกว่าใครใช้ได้/);
 	assert.match(allowed.html, /เจ้าของ มาลี สมมุติ/);
 	const refused = await fileDetail({ item: theirs(false) });
-	assert.doesNotMatch(refused.html, /download\?version/);
+	assert.doesNotMatch(refused.html, />ดาวน์โหลด<\/button>/);
 	assert.match(refused.html, /เจ้าของไฟล์ไม่เปิดให้ดาวน์โหลดต้นฉบับ/);
 });
 
@@ -301,7 +303,7 @@ test('after the flag went off, the owner still sees, downloads, archives and del
 	const item = fileItem('f', { audienceMode: 'everyone_live', file: fileInfo({ published: version(2, 'ready', { stats: { chars: 1, hidden: hiddenParts({ comments: 4 }) } }), options: options() }) });
 	const { html, previews, rails } = await fileDetail({ item, features: OFF });
 	assert.equal(previews.length, 1);
-	assert.match(html, /download\?version=published/);
+	assert.match(html, />ดาวน์โหลด<\/button>/);
 	assert.match(html, />จัดเก็บ</);
 	assert.match(html, />ลบ</);
 	assert.doesNotMatch(html, /role="switch"|อัปโหลดฉบับใหม่|อ่านไฟล์ใหม่|ตั้งค่าไฟล์|ส่วนที่ซ่อนอยู่ในไฟล์/, 'what needs library v2 is not offered');
@@ -828,7 +830,7 @@ test('a held version that read in part says so on its tab, in what the AI will s
 	const item = fileItem('p', { file: fileInfo({ ext: 'pptx', published: version(1, 'ready', { stats: { chars: 1, slides: 18, hidden: hiddenParts() } }), pending: version(2, 'partial', { options: { includeHidden: false, includeComments: false, includeNotes: true }, stats: { chars: 1, slides: 240, partialReason: 'slides', hidden: hiddenParts({ notesSlides: 7, trackedChanges: 2 }) } }), options: options({ reviewBeforeUpdate: true, includeNotes: true }) }) });
 	const { Component } = await serverComponent(new URL('./knowledge/FileDetail.svelte', import.meta.url), {
 		...k, term, t: th, onDestroy: noop, getHttpStatusCode: noop, isAbortError: () => false, parseErrorContent: noop, orcaError: () => '',
-		OrcaLibraryService: { downloadHref: () => '#' }, StatusPill, Switch, WhoCard, ConfirmDialog: noop, FilePreview: noop, KnowledgeRail: noop, TakeoverCard: noop
+		OrcaLibraryService: { download: async () => ({ blob: new Blob(['x']), fileName: 'x' }) }, StatusPill, Switch, WhoCard, ConfirmDialog: noop, FilePreview: noop, KnowledgeRail: noop, TakeoverCard: noop
 	});
 	const source = await readFile(new URL('./knowledge/FileDetail.svelte', import.meta.url), 'utf8');
 	// The note follows the version shown (the held one too), and a held one serves no one yet.
@@ -849,7 +851,7 @@ test('a held version that read in part says so on its tab, in what the AI will s
 	const paused = await (async () => {
 		const { Component: Detail } = await serverComponent(new URL('./knowledge/FileDetail.svelte', import.meta.url), {
 			...k, term, t: th, onDestroy: noop, getHttpStatusCode: noop, isAbortError: () => false, parseErrorContent: noop, orcaError: () => '',
-			OrcaLibraryService: { downloadHref: () => '#' }, StatusPill, Switch, WhoCard, ConfirmDialog: noop, FilePreview: noop, TakeoverCard: noop,
+			OrcaLibraryService: { download: async () => ({ blob: new Blob(['x']), fileName: 'x' }) }, StatusPill, Switch, WhoCard, ConfirmDialog: noop, FilePreview: noop, TakeoverCard: noop,
 			KnowledgeRail: (_renderer, input) => rails.push(input)
 		});
 		show(Detail, { hub: hub('sales', { status: 'paused' }), item: fileItem('f'), members, departments, currentUserID: 'me', features: ON, now: 0, onback: noop, onedit: noop, onchanged: noop, onarchived: noop, ondeleted: noop, ondenied: noop });

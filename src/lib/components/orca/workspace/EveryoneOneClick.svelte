@@ -141,6 +141,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.everyone {
 		max-width: 720px;
 		padding: 24px;
@@ -175,7 +176,7 @@
 	.everyone-head h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 18px;
+		font-size: 16px;
 		font-weight: 700;
 		line-height: 1.35;
 	}
@@ -205,14 +206,14 @@
 	.everyone-list strong {
 		display: block;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 		line-height: 1.45;
 	}
 	.everyone-list p {
 		margin: 2px 0 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.everyone-note {
@@ -221,7 +222,7 @@
 		gap: 8px;
 		margin: 20px 0 0;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.everyone-note :global(svg) {
@@ -246,7 +247,7 @@
 	}
 	.everyone-error p {
 		margin: 0;
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.55;
 	}
 	.everyone-actions {
@@ -268,7 +269,7 @@
 		background: var(--orca-citron);
 		color: var(--orca-on-citron);
 		font: inherit;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -281,7 +282,7 @@
 	}
 	.everyone-custom {
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		text-decoration: underline;
 		text-underline-offset: 3px;
@@ -289,7 +290,7 @@
 	.everyone-progress {
 		flex-basis: 100%;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.everyone-progress:empty {
 		display: none;

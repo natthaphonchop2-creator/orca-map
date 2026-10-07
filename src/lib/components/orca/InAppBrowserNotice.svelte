@@ -79,6 +79,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	/* The sign-in page is dark (--login-*), the invite page light (--orca-*). */
 	.o-inapp {
 		display: grid;
@@ -100,14 +101,14 @@
 		gap: 8px;
 		margin: 0;
 		color: var(--login-text, var(--orca-ink));
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 		line-height: 1.4;
 	}
 	.o-inapp p {
 		margin: 0;
 		color: var(--login-muted, var(--orca-muted));
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	.o-inapp .o-inapp-step {
@@ -135,7 +136,7 @@
 	}
 	.o-inapp .o-inapp-failed {
 		color: var(--login-deny, var(--orca-deny));
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.o-inapp-url {
 		overflow-wrap: anywhere;

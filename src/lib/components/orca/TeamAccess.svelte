@@ -194,8 +194,8 @@
       <p class="k-subtitle">
         {data.canManage
           ? t(
-              "คนที่ใช้ ORCA ของบริษัทนี้ เชิญคนใหม่ด้วยลิงก์ แล้วเขาเข้าสู่ระบบด้วยบัญชี Google ของตัวเอง",
-              "People using this company's ORCA. Invite with a link; each person signs in with Google.",
+              "เชิญคนใหม่ด้วยลิงก์",
+              "Invite with a link.",
             )
           : t("คนที่ใช้ ORCA ของบริษัทนี้", "People who use this company's ORCA.")}
       </p>
@@ -434,6 +434,7 @@
 {#if data.canManage}<MemberInvitations {data} bind:inviting bind:openCount={invitationCount} showList={section === "invitations"} onchanged={memberChanged} />{/if}
 
 <style>
+	/* orca-type-remap v1 */
   .team-heading {
     flex: 1 1 360px;
     min-width: 0;
@@ -494,7 +495,7 @@
     background: transparent;
     color: var(--orca-ink);
     font: inherit;
-    font-size: 14px;
+    font-size: 13.5px;
     line-height: 1.5;
     text-align: start;
     text-decoration: none;
@@ -539,7 +540,7 @@
     background: transparent;
     color: var(--orca-muted);
     font: inherit;
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 500;
     white-space: nowrap;
     cursor: pointer;
@@ -567,7 +568,7 @@
     border-radius: var(--orca-radius-sm);
     background: var(--orca-secondary);
     color: var(--orca-nav);
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 500;
   }
   .team-tabs button span.team-tab-alert {
@@ -584,7 +585,7 @@
     border-radius: var(--orca-radius);
     background: var(--orca-warn-bg);
     color: var(--orca-warn);
-    font-size: 14px;
+    font-size: 13.5px;
   }
   .team-reminder span {
     flex: 1;
@@ -620,7 +621,7 @@
     background: var(--orca-surface);
     color: var(--orca-nav);
     font: inherit;
-    font-size: 13.5px;
+    font-size: 13px;
     cursor: pointer;
   }
   .team-filter button span {
@@ -645,7 +646,7 @@
     background: var(--orca-surface);
     color: var(--orca-ink);
     font: inherit;
-    font-size: 14px;
+    font-size: 13.5px;
   }
   /* Members table */
   .team-table-wrap {
@@ -683,7 +684,7 @@
     border-radius: var(--orca-radius-sm);
     background: var(--orca-deny-bg);
     color: var(--orca-deny);
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 500;
   }
   .role-badge {
@@ -692,7 +693,7 @@
     border-radius: 999px;
     background: var(--orca-secondary);
     color: var(--orca-nav);
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
   }
@@ -705,12 +706,12 @@
     display: block;
     margin-top: 4px;
     color: var(--orca-muted);
-    font-size: 12px;
+    font-size: 11.5px;
     white-space: nowrap;
   }
   .team-none {
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .team-hub-link {
     display: flex;
@@ -732,11 +733,11 @@
   .team-noaccess {
     display: block;
     color: var(--orca-warn);
-    font-size: 13.5px;
+    font-size: 13px;
   }
   .team-noaccess-link {
     color: var(--orca-ink);
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 500;
     text-decoration: underline;
     text-underline-offset: 3px;
@@ -772,17 +773,17 @@
   }
   .team-empty h2 {
     margin-top: 4px;
-    font-size: 15px;
+    font-size: 14px;
   }
   .team-empty p {
     margin: 0;
-    font-size: 13.5px;
+    font-size: 13px;
   }
   /* What each role can do */
   .team-role-help {
     margin-top: 16px;
     color: var(--orca-muted);
-    font-size: 13.5px;
+    font-size: 13px;
   }
   .team-role-help summary {
     display: inline-flex;

@@ -1,3 +1,4 @@
+/* orca-type-remap v1 */
 /*
  * ORCA workspace design system: a calm, formal console.
  * Modeled on the owner's Arcade reference (shadcn-style neutrals, 8px radii, compact
@@ -49,7 +50,7 @@
   --k-header: 56px;
   background: var(--orca-bg);
   color: var(--orca-ink);
-  font-size: 14.5px;
+  font-size: 13.5px;
   line-height: 1.6;
 }
 .orca-workspace.orca-app.sidebar-collapsed {
@@ -58,7 +59,7 @@
 
 /* ---------- Type ---------- */
 .orca-workspace.orca-app h1 {
-  font-size: 24px;
+  font-size: 20px;
   line-height: 1.35;
   font-weight: 600;
   letter-spacing: 0;
@@ -68,18 +69,18 @@
   letter-spacing: -0.02em;
 }
 .orca-workspace.orca-app h2 {
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.45;
   font-weight: 600;
 }
 .orca-workspace.orca-app h3 {
-  font-size: 14.5px;
+  font-size: 13.5px;
   line-height: 1.45;
   font-weight: 600;
 }
 .orca-workspace.orca-app .k-subtitle {
   margin-top: 4px;
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.65;
   max-width: 72ch;
   color: var(--orca-muted);
@@ -101,7 +102,7 @@
   color: var(--orca-muted);
 }
 .orca-workspace.orca-app .k-small {
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 /* ---------- Sidebar ---------- */
@@ -147,7 +148,7 @@
   padding: 6px 10px;
   border-radius: var(--orca-radius);
   color: var(--orca-nav);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
   line-height: 1.45;
   text-decoration: none;
@@ -193,17 +194,17 @@
   height: 30px;
   background: var(--orca-ink);
   color: var(--orca-on-ink, #fff);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 .orca-workspace.orca-app .workspace-account-copy strong {
   color: var(--orca-ink);
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
 }
 .orca-workspace.orca-app .workspace-account-copy small {
   color: var(--orca-muted);
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .orca-workspace.orca-app .workspace-account-chevron {
   color: var(--orca-subtle);
@@ -218,15 +219,15 @@
   box-shadow: var(--orca-popover-shadow);
 }
 .orca-workspace.orca-app .workspace-account-menu > strong {
-  font-size: 14px;
+  font-size: 13.5px;
 }
 .orca-workspace.orca-app .workspace-account-menu > span,
 .orca-workspace.orca-app .workspace-account-menu > small {
-  font-size: 12.5px;
+  font-size: 12px;
 }
 .orca-workspace.orca-app .workspace-account-menu > a {
   min-height: 34px;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
   transition: background-color 0.15s var(--orca-ease), color 0.15s var(--orca-ease);
 }
@@ -237,7 +238,7 @@
 .orca-workspace.orca-app .workspace-nav a {
   min-height: 40px;
   padding: 9px 10px;
-  font-size: 15px;
+  font-size: 14px;
 }
 .orca-workspace.orca-app .workspace-nav a svg {
   width: 18px;
@@ -255,7 +256,7 @@
 .orca-workspace.orca-app .workspace-utility a {
   min-height: 36px;
   padding: 8px 10px;
-  font-size: 14px;
+  font-size: 13.5px;
 }
 .orca-workspace.orca-app .workspace-utility a svg {
   width: 17px;
@@ -283,7 +284,7 @@
   padding: 4px 8px;
   border-radius: 999px;
   color: var(--orca-muted);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
@@ -313,155 +314,28 @@
 .orca-workspace.orca-app .compact .workspace-mode-label {
   display: none;
 }
-/* "เชื่อม AI ของฉัน" reads as the AI button (owner, 2026-10-01): a soft citron light running slowly round
-   the edge (toned down 2026-10-05), the sparkle on an ink tile with a citron glyph (like the ORCA app icon) that twinkles, a
-   soft citron glow, and one light sweep on hover. No motion under prefers-reduced-motion. */
 .orca-workspace.orca-app .workspace-pin {
-  --pin-mid: rgba(21, 24, 35, 0.16);
-  --pin-light: #b8dc32; /* a deeper citron, so the running light shows on white */
-  --pin-glow: rgba(150, 180, 30, 0.28);
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px 10px 10px;
-  border: 1px solid transparent;
+  padding: 11px 12px;
+  border: 1px solid var(--orca-line-strong);
   border-radius: var(--orca-radius-lg);
-  background:
-    linear-gradient(var(--orca-surface), var(--orca-surface)) padding-box,
-    conic-gradient(from var(--pin-angle), var(--pin-light) 0deg, var(--pin-mid) 60deg, var(--pin-mid) 300deg, var(--pin-light) 360deg) border-box;
-  box-shadow: 0 8px 20px -14px var(--pin-glow);
+  background: var(--orca-surface);
   color: var(--orca-ink);
   text-decoration: none;
-  transition: box-shadow 0.2s var(--orca-ease);
-  animation: orca-pin-orbit 9s linear infinite;
-}
-/* The citron light runs round the edge (an animatable angle; browsers without @property keep
-   a still edge). */
-@property --pin-angle {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 135deg;
-}
-@keyframes orca-pin-orbit {
-  to { --pin-angle: 495deg; }
-}
-.orca-workspace.orca-app .workspace-pin::after {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  background: linear-gradient(105deg, transparent 30%, rgba(215, 244, 113, 0.18) 50%, transparent 70%);
-  transform: translateX(-120%);
-  pointer-events: none;
+  transition: border-color 0.15s var(--orca-ease), box-shadow 0.15s var(--orca-ease);
 }
 .orca-workspace.orca-app .workspace-pin:hover {
-  box-shadow: 0 10px 24px -12px var(--pin-glow);
+  border-color: var(--orca-line-hover, var(--orca-line-strong));
   text-decoration: none;
 }
-.orca-workspace.orca-app .workspace-pin:hover::after {
-  animation: orca-pin-sweep 0.9s var(--orca-ease) 1;
-}
-@keyframes orca-pin-sweep {
-  to { transform: translateX(120%); }
-}
 .orca-workspace.orca-app .workspace-pin.active {
-  box-shadow: 0 0 0 1px var(--orca-chosen), 0 10px 24px -12px var(--pin-glow);
-}
-.orca-workspace.orca-app .workspace-pin-icon {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  background: #151823;
-  color: var(--orca-citron);
-  box-shadow: 0 0 0 3px rgba(215, 244, 113, 0.22);
+  border-color: var(--orca-chosen);
+  box-shadow: 0 0 0 1px var(--orca-chosen);
 }
 .orca-workspace.orca-app .workspace-pin svg {
   flex: none;
-}
-/* The sparkle twinkles now and then. */
-.orca-workspace.orca-app .workspace-pin-icon svg {
-  animation: orca-pin-twinkle 7s var(--orca-ease) infinite;
-}
-@keyframes orca-pin-twinkle {
-  0%, 76%, 100% { transform: scale(1) rotate(0deg); filter: none; }
-  86% { transform: scale(1.08) rotate(6deg); filter: drop-shadow(0 0 3px rgba(215, 244, 113, 0.55)); }
-}
-@media screen {
-  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-pin {
-    --pin-mid: rgba(255, 255, 255, 0.12);
-    --pin-light: var(--orca-citron);
-    --pin-glow: rgba(215, 244, 113, 0.18);
-  }
-  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-pin-icon {
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 0 0 3px rgba(215, 244, 113, 0.14);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .orca-workspace.orca-app .workspace-pin,
-  .orca-workspace.orca-app .workspace-pin:hover::after,
-  .orca-workspace.orca-app .workspace-pin-icon svg { animation: none; }
-}
-/* "คลังความรู้" in the side menu is the AI item too (owner, 2026-10-05): the same citron light
-   running round a thin edge as the AI button, and its book on an ink tile with a citron glyph that
-   glows now and then. As the current page it takes the citron fill like every other item. */
-.orca-workspace.orca-app .workspace-nav a.workspace-nav-ai {
-  --pin-mid: rgba(21, 24, 35, 0.12);
-  --pin-light: #b8dc32;
-  border: 1px solid transparent;
-  background:
-    linear-gradient(var(--orca-sidebar), var(--orca-sidebar)) padding-box,
-    conic-gradient(from var(--pin-angle), var(--pin-light) 0deg, var(--pin-mid) 60deg, var(--pin-mid) 300deg, var(--pin-light) 360deg) border-box;
-  animation: orca-pin-orbit 11s linear infinite;
-}
-.orca-workspace.orca-app .workspace-nav a.workspace-nav-ai:hover {
-  background:
-    linear-gradient(var(--orca-hover), var(--orca-hover)) padding-box,
-    linear-gradient(var(--orca-sidebar), var(--orca-sidebar)) padding-box,
-    conic-gradient(from var(--pin-angle), var(--pin-light) 0deg, var(--pin-mid) 60deg, var(--pin-mid) 300deg, var(--pin-light) 360deg) border-box;
-}
-.orca-workspace.orca-app .workspace-nav a.workspace-nav-ai.active {
-  border-color: var(--orca-citron);
-  background: var(--orca-citron);
-  animation: none;
-}
-.orca-workspace.orca-app .workspace-nav a .workspace-nav-ai-icon {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  margin: -4px -4px -4px -4px;
-  border-radius: 7px;
-  background: #151823;
-}
-.orca-workspace.orca-app .workspace-nav a .workspace-nav-ai-icon svg {
-  width: 15px;
-  height: 15px;
-  color: var(--orca-citron);
-  animation: orca-ai-glow 8s var(--orca-ease) infinite;
-}
-@keyframes orca-ai-glow {
-  0%, 65%, 100% { filter: none; }
-  85% { filter: drop-shadow(0 0 3px rgba(215, 244, 113, 0.55)); }
-}
-@media screen {
-  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-nav a.workspace-nav-ai {
-    --pin-mid: rgba(255, 255, 255, 0.1);
-    --pin-light: var(--orca-citron);
-  }
-  :root[data-orca-theme='dark'] .orca-workspace.orca-app .workspace-nav a .workspace-nav-ai-icon {
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .orca-workspace.orca-app .workspace-nav a.workspace-nav-ai,
-  .orca-workspace.orca-app .workspace-nav a .workspace-nav-ai-icon svg { animation: none; }
 }
 .orca-workspace.orca-app .workspace-pin-copy {
   display: flex;
@@ -471,7 +345,7 @@
 }
 .orca-workspace.orca-app .workspace-pin-copy strong {
   overflow: hidden;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -481,7 +355,7 @@
   align-items: center;
   gap: 5px;
   color: var(--orca-muted);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
 }
 .orca-workspace.orca-app .workspace-pin-state::before {
@@ -497,7 +371,7 @@
 }
 .orca-workspace.orca-app .compact .workspace-pin {
   justify-content: center;
-  padding: 8px 5px;
+  padding: 10px 5px;
 }
 .orca-workspace.orca-app .compact .workspace-pin-copy {
   display: none;
@@ -513,7 +387,7 @@
 }
 .orca-workspace.orca-app .workspace-location {
   gap: 10px;
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--orca-muted);
 }
 /* The top bar's company name and page title go to หน้าหลัก (owner, 2026-10-05). */
@@ -527,7 +401,7 @@
 .orca-workspace.orca-app .workspace-home-link:hover { color: var(--orca-ink); text-decoration: underline; text-underline-offset: 3px; }
 .orca-workspace.orca-app .workspace-home-link:focus-visible { outline: 2px solid var(--orca-ink); outline-offset: 2px; }
 .orca-workspace.orca-app .workspace-current-page {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--orca-ink);
 }
@@ -565,7 +439,7 @@
   background: transparent;
   color: var(--orca-muted);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.15s var(--orca-ease), color 0.15s var(--orca-ease);
@@ -598,7 +472,7 @@
   border-radius: var(--orca-radius);
   background: var(--orca-surface);
   color: var(--orca-ink) !important;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
   line-height: 1.2;
   box-shadow: none;
@@ -658,7 +532,7 @@
 .orca-workspace.orca-app .k-button.small {
   min-height: 32px;
   padding: 0 10px;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .orca-workspace.orca-app .k-button:disabled,
 .orca-workspace.orca-app .k-button[aria-disabled='true'] {
@@ -677,7 +551,7 @@
 /* ---------- Forms ---------- */
 .orca-workspace.orca-app .k-field > label,
 .orca-workspace.orca-app .k-field label {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
 }
 .orca-workspace.orca-app .k-field input:not([type='checkbox']):not([type='radio']),
@@ -690,7 +564,7 @@
   border-radius: var(--orca-radius);
   background: var(--orca-field, var(--orca-surface));
   color: var(--orca-ink);
-  font-size: 14px;
+  font-size: 13.5px;
   transition: border-color 0.15s var(--orca-ease), box-shadow 0.15s var(--orca-ease);
 }
 .orca-workspace.orca-app .k-field :is(input, select, textarea):focus-visible {
@@ -732,7 +606,7 @@
   border-radius: var(--orca-radius);
   background: var(--orca-surface-2);
   color: var(--orca-ink);
-  font-size: 13.5px;
+  font-size: 13px;
 }
 .orca-workspace.orca-app .k-banner > svg {
   flex: none;
@@ -763,7 +637,7 @@
   border-radius: var(--orca-radius-sm);
   background: var(--orca-secondary);
   color: var(--orca-nav);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -789,7 +663,7 @@
   position: relative;
   min-height: 24px;
   padding-left: 36px;
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.65;
   counter-increment: k-numbered;
 }
@@ -806,7 +680,7 @@
   border-radius: 50%;
   background: var(--orca-surface);
   color: var(--orca-ink);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   line-height: 1;
 }
@@ -839,21 +713,21 @@
   border-bottom: 1px solid var(--orca-line);
   background: var(--orca-surface-2);
   color: var(--orca-nav);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   text-align: start;
 }
 .orca-workspace.orca-app .k-table td {
   padding: 10px 12px;
   border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
-  font-size: 14px;
+  font-size: 13.5px;
 }
 
 /* ---------- Footer ---------- */
 .orca-workspace.orca-app .k-footer {
   margin-top: 36px;
   padding-top: 16px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--orca-muted);
 }
 
@@ -889,7 +763,7 @@ html:has(.orca-workspace.orca-app .workspace-drawer[open]) {
   border-radius: var(--orca-radius);
   background: var(--orca-surface);
   color: var(--orca-ink);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
 }
 .orca-workspace.orca-app .workspace-drawer-company > svg {

@@ -86,6 +86,7 @@
 </dialog>
 
 <style>
+	/* orca-type-remap v1 */
 	.orca-sheet {
 		width: min(560px, 100vw);
 		max-width: 100vw;
@@ -118,14 +119,14 @@
 	}
 	.orca-sheet-head h2 {
 		margin: 0;
-		font-size: 18px;
+		font-size: 16px;
 		line-height: 1.4;
 		font-weight: 700;
 	}
 	.orca-sheet-head p {
 		margin: 4px 0 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.55;
 	}
 	.orca-sheet-close {

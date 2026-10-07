@@ -69,6 +69,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.kn-scope-wrap {
 		position: relative;
 		flex: none;
@@ -83,7 +84,7 @@
 		border-radius: 999px;
 		background: var(--orca-surface);
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		box-shadow: 0 1px 2px color-mix(in srgb, var(--orca-ink) 5%, transparent);
 		cursor: pointer;
 		transition: border-color 0.15s var(--orca-ease);
@@ -135,7 +136,7 @@
 		border-radius: var(--orca-radius);
 		background: transparent;
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		text-align: left;
 		cursor: pointer;
 	}
@@ -161,7 +162,7 @@
 	}
 	.name small {
 		color: var(--orca-muted);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 400;
 	}
 </style>

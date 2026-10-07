@@ -81,6 +81,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.ca-result {
 		overflow: hidden;
 		border: 1px solid var(--orca-line);
@@ -102,7 +103,7 @@
 	.ca-state b {
 		display: block;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 		line-height: 1.45;
 	}
@@ -113,7 +114,7 @@
 	.ca-state small {
 		display: block;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.ca-spin {
@@ -164,7 +165,7 @@
 	.ca-try > p {
 		margin: 0 0 8px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.ca-try ul {
 		display: grid;
@@ -182,7 +183,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface);
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 	}
 	.ca-try li > :global(svg) {
 		flex: none;

@@ -50,6 +50,7 @@
 </li>
 
 <style>
+	/* orca-type-remap v1 */
 	.home-step {
 		display: flex;
 		align-items: flex-start;
@@ -78,7 +79,7 @@
 		border-radius: 50%;
 		background: var(--orca-surface);
 		color: var(--orca-subtle);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 700;
 	}
 	.home-step.done .home-step-num {
@@ -105,12 +106,12 @@
 	.home-step .home-step-title h3 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 600;
 		line-height: 1.45;
 	}
 	.home-step.current .home-step-title h3 {
-		font-size: 20px;
+		font-size: 18px;
 		font-weight: 700;
 		letter-spacing: -0.005em;
 	}
@@ -131,7 +132,7 @@
 	}
 	.home-step-time {
 		color: var(--orca-subtle);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 500;
 	}
 	.home-step-detail {
@@ -141,7 +142,7 @@
 		gap: 4px 8px;
 		margin: 2px 0 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.55;
 	}
 	.home-step-detail > span {
@@ -150,7 +151,7 @@
 	}
 	.home-step.current .home-step-detail {
 		margin-top: 4px;
-		font-size: 15px;
+		font-size: 14px;
 	}
 	.home-step-action {
 		display: flex;
@@ -184,7 +185,7 @@
 			padding: 18px 14px;
 		}
 		.home-step.current .home-step-title h3 {
-			font-size: 18px;
+			font-size: 16px;
 		}
 		.home-step-action {
 			flex: 1 1 calc(100% - 42px);

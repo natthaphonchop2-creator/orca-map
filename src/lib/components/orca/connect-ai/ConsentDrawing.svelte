@@ -26,6 +26,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	/* One grid: the window's rows in the first column, each note in the second
 	   on the row it points at, so the notes stay level with what they name. */
 	.ca-consent {
@@ -95,14 +96,14 @@
 	}
 	.ca-head b {
 		color: var(--orca-ink);
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 650;
 		line-height: 1.45;
 	}
 	.ca-head small {
 		margin-top: 3px;
 		color: var(--orca-muted);
-		font-size: 12px;
+		font-size: 11.5px;
 	}
 	.ca-account {
 		grid-row: 3;
@@ -115,7 +116,7 @@
 		border-radius: var(--orca-radius);
 		background: var(--orca-surface);
 		color: var(--orca-ink);
-		font-size: 12px;
+		font-size: 11.5px;
 	}
 	.ca-avatar {
 		display: grid;
@@ -152,7 +153,7 @@
 		border: 1px solid var(--orca-line-strong);
 		border-radius: 7px;
 		color: var(--orca-ink);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		text-align: center;
 	}
@@ -221,13 +222,13 @@
 	}
 	.ca-note b {
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 		line-height: 1.45;
 	}
 	.ca-note small {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	/* Narrow: the notes go under the window as a short list. */

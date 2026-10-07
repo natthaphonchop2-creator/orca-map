@@ -34,6 +34,7 @@
 </li>
 
 <style>
+	/* orca-type-remap v1 */
 	.ca-step {
 		position: relative;
 		display: grid;
@@ -70,7 +71,7 @@
 		border-radius: 50%;
 		background: var(--orca-surface);
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 700;
 		line-height: 1;
 	}
@@ -92,7 +93,7 @@
 	.ca-label h2 {
 		margin: 0 0 4px;
 		color: var(--orca-ink);
-		font-size: 17px;
+		font-size: 16px;
 		font-weight: 650;
 		line-height: 1.4;
 		letter-spacing: -0.005em;
@@ -100,7 +101,7 @@
 	.ca-label p {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.55;
 	}
 	.ca-label p :global(b) {
@@ -141,7 +142,7 @@
 		.ca-number {
 			width: 30px;
 			height: 30px;
-			font-size: 13px;
+			font-size: 12.5px;
 		}
 		.ca-label {
 			padding-top: 2px;

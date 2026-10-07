@@ -264,6 +264,18 @@ test("the platform area is the ORCA team's, one section at a time", () => {
   assert.equal(platformHref("signin"), "/app?org=default&view=platform&section=signin");
 });
 
+test("a customer company's page keeps its company and tab, for the ORCA team only (C6 PC1)", () => {
+  const B = "org-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  stays(`view=platform&section=companies&company=${B}`, "platform", { role: operator });
+  stays(`view=platform&section=companies&company=${B}&tab=manage`, "platform", { role: operator });
+  redirects(`view=platform&section=companies&company=${B}&tab=overview`, `/app?view=platform&section=companies&company=${B}`, { role: operator });
+  redirects(`view=platform&section=companies&company=${B}&tab=raw-audit`, `/app?view=platform&section=companies&company=${B}`, { role: operator });
+  stays("view=platform&section=companies&company=default", "platform", { role: operator });
+  redirects("view=platform&section=companies&company=../x&tab=manage", "/app?view=platform&section=companies", { role: operator });
+  redirects(`view=platform&section=signin&company=${B}`, "/app?view=platform&section=signin", { role: operator });
+  for (const role of [owner, employee]) redirects(`view=platform&section=companies&company=${B}`, "/app", { role });
+});
+
 test("ทีม tabs live in the address; employees go Home (they only receive their own row)", () => {
   stays("view=members&tab=invitations", "members");
   stays("view=members&tab=departments", "members");

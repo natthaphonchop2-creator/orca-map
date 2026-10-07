@@ -48,18 +48,18 @@ test('StatusPill and EmptyState stay within their contract', async () => {
 	assert.doesNotMatch(render(empty.Component, { props: { message: 'Nothing here.' } }).body, /<a |<button /);
 });
 
-test('the title is 28px (24px on a phone) and outranks the shell\'s `.orca-workspace.orca-app h1`', async () => {
+test('the title is 24px (20px on a phone; one step down, owner 2026-10-07) and outranks the shell\'s `.orca-workspace.orca-app h1`', async () => {
 	const { readFile } = await import('node:fs/promises');
 	const { compile } = await import('svelte/compiler');
 	const source = await readFile(new URL('./ui/PageHeader.svelte', import.meta.url), 'utf8');
 	const css = compile(source, { filename: 'PageHeader.svelte', generate: 'client', css: 'external' }).css.code.replace(/\/\*[\s\S]*?\*\//g, '');
 	const shell = await readFile(new URL('./orca-system.css', import.meta.url), 'utf8');
-	assert.match(shell, /\.orca-workspace\.orca-app h1 \{\s*font-size: 24px;/);
+	assert.match(shell, /\.orca-workspace\.orca-app h1 \{\s*font-size: 20px;/);
 	// Scoped, `.orca-page-header .orca-page-title h1` is 0-3-1 at least: more than the shell's 0-2-1.
 	const rule = css.match(/(\.orca-page-header[^{]*\.orca-page-title[^{]*h1[^{]*)\{([^}]*)\}/);
 	assert.ok(rule, 'the title rule names the header, the title and the h1');
-	assert.match(rule[2], /font-size:\s*28px/);
+	assert.match(rule[2], /font-size:\s*24px/);
 	const classes = (rule[1].match(/\.[\w-]+(?![^(]*\))/g) ?? []).length;
 	assert.ok(classes >= 3, `${rule[1].trim()} has ${classes} classes outside :where()`);
-	assert.match(css, /@media \(max-width: 720px\)\s*\{\s*\.orca-page-header[^{]*h1[^{]*\{\s*font-size:\s*24px/);
+	assert.match(css, /@media \(max-width: 720px\)\s*\{\s*\.orca-page-header[^{]*h1[^{]*\{\s*font-size:\s*20px/);
 });

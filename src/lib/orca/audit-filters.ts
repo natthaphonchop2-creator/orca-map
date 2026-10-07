@@ -71,7 +71,7 @@ export function filterAuditEvents(
     "7d": 604_800_000,
     "30d": 2_592_000_000,
   }[filters.timeRange ?? "all"];
-  return events
+  const matches = events
     .filter((event) => {
       if (auditEventMode(event) !== mode) return false;
       if (filters.outcome && event.outcome !== filters.outcome) return false;
@@ -113,16 +113,29 @@ export function filterAuditEvents(
         .join(" ")
         .toLocaleLowerCase();
       return words.every((word) => text.includes(word));
-    })
-    .sort((a, b) => {
-      const aTime = Date.parse(a.createdAt),
-        bTime = Date.parse(b.createdAt);
-      if (!Number.isFinite(aTime))
-        return Number.isFinite(bTime) ? 1 : a.id.localeCompare(b.id);
-      if (!Number.isFinite(bTime)) return -1;
-      const difference = aTime - bTime || a.id.localeCompare(b.id);
-      return filters.sort === "oldest" ? difference : -difference;
     });
+  return sortAuditEvents(matches, filters.sort);
+}
+
+/**
+ * The history's one order: by time, then by ID when two land in the same
+ * millisecond; no time last. The filtered rows and the whole history are put
+ * in this order before ORCA's looks are grouped, so "x จาก y รายการ" counts
+ * the same rows on both sides (Codex PC1 polish review 1).
+ */
+export function sortAuditEvents<T extends Pick<OrcaAuditEvent, "createdAt" | "id">>(
+  events: readonly T[],
+  sort: AuditSort = "newest",
+): T[] {
+  return [...events].sort((a, b) => {
+    const aTime = Date.parse(a.createdAt),
+      bTime = Date.parse(b.createdAt);
+    if (!Number.isFinite(aTime))
+      return Number.isFinite(bTime) ? 1 : a.id.localeCompare(b.id);
+    if (!Number.isFinite(bTime)) return -1;
+    const difference = aTime - bTime || a.id.localeCompare(b.id);
+    return sort === "oldest" ? difference : -difference;
+  });
 }
 
 export function auditPage<T>(

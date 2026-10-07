@@ -97,3 +97,29 @@ test('the program page on a company account: the card, no "your account" card an
 	assert.equal(calls.filter((call) => call.name === 'ProgramAccount').length, 1);
 	assert.match(personal, /tab=members"/);
 });
+
+// CA1b-5 (managed Google and Microsoft company accounts).
+test('a managed company account: its address for managers, its notice when the policy moved on, why it paused, and where to remove access at the provider', async () => {
+	const { calls, show } = await card();
+	const gmail = (extra = {}) => account({ sourceID: 'default-orca-managed-gmail', label: 'Office mailbox', accountHint: 'office@example.com', ...extra });
+	const html = show({ connection: connection({ mcpID: 'default-orca-managed-gmail', programAccountID: 'pac-1' }), initial: { accounts: [gmail()], policy: { mode: 'warn', revision: 2, notice: 'mail' } } });
+	assert.match(html, /บัญชีที่เชื่อม/);
+	assert.match(html, /office@example.com/);
+	assert.doesNotMatch(html, /<a[^>]*office@example.com/, 'shown as text, never a link');
+	const dialog = calls.find((call) => call.name === 'ConfirmDialog' && /ตัดการเชื่อมต่อ/.test(call.props.title));
+	assert.match(dialog.props.message, /หน้าความปลอดภัยของบัญชีนั้น/);
+	assert.match(dialog.props.message, /Google/);
+
+	const paused = show({ connection: connection({ mcpID: 'default-orca-managed-gmail', programAccountID: 'pac-1' }), initial: { accounts: [gmail({ status: 'needs_reconnect', pausedReason: 'grant_revoked', accountHint: undefined, acknowledgedRevision: 1 })], policy: { mode: 'warn', revision: 2, notice: 'mail' } } });
+	assert.match(paused, /หมดอายุหรือถูกยกเลิก/);
+	assert.match(paused, /อีเมลทั้งกล่องจดหมาย/, 'the mail notice, not the generic one');
+	assert.doesNotMatch(paused, /บัญชีที่เชื่อม/, 'no address without a connected account');
+
+	const outlook = show({ connection: connection({ mcpID: 'default-orca-managed-microsoft-outlook', programAccountID: 'pac-1' }), initial: { accounts: [gmail({ sourceID: 'default-orca-managed-microsoft-outlook' })], policy: { mode: 'warn', revision: 2, notice: 'mail' } } });
+	assert.ok(outlook);
+	assert.match(calls.find((call) => call.name === 'ConfirmDialog' && /ตัดการเชื่อมต่อ/.test(call.props.title)).props.message, /Microsoft/);
+
+	const plain = show({ connection: connection({ programAccountID: 'pac-1' }), initial: { accounts: [account()], policy: { mode: 'warn', revision: 1 } } });
+	assert.doesNotMatch(plain, /บัญชีที่เชื่อม/);
+	assert.doesNotMatch(calls.find((call) => call.name === 'ConfirmDialog' && /ตัดการเชื่อมต่อ/.test(call.props.title)).props.message, /หน้าความปลอดภัย/, 'only a managed program');
+});

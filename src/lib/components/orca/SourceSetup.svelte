@@ -1304,6 +1304,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
   /* These styles load before the shared workspace CSS (WorkspaceDetail and WorkspaceWizard import
      this component first), so overrides of shared classes carry an extra class. */
   .source-setup.k-panel {
@@ -1367,7 +1368,7 @@
     align-items: center;
     gap: 8px;
     color: var(--orca-muted);
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 500;
     counter-increment: api-step;
   }
@@ -1382,7 +1383,7 @@
     border-radius: 50%;
     background: var(--orca-surface);
     color: var(--orca-muted);
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 600;
     line-height: 1;
   }
@@ -1411,12 +1412,12 @@
     margin: 16px 0;
     padding-top: 12px;
     border-top: 1px solid var(--orca-line);
-    font-size: 13.5px;
+    font-size: 13px;
   }
   .client-provider-help summary,
   .source-provider summary {
     color: var(--orca-muted);
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
   }
@@ -1441,7 +1442,7 @@
     align-items: center;
     gap: 6px;
     color: var(--orca-ink);
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 500;
     text-decoration: underline;
     text-decoration-thickness: 1px;
@@ -1468,7 +1469,7 @@
     background: none;
     color: var(--orca-text-2);
     font: inherit;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 500;
     text-decoration: underline;
     text-decoration-color: var(--orca-line-strong);
@@ -1489,12 +1490,12 @@
   .source-provider p {
     margin: 8px 0 0;
     color: var(--orca-muted);
-    font-size: 13.5px;
+    font-size: 13px;
     line-height: 1.7;
   }
   .setup-field-help {
     margin-top: 12px;
-    font-size: 13.5px;
+    font-size: 13px;
   }
   .setup-field-help strong {
     display: block;
@@ -1508,7 +1509,7 @@
     border-radius: 4px;
     background: var(--orca-secondary);
     color: var(--orca-nav);
-    font-size: 12.5px;
+    font-size: 12px;
     overflow-wrap: anywhere;
   }
   .callback-row {

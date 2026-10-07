@@ -6,7 +6,9 @@
 		acknowledgedRevision,
 		companyAccountStatus,
 		defaultAccountLabel,
+		managedProviderOf,
 		needsAcknowledgement,
+		policyNotice,
 		policyStep,
 		programAccountsFor
 	} from '$lib/orca/company-account';
@@ -38,7 +40,8 @@
 		pending?: string;
 		/** The first read, for a page that already has it (and for tests). */
 		initial?: { accounts: OrcaProgramAccount[]; policy?: OrcaCompanyAccountPolicy };
-		onready: (programAccountID: string) => Promise<void> | void;
+		/** The account is ready: its ID, and the provider address it signed in as (a display hint, managers only), for the summary before saving. */
+		onready: (programAccountID: string, accountHint?: string) => Promise<void> | void;
 	} = $props();
 
 	const first = untrack(() => initial);
@@ -68,6 +71,7 @@
 
 	const forProgram = $derived(programAccountsFor(sourceID, accounts));
 	const step = $derived(policyStep(policy));
+	const managed = $derived(managedProviderOf(sourceID));
 	const accepted = $derived(acceptanceHolds(policy, acceptedRevision));
 	const chosen = $derived(forProgram.find((item) => item.id === choice));
 	const needsAck = $derived(step === 'acknowledge' && (choice === 'new' || needsAcknowledgement(policy, chosen)));
@@ -133,7 +137,7 @@
 				accounts = [...accounts, use];
 				choice = use.id;
 			}
-			if (use.status === 'ready' && !needsAcknowledgement(policy, use)) await onready(use.id);
+			if (use.status === 'ready' && !needsAcknowledgement(policy, use)) await onready(use.id, use.accountHint);
 			else await startConnecting(use.id, needsAcknowledgement(policy, use) ? revision : 0);
 		});
 	}
@@ -244,7 +248,7 @@
 		signInURL = '';
 		detailsSaved = false;
 		acceptedRevision = 0;
-		await onready(connected.id);
+		await onready(connected.id, connected.accountHint);
 	}
 </script>
 
@@ -264,7 +268,7 @@
 					<legend>{t('ใช้บัญชีกลางไหน', 'Which company account')}</legend>
 					{#each forProgram as item (item.id)}
 						{@const itemStatus = companyAccountStatus(item)}
-						<label class="cc-choice"><input type="radio" name="cc-choice" value={item.id} bind:group={choice} />{item.label} <small>{t(itemStatus.th, itemStatus.en)}</small></label>
+						<label class="cc-choice"><input type="radio" name="cc-choice" value={item.id} bind:group={choice} />{item.label} <small>{[t(itemStatus.th, itemStatus.en), item.accountHint].filter(Boolean).join(' · ')}</small></label>
 					{/each}
 					<label class="cc-choice"><input type="radio" name="cc-choice" value="new" bind:group={choice} />{t('สร้างบัญชีกลางใหม่', 'A new company account')}</label>
 				</fieldset>
@@ -273,10 +277,7 @@
 				<label class="cc-field">{t('ชื่อบัญชีกลาง', 'Name')}<input bind:value={label} maxlength="80" required /></label>
 			{/if}
 			{#if needsAck}
-				<p class="cc-note warn">{t(
-					`ทุกคนที่ได้รับอนุญาตจะใช้บัญชี ${programName} นี้ผ่าน AI และเห็นข้อมูลชุดเดียวกัน เงื่อนไขของ ${programName} อาจไม่อนุญาตให้หลายคนใช้บัญชีเดียว บริษัทของคุณรับผิดชอบการใช้ตามเงื่อนไขนั้นเอง`,
-					`Everyone allowed uses this ${programName} account through AI and sees the same data. ${programName}'s terms may not allow sharing one login; your company is responsible for following them.`
-				)}</p>
+				<p class="cc-note warn">{policyNotice(policy, programName, t)}</p>
 				<label class="cc-check"><input type="checkbox" checked={accepted} onchange={(event) => (acceptedRevision = event.currentTarget.checked ? (policy?.revision ?? 0) : 0)} />{t('เข้าใจและยอมรับ', 'I understand and accept')}</label>
 			{/if}
 			<div class="cc-actions">
@@ -304,6 +305,7 @@
 					<button type="button" class="k-button primary" disabled={Boolean(busy) || waiting} onclick={signIn}>{t(`ลงชื่อเข้าใช้ ${programName}`, `Sign in to ${programName}`)}</button>
 					{#if signInURL}<a class="k-button" href={signInURL} target="_blank" rel="noopener noreferrer">{t('เปิดหน้าต่างอีกครั้ง', 'Open the window again')}</a>{/if}
 				</div>
+				{#if managed === 'microsoft'}<p class="cc-note">{t('ถ้าบริษัทใช้ Microsoft 365 และหน้า Microsoft ขอให้แอดมินอนุมัติ ให้แอดมิน Microsoft 365 ของบริษัทอนุมัติ ORCA ก่อน แล้วกดเชื่อมใหม่', "If Microsoft asks for an administrator's approval, your Microsoft 365 admin approves ORCA first; then connect again.")}</p>{/if}
 				{#if waiting}<p class="cc-note" role="status">{t(`รอให้ลงชื่อเข้าใช้ในหน้าต่าง ${programName}…`, `Waiting for the sign-in in the ${programName} window…`)}</p>{/if}
 			{/if}
 			<div class="cc-actions"><button type="button" class="k-button quiet" disabled={Boolean(busy)} onclick={cancelConnecting}>{t('ยกเลิก', 'Cancel')}</button></div>
@@ -314,6 +316,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.cc {
 		min-width: 0;
 		padding: 18px 20px;
@@ -324,7 +327,7 @@
 	.cc-note {
 		margin: 0 0 4px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.cc-note.warn {
 		margin-top: 12px;
@@ -357,14 +360,14 @@
 	}
 	.cc-form legend {
 		margin-bottom: 6px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.cc-field {
 		display: grid;
 		gap: 6px;
 		margin-top: 10px;
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 	}
 	.cc-field small {
@@ -385,7 +388,7 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.cc-choice small {
 		color: var(--orca-muted);

@@ -32,6 +32,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.ws-section {
 		display: grid;
 		grid-template-columns: 260px minmax(0, 1fr);
@@ -45,7 +46,7 @@
 	.ws-section-label h2 {
 		margin: 0 0 4px;
 		color: var(--orca-ink);
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 		line-height: 1.4;
 		letter-spacing: -0.005em;
@@ -61,7 +62,7 @@
 	.ws-section-label p {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.55;
 	}
 	.ws-section-body {

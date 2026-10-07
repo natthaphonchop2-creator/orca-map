@@ -33,9 +33,11 @@ async function files(dir) {
 	return found;
 }
 
-/** The Thai half of every t('ไทย', 'English') call. */
+/** The Thai half of every t('ไทย', 'English') call, and every { th: 'ไทย', en: … } text a screen shows through t(copy.th, copy.en). */
 function thaiCopy(source) {
-	return [...source.matchAll(/(?<![\w$.])t\(\s*(["'`])((?:\\.|(?!\1)[^\\])*)\1/g)].map((match) => match[2]).filter((text) => /[฀-๿]/.test(text));
+	const calls = [...source.matchAll(/(?<![\w$.])t\(\s*(["'`])((?:\\.|(?!\1)[^\\])*)\1/g)].map((match) => match[2]);
+	const copies = [...source.matchAll(/(?<![\w$])th:\s*(["'`])((?:\\.|(?!\1)[^\\])*)\1/g)].map((match) => match[2]);
+	return [...calls, ...copies].filter((text) => /[฀-๿]/.test(text));
 }
 
 const SOURCES = [

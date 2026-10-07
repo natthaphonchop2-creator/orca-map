@@ -5,6 +5,7 @@
 	import { aiConnection, setAIConnection } from '$lib/orca/ai-connection.svelte';
 	import type { AIApp } from '$lib/orca/client-config';
 	import { companyPinned, currentCompany } from '$lib/orca/company';
+	import { companyStop } from '$lib/orca/company-stop';
 	import {
 		AI_APP_KEY,
 		aiConnectionFrom,
@@ -171,7 +172,8 @@
 			requestAnimationFrame(revealAccounts);
 			for (const type of ['wheel', 'touchmove', 'keydown', 'pointerdown'] as const) window.addEventListener(type, stopRevealing, { once: true, passive: true });
 		}
-		poller = createPoller(load, { interval: 4000, visible: () => document.visibilityState !== 'hidden' });
+		// Never again once the company is suspended or closed (company-stop).
+		poller = createPoller(load, { interval: 4000, visible: () => document.visibilityState !== 'hidden', until: companyStop.pageSignal() });
 		void poller.poke();
 		// Hidden: no requests. Shown again (back from Claude's tab): check at once.
 		const onVisibility = () => {
@@ -218,7 +220,7 @@
 <div class="ca">
 	<PageHeader
 		title={term('connectMyAI', t)}
-		subtitle={t('ให้ Claude หรือ ChatGPT ใช้ข้อมูลบริษัทได้ ทำครั้งเดียว ประมาณ 3 นาที ไม่ต้องใช้คีย์', 'Let Claude or ChatGPT use company data. Once, about 3 minutes, no key needed.')}
+		subtitle={t('ทำครั้งเดียว ประมาณ 3 นาที', 'Once, about 3 minutes.')}
 		status={aiConnection.state === 'unknown' ? undefined : { label: aiConnectionLine(aiConnection, t), tone: aiConnection.state === 'connected' && !aiConnection.only?.length ? 'ok' : 'neutral' }}
 	/>
 
@@ -295,6 +297,7 @@
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.ca {
 		container: ca / inline-size;
 		max-width: 1040px;
@@ -328,16 +331,16 @@
 	.ca-copy :global(.orca-copy.large .orca-copy-button) {
 		min-height: 52px;
 		padding: 0 22px;
-		font-size: 15px;
+		font-size: 14px;
 	}
 	.ca-copy :global(.orca-copy-label) {
 		color: var(--orca-subtle);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 	}
 	.ca-copy :global(.orca-copy-value code) {
 		color: var(--orca-text-2);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.5;
 	}
 	.ca-namerow {
@@ -348,7 +351,7 @@
 		padding: 13px 18px;
 		border-top: 1px solid var(--orca-line-soft);
 		background: var(--orca-surface-2);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ca-namelabel {
 		color: var(--orca-muted);
@@ -382,7 +385,7 @@
 		background: transparent;
 		color: var(--orca-muted);
 		font: inherit;
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -396,7 +399,7 @@
 		gap: 8px;
 		margin: 12px 0 0;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.ca-tip :global(svg) {
@@ -408,7 +411,7 @@
 		border: 1px dashed var(--orca-line-strong);
 		border-radius: var(--orca-radius-lg);
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.ca-sep {
 		height: 1px;
@@ -426,7 +429,7 @@
 	.ca-help {
 		margin: 22px 0 0;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.7;
 	}
 	.ca-help a {

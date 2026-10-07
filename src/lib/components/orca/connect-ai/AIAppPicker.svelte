@@ -61,6 +61,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.ca-tiles {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -70,7 +71,7 @@
 		padding: 18px;
 	}
 	.ca-tiles :global(.orca-choice-title) {
-		font-size: 17px;
+		font-size: 16px;
 		line-height: 1.3;
 	}
 	.ca-logo {
@@ -107,7 +108,7 @@
 		background: transparent;
 		color: var(--orca-text-2);
 		font: inherit;
-		font-size: 14px;
+		font-size: 13.5px;
 		text-align: left;
 		cursor: pointer;
 	}
@@ -119,7 +120,7 @@
 	}
 	.ca-dev-list {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.ca-dev-toggle :global(svg) {
 		flex: none;
@@ -139,10 +140,10 @@
 		padding: 12px 12px 12px 14px;
 	}
 	.ca-dev-tiles :global(.orca-choice-title) {
-		font-size: 14.5px;
+		font-size: 13.5px;
 	}
 	.ca-dev-tiles :global(.orca-choice-description) {
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.ca-dev-tiles :global(.orca-choice-radio) {
 		width: 18px;

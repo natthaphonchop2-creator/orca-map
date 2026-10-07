@@ -81,6 +81,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.done {
 		max-width: 760px;
 		padding: 32px;
@@ -112,14 +113,14 @@
 	}
 	.done h1 {
 		margin: 0;
-		font-size: 26px;
+		font-size: 22px;
 		font-weight: 700;
 		line-height: 1.3;
 	}
 	.done-head p {
 		margin: 4px 0 0;
 		color: var(--orca-text-2);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 	}
 	.done-note {
@@ -132,7 +133,7 @@
 		border-radius: 0 var(--orca-radius) var(--orca-radius) 0;
 		background: var(--orca-citron-soft);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.55;
 	}
 	/* A short Thai phrase stays on one line (keepTogether). */
@@ -149,13 +150,13 @@
 	:global(.orca-workspace.orca-app) .k-button.done-go {
 		min-height: 48px;
 		padding: 0 22px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 	}
 	.done-preview {
 		margin: 8px 0 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.done-chooser {
 		position: relative;
@@ -183,7 +184,7 @@
 		padding: 10px 12px;
 		border-radius: var(--orca-radius);
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
 		text-decoration: none;
 	}
@@ -201,7 +202,7 @@
 			padding: 20px;
 		}
 		.done h1 {
-			font-size: 22px;
+			font-size: 20px;
 		}
 		.done-chooser,
 		.done-chooser .done-go,

@@ -1,5 +1,6 @@
 import { UNAUTHORIZED_PATHS, UNAUTHORIZED_PATH_PREFIXES } from '$lib/constants';
 import { createHttpError } from '$lib/errors';
+import { companyStop, stoppedCode } from '$lib/orca/company-stop';
 import { loginHref } from '$lib/orca/navigation';
 import errors from '$lib/stores/errors.svelte';
 import profile from '$lib/stores/profile.svelte';
@@ -37,6 +38,14 @@ function accountChanged(status: number, body: string) {
 }
 
 export { writesInFlight };
+
+// Once this page's company is suspended or closed, a request for it fails at
+// once with the company's 423, never reaching the server; and a 423 for it,
+// from any request, stops the page (platform console C6 §4.2, company-stop).
+function companyRefusal(path: string): Error | undefined {
+	const status = companyStop.refusal(path);
+	return status ? createHttpError(423, path, stoppedCode(status)) : undefined;
+}
 
 interface GetOptions {
 	blob?: boolean;
@@ -83,16 +92,24 @@ export async function doGet(path: string, opts?: GetOptions): Promise<unknown> {
 // and response headers, as required for file downloads.
 export async function doGetForResponse(path: string, opts?: GetOptions): Promise<Response> {
 	const f = opts?.fetch || fetch;
-	const resp = await f(baseURL + path, {
-		headers: {
-			...getAuthHeaders(path),
-			// Pass the browser timezone as a request header.
-			// This is consumed during authentication to set the user's default timezone in Obot.
-			// The timezone is plumbed down to tools at runtime as an environment variable.
-			'x-obot-user-timezone': Intl.DateTimeFormat().resolvedOptions().timeZone
-		},
-		signal: opts?.signal
-	});
+	const refused = companyRefusal(path);
+	if (refused) throw refused;
+	let resp: Response;
+	try {
+		resp = await f(baseURL + path, {
+			headers: {
+				...getAuthHeaders(path),
+				// Pass the browser timezone as a request header.
+				// This is consumed during authentication to set the user's default timezone in Obot.
+				// The timezone is plumbed down to tools at runtime as an environment variable.
+				'x-obot-user-timezone': Intl.DateTimeFormat().resolvedOptions().timeZone
+			},
+			// A load for the page's company is aborted when the company stops.
+			signal: companyStop.signal(path, opts?.signal)
+		});
+	} catch (e) {
+		throw companyRefusal(path) ?? e;
+	}
 
 	if (!resp.ok) {
 		if (resp.status === 401) {
@@ -100,6 +117,7 @@ export async function doGetForResponse(path: string, opts?: GetOptions): Promise
 		}
 		const body = await resp.text();
 		accountChanged(resp.status, body);
+		companyStop.notice(resp.status, path, body);
 		const e = createHttpError(resp.status, path, body);
 		if (opts?.dontLogErrors) {
 			throw e;
@@ -129,6 +147,8 @@ export async function doDelete(
 ): Promise<unknown> {
 	// Counted until its response is handled, so a switch never cuts it off.
 	return counted(async () => {
+		const refused = companyRefusal(path);
+		if (refused) throw refused;
 		const f = opts?.fetch || fetch;
 		const resp = await f(baseURL + path, {
 			method: 'DELETE',
@@ -165,6 +185,7 @@ export async function handleResponse(
 	if (!resp.ok) {
 		const body = await resp.text();
 		accountChanged(resp.status, body);
+		companyStop.notice(resp.status, path, body);
 		const e = createHttpError(resp.status, path, body);
 		if (opts?.dontLogErrors) {
 			throw e;
@@ -210,6 +231,8 @@ export async function doWithBody(
 	try {
 		// Counted until its response is handled, so a switch never cuts it off.
 		return await counted(async () => {
+			const refused = companyRefusal(path);
+			if (refused) throw refused;
 			const f = opts?.fetch || fetch;
 			const resp = await f(baseURL + path, {
 				method,
@@ -302,6 +325,11 @@ export function doUpload(
 					reject(aborted());
 					return;
 				}
+				const refused = companyRefusal(path);
+				if (refused) {
+					reject(refused);
+					return;
+				}
 				const request: UploadRequest = opts?.request?.() ?? (new XMLHttpRequest() as unknown as UploadRequest);
 				const stop = () => request.abort();
 				const done = () => opts?.signal?.removeEventListener('abort', stop);
@@ -316,6 +344,7 @@ export function doUpload(
 					if (request.status < 200 || request.status >= 300) {
 						if (request.status === 401) handle401Redirect();
 						accountChanged(request.status, body);
+						companyStop.notice(request.status, path, body);
 						const e = createHttpError(request.status, path, body);
 						if (!opts?.dontLogErrors) errors.items.push(e);
 						reject(e);

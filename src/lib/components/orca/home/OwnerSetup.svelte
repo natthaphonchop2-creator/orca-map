@@ -74,7 +74,7 @@
 
 <SetupCard
 	title={t('ขั้นตอนที่ต้องทำ', 'Steps to finish')}
-	subtitle={t('ทำตามลำดับ เสร็จแล้วทีมของคุณถามข้อมูลบริษัทผ่าน AI ได้ทันที', 'Follow them in order. Then your team can ask AI about company data.')}
+	subtitle={t('ทำตามลำดับ แล้วทีมถาม AI ได้ทันที', 'Follow them in order, then your team can ask AI.')}
 	steps={list.steps}
 	doneCount={list.doneCount}
 	remainingMinutes={list.remainingMinutes}
@@ -264,6 +264,7 @@
 </SetupCard>
 
 <style>
+	/* orca-type-remap v1 */
 	.home-acts {
 		display: flex;
 		flex-wrap: wrap;
@@ -274,7 +275,7 @@
 	.home-acts :global(.k-button.lg) {
 		min-height: 50px;
 		padding: 0 22px;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 	}
 	.home-acts :global(.k-button.lg svg) {
@@ -284,7 +285,7 @@
 	.home-acts-note {
 		margin-left: 8px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.home-acts-note.end {
 		margin-left: auto;
@@ -292,7 +293,7 @@
 	.home-aside {
 		margin: 14px 0 0;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.home-aside.warn {
 		color: var(--orca-warn);
@@ -324,14 +325,14 @@
 	.home-fact small {
 		display: block;
 		color: var(--orca-muted);
-		font-size: 12px;
+		font-size: 11.5px;
 		line-height: 1.4;
 	}
 	.home-fact b {
 		display: block;
 		margin-top: 1px;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 		line-height: 1.4;
 	}
@@ -339,7 +340,7 @@
 		display: block;
 		margin-top: 3px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.home-fact-icon {
@@ -372,12 +373,12 @@
 	}
 	.home-later-head b {
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 700;
 	}
 	.home-later-head span {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.home-later-grid {
 		display: grid;
@@ -407,14 +408,14 @@
 	.home-option .home-option-title h3 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 		line-height: 1.45;
 	}
 	.home-option-copy p {
 		margin: 1px 0 0;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		line-height: 1.5;
 	}
 	.home-option-actions {
@@ -437,7 +438,7 @@
 		background: none;
 		color: var(--orca-muted);
 		font: inherit;
-		font-size: 12.5px;
+		font-size: 12px;
 		text-decoration: underline;
 		text-decoration-color: var(--orca-line-strong);
 		text-underline-offset: 3px;

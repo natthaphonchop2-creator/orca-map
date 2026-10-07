@@ -59,6 +59,7 @@
 </section>
 
 <style>
+	/* orca-type-remap v1 */
 	.home-setup {
 		overflow: hidden;
 		border: 1px solid var(--orca-line);
@@ -75,14 +76,14 @@
 	.home-setup .home-setup-head h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 17px;
+		font-size: 16px;
 		font-weight: 700;
 		line-height: 1.35;
 	}
 	.home-setup .home-setup-head p {
 		margin: 2px 0 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.home-setup-progress {
 		display: flex;
@@ -90,7 +91,7 @@
 		align-items: center;
 		gap: 14px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.home-setup-progress b {
 		color: var(--orca-ink);

@@ -39,7 +39,7 @@
 	{#if data.platformOperator}
 		<PageHeader
 			title={t('คลังโปรแกรม', 'Program catalog')}
-			subtitle={t('เพิ่มโปรแกรมใหม่ด้วยลิงก์ MCP แล้วพาไปเชื่อมบัญชีและเลือกสิ่งที่ AI ทำได้', 'Add a program by its MCP link, then connect it and choose what AI can do.')}
+			subtitle={t('เพิ่มโปรแกรมด้วยลิงก์ MCP', 'Add a program by its MCP link.')}
 		/>
 		<SourceSetup operator canCreate oncreated={added} />
 	{/if}

@@ -225,6 +225,7 @@
 </details>
 
 <style>
+	/* orca-type-remap v1 */
 	.ca-keys {
 		margin-top: 14px;
 		border: 1px solid var(--orca-line);
@@ -238,7 +239,7 @@
 		padding: 14px 20px;
 		border-radius: var(--orca-radius-lg);
 		color: var(--orca-text-2);
-		font-size: 14px;
+		font-size: 13.5px;
 		list-style: none;
 		cursor: pointer;
 	}
@@ -277,7 +278,7 @@
 	.ca-intro {
 		margin: 0;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 		line-height: 1.6;
 	}
 	fieldset {
@@ -305,7 +306,7 @@
 	.ca-failure {
 		margin: 12px 0 0;
 		color: var(--orca-deny);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.ca-created {
 		display: grid;
@@ -320,7 +321,7 @@
 		align-items: center;
 		gap: 6px;
 		color: var(--orca-ink);
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 650;
 	}
 	.ca-created b :global(svg) {
@@ -329,7 +330,7 @@
 	.ca-created p {
 		margin: 0;
 		color: var(--orca-text-2);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.ca-keyline {
 		display: flex;
@@ -346,7 +347,7 @@
 		background: var(--orca-field);
 		color: var(--orca-ink);
 		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-		font-size: 13px;
+		font-size: 12.5px;
 		overflow-wrap: anywhere;
 		user-select: all;
 	}
@@ -362,26 +363,26 @@
 	.ca-howto h3 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.ca-howto p {
 		margin: 0;
-		font-size: 13.5px;
+		font-size: 13px;
 		line-height: 1.6;
 	}
 	.ca-howto .k-button {
 		justify-self: start;
 	}
 	.small {
-		font-size: 13px !important;
+		font-size: 12.5px !important;
 	}
 	.ca-facts {
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr);
 		gap: 4px 16px;
 		margin: 0;
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	.ca-facts dt {
 		color: var(--orca-muted);
@@ -390,7 +391,7 @@
 		margin: 0;
 		color: var(--orca-ink);
 		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-		font-size: 12.5px;
+		font-size: 12px;
 		overflow-wrap: anywhere;
 	}
 	.ca-code {
@@ -416,14 +417,14 @@
 		min-width: 0;
 		color: var(--orca-ink);
 		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-		font-size: 12.5px;
+		font-size: 12px;
 		overflow-wrap: anywhere;
 	}
 	.ca-code pre {
 		margin: 8px 0 0;
 		overflow: auto;
 		color: var(--orca-ink);
-		font-size: 12.5px;
+		font-size: 12px;
 		line-height: 1.55;
 	}
 	.ca-announce {

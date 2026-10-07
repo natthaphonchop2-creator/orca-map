@@ -94,7 +94,18 @@ export function lastUsedLabel(lastCallDay: string | null, today: string, t: (th:
 	if (ago === 0) return t('วันนี้', 'Today');
 	if (ago === 1) return t('เมื่อวาน', 'Yesterday');
 	if (ago > 1 && ago < 7) return t(`${ago} วันก่อน`, `${ago} days ago`);
-	const [y, m, d] = lastCallDay.split('-').map(Number);
+	return displayDay(lastCallDay, locale);
+}
+
+/**
+ * A calendar day (YYYY-MM-DD) as people read it, with no time: "30 ก.ย. 2569"
+ * or "30 Sept 2026", the way displayDate writes the date part. Anything else
+ * is shown as it came, or "—" for nothing.
+ */
+export function displayDay(value: string | null | undefined, locale: 'th' | 'en' = 'th'): string {
+	if (!value) return '—';
+	if (!DAY.test(value)) return value;
+	const [y, m, d] = value.split('-').map(Number);
 	return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'th-TH', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 

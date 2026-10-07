@@ -117,7 +117,6 @@
 			<header class="home-card-head">
 				<div>
 					<h2 id="home-spaces-title">{manager ? term('workspaces', t) : t('พื้นที่ทำงานของคุณ', 'Your workspaces')}</h2>
-					<p>{t('ใครใช้โปรแกรมไหนได้ และ AI ทำอะไรได้บ้าง', 'Who can use which program, and what AI can do')}</p>
 				</div>
 				<a class="k-button small" href={localeHref('/app?view=workspaces')}>{t('ดูทั้งหมด', 'View all')}</a>
 			</header>
@@ -150,7 +149,6 @@
 			<header class="home-card-head">
 				<div>
 					<h2 id="home-activity-title">{t('การใช้งานล่าสุด', 'Recent use')}</h2>
-					<p>{manager ? t('สิ่งที่ AI ของทีมทำผ่าน ORCA ล่าสุด', "What your team's AI did through ORCA") : t('สิ่งที่ AI ของคุณทำผ่าน ORCA ล่าสุด', 'What your AI did through ORCA')}</p>
 				</div>
 				<a class="k-button small" href={localeHref('/app?view=executions')}>{term('usageHistory', t)}</a>
 			</header>
@@ -195,7 +193,7 @@
 					{#if setupNeeded > 0}
 						<a class="home-alert" href={localeHref('/app?view=servers&status=needs-review')}>
 							<CircleAlert size={17} aria-hidden="true" />
-							<span><strong>{t(`โปรแกรมรอเลือกสิ่งที่ AI ทำได้ ${setupNeeded} โปรแกรม`, `${setupNeeded} ${setupNeeded === 1 ? 'program needs' : 'programs need'} you to choose what AI can do`)}</strong><small>{t('เลือกก่อน ทีมถึงจะใช้ได้', 'Choose it before your team can use them')}</small></span>
+							<span><strong>{t(`โปรแกรมรอเลือกสิ่งที่ AI ทำได้ ${setupNeeded} โปรแกรม`, `${setupNeeded} ${setupNeeded === 1 ? 'program needs' : 'programs need'} you to choose what AI can do`)}</strong></span>
 							<ArrowRight size={15} aria-hidden="true" />
 						</a>
 					{/if}
@@ -223,7 +221,7 @@
 					{#if staleApps > 0}
 						<a class="home-alert quiet" href={localeHref(connectedAppsHref('stale'))}>
 							<CircleAlert size={17} aria-hidden="true" />
-							<span><strong>{t(`มี ${staleApps} แอป AI ที่ไม่ได้ใช้เกิน ${STALE_DAYS} วัน`, `${staleApps} AI apps unused for ${STALE_DAYS}+ days`)}</strong><small>{t('ตัดการเชื่อมต่อถ้าไม่ได้ใช้แล้ว', 'Disconnect the ones no longer used')}</small></span>
+							<span><strong>{t(`มี ${staleApps} แอป AI ที่ไม่ได้ใช้เกิน ${STALE_DAYS} วัน`, `${staleApps} AI apps unused for ${STALE_DAYS}+ days`)}</strong></span>
 							<ArrowRight size={15} aria-hidden="true" />
 						</a>
 					{/if}
@@ -258,13 +256,14 @@
 
 		<a class="home-card home-knowledge" href={localeHref('/app?view=knowledge')}>
 			<span class="home-knowledge-icon" aria-hidden="true"><BookOpen size={18} /></span>
-			<span><strong>{term('knowledge', t)}</strong><small>{t('เก็บคู่มือและข้อมูลของบริษัท ให้ AI ตอบได้ถูกต้อง', 'Keep company guides and facts, so AI answers correctly')}</small></span>
+			<span><strong>{term('knowledge', t)}</strong></span>
 			<ArrowRight size={16} aria-hidden="true" />
 		</a>
 	</aside>
 </div>
 
 <style>
+	/* orca-type-remap v1 */
 	.home-stats {
 		display: grid;
 		grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -296,18 +295,18 @@
 		justify-content: space-between;
 		gap: 8px;
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 		font-weight: 500;
 	}
 	.home-stat strong {
-		font-size: 28px;
+		font-size: 24px;
 		font-weight: 700;
 		line-height: 1.2;
 		font-variant-numeric: tabular-nums;
 	}
 	.home-stat small {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.home-grid {
 		display: grid;
@@ -336,14 +335,9 @@
 	.home-card .home-card-head h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: 700;
 		line-height: 1.4;
-	}
-	.home-card-head p {
-		margin: 2px 0 0;
-		color: var(--orca-muted);
-		font-size: 13.5px;
 	}
 	.home-card-head :global(.k-button) {
 		flex: none;
@@ -356,7 +350,7 @@
 		margin: 0;
 		padding: 18px 20px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.home-clear {
 		display: flex;
@@ -397,7 +391,7 @@
 	.home-space-main strong,
 	.home-program-copy strong {
 		overflow: hidden;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -408,7 +402,7 @@
 		align-items: center;
 		gap: 8px;
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.home-logos {
 		display: inline-flex;
@@ -423,7 +417,7 @@
 	}
 	.home-usage small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-variant-numeric: tabular-nums;
 	}
 	.home-bar {
@@ -451,7 +445,7 @@
 	.home-program-copy small,
 	.home-alert small {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 	}
 	.home-alert {
 		align-items: flex-start;
@@ -465,7 +459,7 @@
 	}
 	.home-alert strong {
 		color: var(--orca-ink);
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.home-alert.quiet {
@@ -478,7 +472,7 @@
 	.home-activity {
 		width: 100%;
 		border-collapse: collapse;
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.home-activity th {
 		padding: 10px 20px;
@@ -486,7 +480,7 @@
 		border-bottom: 1px solid var(--orca-line-soft);
 		background: var(--orca-surface-2);
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		font-weight: 600;
 		text-align: left;
 	}
@@ -508,11 +502,11 @@
 	}
 	.home-activity td small {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.home-activity time {
 		color: var(--orca-muted);
-		font-size: 13px;
+		font-size: 12.5px;
 		white-space: nowrap;
 	}
 	.home-knowledge {
@@ -534,12 +528,8 @@
 		min-width: 0;
 	}
 	.home-knowledge strong {
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 600;
-	}
-	.home-knowledge small {
-		color: var(--orca-muted);
-		font-size: 13px;
 	}
 	.home-knowledge-icon {
 		display: grid;
@@ -570,7 +560,7 @@
 			padding: 14px 16px;
 		}
 		.home-stat strong {
-			font-size: 24px;
+			font-size: 20px;
 		}
 		.home-card-head,
 		.home-space,
@@ -617,7 +607,7 @@
 		.home-activity td[data-label]::before {
 			content: attr(data-label) ' · ';
 			color: var(--orca-muted);
-			font-size: 12.5px;
+			font-size: 12px;
 		}
 		.home-activity .home-activity-who {
 			grid-column: 1 / -1;

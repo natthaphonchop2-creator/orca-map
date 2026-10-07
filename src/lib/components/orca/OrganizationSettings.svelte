@@ -212,7 +212,7 @@
       </h2>
       <p>
         {t(
-          "ทีม สาขา และโครงการที่สร้างไว้ก่อนหน้านี้ ใช้เป็นป้ายกำกับของพื้นที่ทำงานเท่านั้น ไม่ได้ให้สิทธิ์ใคร",
+          "ใช้เป็นป้ายกำกับเท่านั้น ไม่ได้ให้สิทธิ์ใคร",
           "Teams, branches and projects made earlier. They only label workspaces; they give nobody access.",
         )}
       </p>
@@ -236,6 +236,7 @@
 </section>{/if}
 
 <style>
+	/* orca-type-remap v1 */
   .org-panel {
     min-width: 0;
     margin-bottom: 16px;
@@ -265,7 +266,7 @@
     max-width: 72ch;
     margin: 2px 0 0;
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: 1.6;
   }
   .org-count {
@@ -277,7 +278,7 @@
     border-radius: var(--orca-radius-sm);
     background: var(--orca-secondary);
     color: var(--orca-nav);
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 500;
   }
   .org-panel-body {
@@ -295,7 +296,7 @@
     padding: 12px 18px;
     border-top: 1px solid var(--orca-line);
     color: var(--orca-muted);
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: 1.6;
   }
   .org-panel-note a {
@@ -339,7 +340,7 @@
     display: block;
     margin-bottom: 6px;
     color: var(--orca-ink);
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 600;
   }
   /* The real input stays in the page (keyboard and screen readers use it); the label is its button. */
@@ -370,7 +371,7 @@
     display: block;
     margin-top: 6px;
     color: var(--orca-muted);
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .org-table-wrap {
     overflow-x: auto;
@@ -385,7 +386,7 @@
     border-bottom: 1px solid var(--orca-line);
     background: var(--orca-surface-2);
     color: var(--orca-nav);
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 500;
     text-align: start;
     white-space: nowrap;
@@ -393,7 +394,7 @@
   .org-table td {
     padding: 10px 14px;
     border-bottom: 1px solid var(--orca-line-soft, #eff0f2);
-    font-size: 14px;
+    font-size: 13.5px;
     vertical-align: middle;
   }
   .org-table tbody tr:last-child td {

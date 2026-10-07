@@ -178,6 +178,7 @@
 {/if}
 
 <style>
+	/* orca-type-remap v1 */
 	.pp-edit {
 		max-width: 760px;
 		margin-bottom: 28px;
@@ -186,13 +187,13 @@
 	.pp-list-head h2 {
 		margin: 0;
 		color: var(--orca-ink);
-		font-size: 17px;
+		font-size: 16px;
 		font-weight: 700;
 	}
 	.pp-edit > p {
 		margin: 4px 0 14px;
 		color: var(--orca-muted);
-		font-size: 14px;
+		font-size: 13.5px;
 	}
 	.pp-list {
 		border: 1px solid var(--orca-line);
@@ -208,11 +209,11 @@
 		padding: 16px 18px 12px;
 	}
 	.pp-list-head h2 {
-		font-size: 15.5px;
+		font-size: 14px;
 	}
 	.pp-legacy {
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 	}
 	.pp-list ul {
 		margin: 0;
@@ -236,7 +237,7 @@
 		border-radius: 50%;
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
-		font-size: 13px;
+		font-size: 12.5px;
 		font-weight: 700;
 	}
 	.pp-avatar.me {
@@ -252,13 +253,13 @@
 	}
 	.pp-copy strong {
 		color: var(--orca-ink);
-		font-size: 14.5px;
+		font-size: 13.5px;
 		font-weight: 600;
 	}
 	.pp-copy small {
 		overflow: hidden;
 		color: var(--orca-muted);
-		font-size: 12.5px;
+		font-size: 12px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
@@ -277,7 +278,7 @@
 		border-radius: 999px;
 		background: var(--orca-secondary);
 		color: var(--orca-text-2);
-		font-size: 12px;
+		font-size: 11.5px;
 		font-weight: 600;
 	}
 	.pp-more {
@@ -285,7 +286,7 @@
 		padding: 12px 18px 16px;
 		border-top: 1px solid var(--orca-line-soft);
 		color: var(--orca-muted);
-		font-size: 13.5px;
+		font-size: 13px;
 	}
 	@media (max-width: 720px) {
 		.pp-list li {
